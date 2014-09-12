@@ -25,11 +25,11 @@ X_train, y_train = data[0]
 X_valid, y_valid = data[1]
 X_test, y_test = data[2]
 
-X_train_shared = theano.shared(X_train)
+X_train_shared = theano.shared(nntools.utils.floatX(X_train))
 y_train_shared = T.cast(theano.shared(y_train), 'int32')
-X_valid_shared = theano.shared(X_valid)
+X_valid_shared = theano.shared(nntools.utils.floatX(X_valid))
 y_valid_shared = T.cast(theano.shared(y_valid), 'int32')
-X_test_shared = theano.shared(X_test)
+X_test_shared = theano.shared(nntools.utils.floatX(X_test))
 y_test_shared = T.cast(theano.shared(y_test), 'int32')
 
 num_examples_train = X_train.shape[0]

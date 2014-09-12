@@ -91,7 +91,7 @@ iter_valid = theano.function([batch_index], [loss_eval, accuracy], givens={
         y_batch: y_valid_shared[batch_slice],
     })
 
-iter_est = theano.function([batch_index], [loss_eval, accuracy], givens={
+iter_test = theano.function([batch_index], [loss_eval, accuracy], givens={
         X_batch: X_test_shared[batch_slice],
         y_batch: y_test_shared[batch_slice],
     })

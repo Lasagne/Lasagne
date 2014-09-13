@@ -5,13 +5,58 @@ import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 # from theano.tensor.shared_randomstreams import RandomStreams
 
-import init
-import nonlinearities
-import utils
+from .. import init
+from .. import nonlinearities
+from .. import utils
 
 
 _srng = RandomStreams()
 
+
+## Helper methods
+
+def get_all_layers(layer):
+    """
+    Function to gather all layers below the given layer (including the given layer)
+    """
+    layers = [layer]
+    layers_to_expand = [layer]
+    while len(layers_to_expand) > 0:
+        current_layer = layers_to_expand.pop(0)
+        children = []
+
+        if hasattr(current_layer, 'input_layers'):
+            children = current_layer.input_layers
+        elif hasattr(current_layer, 'input_layer'):
+            children = [current_layer.input_layer]
+
+        # filter the layers that have already been visited.
+        children = [child for child in children if child not in layers]
+        layers_to_expand.extend(children)
+        layers.extend(children)
+
+    return layers
+
+
+def get_all_params(layer):
+    layers = get_all_layers(layer)
+    params = sum([l.get_params() for l in layers], [])
+    return utils.unique(params)
+
+
+def get_all_bias_params(layer):
+    layers = get_all_layers(layer)
+    params = sum([l.get_bias_params() for l in layers], [])
+    return utils.unique(params)
+
+
+def get_all_non_bias_params(layer):
+    all_params = get_all_params(layer)
+    all_bias_params = get_all_bias_params(layer)
+    return [p for p in all_params if p not in all_bias_params]
+
+
+## Layer base class
 
 class Layer(object):
     def __init__(self, input_layer):
@@ -125,6 +170,8 @@ class InputLayer(Layer):
             return input[self]
             
 
+## Layer implementations
+
 class DenseLayer(Layer):
     def __init__(self, input_layer, num_units, W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
         super(DenseLayer, self).__init__(input_layer)
@@ -151,6 +198,8 @@ class DenseLayer(Layer):
 
     def get_output_for(self, input, *args, **kwargs):
         if input.ndim > 2:
+            # if the input has more than two dimensions, flatten it into a
+            # batch of feature vectors.
             input = input.reshape((input.shape[0], T.prod(input.shape[1:])))
 
         return self.nonlinearity(T.dot(input, self.W) + self.b.dimshuffle('x', 0))
@@ -185,44 +234,4 @@ class GaussianNoiseLayer(Layer):
             return input + _srng.normal(input.shape, avg=0.0, std=self.sigma)
 
 
-## Helper methods
 
-def get_all_layers(layer):
-    """
-    Function to gather all layers below the given layer (including the given layer)
-    """
-    layers = [layer]
-    layers_to_expand = [layer]
-    while len(layers_to_expand) > 0:
-        current_layer = layers_to_expand.pop(0)
-        children = []
-
-        if hasattr(current_layer, 'input_layers'):
-            children = current_layer.input_layers
-        elif hasattr(current_layer, 'input_layer'):
-            children = [current_layer.input_layer]
-
-        # filter the layers that have already been visited.
-        children = [child for child in children if child not in layers]
-        layers_to_expand.extend(children)
-        layers.extend(children)
-
-    return layers
-
-
-def get_all_params(layer):
-    layers = get_all_layers(layer)
-    params = sum([l.get_params() for l in layers], [])
-    return utils.unique(params)
-
-
-def get_all_bias_params(layer):
-    layers = get_all_layers(layer)
-    params = sum([l.get_bias_params() for l in layers], [])
-    return utils.unique(params)
-
-
-def get_all_non_bias_params(layer):
-    all_params = get_all_params(layer)
-    all_bias_params = get_all_bias_params(layer)
-    return [p for p in all_params if p not in all_bias_params]

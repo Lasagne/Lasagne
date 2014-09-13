@@ -153,10 +153,13 @@ class MultipleInputsLayer(Layer):
 
 
 class InputLayer(Layer):
-    def __init__(self, num_features, batch_size=None):
+    def __init__(self, num_features, batch_size=None, ndim=2):
         self.batch_size = batch_size
         self.num_features = num_features
-        self.input_var = T.matrix("input")
+        
+        # create the right TensorType for the given number of dimensions
+        input_var_type = T.TensorType(theano.config.floatX, [False] * ndim)
+        self.input_var = input_var_type("input")
 
     def get_output_shape(self):
         return (self.batch_size, self.num_features)

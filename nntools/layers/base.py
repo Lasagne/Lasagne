@@ -156,7 +156,7 @@ class InputLayer(Layer):
     def __init__(self, num_features, batch_size=None, ndim=2):
         self.batch_size = batch_size
         self.num_features = num_features
-        
+
         # create the right TensorType for the given number of dimensions
         input_var_type = T.TensorType(theano.config.floatX, [False] * ndim)
         self.input_var = input_var_type("input")
@@ -235,6 +235,85 @@ class GaussianNoiseLayer(Layer):
             return input
         else:
             return input + _srng.normal(input.shape, avg=0.0, std=self.sigma)
+
+
+## Convolutions
+
+class Conv2DLayer(Layer):
+    def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
+                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
+        super(Conv2DLayer, self).__init__(input_layer)
+        if nonlinearity is None:
+            self.nonlinearity = nonlinearities.identity
+        else:
+            self.nonlinearity = nonlinearity
+
+        self.num_filters = num_filters
+        self.filter_size = filter_size
+        self.strides = strides
+        self.border_mode = border_mode
+        self.untie_biases = untie_biases
+
+        self.W = self.create_param(W, self.get_W_shape())
+        if self.untie_biases:
+            output_shape = self.get_output_shape()
+            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
+        else:
+            self.b = self.create_param(b, (num_filters,))
+
+    def get_W_shape(self):
+        num_input_channels = self.input_layer.get_output_shape()[1]
+        return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
+
+    def get_params(self):
+        return [self.W, self.b]
+
+    def get_bias_params(self):
+        return [self.b]
+
+    def get_output_shape_for(self, input_shape):
+        if self.border_mode == 'valid':
+            output_width = (input_shape[2] - self.filter_size[0]) // self.strides[0] + 1
+            output_height = (input_shape[3] - self.filter_size[1]) // self.strides[1] + 1
+        elif self.border_mode == 'full':
+            output_width = (input_shape[2] + self.filter_size[0]) // self.strides[0] - 1
+            output_height = (input_shape[3] + self.filter_size[1]) // self.strides[1] - 1
+        elif self.border_mode == 'same':
+            output_width = input_shape[2] // self.strides[0]
+            output_height = input_shape[3] // self.strides[1]
+        else:
+            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+
+        return (input_shape[0], self.num_filters, output_width, output_height)
+
+    def get_output_for(self, input, input_shape=None, *args, **kwargs):
+        # the optional input_shape argument is for when get_output_for is called
+        # directly with a different shape than the output_shape of self.input_layer.
+        if input_shape is None:
+            input_shape = self.input_layer.get_output_shape()
+
+        filter_shape = self.get_W_shape()
+
+        if self.border_mode in ['valid', 'full']:
+            conved = T.nnet.conv2d(input, self.W, subsample=self.strides, image_shape=input_shape,
+                                   filter_shape=filter_shape, border_mode=self.border_mode)
+        elif self.border_mode == 'same':
+            conved = T.nnet.conv2d(input, self.W, subsample=self.strides, image_shape=input_shape,
+                                   filter_shape=filter_shape, border_mode='full')
+            shift_x = (self.filter_size[0] - 1) // 2
+            shift_y = (self.filter_size[1] - 1) // 2
+            conved = conved[:, :, shift_x:input_shape[2] + shift_x, shift_y:input_shape[3] + shift_y]
+        else:
+            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+
+        if self.untie_biases:
+            b_shuffled = self.b.dimshuffle('x', 0, 1, 2)
+        else:
+            b_shuffled = self.b.dimshuffle('x', 0, 'x', 'x')
+
+        return self.nonlinearity(conved + b_shuffled)
+
+
 
 
 

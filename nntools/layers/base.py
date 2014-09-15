@@ -8,6 +8,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from .. import init
 from .. import nonlinearities
 from .. import utils
+from ..theano_extensions import conv
 
 
 _srng = RandomStreams()
@@ -153,16 +154,16 @@ class MultipleInputsLayer(Layer):
 
 
 class InputLayer(Layer):
-    def __init__(self, num_features, batch_size=None, ndim=2):
-        self.batch_size = batch_size
-        self.num_features = num_features
+    def __init__(self, shape):
+        self.shape = shape
+        ndim = len(shape)
 
         # create the right TensorType for the given number of dimensions
         input_var_type = T.TensorType(theano.config.floatX, [False] * ndim)
         self.input_var = input_var_type("input")
 
     def get_output_shape(self):
-        return (self.batch_size, self.num_features)
+        return self.shape
 
     def get_output(self, input=None, *args, **kwargs):
         if input is None:
@@ -239,9 +240,83 @@ class GaussianNoiseLayer(Layer):
 
 ## Convolutions
 
+class Conv1DLayer(Layer):
+    def __init__(self, input_layer, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
+                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 convolution=conv.conv1d_mc0):
+        super(Conv1DLayer, self).__init__(input_layer)
+        if nonlinearity is None:
+            self.nonlinearity = nonlinearities.identity
+        else:
+            self.nonlinearity = nonlinearity
+
+        self.num_filters = num_filters
+        self.filter_length = filter_length
+        self.stride = stride
+        self.border_mode = border_mode
+        self.untie_biases = untie_biases
+        self.convolution = convolution
+
+        self.W = self.create_param(W, self.get_W_shape())
+        if self.untie_biases:
+            output_shape = self.get_output_shape()
+            self.b = self.create_param(b, (num_filters, output_shape[2]))
+        else:
+            self.b = self.create_param(b, (num_filters,))
+
+    def get_W_shape(self):
+        num_input_channels = self.input_layer.get_output_shape()[1]
+        return (self.num_filters, num_input_channels, self.filter_length)
+
+    def get_params(self):
+        return [self.W, self.b]
+
+    def get_bias_params(self):
+        return [self.b]
+
+    def get_output_shape_for(self, input_shape):
+        if self.border_mode == 'valid':
+            output_length = (input_shape[2] - self.filter_length) // self.stride + 1
+        elif self.border_mode == 'full':
+            output_length = (input_shape[2] + self.filter_length) // self.stride - 1
+        elif self.border_mode == 'same':
+            output_length = input_shape[2] // self.stride
+        else:
+            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+
+        return (input_shape[0], self.num_filters, output_length)
+
+    def get_output_for(self, input, input_shape=None, *args, **kwargs):
+        # the optional input_shape argument is for when get_output_for is called
+        # directly with a different shape than the output_shape of self.input_layer.
+        if input_shape is None:
+            input_shape = self.input_layer.get_output_shape()
+
+        filter_shape = self.get_W_shape()
+
+        if self.border_mode in ['valid', 'full']:
+            conved = self.convolution(input, self.W, subsample=(self.stride,), image_shape=input_shape,
+                                      filter_shape=filter_shape, border_mode=self.border_mode)
+        elif self.border_mode == 'same':
+            conved = self.convolution(input, self.W, subsample=(self.stride,), image_shape=input_shape,
+                                      filter_shape=filter_shape, border_mode='full')
+            shift = (self.filter_length - 1) // 2
+            conved = conved[:, :, shift:input_shape[2] + shift]
+        else:
+            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+
+        if self.untie_biases:
+            b_shuffled = self.b.dimshuffle('x', 0, 1)
+        else:
+            b_shuffled = self.b.dimshuffle('x', 0, 'x')
+
+        return self.nonlinearity(conved + b_shuffled)
+
+
 class Conv2DLayer(Layer):
     def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
-                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
+                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 convolution=T.nnet.conv2d):
         super(Conv2DLayer, self).__init__(input_layer)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -253,6 +328,7 @@ class Conv2DLayer(Layer):
         self.strides = strides
         self.border_mode = border_mode
         self.untie_biases = untie_biases
+        self.convolution = convolution
 
         self.W = self.create_param(W, self.get_W_shape())
         if self.untie_biases:
@@ -295,11 +371,11 @@ class Conv2DLayer(Layer):
         filter_shape = self.get_W_shape()
 
         if self.border_mode in ['valid', 'full']:
-            conved = T.nnet.conv2d(input, self.W, subsample=self.strides, image_shape=input_shape,
-                                   filter_shape=filter_shape, border_mode=self.border_mode)
+            conved = self.convolution(input, self.W, subsample=self.strides, image_shape=input_shape,
+                                      filter_shape=filter_shape, border_mode=self.border_mode)
         elif self.border_mode == 'same':
-            conved = T.nnet.conv2d(input, self.W, subsample=self.strides, image_shape=input_shape,
-                                   filter_shape=filter_shape, border_mode='full')
+            conved = self.convolution(input, self.W, subsample=self.strides, image_shape=input_shape,
+                                      filter_shape=filter_shape, border_mode='full')
             shift_x = (self.filter_size[0] - 1) // 2
             shift_y = (self.filter_size[1] - 1) // 2
             conved = conved[:, :, shift_x:input_shape[2] + shift_x, shift_y:input_shape[3] + shift_y]

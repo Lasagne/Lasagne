@@ -46,7 +46,7 @@ num_batches_test = num_examples_test // BATCH_SIZE
 
 print "Building model"
 
-l_in = nntools.layers.InputLayer(num_features=input_dim, batch_size=BATCH_SIZE)
+l_in = nntools.layers.InputLayer(shape=(BATCH_SIZE, input_dim))
 
 l_hidden1 = nntools.layers.DenseLayer(l_in, num_units=NUM_HIDDEN_UNITS, nonlinearity=nntools.nonlinearities.rectify)
 

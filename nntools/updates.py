@@ -54,7 +54,7 @@ def adagrad(loss, all_params, learning_rate=1.0, epsilon=1e-6):
     See "Notes on AdaGrad" by Chris Dyer for more info.
     """
     all_grads = [theano.grad(loss, param) for param in all_params]
-    all_accumulators = [theano.shared(np.zeros(param_i.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
+    all_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
 
     updates = []
     for param_i, grad_i, acc_i in zip(all_params, all_grads, all_accumulators):
@@ -74,7 +74,7 @@ def rmsprop(loss, all_params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
     also check http://climin.readthedocs.org/en/latest/rmsprop.html
     """
     all_grads = [theano.grad(loss, param) for param in all_params]
-    all_accumulators = [theano.shared(np.zeros(param_i.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
+    all_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
 
     updates = []
     for param_i, grad_i, acc_i in zip(all_params, all_grads, all_accumulators):
@@ -95,8 +95,8 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     see "Adadelta: an adaptive learning rate method" by Matthew Zeiler for more info.
     """
     all_grads = [theano.grad(loss, param) for param in all_params]
-    all_accumulators = [theano.shared(np.zeros(param_i.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
-    all_delta_accumulators = [theano.shared(np.zeros(param_i.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
+    all_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
+    all_delta_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
 
     # all_accumulators: accumulate gradient magnitudes
     # all_delta_accumulators: accumulate update magnitudes (recursive!)
@@ -112,4 +112,5 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
         acc_delta_i_new = rho * acc_delta_i + (1 - rho) * update_i**2
         updates.append((acc_delta_i, acc_delta_i_new))
 
-    return updates    
+    return updates
+

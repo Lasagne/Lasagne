@@ -99,11 +99,11 @@ iter_test = theano.function([batch_index], [loss_eval, accuracy], givens={
 
 print "Training model"
 
-for e in xrange(NUM_EPOCHS):
+for e in range(NUM_EPOCHS):
     print "Epoch %d of %d" % (e + 1, NUM_EPOCHS)
 
     batch_train_losses = []
-    for b in xrange(num_batches_train):
+    for b in range(num_batches_train):
         batch_train_loss = iter_train(b)
         batch_train_losses.append(batch_train_loss)
 
@@ -111,7 +111,7 @@ for e in xrange(NUM_EPOCHS):
 
     batch_valid_losses = []
     batch_valid_accuracies = []
-    for b in xrange(num_batches_valid):
+    for b in range(num_batches_valid):
         batch_valid_loss, batch_valid_accuracy = iter_valid(b)
         batch_valid_losses.append(batch_valid_loss)
         batch_valid_accuracies.append(batch_valid_accuracy)

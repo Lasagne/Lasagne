@@ -186,7 +186,8 @@ class DenseLayer(Layer):
 
         self.num_units = num_units
 
-        num_inputs = self.input_layer.get_output_shape()[1]
+        output_shape = self.input_layer.get_output_shape()
+        num_inputs = np.prod(output_shape[1:])
 
         self.W = self.create_param(W, (num_inputs, num_units))
         self.b = self.create_param(b, (num_units,))
@@ -389,7 +390,32 @@ class Conv2DLayer(Layer):
 
         return self.nonlinearity(conved + b_shuffled)
 
+# TODO: add Conv3DLayer
 
 
+## Pooling
 
+class MaxPool2DLayer(Layer):
+    def __init__(self, input_layer, ds, ignore_border=False):
+        super(MaxPool2DLayer, self).__init__(input_layer)
+        self.ds = ds # a tuple
+        self.ignore_border = ignore_border
 
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape) # copy / convert to mutable list
+        
+        if self.ignore_border:
+            output_shape[2] = int(np.floor(float(output_shape[2]) / self.ds[0]))
+            output_shape[3] = int(np.floor(float(output_shape[3]) / self.ds[1]))
+        else:
+            output_shape[2] = int(np.ceil(float(output_shape[2]) / self.ds[0]))
+            output_shape[3] = int(np.ceil(float(output_shape[3]) / self.ds[1]))
+
+        return tuple(output_shape)
+
+    def get_output_for(self, input, *args, **kwargs):
+        return T.signal.downsample.max_pool_2d(input, self.ds, self.ignore_border)
+
+# TODO: add reshape-based implementation to MaxPool2DLayer
+# TODO: add MaxPool1DLayer
+# TODO: add MaxPool3DLayer

@@ -64,12 +64,13 @@ class Uniform(Initializer):
 
     def sample(self, shape):
         if self.range is None:
-            # no range given, use the Glorot et al. approach
-            if len(shape) != 2:
-                raise RuntimeError("uniform initializer without parameters only works with shapes of length 2")
-
-            n_inputs, n_outputs = shape
-            m = np.sqrt(6.0 / (n_inputs + n_outputs))
+            # no range given, use the Glorot et al. approach.
+            # this code makes some assumptions about the meanings of the different dimensions,
+            # which hold for layers.DenseLayer and layers.Conv*DLayer, but not necessarily
+            # for other layer types.
+            n1, n2 = shape[:2]
+            receptive_field_size = np.prod(shape[2:])
+            m = np.sqrt(6.0 / ((n1 + n2) * receptive_field_size))
             range = (-m, m)
 
         elif isinstance(self.range, Number):

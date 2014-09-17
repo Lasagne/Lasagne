@@ -16,3 +16,5 @@ Design goals:
 * Transparency: don't try to hide Theano behind abstractions. Functions and methods should return Theano expressions and standard Python / numpy data types where possible.
 
 * Focus: follow the Unix philosophy of "do one thing and do it well", with a strong focus on feed-forward neural networks.
+
+* Pragmatism: making common use cases easy is more important than supporting every possible use case out of the box.

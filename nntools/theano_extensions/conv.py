@@ -146,7 +146,7 @@ def conv1d_sd(input, filters, image_shape, filter_shape, border_mode='valid', su
     input_padded = T.set_subtensor(input_padded[:, :, :truncated_length], input_truncated)
 
     inputs = []
-    for num in xrange(num_steps):
+    for num in range(num_steps):
         shift = num * stride
         length = (padded_length - shift) // filter_length
 
@@ -192,7 +192,7 @@ def conv1d_md(input, filters, image_shape, filter_shape, border_mode='valid', su
     
     conved = T.zeros(output_shape)
 
-    for num in xrange(num_steps):
+    for num in range(num_steps):
         shift = num * stride
         length = (input_length - shift) // filter_length
 

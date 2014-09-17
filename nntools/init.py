@@ -48,7 +48,7 @@ class Sparse(Initializer):
         n_inputs, n_outputs = shape
         size = int(self.sparsity * n_inputs) # fraction of the number of inputs
 
-        for k in xrange(n_outputs):
+        for k in range(n_outputs):
             indices = np.arange(n_inputs)
             np.random.shuffle(indices)
             indices = indices[:size]

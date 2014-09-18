@@ -2,6 +2,7 @@ import numpy as np
 
 import theano
 import theano.tensor as T
+from theano.tensor.signal import downsample
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 # from theano.tensor.shared_randomstreams import RandomStreams
 
@@ -414,7 +415,7 @@ class MaxPool2DLayer(Layer):
         return tuple(output_shape)
 
     def get_output_for(self, input, *args, **kwargs):
-        return T.signal.downsample.max_pool_2d(input, self.ds, self.ignore_border)
+        return downsample.max_pool_2d(input, self.ds, self.ignore_border)
 
 # TODO: add reshape-based implementation to MaxPool2DLayer
 # TODO: add MaxPool1DLayer

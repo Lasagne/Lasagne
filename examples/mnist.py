@@ -1,5 +1,8 @@
+from __future__ import print_function
+
 import cPickle as pickle
 import gzip
+import itertools
 
 import numpy as np
 import nntools
@@ -14,11 +17,6 @@ LEARNING_RATE = 0.01
 MOMENTUM = 0.9
 
 
-class Bunch(object):
-    def __init__(self, **kwargs):
-        vars(self).update(kwargs)
-
-
 def load_data(filename):
     with gzip.open(filename, 'r') as f:
         data = pickle.load(f)
@@ -27,7 +25,7 @@ def load_data(filename):
     X_valid, y_valid = data[1]
     X_test, y_test = data[2]
 
-    return Bunch(
+    return dict(
         X_train=theano.shared(nntools.utils.floatX(X_train)),
         y_train=T.cast(theano.shared(y_train), 'int32'),
         X_valid=theano.shared(nntools.utils.floatX(X_valid)),
@@ -74,10 +72,12 @@ def build_model(input_dim, output_dim,
     return l_out
 
 
-def create_iter_functions(dataset, l_out, batch_size=BATCH_SIZE,
+def create_iter_functions(dataset, output_layer,
+                          X_tensor_type=T.matrix,
+                          batch_size=BATCH_SIZE,
                           learning_rate=LEARNING_RATE, momentum=MOMENTUM):
     batch_index = T.iscalar('batch_index')
-    X_batch = T.matrix('x')
+    X_batch = X_tensor_type('x')
     y_batch = T.ivector('y')
     batch_slice = slice(
         batch_index * batch_size, (batch_index + 1) * batch_size)
@@ -85,13 +85,14 @@ def create_iter_functions(dataset, l_out, batch_size=BATCH_SIZE,
     def loss(output):
         return -T.mean(T.log(output)[T.arange(y_batch.shape[0]), y_batch])
 
-    loss_train = loss(l_out.get_output(X_batch))
-    loss_eval = loss(l_out.get_output(X_batch, deterministic=True))
+    loss_train = loss(output_layer.get_output(X_batch))
+    loss_eval = loss(output_layer.get_output(X_batch, deterministic=True))
 
-    pred = T.argmax(l_out.get_output(X_batch, deterministic=True), axis=1)
+    pred = T.argmax(
+        output_layer.get_output(X_batch, deterministic=True), axis=1)
     accuracy = T.mean(T.eq(pred, y_batch))
 
-    all_params = nntools.layers.get_all_params(l_out)
+    all_params = nntools.layers.get_all_params(output_layer)
     updates = nntools.updates.nesterov_momentum(
         loss_train, all_params, learning_rate, momentum)
 
@@ -99,45 +100,43 @@ def create_iter_functions(dataset, l_out, batch_size=BATCH_SIZE,
         [batch_index], loss_train,
         updates=updates,
         givens={
-            X_batch: dataset.X_train[batch_slice],
-            y_batch: dataset.y_train[batch_slice],
+            X_batch: dataset['X_train'][batch_slice],
+            y_batch: dataset['y_train'][batch_slice],
             },
         )
 
     iter_valid = theano.function(
         [batch_index], [loss_eval, accuracy],
         givens={
-            X_batch: dataset.X_valid[batch_slice],
-            y_batch: dataset.y_valid[batch_slice],
+            X_batch: dataset['X_valid'][batch_slice],
+            y_batch: dataset['y_valid'][batch_slice],
             },
         )
 
     iter_test = theano.function(
         [batch_index], [loss_eval, accuracy],
         givens={
-            X_batch: dataset.X_test[batch_slice],
-            y_batch: dataset.y_test[batch_slice],
+            X_batch: dataset['X_test'][batch_slice],
+            y_batch: dataset['y_test'][batch_slice],
             },
         )
 
-    return Bunch(
+    return dict(
         train=iter_train,
         valid=iter_valid,
         test=iter_test,
         )
 
 
-def train(iter_funcs, dataset, epochs=NUM_EPOCHS, batch_size=BATCH_SIZE):
-    num_batches_train = dataset.num_examples_train // batch_size
-    num_batches_valid = dataset.num_examples_valid // batch_size
-    num_batches_test = dataset.num_examples_test // batch_size
+def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
+    num_batches_train = dataset['num_examples_train'] // batch_size
+    num_batches_valid = dataset['num_examples_valid'] // batch_size
+    num_batches_test = dataset['num_examples_test'] // batch_size
 
-    for e in range(epochs):
-        print "Epoch %d of %d" % (e + 1, epochs)
-
+    for epoch in itertools.count(1):
         batch_train_losses = []
         for b in range(num_batches_train):
-            batch_train_loss = iter_funcs.train(b)
+            batch_train_loss = iter_funcs['train'](b)
             batch_train_losses.append(batch_train_loss)
 
         avg_train_loss = np.mean(batch_train_losses)
@@ -145,26 +144,40 @@ def train(iter_funcs, dataset, epochs=NUM_EPOCHS, batch_size=BATCH_SIZE):
         batch_valid_losses = []
         batch_valid_accuracies = []
         for b in range(num_batches_valid):
-            batch_valid_loss, batch_valid_accuracy = iter_funcs.valid(b)
+            batch_valid_loss, batch_valid_accuracy = iter_funcs['valid'](b)
             batch_valid_losses.append(batch_valid_loss)
             batch_valid_accuracies.append(batch_valid_accuracy)
 
         avg_valid_loss = np.mean(batch_valid_losses)
         avg_valid_accuracy = np.mean(batch_valid_accuracies)
 
-        print "  training loss:\t\t%.6f" % avg_train_loss
-        print "  validation loss:\t\t%.6f" % avg_valid_loss
-        print "  validation accuracy:\t\t%.2f %%" % (avg_valid_accuracy * 100) 
+        yield {
+            'number': epoch,
+            'train_loss': avg_train_loss,
+            'valid_loss': avg_valid_loss,
+            'valid_accuracy': avg_valid_accuracy,
+            }
 
 
-def main():
+def main(num_epochs=NUM_EPOCHS):
     dataset = load_data('mnist.pkl.gz')
     output_layer = build_model(
-        input_dim=dataset.input_dim,
-        output_dim=dataset.output_dim,
+        input_dim=dataset['input_dim'],
+        output_dim=dataset['output_dim'],
         )
     iter_funcs = create_iter_functions(dataset, output_layer)
-    train(iter_funcs, dataset)
+
+    print("Starting training...")
+    for epoch in train(iter_funcs, dataset):
+        print("Epoch %d of %d" % (epoch['number'], num_epochs))
+        print("  training loss:\t\t%.6f" % epoch['train_loss'])
+        print("  validation loss:\t\t%.6f" % epoch['valid_loss'])
+        print("  validation accuracy:\t\t%.2f %%" %
+              (epoch['valid_accuracy'] * 100))
+
+        if epoch['number'] > num_epochs:
+            break
 
 
-main()
+if __name__ == '__main__':
+    main()

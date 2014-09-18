@@ -40,7 +40,8 @@ l_in = nntools.layers.InputLayer(shape=(1, X_val.shape[1]))
 nonlinearity = nntools.nonlinearities.tanh
 l_recurrent = nntools.layers.RecurrentLayer(l_in,
                                             num_units=n_hidden,
-                                            nonlinearity=nonlinearity)
+                                            nonlinearity=nonlinearity,
+                                            b=nntools.init.Constant(1.))
 l_out = nntools.layers.DenseLayer(l_recurrent, num_units=y_val.shape[1],
                                   nonlinearity=nonlinearity)
 
@@ -51,18 +52,18 @@ cost = T.mean((l_out.get_output(input)[2:] - target_output[2:])**2)
 # Use SGD for training
 learning_rate = .1
 all_params = nntools.layers.get_all_params(l_out)
-updates = nntools.updates.sgd(cost, all_params, learning_rate)
+updates = nntools.updates.nesterov_momentum(cost, all_params, learning_rate)
 # Theano functions for training, getting output, and computing cost
 train = theano.function([input, target_output], cost, updates=updates)
 y_pred = theano.function([input], l_out.get_output(input))
 compute_cost = theano.function([input, target_output], cost)
 
 # Train the net
-n_iterations = 10000
+n_iterations = 1000
 costs = np.zeros(n_iterations)
 for n in range(n_iterations):
     X, y = gen_data(length)
     costs[n] = train(X, y)
-    if not n % 1000:
+    if not n % 100:
         cost_val = compute_cost(X_val, y_val)
         print "Iteration {} validation cost = {}".format(n, cost_val)

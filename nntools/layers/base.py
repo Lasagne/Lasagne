@@ -144,8 +144,11 @@ class MultipleInputsLayer(Layer):
         return self.get_output_shape_for(input_shapes)
 
     def get_output(self, input=None, *args, **kwargs):
-        layer_inputs = [input_layer.get_output(*args, **kwargs) for input_layer in self.input_layers]
-        return self.get_output_for(layer_inputs, *args, **kwargs)
+        if isinstance(input, dict) and (self in input):
+            return input[self] # this layer is mapped to an expression
+        else: # in all other cases, just pass the network input on to the next layer.
+            layer_inputs = [input_layer.get_output(input, *args, **kwargs) for input_layer in self.input_layers]
+            return self.get_output_for(layer_inputs, *args, **kwargs)
 
     def get_output_shape_for(self, input_shapes):
         raise NotImplementedError
@@ -188,7 +191,7 @@ class DenseLayer(Layer):
         self.num_units = num_units
 
         output_shape = self.input_layer.get_output_shape()
-        num_inputs = np.prod(output_shape[1:])
+        num_inputs = int(np.prod(output_shape[1:]))
 
         self.W = self.create_param(W, (num_inputs, num_units))
         self.b = self.create_param(b, (num_units,))
@@ -420,3 +423,28 @@ class MaxPool2DLayer(Layer):
 # TODO: add reshape-based implementation to MaxPool2DLayer
 # TODO: add MaxPool1DLayer
 # TODO: add MaxPool3DLayer
+
+
+## Shape modification
+
+class FlattenLayer(Layer):
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], int(np.prod(input_shape[1:])))
+
+    def get_output_for(self, input, *args, **kwargs):
+        return input.reshape((input.shape[0], T.prod(input.shape[1:])))
+
+
+class ConcatLayer(MultipleInputsLayer):
+    def __init__(self, input_layers, axis=1):
+        super(ConcatLayer, self).__init__(input_layers)
+        self.axis = axis
+
+    def get_output_shape_for(self, input_shapes):
+        sizes = [input_shape[self.axis] for input_shape in input_shapes]
+        output_shape = list(input_shapes[0]) # make a mutable copy
+        output_shape[self.axis] = sum(sizes)
+        return tuple(output_shape)
+
+    def get_output_for(self, inputs, *args, **kwargs):
+        return T.concatenate(inputs, axis=self.axis)

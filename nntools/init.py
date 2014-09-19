@@ -1,13 +1,12 @@
 """
 Functions to create initializers for parameter variables
 """
+
 from numbers import Number
 
 import numpy as np
-import theano
-import theano.tensor as T
 
-from utils import floatX
+from .utils import floatX
 
 
 class Initializer(object):
@@ -15,7 +14,7 @@ class Initializer(object):
         return self.sample(shape)
 
     def sample(self, shape):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class Normal(Initializer):
@@ -31,7 +30,7 @@ class Constant(Initializer):
     def __init__(self, val=0.0):
         self.val = val
 
-    def sample(self, shape):   
+    def sample(self, shape):
         return floatX(np.ones(shape) * self.val)
 
 
@@ -42,11 +41,12 @@ class Sparse(Initializer):
 
     def sample(self, shape):
         if len(shape) != 2:
-            raise RuntimeError("sparse initializer only works with shapes of length 2")
+            raise RuntimeError(
+                "sparse initializer only works with shapes of length 2")
 
         w = floatX(np.zeros(shape))
         n_inputs, n_outputs = shape
-        size = int(self.sparsity * n_inputs) # fraction of the number of inputs
+        size = int(self.sparsity * n_inputs)  # fraction of number of inputs
 
         for k in range(n_outputs):
             indices = np.arange(n_inputs)
@@ -65,9 +65,10 @@ class Uniform(Initializer):
     def sample(self, shape):
         if self.range is None:
             # no range given, use the Glorot et al. approach.
-            # this code makes some assumptions about the meanings of the different dimensions,
-            # which hold for layers.DenseLayer and layers.Conv*DLayer, but not necessarily
-            # for other layer types.
+            # This code makes some assumptions about the meanings of
+            # the different dimensions, which hold for
+            # layers.DenseLayer and layers.Conv*DLayer, but not
+            # necessarily for other layer types.
             n1, n2 = shape[:2]
             receptive_field_size = np.prod(shape[2:])
             m = np.sqrt(6.0 / ((n1 + n2) * receptive_field_size))
@@ -79,7 +80,5 @@ class Uniform(Initializer):
         else:
             range = self.range
 
-        return floatX(np.random.uniform(low=range[0], high=range[1], size=shape))
-
-
-
+        return floatX(np.random.uniform(
+            low=range[0], high=range[1], size=shape))

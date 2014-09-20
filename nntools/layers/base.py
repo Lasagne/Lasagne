@@ -230,6 +230,8 @@ class DropoutLayer(Layer):
 
             return input * utils.floatX(_srng.binomial(input.shape, p=retain_prob, dtype='int32'))
 
+dropout = DropoutLayer # shortcut
+
 
 class GaussianNoiseLayer(Layer):
     def __init__(self, input_layer, sigma=0.1):

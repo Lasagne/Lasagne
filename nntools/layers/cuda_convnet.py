@@ -5,22 +5,16 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
-from .. import layers
+from . import base
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 
-from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
-from pylearn2.sandbox.cuda_convnet.pool import MaxPool
-from pylearn2.sandbox.cuda_convnet.response_norm import CrossMapNorm
-
-
-# TODO: consider always importing this module when nntools.layers is imported. Then we need to detect whether pylearn2 can be imported.
 # TODO: make sure to document the limitations and 'best practices' (i.e. minibatch size % 128 == 0)
 # TODO: see if the 'dimshuffle' logic can be put in the base class instead.
 
 
 # base class for all layers that use ops from pylearn2.sandbox.cuda_convnet
-class CCLayer(layers.Layer):
+class CCLayer(base.Layer):
     pass
 
 
@@ -28,6 +22,8 @@ class Conv2DCCLayer(CCLayer):
     def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
                  dimshuffle=True, flip_filters=False, partial_sum=1):
+        from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
+
         super(Conv2DCCLayer, self).__init__(input_layer)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -141,6 +137,8 @@ class Conv2DCCLayer(CCLayer):
 
 class MaxPool2DCCLayer(CCLayer):
     def __init__(self, input_layer, ds, ignore_border=False, strides=None, dimshuffle=True):
+        from pylearn2.sandbox.cuda_convnet.pool import MaxPool
+
         super(MaxPool2DCCLayer, self).__init__(input_layer)
         if ds[0] != ds[1]:
             raise RuntimeError("MaxPool2DCCLayer only supports square pooling regions, but ds=(%d, %d)" % ds)
@@ -194,11 +192,12 @@ class MaxPool2DCCLayer(CCLayer):
 
 
 # TODO: crossmapnorm
+# from pylearn2.sandbox.cuda_convnet.response_norm import CrossMapNorm
 
 
 ## Helper classes for switching between bc01 and c01b input formats
 
-class ShuffleBC01ToC01BLayer(layers.Layer):
+class ShuffleBC01ToC01BLayer(base.Layer):
     """
     This layer dimshuffles 4D input for interoperability between c01b and bc01 ops.
     bc01 (theano) -> c01b (cuda-convnet)
@@ -212,7 +211,7 @@ class ShuffleBC01ToC01BLayer(layers.Layer):
 bc01_to_c01b = ShuffleBC01ToC01BLayer # shortcut
 
 
-class ShuffleC01BToBC01Layer(layers.Layer):
+class ShuffleC01BToBC01Layer(base.Layer):
     """
     This layer dimshuffles 4D input for interoperability between c01b and bc01 ops.
     c01b (cuda-convnet) -> bc01 (theano)

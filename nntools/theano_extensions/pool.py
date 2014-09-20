@@ -18,7 +18,7 @@ def pool_2d_mp(input, ds=(2, 2), strides=None, pool_function=T.max, ignore_borde
     if pool_function != T.max:
         raise NotImplementedError("Only max-pooling is implemented, other pooling functions are not supported")
 
-    if strides[0] != ds[0] and strides[1] != ds[1]:
+    if strides[0] != ds[0] or strides[1] != ds[1]:
         raise NotImplementedError("Only non-overlapping pooling is implemented, ds and strides do not match")
 
     return downsample.max_pool_2d(input, ds, ignore_border)
@@ -28,8 +28,9 @@ def pool_2d_i2n(input, ds=(2, 2), strides=None, pool_function=T.max, mode='ignor
     if strides is None:
         strides = ds
 
-    assert strides[0] <= ds[0]
-    assert strides[1] <= ds[1]
+    if strides[0] > ds[0] or strides[1] > ds[1]:
+        raise RuntimeError("strides should be smaller than or equal to ds, strides=(%d, %d) and ds=(%d, %d)" %
+            (strides + ds))
     
     shape = input.shape
     neibs = images2neibs(input, ds, strides, mode=mode)
@@ -53,8 +54,9 @@ def pool_2d_subtensor(input, ds=(2, 2), strides=None, pool_function=T.max, pad=T
     if strides is None:
         strides = ds
 
-    assert strides[0] <= ds[0]
-    assert strides[1] <= ds[1]
+    if strides[0] > ds[0] or strides[1] > ds[1]:
+        raise RuntimeError("strides should be smaller than or equal to ds, strides=(%d, %d) and ds=(%d, %d)" %
+            (strides + ds))
 
     if pad:
         padded_width = T.cast(T.ceil((input.shape[2] - ds[0]) / float(strides[0])) * float(strides[0]) + ds[0], 'int32')
@@ -88,7 +90,9 @@ def pool_1d_subtensor(input, ds=2, stride=None, pool_function=T.max, pad=True):
     if stride is None:
         stride = ds
 
-    assert stride <= ds
+    if stride > ds:
+        raise RuntimeError("stride should be smaller than or equal to ds, stride=%d and ds=%d" %
+            (stride, ds))
 
     if pad:
         padded_length = T.cast(T.ceil((input.shape[2] - ds) / float(stride)) * float(stride) + ds, 'int32')

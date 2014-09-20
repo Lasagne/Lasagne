@@ -181,7 +181,7 @@ class InputLayer(Layer):
 ## Layer implementations
 
 class DenseLayer(Layer):
-    def __init__(self, input_layer, num_units, W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
+    def __init__(self, input_layer, num_units, W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
         super(DenseLayer, self).__init__(input_layer)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -209,7 +209,7 @@ class DenseLayer(Layer):
         if input.ndim > 2:
             # if the input has more than two dimensions, flatten it into a
             # batch of feature vectors.
-            input = input.reshape((input.shape[0], T.prod(input.shape[1:])))
+            input = input.flatten(2)
 
         return self.nonlinearity(T.dot(input, self.W) + self.b.dimshuffle('x', 0))
         
@@ -247,7 +247,7 @@ class GaussianNoiseLayer(Layer):
 
 class Conv1DLayer(Layer):
     def __init__(self, input_layer, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
-                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=conv.conv1d_mc0):
         super(Conv1DLayer, self).__init__(input_layer)
         if nonlinearity is None:
@@ -320,7 +320,7 @@ class Conv1DLayer(Layer):
 
 class Conv2DLayer(Layer):
     def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
-                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=T.nnet.conv2d):
         super(Conv2DLayer, self).__init__(input_layer)
         if nonlinearity is None:
@@ -432,7 +432,7 @@ class FlattenLayer(Layer):
         return (input_shape[0], int(np.prod(input_shape[1:])))
 
     def get_output_for(self, input, *args, **kwargs):
-        return input.reshape((input.shape[0], T.prod(input.shape[1:])))
+        return input.flatten(2)
 
 
 class ConcatLayer(MultipleInputsLayer):

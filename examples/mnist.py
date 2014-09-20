@@ -3,12 +3,16 @@ from __future__ import print_function
 import cPickle as pickle
 import gzip
 import itertools
+import urllib
 
 import numpy as np
 import nntools
 import theano
 import theano.tensor as T
 
+
+DATA_URL = 'http://deeplearning.net/data/mnist/mnist.pkl.gz'
+DATA_FILENAME = 'mnist.pkl.gz'
 
 NUM_EPOCHS = 500
 BATCH_SIZE = 600
@@ -17,10 +21,15 @@ LEARNING_RATE = 0.01
 MOMENTUM = 0.9
 
 
-def load_data(filename):
-    with gzip.open(filename, 'r') as f:
+def _load_data(url=DATA_URL, filename=DATA_FILENAME):
+    urllib.urlretrieve(url, filename)
+    with gzip.open(filename, 'rb') as f:
         data = pickle.load(f)
+    return data
 
+
+def load_data():
+    data = _load_data()
     X_train, y_train = data[0]
     X_valid, y_valid = data[1]
     X_test, y_test = data[2]
@@ -160,7 +169,7 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
 
 
 def main(num_epochs=NUM_EPOCHS):
-    dataset = load_data('mnist.pkl.gz')
+    dataset = load_data()
     output_layer = build_model(
         input_dim=dataset['input_dim'],
         output_dim=dataset['output_dim'],
@@ -177,6 +186,8 @@ def main(num_epochs=NUM_EPOCHS):
 
         if epoch['number'] > num_epochs:
             break
+
+    return output_layer
 
 
 if __name__ == '__main__':

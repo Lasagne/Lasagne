@@ -7,5 +7,5 @@ before_install:
   - sudo apt-get install -qq python-numpy python-scipy
 install:
   - python setup.py dev
-script: py.test
+script: py.test --runslow
 cache: apt

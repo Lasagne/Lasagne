@@ -10,6 +10,8 @@ import theano.tensor as T
 from theano.sandbox.neighbours import images2neibs, neibs2images
 from theano.tensor.signal import downsample
 
+from ..utils import floatX
+
 
 def pool_2d_mp(input, ds=(2, 2), strides=None, pool_function=T.max, ignore_border=False):
     if strides is None:
@@ -78,8 +80,27 @@ def pool_2d_subtensor(input, ds=(2, 2), strides=None, pool_function=T.max, pad=T
     return pool_function(stacked_parts, axis=0)
 
 
+def pool_2d_conv(input, ds=(2, 2), strides=None, pool_function=T.mean):
+    if strides is None:
+        strides = ds
+
+    if pool_function != T.mean:
+        raise NotImplementedError("Only mean-pooling is implemented, other pooling functions are not supported")
+
+    mask = floatX(np.ones((1, 1) + ds) / float(ds[0] * ds[1]))
+
+    # bunch up batch + channel dimensions into the batch dimension
+    input_sc = input.reshape((input.shape[0] * input.shape[1], 1, input.shape[2], input.shape[3]))
+
+    output_sc = T.nnet.conv2d(input_sc, mask, subsample=strides)
+    output = output_sc.reshape((input.shape[0], input.shape[1], output_sc.shape[2], output_sc.shape[3]))
+
+    return output
+
+
 # TODO: pool_1d_mp
 # TODO: pool_1d_i2n
+# TODO: pool_1d_conv
 
 
 def pool_1d_subtensor(input, ds=2, stride=None, pool_function=T.max, pad=True):

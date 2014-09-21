@@ -223,3 +223,53 @@ class ShuffleC01BToBC01Layer(base.Layer):
         return input.dimshuffle(3, 0, 1, 2)
 
 c01b_to_bc01 = ShuffleC01BToBC01Layer # shortcut
+
+
+## c01b versions of other Layer classes
+
+class NINLayer_c01b(base.Layer):
+    """
+    This does the same as nntools.layers.NINLayer, but operates with c01b
+    axis arrangement instead of bc01. This reduces the number of shuffles
+    and reshapes required and might be faster as a result.
+    """
+    def __init__(self, input_layer, num_units, untie_biases=False,
+        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
+        super(NINLayer_c01b, self).__init__(input_layer)
+        if nonlinearity is None:
+            self.nonlinearity = nonlinearities.identity
+        else:
+            self.nonlinearity = nonlinearity
+
+        self.num_units = num_units
+        self.untie_biases = untie_biases
+
+        output_shape = self.input_layer.get_output_shape()
+        num_input_channels = output_shape[0]
+
+        self.W = self.create_param(W, (num_units, num_input_channels))
+        if self.untie_biases:
+            output_shape = self.get_output_shape()
+            self.b = self.create_param(b, (num_units,) + output_shape[1:-1])
+        else:
+            self.b = self.create_param(b, (num_units,))
+
+    def get_params(self):
+        return [self.W, self.b]
+
+    def get_bias_params(self):
+        return [self.b]
+
+    def get_output_shape_for(self, input_shape):
+        return (self.num_units,) + input_shape[1:]
+
+    def get_output_for(self, input, *args, **kwargs):
+        out = T.tensordot(self.W, input, axes=[[1], [0]]) # fc * c01b... = f01b...
+
+        if self.untie_biases:
+            bias_axes = range(input.ndim - 1) + ['x']
+        else:
+            bias_axes = [0] + (['x'] * (input.ndim - 1))
+        b_shuffled = self.b.dimshuffle(bias_axes)
+
+        return self.nonlinearity(out + b_shuffled)

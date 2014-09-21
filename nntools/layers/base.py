@@ -58,6 +58,13 @@ def get_all_non_bias_params(layer):
     return [p for p in all_params if p not in all_bias_params]
 
 
+def count_params(layer):
+    params = get_all_params(layer)
+    shapes = [p.get_value().shape for p in params]
+    counts = [np.prod(shape) for shape in shapes]
+    return sum(counts)
+
+
 ## Layer base class
 
 class Layer(object):
@@ -478,6 +485,21 @@ class NINLayer(Layer):
         b_shuffled = self.b.dimshuffle('x', 0, *remaining_dims_biases)
 
         return self.nonlinearity(out + b_shuffled)
+
+
+class GlobalPoolLayer(Layer):
+    """
+    Layer that pools globally across all trailing dimensions beyond the 2nd.
+    """
+    def __init__(self, input_layer, pool_function=T.mean):
+        super(GlobalPoolLayer, self).__init__(input_layer)
+        self.pool_function = pool_function
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape[:2]
+
+    def get_output_for(self, input, *args, **kwargs):
+        return self.pool_function(input.flatten(3), axis=2)
 
 
 ## Shape modification

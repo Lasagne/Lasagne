@@ -10,6 +10,7 @@ from .. import init
 from .. import nonlinearities
 from .. import utils
 from ..theano_extensions import conv
+from ..theano_extensions import padding
 
 
 _srng = RandomStreams()
@@ -525,3 +526,26 @@ class ConcatLayer(MultipleInputsLayer):
 
     def get_output_for(self, inputs, *args, **kwargs):
         return T.concatenate(inputs, axis=self.axis)
+
+
+class PadLayer(Layer):
+    def __init__(self, input_layer, width, val=0, batch_ndim=2):
+        super(PadLayer, self).__init__(input_layer)
+        self.width = width
+        self.val = val
+        self.batch_ndim = batch_ndim
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = ()
+        for k, s in enumerate(input_shape):
+            if k < self.batch_ndim:
+                output_shape += (s,)
+            else:
+                output_shape += (s + 2 * self.width,)
+
+        return output_shape
+
+    def get_output_for(self, input, *args, **kwargs):
+        return padding.pad(input, self.width, self.val, self.batch_ndim)
+
+pad = PadLayer # shortcut

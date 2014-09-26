@@ -435,6 +435,49 @@ class MaxPool2DLayer(Layer):
 # TODO: add MaxPool3DLayer
 
 
+class FeaturePoolLayer(Layer):
+    """
+    Pooling across feature maps. This can be used to implement maxout.
+    IMPORTANT: this layer requires that the number of feature maps is
+    a multiple of the pool size.
+    """
+    def __init__(self, input_layer, ds, axis=1, pool_function=T.max):
+        """
+        ds: the number of feature maps to be pooled together
+        axis: the axis along which to pool. The default value of 1 works
+        for DenseLayer and Conv*DLayers
+        pool_function: the pooling function to use
+        """
+        super(FeaturePoolLayer, self).__init__(input_layer)
+        self.ds = ds
+        self.axis = axis
+        self.pool_function = pool_function
+
+        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        if num_feature_maps % self.ds != 0:
+            raise RuntimeError("Number of input feature maps (%d) is not a multiple of the pool size (ds=%d)" %
+                    (num_feature_maps, self.ds))
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape) # make a mutable copy
+        output_shape[self.axis] = output_shape[self.axis] // self.ds
+        return tuple(output_shape)
+
+    def get_output_for(self, input, *args, **kwargs):
+        num_feature_maps = input.shape[self.axis]
+        num_feature_maps_out = num_feature_maps // self.ds
+
+        pool_shape = ()
+        for k in range(self.axis):
+            pool_shape += (input.shape[k],)
+        pool_shape += (num_feature_maps_out, self.ds)
+        for k in range(self.axis + 1, input.ndim):
+            pool_shape += (input.shape[k],)
+
+        input_reshaped = input.reshape(pool_shape)
+        return self.pool_function(input_reshaped, axis=self.axis + 1)
+
+
 ## Network in network
 
 class NINLayer(Layer):
@@ -512,6 +555,8 @@ class FlattenLayer(Layer):
     def get_output_for(self, input, *args, **kwargs):
         return input.flatten(2)
 
+flatten = FlattenLayer # shortcut
+
 
 class ConcatLayer(MultipleInputsLayer):
     def __init__(self, input_layers, axis=1):
@@ -526,6 +571,8 @@ class ConcatLayer(MultipleInputsLayer):
 
     def get_output_for(self, inputs, *args, **kwargs):
         return T.concatenate(inputs, axis=self.axis)
+
+concat = ConcatLayer # shortcut
 
 
 class PadLayer(Layer):

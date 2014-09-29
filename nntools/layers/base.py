@@ -478,6 +478,55 @@ class FeaturePoolLayer(Layer):
         return self.pool_function(input_reshaped, axis=self.axis + 1)
 
 
+class FeatureWTALayer(Layer):
+    """
+    Perform 'Winner Take All' across feature maps: zero out all but
+    the maximal activation value within a group of features.
+    IMPORTANT: this layer requires that the number of feature maps is
+    a multiple of the pool size.
+    """
+    def __init__(self, input_layer, ds, axis=1):
+        """
+        ds: the number of feature maps per group. This is called 'ds'
+        for consistency with the pooling layers, even though this
+        layer does not actually perform a downsampling operation.
+        axis: the axis along which the groups are formed.
+        """
+        super(FeatureWTALayer, self).__init__(input_layer)
+        self.ds = ds
+        self.axis = axis
+
+        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        if num_feature_maps % self.ds != 0:
+            raise RuntimeError("Number of input feature maps (%d) is not a multiple of the group size (ds=%d)" %
+                    (num_feature_maps, self.ds))
+
+    def get_output_for(self, input, *args, **kwargs):
+        num_feature_maps = input.shape[self.axis]
+        num_pools = num_feature_maps // self.ds
+
+        pool_shape = ()
+        arange_shuffle_pattern = ()
+        for k in range(self.axis):
+            pool_shape += (input.shape[k],)
+            arange_shuffle_pattern += ('x',)
+
+        pool_shape += (num_pools, self.ds)
+        arange_shuffle_pattern += ('x', 0)
+
+        for k in range(self.axis + 1, input.ndim):
+            pool_shape += (input.shape[k],)
+            arange_shuffle_pattern += ('x',)
+
+        input_reshaped = input.reshape(pool_shape)
+        max_indices = T.argmax(input_reshaped, axis=self.axis + 1, keepdims=True)
+
+        arange = T.arange(self.ds).dimshuffle(*arange_shuffle_pattern)
+        mask = T.eq(max_indices, arange).reshape(input.shape)
+
+        return input * mask
+
+
 ## Network in network
 
 class NINLayer(Layer):

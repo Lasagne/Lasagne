@@ -137,7 +137,7 @@ def main(num_epochs=NUM_EPOCHS):
         print("  validation accuracy:\t\t%.2f %%" %
               (epoch['valid_accuracy'] * 100))
 
-        if epoch['number'] > num_epochs:
+        if epoch['number'] >= num_epochs:
             break
 
 

@@ -7,5 +7,5 @@ before_install:
   - sudo apt-get install -qq python-numpy python-scipy libatlas3gf-base libatlas-dev liblapack-dev gfortran
 install:
   - python setup.py dev
-script: py.test --runslow
+script: travis_wait py.test --runslow
 cache: apt

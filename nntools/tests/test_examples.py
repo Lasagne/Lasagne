@@ -26,5 +26,11 @@ def example(request):
 @pytest.mark.slow
 @pytest.mark.parametrize("module_name", _example_modules())
 def test_example(example, module_name):
-    main = getattr(import_module(module_name), 'main')
-    main(1)  # run the example for one iteration
+    try:
+        main = getattr(import_module(module_name), 'main')
+        main(1)  # run the example for one iteration
+    except ImportError as e:  # some examples require pylearn2
+        if "pylearn2" in str(e):
+            pytest.skip(e)
+        else:
+            raise

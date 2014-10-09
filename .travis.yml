@@ -4,8 +4,8 @@ python:
 virtualenv:
   system_site_packages: true
 before_install:
-  - sudo apt-get install -qq python-numpy python-scipy
+  - sudo apt-get install -qq python-numpy python-scipy libatlas3gf-base libatlas-dev liblapack-dev gfortran
 install:
   - python setup.py dev
-script: py.test
+script: travis_wait py.test --runslow
 cache: apt

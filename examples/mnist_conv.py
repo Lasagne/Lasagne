@@ -1,11 +1,10 @@
 from __future__ import print_function
 
-import cPickle as pickle
-import gzip
 import nntools
 import theano
 import theano.tensor as T
 
+from mnist import _load_data
 from mnist import create_iter_functions
 from mnist import train
 
@@ -16,10 +15,8 @@ LEARNING_RATE = 0.01
 MOMENTUM = 0.9
 
 
-def load_data(filename):
-    with gzip.open(filename, 'r') as f:
-        data = pickle.load(f)
-
+def load_data():
+    data = _load_data()
     X_train, y_train = data[0]
     X_valid, y_valid = data[1]
     X_test, y_test = data[2]
@@ -96,7 +93,7 @@ def build_model(input_width, input_height, output_dim,
 
 
 def main(num_epochs=NUM_EPOCHS):
-    dataset = load_data('mnist.pkl.gz')
+    dataset = load_data()
 
     output_layer = build_model(
         input_width=dataset['input_width'],
@@ -111,7 +108,6 @@ def main(num_epochs=NUM_EPOCHS):
         )
 
     print("Starting training...")
-
     for epoch in train(iter_funcs, dataset):
         print("Epoch %d of %d" % (epoch['number'], num_epochs))
         print("  training loss:\t\t%.6f" % epoch['train_loss'])
@@ -119,8 +115,10 @@ def main(num_epochs=NUM_EPOCHS):
         print("  validation accuracy:\t\t%.2f %%" %
               (epoch['valid_accuracy'] * 100))
 
-        if epoch['number'] > num_epochs:
+        if epoch['number'] >= num_epochs:
             break
+
+    return output_layer
 
 
 if __name__ == '__main__':

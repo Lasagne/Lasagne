@@ -241,31 +241,28 @@ class GaussianNoiseLayer(Layer):
 
 
 class RecurrentLayer(Layer):
-    def __init__(self, input_layer, num_units, W_input=init.Normal(0.01),
-                 W_recurrent=init.Normal(0.01), b=init.Constant(0.),
-                 h=init.Constant(0.),
-                 nonlinearity=nonlinearities.rectify):
+    def __init__(self, input_layer, input_to_hidden, hidden_to_hidden,
+                 nonlinearity=nonlinearities.rectify, h=init.Constant(0.)):
         super(RecurrentLayer, self).__init__(input_layer)
+
+        self.input_to_hidden = input_to_hidden
+        self.hidden_to_hidden = hidden_to_hidden
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
             self.nonlinearity = nonlinearity
 
-        self.num_units = num_units
+        self.num_units = self.hidden_to_hidden.get_output_shape()[1]
 
-        num_inputs = self.input_layer.get_output_shape()[1]
-
-        self.W_input = self.create_param(W_input, (num_inputs, num_units))
-        self.W_recurrent = self.create_param(W_recurrent,
-                                             (num_units, num_units))
-        self.b = self.create_param(b, (num_units,))
-        self.h = self.create_param(h, (num_units,))
+        self.h = self.create_param(h, self.hidden_to_hidden.get_output_shape())
 
     def get_params(self):
-        return [self.W_input, self.W_recurrent, self.b]
+        return (self.input_to_hidden.get_params() +
+                self.hidden_to_hidden.get_params())
 
     def get_bias_params(self):
-        return [self.b]
+        return (self.input_to_hidden.get_bias_params() +
+                self.hidden_to_hidden.get_bias_params())
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -275,14 +272,11 @@ class RecurrentLayer(Layer):
             input = input.reshape((input.shape[0], T.prod(input.shape[1:])))
 
         # Create single recurrent computation step function
-        def step(layer_input, previous_output, W_input, W_recurrent, b):
-            return self.nonlinearity(T.dot(layer_input, W_input) +
-                                     T.dot(previous_output, W_recurrent) +
-                                     b)
-        return theano.scan(step, sequences=input, outputs_info=[self.h],
-                           non_sequences=[self.W_input,
-                                          self.W_recurrent,
-                                          self.b])[0]
+        def step(layer_input, previous_output):
+            return self.nonlinearity(
+                self.input_to_hidden.get_output_for(layer_input) +
+                self.hidden_to_hidden.get_output_for(previous_output))
+        return theano.scan(step, sequences=input, outputs_info=[self.h])[0]
 
 
 ## Convolutions

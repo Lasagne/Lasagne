@@ -54,7 +54,9 @@ class Conv2DMMLayer(MMLayer):
             self.pad = pad
 
         self.W = self.create_param(W, self.get_W_shape())
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
         else:
@@ -67,10 +69,10 @@ class Conv2DMMLayer(MMLayer):
         return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]
@@ -88,13 +90,12 @@ class Conv2DMMLayer(MMLayer):
         contiguous_input = gpu_contiguous(input)
         conved = self.corr_mm_op(contiguous_input, contiguous_filters)
 
-        if self.untie_biases:
-            biases = self.b.dimshuffle('x', 0, 1, 2)
+        if self.b is None:
+            activation = conved
+        elif self.untie_biases:
+            activation = conved + self.b.dimshuffle('x', 0, 1, 2)
         else:
-            biases = self.b.dimshuffle('x', 0, 'x', 'x')
+            activation = conved + self.b.dimshuffle('x', 0, 'x', 'x')
 
-        conved += biases
-        conved = self.nonlinearity(conved)
-
-        return conved
+        return self.nonlinearity(activation)
 

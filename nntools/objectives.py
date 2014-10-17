@@ -1,14 +1,18 @@
-import theano
 import theano.tensor as T
 
 
-# MSE
 def mse(x, t):
-    return T.mean((x - t) ** 2) # note: mean across all dimensions, i.e. feature dimension AND minibatch dimension.
+    """Calculates the MSE mean across all dimensions, i.e. feature
+     dimension AND minibatch dimension.
+    """
+    return T.mean((x - t) ** 2)
 
-# cross-entropy
+
 def crossentropy(x, t):
-    T.mean(T.nnet.binary_crossentropy(x, t)) # note: mean across all dimensions, i.e. feature dimension AND minibatch dimension.
+    """Calculates the binary crossentropy mean across all dimentions,
+    i.e.  feature dimension AND minibatch dimension.
+    """
+    return T.mean(T.nnet.binary_crossentropy(x, t))
 
 
 class Objective(object):

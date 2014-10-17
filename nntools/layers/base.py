@@ -10,6 +10,7 @@ from .. import init
 from .. import nonlinearities
 from .. import utils
 from ..theano_extensions import conv
+from ..theano_extensions import padding
 
 
 _srng = RandomStreams()
@@ -56,6 +57,13 @@ def get_all_non_bias_params(layer):
     all_params = get_all_params(layer)
     all_bias_params = get_all_bias_params(layer)
     return [p for p in all_params if p not in all_bias_params]
+
+
+def count_params(layer):
+    params = get_all_params(layer)
+    shapes = [p.get_value().shape for p in params]
+    counts = [np.prod(shape) for shape in shapes]
+    return sum(counts)
 
 
 ## Layer base class
@@ -144,8 +152,11 @@ class MultipleInputsLayer(Layer):
         return self.get_output_shape_for(input_shapes)
 
     def get_output(self, input=None, *args, **kwargs):
-        layer_inputs = [input_layer.get_output(*args, **kwargs) for input_layer in self.input_layers]
-        return self.get_output_for(layer_inputs, *args, **kwargs)
+        if isinstance(input, dict) and (self in input):
+            return input[self] # this layer is mapped to an expression
+        else: # in all other cases, just pass the network input on to the next layer.
+            layer_inputs = [input_layer.get_output(input, *args, **kwargs) for input_layer in self.input_layers]
+            return self.get_output_for(layer_inputs, *args, **kwargs)
 
     def get_output_shape_for(self, input_shapes):
         raise NotImplementedError
@@ -178,7 +189,7 @@ class InputLayer(Layer):
 ## Layer implementations
 
 class DenseLayer(Layer):
-    def __init__(self, input_layer, num_units, W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
+    def __init__(self, input_layer, num_units, W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
         super(DenseLayer, self).__init__(input_layer)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -188,7 +199,7 @@ class DenseLayer(Layer):
         self.num_units = num_units
 
         output_shape = self.input_layer.get_output_shape()
-        num_inputs = np.prod(output_shape[1:])
+        num_inputs = int(np.prod(output_shape[1:]))
 
         self.W = self.create_param(W, (num_inputs, num_units))
         self.b = self.create_param(b, (num_units,))
@@ -206,7 +217,7 @@ class DenseLayer(Layer):
         if input.ndim > 2:
             # if the input has more than two dimensions, flatten it into a
             # batch of feature vectors.
-            input = input.reshape((input.shape[0], T.prod(input.shape[1:])))
+            input = input.flatten(2)
 
         return self.nonlinearity(T.dot(input, self.W) + self.b.dimshuffle('x', 0))
         
@@ -226,6 +237,8 @@ class DropoutLayer(Layer):
                 input /= retain_prob
 
             return input * utils.floatX(_srng.binomial(input.shape, p=retain_prob, dtype='int32'))
+
+dropout = DropoutLayer # shortcut
 
 
 class GaussianNoiseLayer(Layer):
@@ -283,7 +296,7 @@ class RecurrentLayer(Layer):
 
 class Conv1DLayer(Layer):
     def __init__(self, input_layer, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
-                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=conv.conv1d_mc0):
         super(Conv1DLayer, self).__init__(input_layer)
         if nonlinearity is None:
@@ -356,7 +369,7 @@ class Conv1DLayer(Layer):
 
 class Conv2DLayer(Layer):
     def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
-                 W=init.Normal(0.01), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=T.nnet.conv2d):
         super(Conv2DLayer, self).__init__(input_layer)
         if nonlinearity is None:
@@ -459,3 +472,242 @@ class MaxPool2DLayer(Layer):
 # TODO: add reshape-based implementation to MaxPool2DLayer
 # TODO: add MaxPool1DLayer
 # TODO: add MaxPool3DLayer
+
+
+class FeaturePoolLayer(Layer):
+    """
+    Pooling across feature maps. This can be used to implement maxout.
+    IMPORTANT: this layer requires that the number of feature maps is
+    a multiple of the pool size.
+    """
+    def __init__(self, input_layer, ds, axis=1, pool_function=T.max):
+        """
+        ds: the number of feature maps to be pooled together
+        axis: the axis along which to pool. The default value of 1 works
+        for DenseLayer and Conv*DLayers
+        pool_function: the pooling function to use
+        """
+        super(FeaturePoolLayer, self).__init__(input_layer)
+        self.ds = ds
+        self.axis = axis
+        self.pool_function = pool_function
+
+        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        if num_feature_maps % self.ds != 0:
+            raise RuntimeError("Number of input feature maps (%d) is not a multiple of the pool size (ds=%d)" %
+                    (num_feature_maps, self.ds))
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape) # make a mutable copy
+        output_shape[self.axis] = output_shape[self.axis] // self.ds
+        return tuple(output_shape)
+
+    def get_output_for(self, input, *args, **kwargs):
+        num_feature_maps = input.shape[self.axis]
+        num_feature_maps_out = num_feature_maps // self.ds
+
+        pool_shape = ()
+        for k in range(self.axis):
+            pool_shape += (input.shape[k],)
+        pool_shape += (num_feature_maps_out, self.ds)
+        for k in range(self.axis + 1, input.ndim):
+            pool_shape += (input.shape[k],)
+
+        input_reshaped = input.reshape(pool_shape)
+        return self.pool_function(input_reshaped, axis=self.axis + 1)
+
+
+class FeatureWTALayer(Layer):
+    """
+    Perform 'Winner Take All' across feature maps: zero out all but
+    the maximal activation value within a group of features.
+    IMPORTANT: this layer requires that the number of feature maps is
+    a multiple of the pool size.
+    """
+    def __init__(self, input_layer, ds, axis=1):
+        """
+        ds: the number of feature maps per group. This is called 'ds'
+        for consistency with the pooling layers, even though this
+        layer does not actually perform a downsampling operation.
+        axis: the axis along which the groups are formed.
+        """
+        super(FeatureWTALayer, self).__init__(input_layer)
+        self.ds = ds
+        self.axis = axis
+
+        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        if num_feature_maps % self.ds != 0:
+            raise RuntimeError("Number of input feature maps (%d) is not a multiple of the group size (ds=%d)" %
+                    (num_feature_maps, self.ds))
+
+    def get_output_for(self, input, *args, **kwargs):
+        num_feature_maps = input.shape[self.axis]
+        num_pools = num_feature_maps // self.ds
+
+        pool_shape = ()
+        arange_shuffle_pattern = ()
+        for k in range(self.axis):
+            pool_shape += (input.shape[k],)
+            arange_shuffle_pattern += ('x',)
+
+        pool_shape += (num_pools, self.ds)
+        arange_shuffle_pattern += ('x', 0)
+
+        for k in range(self.axis + 1, input.ndim):
+            pool_shape += (input.shape[k],)
+            arange_shuffle_pattern += ('x',)
+
+        input_reshaped = input.reshape(pool_shape)
+        max_indices = T.argmax(input_reshaped, axis=self.axis + 1, keepdims=True)
+
+        arange = T.arange(self.ds).dimshuffle(*arange_shuffle_pattern)
+        mask = T.eq(max_indices, arange).reshape(input.shape)
+
+        return input * mask
+
+
+## Network in network
+
+class NINLayer(Layer):
+    """
+    Like DenseLayer, but broadcasting across all trailing dimensions beyond the 2nd.
+    This results in a convolution operation with filter size 1 on all trailing dimensions.
+    Any number of trailing dimensions is supported, so NINLayer can be used to implement
+    1D, 2D, 3D, ... convolutions.
+    """
+    def __init__(self, input_layer, num_units, untie_biases=False,
+        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
+        super(NINLayer, self).__init__(input_layer)
+        if nonlinearity is None:
+            self.nonlinearity = nonlinearities.identity
+        else:
+            self.nonlinearity = nonlinearity
+
+        self.num_units = num_units
+        self.untie_biases = untie_biases
+
+        output_shape = self.input_layer.get_output_shape()
+        num_input_channels = output_shape[1]
+
+        self.W = self.create_param(W, (num_input_channels, num_units))
+        if self.untie_biases:
+            output_shape = self.get_output_shape()
+            self.b = self.create_param(b, (num_units,) + output_shape[2:])
+        else:
+            self.b = self.create_param(b, (num_units,))
+
+    def get_params(self):
+        return [self.W, self.b]
+
+    def get_bias_params(self):
+        return [self.b]
+
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], self.num_units) + input_shape[2:]
+
+    def get_output_for(self, input, *args, **kwargs):
+        out_r = T.tensordot(self.W, input, axes=[[0], [1]]) # cf * bc01... = fb01...
+        remaining_dims = range(2, input.ndim) # input dims to broadcast over
+        out = out_r.dimshuffle(1, 0, *remaining_dims) # bf01...
+
+        if self.untie_biases:
+            remaining_dims_biases = range(1, input.ndim - 1) # no broadcast
+        else:
+            remaining_dims_biases = ['x'] * (input.ndim - 2) # broadcast
+        b_shuffled = self.b.dimshuffle('x', 0, *remaining_dims_biases)
+
+        return self.nonlinearity(out + b_shuffled)
+
+
+class GlobalPoolLayer(Layer):
+    """
+    Layer that pools globally across all trailing dimensions beyond the 2nd.
+    """
+    def __init__(self, input_layer, pool_function=T.mean):
+        super(GlobalPoolLayer, self).__init__(input_layer)
+        self.pool_function = pool_function
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape[:2]
+
+    def get_output_for(self, input, *args, **kwargs):
+        return self.pool_function(input.flatten(3), axis=2)
+
+
+## Shape modification
+
+class FlattenLayer(Layer):
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], int(np.prod(input_shape[1:])))
+
+    def get_output_for(self, input, *args, **kwargs):
+        return input.flatten(2)
+
+flatten = FlattenLayer # shortcut
+
+
+class ConcatLayer(MultipleInputsLayer):
+    def __init__(self, input_layers, axis=1):
+        super(ConcatLayer, self).__init__(input_layers)
+        self.axis = axis
+
+    def get_output_shape_for(self, input_shapes):
+        sizes = [input_shape[self.axis] for input_shape in input_shapes]
+        output_shape = list(input_shapes[0]) # make a mutable copy
+        output_shape[self.axis] = sum(sizes)
+        return tuple(output_shape)
+
+    def get_output_for(self, inputs, *args, **kwargs):
+        # unfortunately the gradient of T.concatenate has no GPU
+        # implementation, so we have to do this differently.
+        # Else, we could just do:
+        # return T.concatenate(inputs, axis=self.axis)
+
+        concat_size = sum(input.shape[self.axis] for input in inputs)
+
+        output_shape = ()
+        for k in range(self.axis):
+            output_shape += (inputs[0].shape[k],)
+        output_shape += (concat_size,)
+        for k in range(self.axis + 1, inputs[0].ndim):
+            output_shape += (inputs[0].shape[k],)
+
+        out = T.zeros(output_shape)
+        offset = 0
+        for input in inputs:
+            indices = ()
+            for k in range(self.axis):
+                indices += (slice(None),)
+            indices += (slice(offset, offset + input.shape[self.axis]),)
+            for k in range(self.axis + 1, inputs[0].ndim):
+                indices += (slice(None),)
+
+            out = T.set_subtensor(out[indices], input)
+            offset += input.shape[self.axis]
+
+        return out
+
+concat = ConcatLayer # shortcut
+
+
+class PadLayer(Layer):
+    def __init__(self, input_layer, width, val=0, batch_ndim=2):
+        super(PadLayer, self).__init__(input_layer)
+        self.width = width
+        self.val = val
+        self.batch_ndim = batch_ndim
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = ()
+        for k, s in enumerate(input_shape):
+            if k < self.batch_ndim:
+                output_shape += (s,)
+            else:
+                output_shape += (s + 2 * self.width,)
+
+        return output_shape
+
+    def get_output_for(self, input, *args, **kwargs):
+        return padding.pad(input, self.width, self.val, self.batch_ndim)
+
+pad = PadLayer # shortcut

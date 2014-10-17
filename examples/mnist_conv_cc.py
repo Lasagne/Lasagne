@@ -1,8 +1,11 @@
 from __future__ import print_function
 
+import gzip
 import nntools
 import theano
 import theano.tensor as T
+
+from nntools.layers import cuda_convnet
 
 from mnist import _load_data
 from mnist import create_iter_functions
@@ -43,28 +46,44 @@ def load_data():
 
 
 def build_model(input_width, input_height, output_dim,
-                batch_size=BATCH_SIZE):
+                batch_size=BATCH_SIZE, dimshuffle=True):
     l_in = nntools.layers.InputLayer(
         shape=(BATCH_SIZE, 1, input_width, input_height),
         )
 
-    l_conv1 = nntools.layers.Conv2DLayer(
+    if not dimshuffle:
+        l_in = cuda_convnet.bc01_to_c01b(l_in)
+
+    l_conv1 = cuda_convnet.Conv2DCCLayer(
         l_in,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=nntools.nonlinearities.rectify,
         W=nntools.init.Uniform(),
+        dimshuffle=dimshuffle,
         )
-    l_pool1 = nntools.layers.MaxPool2DLayer(l_conv1, ds=(2, 2))
+    l_pool1 = cuda_convnet.MaxPool2DCCLayer(
+        l_conv1,
+        ds=(2, 2),
+        dimshuffle=dimshuffle,
+        )
 
-    l_conv2 = nntools.layers.Conv2DLayer(
+    l_conv2 = cuda_convnet.Conv2DCCLayer(
         l_pool1,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=nntools.nonlinearities.rectify,
         W=nntools.init.Uniform(),
+        dimshuffle=dimshuffle,
         )
-    l_pool2 = nntools.layers.MaxPool2DLayer(l_conv2, ds=(2, 2))
+    l_pool2 = cuda_convnet.MaxPool2DCCLayer(
+        l_conv2,
+        ds=(2, 2),
+        dimshuffle=dimshuffle,
+        )
+
+    if not dimshuffle:
+        l_pool2 = cuda_convnet.c01b_to_bc01(l_pool2)
 
     l_hidden1 = nntools.layers.DenseLayer(
         l_pool2,
@@ -108,6 +127,7 @@ def main(num_epochs=NUM_EPOCHS):
         )
 
     print("Starting training...")
+
     for epoch in train(iter_funcs, dataset):
         print("Epoch %d of %d" % (epoch['number'], num_epochs))
         print("  training loss:\t\t%.6f" % epoch['train_loss'])
@@ -117,8 +137,6 @@ def main(num_epochs=NUM_EPOCHS):
 
         if epoch['number'] >= num_epochs:
             break
-
-    return output_layer
 
 
 if __name__ == '__main__':

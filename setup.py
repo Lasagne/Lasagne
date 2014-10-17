@@ -18,6 +18,8 @@ install_requires = [
     ]
 
 tests_require = [
+    'mock',
+    'pytest',
     ]
 
 docs_require = [

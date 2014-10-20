@@ -202,13 +202,13 @@ class DenseLayer(Layer):
         num_inputs = int(np.prod(output_shape[1:]))
 
         self.W = self.create_param(W, (num_inputs, num_units))
-        self.b = self.create_param(b, (num_units,))
+        self.b = self.create_param(b, (num_units,)) if b is not None else None
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -219,7 +219,10 @@ class DenseLayer(Layer):
             # batch of feature vectors.
             input = input.flatten(2)
 
-        return self.nonlinearity(T.dot(input, self.W) + self.b.dimshuffle('x', 0))
+        activation = T.dot(input, self.W)
+        if self.b is not None:
+            activation = activation + self.b.dimshuffle('x', 0)
+        return self.nonlinearity(activation)
         
 
 class DropoutLayer(Layer):
@@ -273,7 +276,9 @@ class Conv1DLayer(Layer):
         self.convolution = convolution
 
         self.W = self.create_param(W, self.get_W_shape())
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_filters, output_shape[2]))
         else:
@@ -284,10 +289,10 @@ class Conv1DLayer(Layer):
         return (self.num_filters, num_input_channels, self.filter_length)
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         if self.border_mode == 'valid':
@@ -320,12 +325,14 @@ class Conv1DLayer(Layer):
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
-        if self.untie_biases:
-            b_shuffled = self.b.dimshuffle('x', 0, 1)
+        if self.b is None:
+            activation = conved
+        elif self.untie_biases:
+            activation = conved + self.b.dimshuffle('x', 0, 1)
         else:
-            b_shuffled = self.b.dimshuffle('x', 0, 'x')
+            activation = conved + self.b.dimshuffle('x', 0, 'x')
 
-        return self.nonlinearity(conved + b_shuffled)
+        return self.nonlinearity(activation)
 
 
 class Conv2DLayer(Layer):
@@ -346,7 +353,9 @@ class Conv2DLayer(Layer):
         self.convolution = convolution
 
         self.W = self.create_param(W, self.get_W_shape())
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
         else:
@@ -357,10 +366,10 @@ class Conv2DLayer(Layer):
         return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         if self.border_mode == 'valid':
@@ -397,12 +406,14 @@ class Conv2DLayer(Layer):
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
-        if self.untie_biases:
-            b_shuffled = self.b.dimshuffle('x', 0, 1, 2)
+        if self.b is None:
+            activation = conved
+        elif self.untie_biases:
+            activation = conved + self.b.dimshuffle('x', 0, 1, 2)
         else:
-            b_shuffled = self.b.dimshuffle('x', 0, 'x', 'x')
+            activation = conved + self.b.dimshuffle('x', 0, 'x', 'x')
 
-        return self.nonlinearity(conved + b_shuffled)
+        return self.nonlinearity(activation)
 
 # TODO: add Conv3DLayer
 
@@ -551,17 +562,19 @@ class NINLayer(Layer):
         num_input_channels = output_shape[1]
 
         self.W = self.create_param(W, (num_input_channels, num_units))
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_units,) + output_shape[2:])
         else:
             self.b = self.create_param(b, (num_units,))
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units) + input_shape[2:]
@@ -571,13 +584,17 @@ class NINLayer(Layer):
         remaining_dims = range(2, input.ndim) # input dims to broadcast over
         out = out_r.dimshuffle(1, 0, *remaining_dims) # bf01...
 
-        if self.untie_biases:
-            remaining_dims_biases = range(1, input.ndim - 1) # no broadcast
+        if self.b is None:
+            activation = out
         else:
-            remaining_dims_biases = ['x'] * (input.ndim - 2) # broadcast
-        b_shuffled = self.b.dimshuffle('x', 0, *remaining_dims_biases)
+            if self.untie_biases:
+                remaining_dims_biases = range(1, input.ndim - 1) # no broadcast
+            else:
+                remaining_dims_biases = ['x'] * (input.ndim - 2) # broadcast
+            b_shuffled = self.b.dimshuffle('x', 0, *remaining_dims_biases)
+            activation = out + b_shuffled
 
-        return self.nonlinearity(out + b_shuffled)
+        return self.nonlinearity(activation)
 
 
 class GlobalPoolLayer(Layer):

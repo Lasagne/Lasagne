@@ -220,7 +220,7 @@ class DenseLayer(Layer):
             input = input.flatten(2)
 
         return self.nonlinearity(T.dot(input, self.W) + self.b.dimshuffle('x', 0))
-        
+
 
 class DropoutLayer(Layer):
     def __init__(self, input_layer, p=0.5, rescale=True):
@@ -265,9 +265,9 @@ class RecurrentLayer(Layer):
         else:
             self.nonlinearity = nonlinearity
 
-        self.num_units = self.hidden_to_hidden.get_output_shape()[1]
+        (n_batch, self.num_units) = self.input_to_hidden.get_output_shape()
 
-        self.h = self.create_param(h, self.hidden_to_hidden.get_output_shape())
+        self.h = self.create_param(h, (n_batch, self.num_units))
 
     def get_params(self):
         return (self.input_to_hidden.get_params() +
@@ -278,18 +278,42 @@ class RecurrentLayer(Layer):
                 self.hidden_to_hidden.get_bias_params())
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], self.num_units)
+        return (input_shape[0], input_shape[1], self.num_units)
 
     def get_output_for(self, input, *args, **kwargs):
-        if input.ndim > 2:
-            input = input.reshape((input.shape[0], T.prod(input.shape[1:])))
+        if input.ndim > 3:
+            input = input.reshape((input.shape[0], input.shape[1],
+                                   T.prod(input.shape[2:])))
+
+        # Input should be provided as (n_batch, n_time_steps, n_features)
+        # but scan requires the iterable dimension to be first
+        # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
+        input = input.dimshuffle(1, 0, 2)
 
         # Create single recurrent computation step function
         def step(layer_input, previous_output):
             return self.nonlinearity(
                 self.input_to_hidden.get_output_for(layer_input) +
                 self.hidden_to_hidden.get_output_for(previous_output))
-        return theano.scan(step, sequences=input, outputs_info=[self.h])[0]
+
+        output = theano.scan(step, sequences=input,
+                             outputs_info=[self.h])[0]
+        # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
+        output = output.dimshuffle(1, 0, 2)
+
+        return output
+
+
+class ReshapeLayer(Layer):
+    def __init__(self, input_layer, shape):
+        super(ReshapeLayer, self).__init__(input_layer)
+        self.shape = shape
+
+    def get_output_shape_for(self, input_shape):
+        return self.shape
+
+    def get_output_for(self, input):
+        return input.reshape(self.shape)
 
 
 ## Convolutions

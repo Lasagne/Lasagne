@@ -254,8 +254,30 @@ class GaussianNoiseLayer(Layer):
 
 
 class RecurrentLayer(Layer):
+    '''
+    A layer which implements a recurrent connection.
+
+    Expects inputs of shape
+        (n_batch, n_time_steps, n_features_1, n_features_2, ...)
+    '''
     def __init__(self, input_layer, input_to_hidden, hidden_to_hidden,
                  nonlinearity=nonlinearities.rectify, h=init.Constant(0.)):
+        '''
+        Create a recurrent layer.
+
+        :parameters:
+            - input_layer : nntools.layers.Layer
+                Input to the recurrent layer
+            - input_to_hidden : nntools.layers.Layer
+                Layer which connects input to thie hidden state
+            - hidden_to_hidden : nntools.layers.Layer
+                Layer which connects the previous hidden state to the new state
+            - nonlinearity : function or theano.tensor.elemwise.Elemwise
+                Nonlinearity to apply when computing new state
+            - h : function or np.ndarray or theano.shared
+                Initial hidden state
+                TODO: Allow hidden state to be reset/add as param
+        '''
         super(RecurrentLayer, self).__init__(input_layer)
 
         self.input_to_hidden = input_to_hidden
@@ -265,8 +287,11 @@ class RecurrentLayer(Layer):
         else:
             self.nonlinearity = nonlinearity
 
+        # Get the batch size and number of units based on the expected output
+        # of the input-to-hidden layer
         (n_batch, self.num_units) = self.input_to_hidden.get_output_shape()
 
+        # Initialize hidden state
         self.h = self.create_param(h, (n_batch, self.num_units))
 
     def get_params(self):

@@ -571,7 +571,7 @@ class LSTMLayer(Layer):
         # Treat all layers after the first as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
-                                   T.prod(input.shape[1:])))
+                                   T.prod(input.shape[2:])))
 
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first

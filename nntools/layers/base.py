@@ -505,7 +505,7 @@ class LSTMLayer(Layer):
         self.b_output_gate = self.create_param(b_output_gate, (num_units,))
 
         self.c = self.create_param(c, (num_batch, num_units))
-        self.h = self.create_param(c, (num_batch, num_units))
+        self.h = self.create_param(h, (num_batch, num_units))
 
     def get_params(self):
         '''

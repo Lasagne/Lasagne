@@ -261,7 +261,8 @@ class RecurrentLayer(Layer):
         (n_batch, n_time_steps, n_features_1, n_features_2, ...)
     '''
     def __init__(self, input_layer, input_to_hidden, hidden_to_hidden,
-                 nonlinearity=nonlinearities.rectify, h=init.Constant(0.)):
+                 nonlinearity=nonlinearities.rectify,
+                 h_init=init.Constant(0.)):
         '''
         Create a recurrent layer.
 
@@ -274,9 +275,8 @@ class RecurrentLayer(Layer):
                 Layer which connects the previous hidden state to the new state
             - nonlinearity : function or theano.tensor.elemwise.Elemwise
                 Nonlinearity to apply when computing new state
-            - h : function or np.ndarray or theano.shared
+            - h_init : function or np.ndarray or theano.shared
                 Initial hidden state
-                TODO: Allow hidden state to be reset/add as param
         '''
         super(RecurrentLayer, self).__init__(input_layer)
 
@@ -292,11 +292,12 @@ class RecurrentLayer(Layer):
         (n_batch, self.num_units) = self.input_to_hidden.get_output_shape()
 
         # Initialize hidden state
-        self.h = self.create_param(h, (n_batch, self.num_units))
+        self.h_init = self.create_param(h_init, (n_batch, self.num_units))
 
     def get_params(self):
         return (self.input_to_hidden.get_params() +
-                self.hidden_to_hidden.get_params())
+                self.hidden_to_hidden.get_params() +
+                [self.h_init])
 
     def get_bias_params(self):
         return (self.input_to_hidden.get_bias_params() +
@@ -322,7 +323,7 @@ class RecurrentLayer(Layer):
                 self.hidden_to_hidden.get_output_for(previous_output))
 
         output = theano.scan(step, sequences=input,
-                             outputs_info=[self.h])[0]
+                             outputs_info=[self.h_init])[0]
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)
 
@@ -372,8 +373,8 @@ class LSTMLayer(Layer):
                  b_output_gate=init.Constant(1.),
                  nonlinearity_output_gate=nonlinearities.sigmoid,
                  nonlinearity_output=nonlinearities.tanh,
-                 c=init.Constant(0.),
-                 h=init.Constant(0.)):
+                 c_init=init.Constant(0.),
+                 h_init=init.Constant(0.)):
         '''
         Initialize an LSTM layer.  For details on what the parameters mean, see
         (7-11) from [#graves2014generating]_.
@@ -423,9 +424,9 @@ class LSTMLayer(Layer):
                 :math:`\sigma`
             - nonlinearity_output : function or np.ndarray or theano.shared
                 :math:`\tanh`
-            - c : function or np.ndarray or theano.shared
+            - c_init : function or np.ndarray or theano.shared
                 :math:`c_0`
-            - h : function or np.ndarray or theano.shared
+            - h_init : function or np.ndarray or theano.shared
                 :math:`h_0`
         '''
         # Initialize parent layer
@@ -504,8 +505,8 @@ class LSTMLayer(Layer):
 
         self.b_output_gate = self.create_param(b_output_gate, (num_units,))
 
-        self.c = self.create_param(c, (num_batch, num_units))
-        self.h = self.create_param(h, (num_batch, num_units))
+        self.c_init = self.create_param(c_init, (num_batch, num_units))
+        self.h_init = self.create_param(h_init, (num_batch, num_units))
 
     def get_params(self):
         '''
@@ -529,7 +530,9 @@ class LSTMLayer(Layer):
                 self.W_input_to_output_gate,
                 self.W_hidden_to_output_gate,
                 self.W_cell_to_output_gate,
-                self.b_output_gate]
+                self.b_output_gate,
+                self.c_init,
+                self.h_init]
 
     def get_bias_params(self):
         '''
@@ -617,7 +620,7 @@ class LSTMLayer(Layer):
         # Scan op iterates over first dimension of input and repeatedly
         # applied the step function
         output = theano.scan(step, sequences=input,
-                             outputs_info=[self.c, self.h],
+                             outputs_info=[self.c_init, self.h_init],
                              non_sequences=[self.W_input_to_input_gate,
                                             self.W_hidden_to_input_gate,
                                             self.W_cell_to_input_gate,

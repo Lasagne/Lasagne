@@ -338,7 +338,7 @@ class ReshapeLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return self.shape
 
-    def get_output_for(self, input):
+    def get_output_for(self, input, *args, **kwargs):
         return input.reshape(self.shape)
 
 

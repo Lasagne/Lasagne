@@ -471,7 +471,7 @@ class LSTMLayer(Layer):
             W_hidden_to_input_gate, (num_units, num_units))
 
         self.W_cell_to_input_gate = self.create_param(
-            W_cell_to_input_gate, (num_batch, num_units))
+            W_cell_to_input_gate, (num_units))
 
         self.b_input_gate = self.create_param(b_input_gate, (num_units))
 
@@ -482,7 +482,7 @@ class LSTMLayer(Layer):
             W_hidden_to_forget_gate, (num_units, num_units))
 
         self.W_cell_to_forget_gate = self.create_param(
-            W_cell_to_forget_gate, (num_batch, num_units))
+            W_cell_to_forget_gate, (num_units))
 
         self.b_forget_gate = self.create_param(b_forget_gate, (num_units,))
 
@@ -501,7 +501,7 @@ class LSTMLayer(Layer):
             W_hidden_to_output_gate, (num_units, num_units))
 
         self.W_cell_to_output_gate = self.create_param(
-            W_cell_to_output_gate, (num_batch, num_units))
+            W_cell_to_output_gate, (num_units))
 
         self.b_output_gate = self.create_param(b_output_gate, (num_units,))
 

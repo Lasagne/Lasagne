@@ -530,9 +530,7 @@ class LSTMLayer(Layer):
                 self.W_input_to_output_gate,
                 self.W_hidden_to_output_gate,
                 self.W_cell_to_output_gate,
-                self.b_output_gate,
-                self.c_init,
-                self.h_init]
+                self.b_output_gate]
 
     def get_bias_params(self):
         '''

@@ -338,7 +338,7 @@ class ReshapeLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return self.shape
 
-    def get_output_for(self, input):
+    def get_output_for(self, input, *args, **kwargs):
         return input.reshape(self.shape)
 
 
@@ -356,21 +356,21 @@ class LSTMLayer(Layer):
                  W_input_to_input_gate=init.Normal(0.1),
                  W_hidden_to_input_gate=init.Normal(0.1),
                  W_cell_to_input_gate=init.Normal(0.1),
-                 b_input_gate=init.Constant(1.),
+                 b_input_gate=init.Normal(0.1),
                  nonlinearity_input_gate=nonlinearities.sigmoid,
                  W_input_to_forget_gate=init.Normal(0.1),
                  W_hidden_to_forget_gate=init.Normal(0.1),
                  W_cell_to_forget_gate=init.Normal(0.1),
-                 b_forget_gate=init.Constant(1.),
+                 b_forget_gate=init.Normal(0.1),
                  nonlinearity_forget_gate=nonlinearities.sigmoid,
                  W_input_to_cell=init.Normal(0.1),
                  W_hidden_to_cell=init.Normal(0.1),
-                 b_cell=init.Constant(1.),
+                 b_cell=init.Normal(0.1),
                  nonlinearity_cell=nonlinearities.tanh,
                  W_input_to_output_gate=init.Normal(0.1),
                  W_hidden_to_output_gate=init.Normal(0.1),
                  W_cell_to_output_gate=init.Normal(0.1),
-                 b_output_gate=init.Constant(1.),
+                 b_output_gate=init.Normal(0.1),
                  nonlinearity_output_gate=nonlinearities.sigmoid,
                  nonlinearity_output=nonlinearities.tanh,
                  c_init=init.Constant(0.),
@@ -471,7 +471,7 @@ class LSTMLayer(Layer):
             W_hidden_to_input_gate, (num_units, num_units))
 
         self.W_cell_to_input_gate = self.create_param(
-            W_cell_to_input_gate, (num_units, num_units))
+            W_cell_to_input_gate, (num_units))
 
         self.b_input_gate = self.create_param(b_input_gate, (num_units))
 
@@ -482,7 +482,7 @@ class LSTMLayer(Layer):
             W_hidden_to_forget_gate, (num_units, num_units))
 
         self.W_cell_to_forget_gate = self.create_param(
-            W_cell_to_forget_gate, (num_units, num_units))
+            W_cell_to_forget_gate, (num_units))
 
         self.b_forget_gate = self.create_param(b_forget_gate, (num_units,))
 
@@ -501,7 +501,7 @@ class LSTMLayer(Layer):
             W_hidden_to_output_gate, (num_units, num_units))
 
         self.W_cell_to_output_gate = self.create_param(
-            W_cell_to_output_gate, (num_units, num_units))
+            W_cell_to_output_gate, (num_units))
 
         self.b_output_gate = self.create_param(b_output_gate, (num_units,))
 
@@ -530,9 +530,7 @@ class LSTMLayer(Layer):
                 self.W_input_to_output_gate,
                 self.W_hidden_to_output_gate,
                 self.W_cell_to_output_gate,
-                self.b_output_gate,
-                self.c_init,
-                self.h_init]
+                self.b_output_gate]
 
     def get_bias_params(self):
         '''
@@ -593,13 +591,13 @@ class LSTMLayer(Layer):
             input_gate = self.nonlinearity_input_gate(
                 T.dot(layer_input, W_input_to_input_gate) +
                 T.dot(previous_output, W_hidden_to_input_gate) +
-                T.dot(previous_cell, W_cell_to_input_gate) +
+                previous_cell*W_cell_to_input_gate +
                 b_input_gate)
             # f_t = \sigma(W_{xf}x_t + W_{hf}h_{t-1} + W_{cf}c_{t-1} + b_f)
             forget_gate = self.nonlinearity_forget_gate(
                 T.dot(layer_input, W_input_to_forget_gate) +
                 T.dot(previous_output, W_hidden_to_forget_gate) +
-                T.dot(previous_cell, W_cell_to_forget_gate) +
+                previous_cell*W_cell_to_forget_gate +
                 b_forget_gate)
             # c_t = f_tc_{t - 1} + i_t\tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c)
             cell = (forget_gate*previous_cell +
@@ -611,7 +609,7 @@ class LSTMLayer(Layer):
             output_gate = self.nonlinearity_output_gate(
                 T.dot(layer_input, W_input_to_output_gate) +
                 T.dot(previous_output, W_hidden_to_output_gate) +
-                T.dot(cell, W_cell_to_output_gate) +
+                cell*W_cell_to_output_gate +
                 b_output_gate)
             # h_t = o_t \tanh(c_t)
             output = output_gate*self.nonlinearity_output(cell)

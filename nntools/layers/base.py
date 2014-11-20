@@ -295,13 +295,13 @@ class RecurrentLayer(Layer):
         self.h_init = self.create_param(h_init, (n_batch, self.num_units))
 
     def get_params(self):
-        return (self.input_to_hidden.get_params() +
-                self.hidden_to_hidden.get_params() +
+        return (get_all_params(self.input_to_hidden) +
+                get_all_params(self.hidden_to_hidden) +
                 [self.h_init])
 
     def get_bias_params(self):
-        return (self.input_to_hidden.get_bias_params() +
-                self.hidden_to_hidden.get_bias_params())
+        return (get_all_bias_params(self.input_to_hidden) +
+                get_all_bias_params(self.hidden_to_hidden))
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[1], self.num_units)
@@ -319,8 +319,8 @@ class RecurrentLayer(Layer):
         # Create single recurrent computation step function
         def step(layer_input, previous_output):
             return self.nonlinearity(
-                self.input_to_hidden.get_output_for(layer_input) +
-                self.hidden_to_hidden.get_output_for(previous_output))
+                self.input_to_hidden.get_output(layer_input) +
+                self.hidden_to_hidden.get_output(previous_output))
 
         output = theano.scan(step, sequences=input,
                              outputs_info=[self.h_init])[0]

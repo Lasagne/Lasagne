@@ -59,13 +59,16 @@ l_input_to_hidden = nntools.layers.DenseLayer(l_recurrent_in, N_HIDDEN,
 
 # As above, we need to tell the hidden-to-hidden layer what shape to expect
 l_recurrent_hid = nntools.layers.InputLayer(shape=(N_BATCH, N_HIDDEN))
-l_hidden_to_hidden = nntools.layers.DenseLayer(l_recurrent_hid, N_HIDDEN,
-                                               nonlinearity=None,
-                                               b=nntools.init.Constant(1.))
+l_hidden_to_hidden_1 = nntools.layers.DenseLayer(l_recurrent_hid, N_HIDDEN,
+                                                 nonlinearity=None,
+                                                 b=nntools.init.Constant(1.))
+l_hidden_to_hidden_2 = nntools.layers.DenseLayer(l_hidden_to_hidden_1,
+                                                 N_HIDDEN, nonlinearity=None,
+                                                 b=nntools.init.Constant(1.))
 
 l_recurrent = nntools.layers.RecurrentLayer(l_in,
                                             l_input_to_hidden,
-                                            l_hidden_to_hidden,
+                                            l_hidden_to_hidden_2,
                                             nonlinearity=None)
 l_reshape = nntools.layers.ReshapeLayer(l_recurrent,
                                         (N_BATCH*LENGTH, N_HIDDEN))
@@ -75,6 +78,9 @@ l_recurrent_out = nntools.layers.DenseLayer(l_reshape,
                                             nonlinearity=None)
 l_out = nntools.layers.ReshapeLayer(l_recurrent_out,
                                     (N_BATCH, LENGTH, y_val.shape[-1]))
+
+print "Total parameters: {}".format(
+    sum([p.get_value().size for p in nntools.layers.get_all_params(l_out)]))
 
 # Cost function is mean squared error
 input = T.tensor3('input')

@@ -638,32 +638,8 @@ class ConcatLayer(MultipleInputsLayer):
     def get_output_for(self, inputs, *args, **kwargs):
         # unfortunately the gradient of T.concatenate has no GPU
         # implementation, so we have to do this differently.
-        # Else, we could just do:
-        # return T.concatenate(inputs, axis=self.axis)
+        return utils.concatenate(inputs, axis=self.axis)
 
-        concat_size = sum(input.shape[self.axis] for input in inputs)
-
-        output_shape = ()
-        for k in range(self.axis):
-            output_shape += (inputs[0].shape[k],)
-        output_shape += (concat_size,)
-        for k in range(self.axis + 1, inputs[0].ndim):
-            output_shape += (inputs[0].shape[k],)
-
-        out = T.zeros(output_shape)
-        offset = 0
-        for input in inputs:
-            indices = ()
-            for k in range(self.axis):
-                indices += (slice(None),)
-            indices += (slice(offset, offset + input.shape[self.axis]),)
-            for k in range(self.axis + 1, inputs[0].ndim):
-                indices += (slice(None),)
-
-            out = T.set_subtensor(out[indices], input)
-            offset += input.shape[self.axis]
-
-        return out
 
 concat = ConcatLayer # shortcut
 

@@ -289,3 +289,18 @@ class TestGaussianNoiseLayer:
         result = layer.get_output_for(input, deterministic=True)
         result_eval = result.eval()
         assert (result_eval == input.eval()).all()
+
+
+class TestConcatLayer:
+    @pytest.fixture
+    def layer(self):
+        from nntools.layers.base import ConcatLayer
+        return ConcatLayer([Mock(), Mock()], axis=1)
+
+    def test_get_output_for(self, layer):
+        inputs = [theano.shared(numpy.ones((3, 3))),
+            theano.shared(numpy.ones((3, 2)))]
+        result = layer.get_output_for(inputs)
+        result_eval = result.eval()
+        desired_result = numpy.hstack([input.get_value() for input in inputs])
+        assert (result_eval == desired_result).all()

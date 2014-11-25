@@ -20,7 +20,7 @@ _srng = RandomStreams()
 
 def get_all_layers(layer):
     """
-    Helper function to gather all layers below a given :class:`Layer` instance,
+    This function gathers all layers below a given :class:`Layer` instance,
     including the layer itself.
 
     :usage:
@@ -59,8 +59,8 @@ def get_all_layers(layer):
 
 def get_all_params(layer):
     """
-    Helper function to gather all learnable parameters of all layers below a
-    given :class:`Layer` instance, including the layer itself.
+    This function gathers all learnable parameters of all layers below a given
+    :class:`Layer` instance, including the layer itself.
 
     :usage:
         >>> l_in = nntools.layers.InputLayer((100, 20))
@@ -82,18 +82,90 @@ def get_all_params(layer):
 
 
 def get_all_bias_params(layer):
+    """
+    This function gathers all learnable bias parameters of all layers below a
+    given :class`Layer` instance, including the layer itself.
+
+    This is useful for situations where the biases should be treated
+    separately from other parameters, e.g. they are typically excluded from
+    L2 regularization.
+
+    :usage:
+        >>> l_in = nntools.layers.InputLayer((100, 20))
+        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
+        >>> all_params = nntools.layers.get_all_bias_params(l1)
+        >>> # all_params is now [l1.b]
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all bias parameters.
+
+    :returns:
+        - params : list
+            a list of Theano shared variables representing the bias parameters.
+
+    """
     layers = get_all_layers(layer)
     params = sum([l.get_bias_params() for l in layers], [])
     return utils.unique(params)
 
 
 def get_all_non_bias_params(layer):
+    """
+    This function gathers all learnable non-bias parameters of all layers below
+    a given :class`Layer` instance, including the layer itself.
+
+    This is useful for situations where the biases should be treated
+    separately from other parameters, e.g. they are typically excluded from
+    L2 regularization.
+
+    :usage:
+        >>> l_in = nntools.layers.InputLayer((100, 20))
+        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
+        >>> all_params = nntools.layers.get_all_non_bias_params(l1)
+        >>> # all_params is now [l1.W]
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all non-bias
+            parameters.
+
+    :returns:
+        - params : list
+            a list of Theano shared variables representing the non-bias
+            parameters.
+
+    """
     all_params = get_all_params(layer)
     all_bias_params = get_all_bias_params(layer)
     return [p for p in all_params if p not in all_bias_params]
 
 
 def count_params(layer):
+    """
+    This function counts all learnable parameters (i.e. the number of scalar
+    values) of all layers below a given :class`Layer` instance, including the
+    layer itself.
+
+    This is useful to compare the capacity of various network architectures.
+    All parameters returned by the :class:`Layer`s' `get_params` methods are
+    counted, including biases.
+
+    :usage:
+        >>> l_in = nntools.layers.InputLayer((100, 20))
+        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
+        >>> param_count = nntools.layers.count_params(l1)
+        >>> # param_count is now 1050.
+        >>> # (20 input features * 50 units + 50 biases)
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to count the parameters.
+    :returns:
+        - count : int
+            the total number of learnable parameters.
+
+    """
     params = get_all_params(layer)
     shapes = [p.get_value().shape for p in params]
     counts = [np.prod(shape) for shape in shapes]
@@ -101,11 +173,56 @@ def count_params(layer):
 
 
 def get_all_param_values(layer):
+    """
+    This function gathers returns the values of the parameters of all layers
+    below a given :class:`Layer` instance, including the layer itself.
+
+    This function can be used in conjunction with set_all_param_values to save
+    and restore model parameters.
+
+    :usage:
+        >>> l_in = nntools.layers.InputLayer((100, 20))
+        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
+        >>> all_param_values = nntools.layers.get_all_param_values(l1)
+        >>> # all_param_values is now [l1.W.get_value(), l1.b.get_value()]
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all parameter
+            values.
+
+    :returns:
+        - param_values : list of numpy.array
+            a list of numpy arrays representing the parameter values.
+    """
     params = get_all_params(layer)
     return [p.value() for p in params]
 
 
 def set_all_param_values(layer, values):
+    """
+    Given a list of numpy arrays, this function sets the parameters of all
+    layers below a given :class:`Layer` instance (including the layer itself)
+    to the given values.
+
+    This function can be used in conjunction with get_all_param_values to save
+    and restore model parameters.
+
+    :usage:
+        >>> l_in = nntools.layers.InputLayer((100, 20))
+        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
+        >>> all_param_values = nntools.layers.get_all_param_values(l1)
+        >>> # all_param_values is now [l1.W.get_value(), l1.b.get_value()]
+        >>> # ...
+        >>> nntools.layers.set_param_values(l1, all_param_values)
+        >>> # the parameter values are restored.
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to set all parameter
+            values.
+        - values : list of numpy.array
+    """
     params = get_all_params(layer)
     for p,v in zip(params, values):
         p.set_value(v)
@@ -684,7 +801,6 @@ class ConcatLayer(MultipleInputsLayer):
         # unfortunately the gradient of T.concatenate has no GPU
         # implementation, so we have to do this differently.
         return utils.concatenate(inputs, axis=self.axis)
-
 
 concat = ConcatLayer # shortcut
 

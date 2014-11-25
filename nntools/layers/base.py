@@ -66,6 +66,17 @@ def count_params(layer):
     return sum(counts)
 
 
+def get_all_param_values(layer):
+    params = get_all_params(layer)
+    return [p.value() for p in params]
+
+
+def set_all_param_values(layer, values):
+    params = get_all_params(layer)
+    for p,v in zip(params, values):
+        p.set_value(v)
+
+
 ## Layer base class
 
 class Layer(object):

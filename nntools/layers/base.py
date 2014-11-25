@@ -16,11 +16,27 @@ from ..theano_extensions import padding
 _srng = RandomStreams()
 
 
-## Helper methods
+## Helper functions
 
 def get_all_layers(layer):
     """
-    Function to gather all layers below the given layer (including the given layer)
+    Helper function to gather all layers below a given :class:`Layer` instance,
+    including the layer itself.
+
+    :usage:
+        >>> l_in = nntools.layers.InputLayer((100, 20))
+        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
+        >>> all_layers = nntools.layers.get_all_layers(l1)
+        >>> # all_layers is now [l1, l_in]
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all layers feeding
+            into it.
+
+    :returns:
+        - layers : list
+            a list of :class:`Layer` instances feeding into the given instance.
     """
     layers = [layer]
     layers_to_expand = [layer]
@@ -42,6 +58,24 @@ def get_all_layers(layer):
 
 
 def get_all_params(layer):
+    """
+    Helper function to gather all learnable parameters of all layers below a
+    given :class:`Layer` instance, including the layer itself.
+
+    :usage:
+        >>> l_in = nntools.layers.InputLayer((100, 20))
+        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
+        >>> all_params = nntools.layers.get_all_params(l1)
+        >>> # all_params is now [l1.W, l1.b]
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all parameters.
+
+    :returns:
+        - params : list
+            a list of Theano shared variables representing the parameters.
+    """
     layers = get_all_layers(layer)
     params = sum([l.get_params() for l in layers], [])
     return utils.unique(params)

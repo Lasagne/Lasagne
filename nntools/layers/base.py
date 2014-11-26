@@ -24,10 +24,11 @@ def get_all_layers(layer):
     including the layer itself.
 
     :usage:
-        >>> l_in = nntools.layers.InputLayer((100, 20))
-        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
-        >>> all_layers = nntools.layers.get_all_layers(l1)
-        >>> # all_layers is now [l1, l_in]
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_layers = get_all_layers(l1)
+        >>> all_layers == [l1, l_in]
+        True
 
     :parameters:
         - layer : Layer
@@ -63,10 +64,11 @@ def get_all_params(layer):
     :class:`Layer` instance, including the layer itself.
 
     :usage:
-        >>> l_in = nntools.layers.InputLayer((100, 20))
-        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
-        >>> all_params = nntools.layers.get_all_params(l1)
-        >>> # all_params is now [l1.W, l1.b]
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_params = get_all_params(l1)
+        >>> all_params == [l1.W, l1.b]
+        True
 
     :parameters:
         - layer : Layer
@@ -91,10 +93,11 @@ def get_all_bias_params(layer):
     L2 regularization.
 
     :usage:
-        >>> l_in = nntools.layers.InputLayer((100, 20))
-        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
-        >>> all_params = nntools.layers.get_all_bias_params(l1)
-        >>> # all_params is now [l1.b]
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_params = get_all_bias_params(l1)
+        >>> all_params == [l1.b]
+        True
 
     :parameters:
         - layer : Layer
@@ -120,10 +123,11 @@ def get_all_non_bias_params(layer):
     L2 regularization.
 
     :usage:
-        >>> l_in = nntools.layers.InputLayer((100, 20))
-        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
-        >>> all_params = nntools.layers.get_all_non_bias_params(l1)
-        >>> # all_params is now [l1.W]
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_params = get_all_non_bias_params(l1)
+        >>> all_params == [l1.W]
+        True
 
     :parameters:
         - layer : Layer
@@ -152,11 +156,13 @@ def count_params(layer):
     counted, including biases.
 
     :usage:
-        >>> l_in = nntools.layers.InputLayer((100, 20))
-        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
-        >>> param_count = nntools.layers.count_params(l1)
-        >>> # param_count is now 1050.
-        >>> # (20 input features * 50 units + 50 biases)
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> param_count = count_params(l1)
+        >>> param_count
+        1050
+        >>> param_count == 20 * 50 + 50  # 20 input * 50 units + 50 biases
+        True
 
     :parameters:
         - layer : Layer
@@ -181,10 +187,13 @@ def get_all_param_values(layer):
     and restore model parameters.
 
     :usage:
-        >>> l_in = nntools.layers.InputLayer((100, 20))
-        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
-        >>> all_param_values = nntools.layers.get_all_param_values(l1)
-        >>> # all_param_values is now [l1.W.get_value(), l1.b.get_value()]
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_param_values = get_all_param_values(l1)
+        >>> (all_param_values[0] == l1.W.get_value()).all()
+        True
+        >>> (all_param_values[1] == l1.b.get_value()).all()
+        True
 
     :parameters:
         - layer : Layer
@@ -209,12 +218,12 @@ def set_all_param_values(layer, values):
     and restore model parameters.
 
     :usage:
-        >>> l_in = nntools.layers.InputLayer((100, 20))
-        >>> l1 = nntools.layers.DenseLayer(l_in, num_units=50)
-        >>> all_param_values = nntools.layers.get_all_param_values(l1)
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_param_values = get_all_param_values(l1)
         >>> # all_param_values is now [l1.W.get_value(), l1.b.get_value()]
         >>> # ...
-        >>> nntools.layers.set_param_values(l1, all_param_values)
+        >>> set_all_param_values(l1, all_param_values)
         >>> # the parameter values are restored.
 
     :parameters:

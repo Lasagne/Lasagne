@@ -196,7 +196,7 @@ def get_all_param_values(layer):
             a list of numpy arrays representing the parameter values.
     """
     params = get_all_params(layer)
-    return [p.value() for p in params]
+    return [p.get_value() for p in params]
 
 
 def set_all_param_values(layer, values):

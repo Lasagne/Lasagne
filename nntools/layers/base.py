@@ -16,11 +16,28 @@ from ..theano_extensions import padding
 _srng = RandomStreams()
 
 
-## Helper methods
+## Helper functions
 
 def get_all_layers(layer):
     """
-    Function to gather all layers below the given layer (including the given layer)
+    This function gathers all layers below a given :class:`Layer` instance,
+    including the layer itself.
+
+    :usage:
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_layers = get_all_layers(l1)
+        >>> all_layers == [l1, l_in]
+        True
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all layers feeding
+            into it.
+
+    :returns:
+        - layers : list
+            a list of :class:`Layer` instances feeding into the given instance.
     """
     layers = [layer]
     layers_to_expand = [layer]
@@ -42,28 +59,182 @@ def get_all_layers(layer):
 
 
 def get_all_params(layer):
+    """
+    This function gathers all learnable parameters of all layers below a given
+    :class:`Layer` instance, including the layer itself.
+
+    :usage:
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_params = get_all_params(l1)
+        >>> all_params == [l1.W, l1.b]
+        True
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all parameters.
+
+    :returns:
+        - params : list
+            a list of Theano shared variables representing the parameters.
+    """
     layers = get_all_layers(layer)
     params = sum([l.get_params() for l in layers], [])
     return utils.unique(params)
 
 
 def get_all_bias_params(layer):
+    """
+    This function gathers all learnable bias parameters of all layers below a
+    given :class`Layer` instance, including the layer itself.
+
+    This is useful for situations where the biases should be treated
+    separately from other parameters, e.g. they are typically excluded from
+    L2 regularization.
+
+    :usage:
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_params = get_all_bias_params(l1)
+        >>> all_params == [l1.b]
+        True
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all bias parameters.
+
+    :returns:
+        - params : list
+            a list of Theano shared variables representing the bias parameters.
+
+    """
     layers = get_all_layers(layer)
     params = sum([l.get_bias_params() for l in layers], [])
     return utils.unique(params)
 
 
 def get_all_non_bias_params(layer):
+    """
+    This function gathers all learnable non-bias parameters of all layers below
+    a given :class`Layer` instance, including the layer itself.
+
+    This is useful for situations where the biases should be treated
+    separately from other parameters, e.g. they are typically excluded from
+    L2 regularization.
+
+    :usage:
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_params = get_all_non_bias_params(l1)
+        >>> all_params == [l1.W]
+        True
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all non-bias
+            parameters.
+
+    :returns:
+        - params : list
+            a list of Theano shared variables representing the non-bias
+            parameters.
+
+    """
     all_params = get_all_params(layer)
     all_bias_params = get_all_bias_params(layer)
     return [p for p in all_params if p not in all_bias_params]
 
 
 def count_params(layer):
+    """
+    This function counts all learnable parameters (i.e. the number of scalar
+    values) of all layers below a given :class`Layer` instance, including the
+    layer itself.
+
+    This is useful to compare the capacity of various network architectures.
+    All parameters returned by the :class:`Layer`s' `get_params` methods are
+    counted, including biases.
+
+    :usage:
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> param_count = count_params(l1)
+        >>> param_count
+        1050
+        >>> param_count == 20 * 50 + 50  # 20 input * 50 units + 50 biases
+        True
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to count the parameters.
+    :returns:
+        - count : int
+            the total number of learnable parameters.
+
+    """
     params = get_all_params(layer)
     shapes = [p.get_value().shape for p in params]
     counts = [np.prod(shape) for shape in shapes]
     return sum(counts)
+
+
+def get_all_param_values(layer):
+    """
+    This function gathers returns the values of the parameters of all layers
+    below a given :class:`Layer` instance, including the layer itself.
+
+    This function can be used in conjunction with set_all_param_values to save
+    and restore model parameters.
+
+    :usage:
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_param_values = get_all_param_values(l1)
+        >>> (all_param_values[0] == l1.W.get_value()).all()
+        True
+        >>> (all_param_values[1] == l1.b.get_value()).all()
+        True
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to gather all parameter
+            values.
+
+    :returns:
+        - param_values : list of numpy.array
+            a list of numpy arrays representing the parameter values.
+    """
+    params = get_all_params(layer)
+    return [p.get_value() for p in params]
+
+
+def set_all_param_values(layer, values):
+    """
+    Given a list of numpy arrays, this function sets the parameters of all
+    layers below a given :class:`Layer` instance (including the layer itself)
+    to the given values.
+
+    This function can be used in conjunction with get_all_param_values to save
+    and restore model parameters.
+
+    :usage:
+        >>> l_in = InputLayer((100, 20))
+        >>> l1 = DenseLayer(l_in, num_units=50)
+        >>> all_param_values = get_all_param_values(l1)
+        >>> # all_param_values is now [l1.W.get_value(), l1.b.get_value()]
+        >>> # ...
+        >>> set_all_param_values(l1, all_param_values)
+        >>> # the parameter values are restored.
+
+    :parameters:
+        - layer : Layer
+            the :class:`Layer` instance for which to set all parameter
+            values.
+        - values : list of numpy.array
+    """
+    params = get_all_params(layer)
+    for p,v in zip(params, values):
+        p.set_value(v)
 
 
 ## Layer base class
@@ -202,13 +373,13 @@ class DenseLayer(Layer):
         num_inputs = int(np.prod(output_shape[1:]))
 
         self.W = self.create_param(W, (num_inputs, num_units))
-        self.b = self.create_param(b, (num_units,))
+        self.b = self.create_param(b, (num_units,)) if b is not None else None
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -219,8 +390,10 @@ class DenseLayer(Layer):
             # batch of feature vectors.
             input = input.flatten(2)
 
-        return self.nonlinearity(T.dot(input, self.W) + self.b.dimshuffle('x', 0))
-
+        activation = T.dot(input, self.W)
+        if self.b is not None:
+            activation = activation + self.b.dimshuffle('x', 0)
+        return self.nonlinearity(activation)
 
 class DropoutLayer(Layer):
     def __init__(self, input_layer, p=0.5, rescale=True):
@@ -659,7 +832,9 @@ class Conv1DLayer(Layer):
         self.convolution = convolution
 
         self.W = self.create_param(W, self.get_W_shape())
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_filters, output_shape[2]))
         else:
@@ -670,10 +845,10 @@ class Conv1DLayer(Layer):
         return (self.num_filters, num_input_channels, self.filter_length)
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         if self.border_mode == 'valid':
@@ -706,12 +881,14 @@ class Conv1DLayer(Layer):
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
-        if self.untie_biases:
-            b_shuffled = self.b.dimshuffle('x', 0, 1)
+        if self.b is None:
+            activation = conved
+        elif self.untie_biases:
+            activation = conved + self.b.dimshuffle('x', 0, 1)
         else:
-            b_shuffled = self.b.dimshuffle('x', 0, 'x')
+            activation = conved + self.b.dimshuffle('x', 0, 'x')
 
-        return self.nonlinearity(conved + b_shuffled)
+        return self.nonlinearity(activation)
 
 
 class Conv2DLayer(Layer):
@@ -732,7 +909,9 @@ class Conv2DLayer(Layer):
         self.convolution = convolution
 
         self.W = self.create_param(W, self.get_W_shape())
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
         else:
@@ -743,10 +922,10 @@ class Conv2DLayer(Layer):
         return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         if self.border_mode == 'valid':
@@ -783,12 +962,14 @@ class Conv2DLayer(Layer):
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
-        if self.untie_biases:
-            b_shuffled = self.b.dimshuffle('x', 0, 1, 2)
+        if self.b is None:
+            activation = conved
+        elif self.untie_biases:
+            activation = conved + self.b.dimshuffle('x', 0, 1, 2)
         else:
-            b_shuffled = self.b.dimshuffle('x', 0, 'x', 'x')
+            activation = conved + self.b.dimshuffle('x', 0, 'x', 'x')
 
-        return self.nonlinearity(conved + b_shuffled)
+        return self.nonlinearity(activation)
 
 # TODO: add Conv3DLayer
 
@@ -937,17 +1118,19 @@ class NINLayer(Layer):
         num_input_channels = output_shape[1]
 
         self.W = self.create_param(W, (num_input_channels, num_units))
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_units,) + output_shape[2:])
         else:
             self.b = self.create_param(b, (num_units,))
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units) + input_shape[2:]
@@ -957,13 +1140,17 @@ class NINLayer(Layer):
         remaining_dims = range(2, input.ndim) # input dims to broadcast over
         out = out_r.dimshuffle(1, 0, *remaining_dims) # bf01...
 
-        if self.untie_biases:
-            remaining_dims_biases = range(1, input.ndim - 1) # no broadcast
+        if self.b is None:
+            activation = out
         else:
-            remaining_dims_biases = ['x'] * (input.ndim - 2) # broadcast
-        b_shuffled = self.b.dimshuffle('x', 0, *remaining_dims_biases)
+            if self.untie_biases:
+                remaining_dims_biases = range(1, input.ndim - 1) # no broadcast
+            else:
+                remaining_dims_biases = ['x'] * (input.ndim - 2) # broadcast
+            b_shuffled = self.b.dimshuffle('x', 0, *remaining_dims_biases)
+            activation = out + b_shuffled
 
-        return self.nonlinearity(out + b_shuffled)
+        return self.nonlinearity(activation)
 
 
 class GlobalPoolLayer(Layer):
@@ -1007,32 +1194,7 @@ class ConcatLayer(MultipleInputsLayer):
     def get_output_for(self, inputs, *args, **kwargs):
         # unfortunately the gradient of T.concatenate has no GPU
         # implementation, so we have to do this differently.
-        # Else, we could just do:
-        # return T.concatenate(inputs, axis=self.axis)
-
-        concat_size = sum(input.shape[self.axis] for input in inputs)
-
-        output_shape = ()
-        for k in range(self.axis):
-            output_shape += (inputs[0].shape[k],)
-        output_shape += (concat_size,)
-        for k in range(self.axis + 1, inputs[0].ndim):
-            output_shape += (inputs[0].shape[k],)
-
-        out = T.zeros(output_shape)
-        offset = 0
-        for input in inputs:
-            indices = ()
-            for k in range(self.axis):
-                indices += (slice(None),)
-            indices += (slice(offset, offset + input.shape[self.axis]),)
-            for k in range(self.axis + 1, inputs[0].ndim):
-                indices += (slice(None),)
-
-            out = T.set_subtensor(out[indices], input)
-            offset += input.shape[self.axis]
-
-        return out
+        return utils.concatenate(inputs, axis=self.axis)
 
 concat = ConcatLayer # shortcut
 

@@ -1,0 +1,1 @@
+-e git+https://github.com/Theano/Theano.git@647921d7d26f4a848f023d5c7ef6329f4dfb5563#egg=Theano

@@ -66,7 +66,9 @@ class Conv2DCCLayer(CCLayer):
             self.pad = pad
 
         self.W = self.create_param(W, self.get_W_shape())
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             if self.dimshuffle:
                 self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
@@ -86,10 +88,10 @@ class Conv2DCCLayer(CCLayer):
             return (num_input_channels, self.filter_size, self.filter_size, self.num_filters)
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         if self.dimshuffle:
@@ -121,12 +123,13 @@ class Conv2DCCLayer(CCLayer):
         contiguous_input = gpu_contiguous(input)
         conved = self.filter_acts_op(contiguous_input, contiguous_filters)
 
-        if self.untie_biases:
-            biases = self.b.dimshuffle(0, 1, 2, 'x') # c01 to c01b
-        else:
-            biases = self.b.dimshuffle(0, 'x', 'x', 'x') # c to c01b
+        if self.b is not None:
+            if self.untie_biases:
+                biases = self.b.dimshuffle(0, 1, 2, 'x') # c01 to c01b
+            else:
+                biases = self.b.dimshuffle(0, 'x', 'x', 'x') # c to c01b
+            conved += biases
 
-        conved += biases
         conved = self.nonlinearity(conved)
 
         if self.dimshuffle:
@@ -248,17 +251,19 @@ class NINLayer_c01b(base.Layer):
         num_input_channels = output_shape[0]
 
         self.W = self.create_param(W, (num_units, num_input_channels))
-        if self.untie_biases:
+        if b is None:
+            self.b = None
+        elif self.untie_biases:
             output_shape = self.get_output_shape()
             self.b = self.create_param(b, (num_units,) + output_shape[1:-1])
         else:
             self.b = self.create_param(b, (num_units,))
 
     def get_params(self):
-        return [self.W, self.b]
+        return [self.W] + self.get_bias_params()
 
     def get_bias_params(self):
-        return [self.b]
+        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         return (self.num_units,) + input_shape[1:]
@@ -266,10 +271,14 @@ class NINLayer_c01b(base.Layer):
     def get_output_for(self, input, *args, **kwargs):
         out = T.tensordot(self.W, input, axes=[[1], [0]]) # fc * c01b... = f01b...
 
-        if self.untie_biases:
-            bias_axes = range(input.ndim - 1) + ['x']
+        if self.b is None:
+            activation = out
         else:
-            bias_axes = [0] + (['x'] * (input.ndim - 1))
-        b_shuffled = self.b.dimshuffle(bias_axes)
+            if self.untie_biases:
+                bias_axes = range(input.ndim - 1) + ['x']
+            else:
+                bias_axes = [0] + (['x'] * (input.ndim - 1))
+            b_shuffled = self.b.dimshuffle(bias_axes)
+            activation = out + b_shuffled
 
-        return self.nonlinearity(out + b_shuffled)
+        return self.nonlinearity(activation)

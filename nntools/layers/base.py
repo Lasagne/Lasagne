@@ -776,9 +776,9 @@ class LSTMLayer(Layer):
             cell = (forget_gate*previous_cell +
                     input_gate*self.nonlinearity_cell(
                         T.dot(layer_input, W_input_to_cell) +
-                        T.dot(previous_cell, W_hidden_to_cell) +
+                        T.dot(previous_output, W_hidden_to_cell) +
                         b_cell))
-            # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_{t-1} + b_o)
+            # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
             output_gate = self.nonlinearity_output_gate(
                 T.dot(layer_input, W_input_to_output_gate) +
                 T.dot(previous_output, W_hidden_to_output_gate) +

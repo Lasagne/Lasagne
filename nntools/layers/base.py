@@ -20,8 +20,9 @@ _srng = RandomStreams()
 
 def get_all_layers(layer):
     """
-    This function gathers all layers below a given :class:`Layer` instance,
-    including the layer itself.
+    This function gathers all layers below one or more given :class:`Layer`
+    instances, including the given layer(s). Its main use is to collect all
+    layers of a network just given the output layer(s).
 
     :usage:
         >>> l_in = InputLayer((100, 20))
@@ -29,18 +30,27 @@ def get_all_layers(layer):
         >>> all_layers = get_all_layers(l1)
         >>> all_layers == [l1, l_in]
         True
+        >>> l2 = DenseLayer(l_in, num_units=10)
+        >>> all_layers = get_all_layers([l2, l1])
+        >>> all_layers == [l2, l1, l_in]
+        True
 
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to gather all layers feeding
-            into it.
+            into it, or a list of :class:`Layer` instances.
 
     :returns:
         - layers : list
-            a list of :class:`Layer` instances feeding into the given instance.
+            a list of :class:`Layer` instances feeding into the given
+            instance(s) either directly or indirectly, and the given
+            instance(s) themselves.
     """
-    layers = [layer]
-    layers_to_expand = [layer]
+    if isinstance(layer, (list, tuple)):
+        layers = list(layer)
+    else:
+        layers = [layer]
+    layers_to_expand = list(layers)
     while len(layers_to_expand) > 0:
         current_layer = layers_to_expand.pop(0)
         children = []
@@ -60,8 +70,10 @@ def get_all_layers(layer):
 
 def get_all_params(layer):
     """
-    This function gathers all learnable parameters of all layers below a given
-    :class:`Layer` instance, including the layer itself.
+    This function gathers all learnable parameters of all layers below one
+    or more given :class:`Layer` instances, including the layer(s) itself.
+    Its main use is to collect all parameters of a network just given the
+    output layer(s).
 
     :usage:
         >>> l_in = InputLayer((100, 20))
@@ -72,7 +84,8 @@ def get_all_params(layer):
 
     :parameters:
         - layer : Layer
-            the :class:`Layer` instance for which to gather all parameters.
+            the :class:`Layer` instance for which to gather all parameters,
+            or a list of :class:`Layer` instances.
 
     :returns:
         - params : list
@@ -85,8 +98,8 @@ def get_all_params(layer):
 
 def get_all_bias_params(layer):
     """
-    This function gathers all learnable bias parameters of all layers below a
-    given :class`Layer` instance, including the layer itself.
+    This function gathers all learnable bias parameters of all layers below one
+    or more given :class`Layer` instances, including the layer(s) itself.
 
     This is useful for situations where the biases should be treated
     separately from other parameters, e.g. they are typically excluded from
@@ -101,7 +114,8 @@ def get_all_bias_params(layer):
 
     :parameters:
         - layer : Layer
-            the :class:`Layer` instance for which to gather all bias parameters.
+            the :class:`Layer` instance for which to gather all bias parameters,
+            or a list of :class:`Layer` instances.
 
     :returns:
         - params : list
@@ -116,7 +130,7 @@ def get_all_bias_params(layer):
 def get_all_non_bias_params(layer):
     """
     This function gathers all learnable non-bias parameters of all layers below
-    a given :class`Layer` instance, including the layer itself.
+    one or more given :class`Layer` instances, including the layer(s) itself.
 
     This is useful for situations where the biases should be treated
     separately from other parameters, e.g. they are typically excluded from
@@ -132,7 +146,7 @@ def get_all_non_bias_params(layer):
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to gather all non-bias
-            parameters.
+            parameters, or a list of :class:`Layer` instances.
 
     :returns:
         - params : list
@@ -148,8 +162,8 @@ def get_all_non_bias_params(layer):
 def count_params(layer):
     """
     This function counts all learnable parameters (i.e. the number of scalar
-    values) of all layers below a given :class`Layer` instance, including the
-    layer itself.
+    values) of all layers below one or more given :class`Layer` instances,
+    including the layer(s) itself.
 
     This is useful to compare the capacity of various network architectures.
     All parameters returned by the :class:`Layer`s' `get_params` methods are
@@ -166,7 +180,8 @@ def count_params(layer):
 
     :parameters:
         - layer : Layer
-            the :class:`Layer` instance for which to count the parameters.
+            the :class:`Layer` instance for which to count the parameters,
+            or a list of :class:`Layer` instances.
     :returns:
         - count : int
             the total number of learnable parameters.
@@ -180,8 +195,8 @@ def count_params(layer):
 
 def get_all_param_values(layer):
     """
-    This function gathers returns the values of the parameters of all layers
-    below a given :class:`Layer` instance, including the layer itself.
+    This function returns the values of the parameters of all layers below one
+    or more given :class:`Layer` instances, including the layer(s) itself.
 
     This function can be used in conjunction with set_all_param_values to save
     and restore model parameters.
@@ -198,7 +213,7 @@ def get_all_param_values(layer):
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to gather all parameter
-            values.
+            values, or a list of :class:`Layer` instances.
 
     :returns:
         - param_values : list of numpy.array
@@ -211,8 +226,8 @@ def get_all_param_values(layer):
 def set_all_param_values(layer, values):
     """
     Given a list of numpy arrays, this function sets the parameters of all
-    layers below a given :class:`Layer` instance (including the layer itself)
-    to the given values.
+    layers below one or more given :class:`Layer` instances (including the
+    layer(s) itself) to the given values.
 
     This function can be used in conjunction with get_all_param_values to save
     and restore model parameters.
@@ -229,7 +244,7 @@ def set_all_param_values(layer, values):
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to set all parameter
-            values.
+            values, or a list of :class:`Layer` instances.
         - values : list of numpy.array
     """
     params = get_all_params(layer)

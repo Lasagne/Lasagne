@@ -306,11 +306,11 @@ class TestConcatLayer:
         assert (result_eval == desired_result).all()
 
 
-class TestEltSumLayer:
+class TestElemwiseSumLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import EltSumLayer
-        return EltSumLayer([Mock(), Mock()], coeffs=[2, -1])
+        from nntools.layers.base import ElemwiseSumLayer
+        return ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, -1])
 
     def test_get_output_for(self, layer):
         a = numpy.array([[0, 1], [2, 3]])

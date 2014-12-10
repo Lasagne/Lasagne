@@ -854,7 +854,7 @@ class ConcatLayer(MultipleInputsLayer):
 concat = ConcatLayer # shortcut
 
 
-class EltSumLayer(MultipleInputsLayer):
+class ElemwiseSumLayer(MultipleInputsLayer):
     """
     This layer performs an elementwise sum of its input layers.
     It requires all input layers to have the same output shape.
@@ -876,9 +876,9 @@ class EltSumLayer(MultipleInputsLayer):
             - coeffs: list or scalar
                 A same-sized list of coefficients, or a single coefficient that
                 is to be applied to all instances. By default, these will not
-                be included in the learnable parameters of this layers.
+                be included in the learnable parameters of this layer.
         """
-        super(EltSumLayer, self).__init__(input_layers)
+        super(ElemwiseSumLayer, self).__init__(input_layers)
         if isinstance(coeffs, list):
             if len(coeffs) != len(input_layers):
                 raise ValueError("Mismatch: got %d coeffs for %d input_layers" %

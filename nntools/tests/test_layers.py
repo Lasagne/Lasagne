@@ -304,3 +304,20 @@ class TestConcatLayer:
         result_eval = result.eval()
         desired_result = numpy.hstack([input.get_value() for input in inputs])
         assert (result_eval == desired_result).all()
+
+
+class TestEltSumLayer:
+    @pytest.fixture
+    def layer(self):
+        from nntools.layers.base import EltSumLayer
+        return EltSumLayer([Mock(), Mock()], coeffs=[2, -1])
+
+    def test_get_output_for(self, layer):
+        a = numpy.array([[0, 1], [2, 3]])
+        b = numpy.array([[1, 2], [4, 5]])
+        inputs = [theano.shared(a),
+                  theano.shared(b)]
+        result = layer.get_output_for(inputs)
+        result_eval = result.eval()
+        desired_result = 2*a - b
+        assert (result_eval == desired_result).all()

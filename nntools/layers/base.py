@@ -276,11 +276,43 @@ class Layer(object):
 
     def get_output(self, input=None, *args, **kwargs):
         """
-        input can be None, a Theano expression, or a dictionary mapping
-        layer instances to Theano expressions.
+        Computes the output of the network at this layer. Optionally, you can
+        define an input to propagate through the network instead of using the
+        input variables associated with the network's input layers.
+
+        :parameters:
+            - input : None, Theano expression, numpy array, or dict
+                If None, uses the inputs of the :class:`InputLayer` instances.
+                If a Theano expression, this will replace the inputs of all
+                :class:`InputLayer` instances (useful if your network has a
+                single input layer).
+                If a numpy array, this will be wrapped as a Theano constant
+                and used just like a Theano expression.
+                If a dictionary, any :class:`Layer` instance (including the
+                input layers) can be mapped to a Theano expression or numpy
+                array to use instead of its regular output.
+
+        :returns:
+            - output : Theano expression
+                the output of this layer given the input to the network
+
+        :note:
+            When implementing a new :class:`Layer` class, you will usually
+            keep this unchanged and just override `get_output_for()`.
         """
         if isinstance(input, dict) and (self in input):
-            return input[self] # this layer is mapped to an expression
+            # this layer is mapped to an expression or numpy array
+            output = input[self]
+            if isinstance(output, theano.gof.Variable):
+                return output
+            else:
+                try:
+                    return theano.tensor.constant(output)
+                except Exception as e:
+                    raise TypeError("Input of type %s is not a Theano "
+                            "expression and cannot be wrapped as a Theano "
+                            "constant (original exception: %s)" %
+                            (type(output), e))
         else: # in all other cases, just pass the network input on to the next layer.
             layer_input = self.input_layer.get_output(input, *args, **kwargs)
             return self.get_output_for(layer_input, *args, **kwargs)
@@ -292,6 +324,26 @@ class Layer(object):
         # implement a single method, i.e. get_output_for(). 
 
     def get_output_for(self, input, *args, **kwargs):
+        """
+        Propagates the given input through this layer (and only this layer).
+
+        :parameters:
+            - input : Theano expression
+                the expression to propagate through this layer
+
+        :returns:
+            - output : Theano expression
+                the output of this layer given the input to this layer
+
+        :note:
+            This is called by the base :class:`Layer` implementation to
+            propagate data through a network in `get_output()`. While
+            `get_output()` asks the underlying layers for input and thus
+            returns an expression for a layer's output in terms of the
+            network's input, `get_output_for()` just performs a single step
+            and returns an expression for a layer's output in terms of
+            that layer's input.
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -339,8 +391,10 @@ class MultipleInputsLayer(Layer):
 
     def get_output(self, input=None, *args, **kwargs):
         if isinstance(input, dict) and (self in input):
-            return input[self] # this layer is mapped to an expression
-        else: # in all other cases, just pass the network input on to the next layer.
+            # this layer is mapped to an expression or numpy array
+            # ask super class to handle Theano expressions vs. numpy arrays
+            return super(MultipleInputsLayer, self).get_output(input)
+        else: # in all other cases, just pass the network input on to the next layers.
             layer_inputs = [input_layer.get_output(input, *args, **kwargs) for input_layer in self.input_layers]
             return self.get_output_for(layer_inputs, *args, **kwargs)
 
@@ -370,12 +424,12 @@ class InputLayer(Layer):
         return self.shape
 
     def get_output(self, input=None, *args, **kwargs):
+        if isinstance(input, dict):
+            input = input.get(self, None)
         if input is None:
-            return self.input_var
-        elif isinstance(input, theano.gof.Variable):
-            return input
-        elif isinstance(input, dict):
-            return input[self]
+            input = self.input_var
+        # ask super class to handle Theano expressions vs. numpy arrays
+        return super(InputLayer, self).get_output({self: input})
             
 
 ## Layer implementations

@@ -34,7 +34,7 @@ class TestLayer:
             input, arg, kwarg=kwarg)
 
     def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: object()}
+        input = {layer: theano.tensor.matrix()}
         assert layer.get_output(input) is input[layer]
 
     def test_get_output_input_is_a_mapping_no_key(self, layer):
@@ -42,6 +42,11 @@ class TestLayer:
 
         output = layer.get_output({})
         assert output is layer.get_output_for.return_value
+
+    def test_get_output_input_is_a_mapping_to_array(self, layer):
+        input = {layer: [[1,2,3]]}
+        output = layer.get_output(input)
+        assert numpy.all(output.eval() == input[layer])
 
     def test_create_param_numpy_bad_shape_raises_error(self, layer):
         param = numpy.array([[1, 2, 3], [4, 5, 6]])
@@ -112,7 +117,7 @@ class TestMultipleInputsLayer:
             input, arg, kwarg=kwarg)
 
     def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: object()}
+        input = {layer: theano.tensor.matrix()}
         assert layer.get_output(input) is input[layer]
 
     def test_get_output_input_is_a_mapping_no_key(self, layer):
@@ -120,6 +125,11 @@ class TestMultipleInputsLayer:
 
         output = layer.get_output({})
         assert output is layer.get_output_for.return_value
+
+    def test_get_output_input_is_a_mapping_to_array(self, layer):
+        input = {layer: [[1,2,3]]}
+        output = layer.get_output(input)
+        assert numpy.all(output.eval() == input[layer])
 
 
 class TestInputLayer:
@@ -141,8 +151,13 @@ class TestInputLayer:
         variable = theano.Variable("myvariable")
         assert layer.get_output(variable) is variable
 
+    def test_get_output_input_is_array(self, layer):
+        input = [[1,2,3]]
+        output = layer.get_output(input)
+        assert numpy.all(output.eval() == input)
+
     def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: object()}
+        input = {layer: theano.tensor.matrix()}
         assert layer.get_output(input) is input[layer]
 
 

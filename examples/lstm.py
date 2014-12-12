@@ -12,9 +12,9 @@ N_BATCH = 30
 # Delay used to generate artificial training data
 DELAY = 2
 # SGD learning rate
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-1
 # Number of iterations to train the net
-N_ITERATIONS = 100
+N_ITERATIONS = 1000
 
 
 def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
@@ -47,11 +47,13 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
 
-# Construct vanilla RNN: One recurrent layer (with input weights) and one
-# dense output layer
+# Construct LSTM RNN: One LSTM layer and one dense output layer
 l_in = nntools.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-l_recurrent = nntools.layers.LSTMLayer(l_in, N_HIDDEN)
+l_forward = nntools.layers.LSTMLayer(l_in, N_HIDDEN)
+l_backward = nntools.layers.LSTMLayer(l_in, N_HIDDEN)
+l_recurrent = nntools.layers.BidirectionalLayer(l_in, l_forward, l_backward)
+
 l_reshape = nntools.layers.ReshapeLayer(l_recurrent,
                                         (N_BATCH*LENGTH, N_HIDDEN))
 
@@ -80,7 +82,7 @@ costs = np.zeros(N_ITERATIONS)
 for n in range(N_ITERATIONS):
     X, y = gen_data()
     costs[n] = train(X, y)
-    if not n % 10:
+    if not n % 100:
         cost_val = compute_cost(X_val, y_val)
         print "Iteration {} validation cost = {}".format(n, cost_val)
 

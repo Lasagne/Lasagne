@@ -302,17 +302,7 @@ class Layer(object):
         """
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
-            output = input[self]
-            if isinstance(output, theano.gof.Variable):
-                return output
-            else:
-                try:
-                    return theano.tensor.constant(output)
-                except Exception as e:
-                    raise TypeError("Input of type %s is not a Theano "
-                            "expression and cannot be wrapped as a Theano "
-                            "constant (original exception: %s)" %
-                            (type(output), e))
+            return utils.as_theano_expression(input[self])
         else: # in all other cases, just pass the network input on to the next layer.
             layer_input = self.input_layer.get_output(input, *args, **kwargs)
             return self.get_output_for(layer_input, *args, **kwargs)
@@ -392,8 +382,7 @@ class MultipleInputsLayer(Layer):
     def get_output(self, input=None, *args, **kwargs):
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
-            # ask super class to handle Theano expressions vs. numpy arrays
-            return super(MultipleInputsLayer, self).get_output(input)
+            return utils.as_theano_expression(input[self])
         else: # in all other cases, just pass the network input on to the next layers.
             layer_inputs = [input_layer.get_output(input, *args, **kwargs) for input_layer in self.input_layers]
             return self.get_output_for(layer_inputs, *args, **kwargs)
@@ -428,8 +417,7 @@ class InputLayer(Layer):
             input = input.get(self, None)
         if input is None:
             input = self.input_var
-        # ask super class to handle Theano expressions vs. numpy arrays
-        return super(InputLayer, self).get_output({self: input})
+        return utils.as_theano_expression(input)
             
 
 ## Layer implementations

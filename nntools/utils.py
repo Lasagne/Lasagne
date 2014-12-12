@@ -21,6 +21,24 @@ def shared_empty(dim=2):
     return theano.shared(np.zeros(shp, dtype=theano.config.floatX))
 
 
+def as_theano_expression(input):
+    """
+    Wraps the given input as a Theano constant if it is not
+    a valid Theano expression already. Useful to transparently
+    handle numpy arrays and Python scalars, for example.
+    """
+    if isinstance(input, theano.gof.Variable):
+        return input
+    else:
+        try:
+            return theano.tensor.constant(input)
+        except Exception as e:
+            raise TypeError("Input of type %s is not a Theano "
+                    "expression and cannot be wrapped as a Theano "
+                    "constant (original exception: %s)" %
+                    (type(input), e))
+
+
 def one_hot(x, m=None):
     """
     Given a vector of integers from 0 to m-1, returns a matrix

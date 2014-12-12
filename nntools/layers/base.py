@@ -577,7 +577,7 @@ class BidirectionalLayer(Layer):
         assert self.forward_layer.num_units == self.backward_layer.num_units
         return (input_shape[0], input_shape[1], self.forward_layer.num_units)
 
-    def get_output_for(self, input):
+    def get_output_for(self, input, *args, **kwargs):
         '''
         Compute the output by running the sequence forwards through
         self.forward_layer and backwards through self.backward_layer

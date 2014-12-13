@@ -590,10 +590,9 @@ class BidirectionalLayer(Layer):
             - layer_output : theano.TensorType
                 Symbolic output variable
         '''
-        input_output = self.input_layer.get_output(input)
-        forward_output = self.forward_layer.get_output_for(input_output)
+        forward_output = self.forward_layer.get_output_for(input)
         backward_output = self.backward_layer.get_output_for(
-            input_output[:, ::-1, :])
+            input[:, ::-1, :])
         return forward_output + backward_output
 
 

@@ -1,7 +1,7 @@
-:mod:`nntools.layers`
+:mod:`lasagne.layers`
 ---------------------
 
-.. automodule:: nntools.layers
+.. automodule:: lasagne.layers
 
 .. autofunction:: get_all_layers
 .. autofunction:: get_all_params

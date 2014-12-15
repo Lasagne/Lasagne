@@ -1,9 +1,9 @@
-nntools
+Lasagne
 =======
 
-nntools is a lightweight library to build and train neural networks in Theano.
+Lasagne is a lightweight library to build and train neural networks in Theano.
 
-nntools is a work in progress, input is welcome.
+Lasagne is a work in progress, input is welcome.
 
 Design goals:
 

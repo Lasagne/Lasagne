@@ -603,7 +603,7 @@ class LSTMLayer(Layer):
     the current common definition.
 
     :references:
-        .. [#graves2014generator] Alex Graves, "Generating Sequences With
+        .. [#graves2014generating] Alex Graves, "Generating Sequences With
             Recurrent Neural Networks".
     '''
     def __init__(self, input_layer, num_units,

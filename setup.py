@@ -27,7 +27,7 @@ docs_require = [
     ]
 
 setup(
-    name="nntools",
+    name="Lasagne",
     version=version,
     description="neural network tools for Theano",
     long_description="\n\n".join([README, CHANGES]),
@@ -37,7 +37,7 @@ setup(
     keywords="",
     author="Sander Dieleman",
     author_email="sanderdieleman@gmail.com",
-    url="https://github.com/benanne/nntools",
+    url="https://github.com/benanne/lasagne",
     license="MIT",
     packages=find_packages(),
     include_package_data=True,

@@ -1,5 +1,5 @@
 def test_shape():
-    from nntools.init import Initializer
+    from lasagne.init import Initializer
 
     # Assert that all `Initializer` sublasses return the shape that
     # we've asked for in `sample`:
@@ -8,21 +8,21 @@ def test_shape():
 
 
 def test_normal():
-    from nntools.init import Normal
+    from lasagne.init import Normal
 
     sample = Normal().sample((100, 200))
     assert -0.001 < sample.mean() < 0.001
 
 
 def test_constant():
-    from nntools.init import Constant
+    from lasagne.init import Constant
 
     sample = Constant(1.0).sample((10, 20))
     assert (sample == 1.0).all()
 
 
 def test_sparse():
-    from nntools.init import Sparse
+    from lasagne.init import Sparse
 
     sample = Sparse(sparsity=0.5).sample((10, 20))
     assert (sample == 0.0).sum() == (sample != 0.0).sum()
@@ -30,7 +30,7 @@ def test_sparse():
 
 
 def test_uniform_glorot():
-    from nntools.init import Uniform
+    from lasagne.init import Uniform
 
     sample = Uniform().sample((150, 450))
     assert -0.11 < sample.min() < -0.09
@@ -38,7 +38,7 @@ def test_uniform_glorot():
 
 
 def test_uniform_glorot_receptive_field():
-    from nntools.init import Uniform
+    from lasagne.init import Uniform
 
     sample = Uniform().sample((150, 150, 2))
     assert -0.11 < sample.min() < -0.09
@@ -46,7 +46,7 @@ def test_uniform_glorot_receptive_field():
 
 
 def test_uniform_range_as_number():
-    from nntools.init import Uniform
+    from lasagne.init import Uniform
 
     sample = Uniform(1.0).sample((300, 400))
     assert sample.shape == (300, 400)
@@ -55,7 +55,7 @@ def test_uniform_range_as_number():
 
 
 def test_uniform_range_as_range():
-    from nntools.init import Uniform
+    from lasagne.init import Uniform
 
     sample = Uniform((0.0, 1.0)).sample((300, 400))
     assert sample.shape == (300, 400)

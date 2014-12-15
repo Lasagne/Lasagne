@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# nntools documentation build configuration file, created by
+# Lasagne documentation build configuration file, created by
 # sphinx-quickstart on Sat Nov  8 11:00:12 2014.
 #
 # This file is execfile()d with the current directory set to its
@@ -48,7 +48,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'nntools'
+project = u'Lasagne'
 copyright = u'2014, Sander Dieleman and contributors'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -181,7 +181,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'nntoolsdoc'
+htmlhelp_basename = 'lasagnedoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -201,7 +201,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'nntools.tex', u'nntools Documentation',
+  ('index', 'lasagne.tex', u'lasagne Documentation',
    u'Sander Dieleman and contributors', 'manual'),
 ]
 
@@ -231,7 +231,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'nntools', u'nntools Documentation',
+    ('index', 'lasagne', u'Lasagne Documentation',
      [u'Sander Dieleman and contributors'], 1)
 ]
 
@@ -245,8 +245,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'nntools', u'nntools Documentation',
-   u'Sander Dieleman and contributors', 'nntools', 'One line description of project.',
+  ('index', 'lasagne', u'Lasagne Documentation',
+   u'Sander Dieleman and contributors', 'Lasagne', 'One line description of project.',
    'Miscellaneous'),
 ]
 

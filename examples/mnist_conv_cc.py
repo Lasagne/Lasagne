@@ -1,11 +1,11 @@
 from __future__ import print_function
 
 import gzip
-import nntools
+import lasagne
 import theano
 import theano.tensor as T
 
-from nntools.layers import cuda_convnet
+from lasagne.layers import cuda_convnet
 
 from mnist import _load_data
 from mnist import create_iter_functions
@@ -30,11 +30,11 @@ def load_data():
     X_test = X_test.reshape((X_test.shape[0], 1, 28, 28))
 
     return dict(
-        X_train=theano.shared(nntools.utils.floatX(X_train)),
+        X_train=theano.shared(lasagne.utils.floatX(X_train)),
         y_train=T.cast(theano.shared(y_train), 'int32'),
-        X_valid=theano.shared(nntools.utils.floatX(X_valid)),
+        X_valid=theano.shared(lasagne.utils.floatX(X_valid)),
         y_valid=T.cast(theano.shared(y_valid), 'int32'),
-        X_test=theano.shared(nntools.utils.floatX(X_test)),
+        X_test=theano.shared(lasagne.utils.floatX(X_test)),
         y_test=T.cast(theano.shared(y_test), 'int32'),
         num_examples_train=X_train.shape[0],
         num_examples_valid=X_valid.shape[0],
@@ -47,7 +47,7 @@ def load_data():
 
 def build_model(input_width, input_height, output_dim,
                 batch_size=BATCH_SIZE, dimshuffle=True):
-    l_in = nntools.layers.InputLayer(
+    l_in = lasagne.layers.InputLayer(
         shape=(BATCH_SIZE, 1, input_width, input_height),
         )
 
@@ -58,8 +58,8 @@ def build_model(input_width, input_height, output_dim,
         l_in,
         num_filters=32,
         filter_size=(5, 5),
-        nonlinearity=nntools.nonlinearities.rectify,
-        W=nntools.init.Uniform(),
+        nonlinearity=lasagne.nonlinearities.rectify,
+        W=lasagne.init.Uniform(),
         dimshuffle=dimshuffle,
         )
     l_pool1 = cuda_convnet.MaxPool2DCCLayer(
@@ -72,8 +72,8 @@ def build_model(input_width, input_height, output_dim,
         l_pool1,
         num_filters=32,
         filter_size=(5, 5),
-        nonlinearity=nntools.nonlinearities.rectify,
-        W=nntools.init.Uniform(),
+        nonlinearity=lasagne.nonlinearities.rectify,
+        W=lasagne.init.Uniform(),
         dimshuffle=dimshuffle,
         )
     l_pool2 = cuda_convnet.MaxPool2DCCLayer(
@@ -85,27 +85,27 @@ def build_model(input_width, input_height, output_dim,
     if not dimshuffle:
         l_pool2 = cuda_convnet.c01b_to_bc01(l_pool2)
 
-    l_hidden1 = nntools.layers.DenseLayer(
+    l_hidden1 = lasagne.layers.DenseLayer(
         l_pool2,
         num_units=256,
-        nonlinearity=nntools.nonlinearities.rectify,
-        W=nntools.init.Uniform(),
+        nonlinearity=lasagne.nonlinearities.rectify,
+        W=lasagne.init.Uniform(),
         )
 
-    l_hidden1_dropout = nntools.layers.DropoutLayer(l_hidden1, p=0.5)
+    l_hidden1_dropout = lasagne.layers.DropoutLayer(l_hidden1, p=0.5)
 
-    # l_hidden2 = nntools.layers.DenseLayer(
+    # l_hidden2 = lasagne.layers.DenseLayer(
     #     l_hidden1_dropout,
     #     num_units=256,
-    #     nonlinearity=nntools.nonlinearities.rectify,
+    #     nonlinearity=lasagne.nonlinearities.rectify,
     #     )
-    # l_hidden2_dropout = nntools.layers.DropoutLayer(l_hidden2, p=0.5)
+    # l_hidden2_dropout = lasagne.layers.DropoutLayer(l_hidden2, p=0.5)
 
-    l_out = nntools.layers.DenseLayer(
+    l_out = lasagne.layers.DenseLayer(
         l_hidden1_dropout,
         num_units=output_dim,
-        nonlinearity=nntools.nonlinearities.softmax,
-        W=nntools.init.Uniform(),
+        nonlinearity=lasagne.nonlinearities.softmax,
+        W=lasagne.init.Uniform(),
         )
 
     return l_out

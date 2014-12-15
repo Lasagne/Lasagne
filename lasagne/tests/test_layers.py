@@ -7,7 +7,7 @@ import theano
 class TestLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import Layer
+        from lasagne.layers.base import Layer
         return Layer(Mock())
 
     def test_get_output_shape(self, layer):
@@ -77,7 +77,7 @@ class TestLayer:
 class TestMultipleInputsLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import MultipleInputsLayer
+        from lasagne.layers.base import MultipleInputsLayer
         return MultipleInputsLayer([Mock(), Mock()])
 
     def test_get_output_shape(self, layer):
@@ -135,7 +135,7 @@ class TestMultipleInputsLayer:
 class TestInputLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import InputLayer
+        from lasagne.layers.base import InputLayer
         return InputLayer((3, 2))
 
     def test_input_var(self, layer):
@@ -164,7 +164,7 @@ class TestInputLayer:
 class TestDenseLayer:
     @pytest.fixture
     def layer_vars(self):
-        from nntools.layers.base import DenseLayer
+        from lasagne.layers.base import DenseLayer
         input_layer = Mock()
         W = Mock()
         b = Mock()
@@ -244,17 +244,17 @@ class TestDenseLayer:
 class TestDropoutLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import DropoutLayer
+        from lasagne.layers.base import DropoutLayer
         return DropoutLayer(Mock())
 
     @pytest.fixture
     def layer_no_rescale(self):
-        from nntools.layers.base import DropoutLayer
+        from lasagne.layers.base import DropoutLayer
         return DropoutLayer(Mock(), rescale=False)
 
     @pytest.fixture
     def layer_p_02(self):
-        from nntools.layers.base import DropoutLayer
+        from lasagne.layers.base import DropoutLayer
         return DropoutLayer(Mock(), p=0.2)
 
     def test_get_output_for_non_deterministic(self, layer):
@@ -288,7 +288,7 @@ class TestDropoutLayer:
 class TestGaussianNoiseLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import GaussianNoiseLayer
+        from lasagne.layers.base import GaussianNoiseLayer
         return GaussianNoiseLayer(Mock())
 
     def test_get_output_for_non_deterministic(self, layer):
@@ -309,7 +309,7 @@ class TestGaussianNoiseLayer:
 class TestConcatLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import ConcatLayer
+        from lasagne.layers.base import ConcatLayer
         return ConcatLayer([Mock(), Mock()], axis=1)
 
     def test_get_output_for(self, layer):
@@ -324,7 +324,7 @@ class TestConcatLayer:
 class TestElemwiseSumLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import ElemwiseSumLayer
+        from lasagne.layers.base import ElemwiseSumLayer
         return ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, -1])
 
     def test_get_output_for(self, layer):

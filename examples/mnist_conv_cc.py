@@ -48,7 +48,7 @@ def load_data():
 def build_model(input_width, input_height, output_dim,
                 batch_size=BATCH_SIZE, dimshuffle=True):
     l_in = lasagne.layers.InputLayer(
-        shape=(BATCH_SIZE, 1, input_width, input_height),
+        shape=(batch_size, 1, input_width, input_height),
         )
 
     if not dimshuffle:

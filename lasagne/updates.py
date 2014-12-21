@@ -9,7 +9,7 @@ import theano.tensor as T
 
 
 def sgd(loss, all_params, learning_rate):
-    all_grads = [theano.grad(loss, param) for param in all_params]
+    all_grads = theano.grad(loss, all_params)
     updates = []
     
     for param_i, grad_i in zip(all_params, all_grads):
@@ -19,7 +19,7 @@ def sgd(loss, all_params, learning_rate):
 
 
 def momentum(loss, all_params, learning_rate, momentum=0.9, weight_decay=0.0):
-    all_grads = [theano.grad(loss, param) for param in all_params]
+    all_grads = theano.grad(loss, all_params)
     updates = []
     
     for param_i, grad_i in zip(all_params, all_grads):
@@ -34,7 +34,7 @@ def momentum(loss, all_params, learning_rate, momentum=0.9, weight_decay=0.0):
 # using the alternative formulation of nesterov momentum described at https://github.com/lisa-lab/pylearn2/pull/136
 # such that the gradient can be evaluated at the current parameters.
 def nesterov_momentum(loss, all_params, learning_rate, momentum=0.9, weight_decay=0.0):
-    all_grads = [theano.grad(loss, param) for param in all_params]
+    all_grads = theano.grad(loss, all_params)
     updates = []
     
     for param_i, grad_i in zip(all_params, all_grads):
@@ -53,7 +53,7 @@ def adagrad(loss, all_params, learning_rate=1.0, epsilon=1e-6):
     epsilon is not included in the typical formula, 
     See "Notes on AdaGrad" by Chris Dyer for more info.
     """
-    all_grads = [theano.grad(loss, param) for param in all_params]
+    all_grads = theano.grad(loss, all_params)
     all_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
 
     updates = []
@@ -73,7 +73,7 @@ def rmsprop(loss, all_params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
     Watch this video for more info: http://www.youtube.com/watch?v=O3sxAc4hxZU (formula at 5:20)
     also check http://climin.readthedocs.org/en/latest/rmsprop.html
     """
-    all_grads = [theano.grad(loss, param) for param in all_params]
+    all_grads = theano.grad(loss, all_params)
     all_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
 
     updates = []
@@ -94,7 +94,7 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
 
     see "Adadelta: an adaptive learning rate method" by Matthew Zeiler for more info.
     """
-    all_grads = [theano.grad(loss, param) for param in all_params]
+    all_grads = theano.grad(loss, all_params)
     all_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
     all_delta_accumulators = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in all_params]
 

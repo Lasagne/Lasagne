@@ -242,20 +242,24 @@ class TestDenseLayer:
 
 
 class TestDropoutLayer:
-    @pytest.fixture
-    def layer(self):
-        from lasagne.layers.base import DropoutLayer
-        return DropoutLayer(Mock())
+    @pytest.fixture(params=[(100, 100), (None, 100)])
+    def input_layer(self, request):
+        return Mock(get_output_shape=lambda: request.param)
 
     @pytest.fixture
-    def layer_no_rescale(self):
+    def layer(self, input_layer):
         from lasagne.layers.base import DropoutLayer
-        return DropoutLayer(Mock(), rescale=False)
+        return DropoutLayer(input_layer)
 
     @pytest.fixture
-    def layer_p_02(self):
+    def layer_no_rescale(self, input_layer):
         from lasagne.layers.base import DropoutLayer
-        return DropoutLayer(Mock(), p=0.2)
+        return DropoutLayer(input_layer, rescale=False)
+
+    @pytest.fixture
+    def layer_p_02(self, input_layer):
+        from lasagne.layers.base import DropoutLayer
+        return DropoutLayer(input_layer, p=0.2)
 
     def test_get_output_for_non_deterministic(self, layer):
         input = theano.shared(numpy.ones((100, 100)))

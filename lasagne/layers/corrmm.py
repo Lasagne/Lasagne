@@ -76,16 +76,16 @@ class Conv2DMMLayer(MMLayer):
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]
-        input_width, input_height = input_shape[2:4]
-        output_width = (input_width + 2*self.pad[0] - self.filter_size[0]) // self.strides[0] + 1
-        output_height = (input_height + 2*self.pad[1] - self.filter_size[1]) // self.strides[1] + 1
-        return (batch_size, self.num_filters, output_width, output_height)
+        input_height, input_width = input_shape[2:4]
+        output_height = (input_height + 2*self.pad[0] - self.filter_size[0]) // self.strides[0] + 1
+        output_width = (input_width + 2*self.pad[1] - self.filter_size[1]) // self.strides[1] + 1
+        return (batch_size, self.num_filters, output_height, output_width)
 
     def get_output_for(self, input, *args, **kwargs):
         filters = self.W
         if self.flip_filters:
             filters = filters[:, :, ::-1, ::-1] # flip width, height
-        
+
         contiguous_filters = gpu_contiguous(filters)
         contiguous_input = gpu_contiguous(input)
         conved = self.corr_mm_op(contiguous_input, contiguous_filters)

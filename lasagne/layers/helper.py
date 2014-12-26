@@ -4,9 +4,6 @@ import theano.tensor as T
 
 from .. import utils
 
-from .input import InputLayer
-from .dense import DenseLayer
-
 
 __all__ = [
     "get_all_layers",
@@ -26,6 +23,7 @@ def get_all_layers(layer):
     layers of a network just given the output layer(s).
 
     :usage:
+        >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
         >>> all_layers = get_all_layers(l1)
@@ -77,6 +75,7 @@ def get_all_params(layer):
     output layer(s).
 
     :usage:
+        >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
         >>> all_params = get_all_params(l1)
@@ -107,6 +106,7 @@ def get_all_bias_params(layer):
     L2 regularization.
 
     :usage:
+        >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
         >>> all_params = get_all_bias_params(l1)
@@ -138,6 +138,7 @@ def get_all_non_bias_params(layer):
     L2 regularization.
 
     :usage:
+        >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
         >>> all_params = get_all_non_bias_params(l1)
@@ -171,6 +172,7 @@ def count_params(layer):
     counted, including biases.
 
     :usage:
+        >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
         >>> param_count = count_params(l1)
@@ -203,6 +205,7 @@ def get_all_param_values(layer):
     and restore model parameters.
 
     :usage:
+        >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
         >>> all_param_values = get_all_param_values(l1)
@@ -234,6 +237,7 @@ def set_all_param_values(layer, values):
     and restore model parameters.
 
     :usage:
+        >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
         >>> all_param_values = get_all_param_values(l1)

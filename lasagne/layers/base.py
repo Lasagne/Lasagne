@@ -473,7 +473,12 @@ class DropoutLayer(Layer):
             if self.rescale:
                 input /= retain_prob
 
-            return input * _srng.binomial(input.shape, p=retain_prob,
+            # use nonsymbolic shape for dropout mask if possible
+            input_shape = self.input_layer.get_output_shape()
+            if any(s is None for s in input_shape):
+                input_shape = input.shape
+
+            return input * _srng.binomial(input_shape, p=retain_prob,
                                           dtype=theano.config.floatX)
 
 dropout = DropoutLayer # shortcut

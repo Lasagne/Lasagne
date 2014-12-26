@@ -15,22 +15,66 @@ __all__ = [
 ## Layer base class
 
 class Layer(object):
+    """
+    The :class:`Layer` class represents a single layer of a neural network.
+    It should be subclassed when implementing new types of layers.
+
+    A :class:`Layer` instance is also used to represent the neural network
+    consisting of all layers that feed into it (including the instance
+    itself).
+    """
     def __init__(self, input_layer):
         self.input_layer = input_layer
 
     def get_params(self):
         """
-        Get all Theano variables that parameterize the layer.
+        Returns a list of all the Theano variables that parameterize the
+        layer.
+
+        :returns:
+            - list
+                the list of Theano variables.
+
+        :note:
+            By default this returns an empty list, but it should be overridden
+            in a subclass that has trainable parameters.
         """
         return []
 
     def get_bias_params(self):
         """
-        Get all Theano variables that are bias parameters for the layer.
+        Returns a list of all the Theano variables that are bias parameters
+        for the layer.
+
+        :returns:
+            - list
+                the list of Theano variables.
+
+        :note:
+            By default this returns an empty list, but it should be overridden
+            in a subclass that has trainable parameters.
+
+            While `get_params()` should return all Theano variables,
+            `get_bias_params()` should only return those corresponding to bias
+            parameters. This is useful when specifying regularization (it is
+            often undesirable to regularize bias parameters).
         """
         return []
 
     def get_output_shape(self):
+        """
+        Computes the output shape of the network at this layer.
+
+        :returns:
+            - output shape: tuple
+                a tuple that represents the output shape of this layer. The
+                tuple has as many elements as there are output dimensions, and
+                the elements of the tuple are either integers or `None`.
+
+        :note:
+            When implementing a new :class:`Layer` class, you will usually
+            keep this unchanged and just override `get_output_shape_for()`.        
+        """
         input_shape = self.input_layer.get_output_shape()
         return self.get_output_shape_for(input_shape)
 
@@ -63,15 +107,34 @@ class Layer(object):
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
             return utils.as_theano_expression(input[self])
-        else: # in all other cases, just pass the network input on to the next layer.
+        else: # in all other cases, just pass the input on to the next layer.
             layer_input = self.input_layer.get_output(input, *args, **kwargs)
             return self.get_output_for(layer_input, *args, **kwargs)
 
     def get_output_shape_for(self, input_shape):
-        return input_shape # By default, the shape is assumed to be preserved.
-        # This means that layers performing elementwise operations, or other
-        # shape-preserving operations (such as normalization), only need to
-        # implement a single method, i.e. get_output_for().
+        """
+        Computes the output shape of this layer, given an input shape.
+
+        :parameters:
+            - input_shape : tuple
+                a tuple representing the shape of the input. The tuple should
+                have as many elements as there are input dimensions, and the
+                elements should be integers or `None`.
+
+        :returns:
+            - output : tuple
+                a tuple representing the shape of the output of this layer.
+                The tuple has as many elements as there are output dimensions,
+                and the elements are all either integers or `None`.
+
+        :note:
+            This method will typically be overridden when implementing a new
+            :class:`Layer` class. By default it simply returns the input
+            shape. This means that a layer that does not modify the shape
+            (e.g. because it applies an elementwise operation) does not need
+            to override this method.
+        """
+        return input_shape
 
     def get_output_for(self, input, *args, **kwargs):
         """
@@ -93,23 +156,44 @@ class Layer(object):
             network's input, `get_output_for()` just performs a single step
             and returns an expression for a layer's output in terms of
             that layer's input.
+
+            This method should be overridden when implementing a new
+            :class:`Layer` class. By default it raises `NotImplementedError`.
         """
         raise NotImplementedError
 
     @staticmethod
     def create_param(param, shape):
         """
-        Helper method to create Theano shared variables for
-        Layer parameters and to initialize them.
+        Helper method to create Theano shared variables for layer parameters
+        and to initialize them.
 
-        param: one of three things:
-            - a numpy array with the initial parameter values
-            - a Theano shared variable
-            - a function or callable that takes the desired
-              shape of the parameter array as its single
-              argument.
+        :parameters:
+            - param : numpy array, Theano shared variable, or callable
+                One of three things:
+                    * a numpy array with the initial parameter values
+                    * a Theano shared variable representing the parameters
+                    * a function or callable that takes the desired shape of
+                      the parameter array as its single argument.
 
-        shape: the desired shape of the parameter array.
+            - shape : tuple
+                a tuple of integers representing the desired shape of the
+                parameter array.
+
+        :returns:
+            - variable : Theano shared variable
+                a Theano shared variable representing layer parameters. If a
+                numpy array was provided, the variable is initialized to
+                contain this array. If a shared variable was provided, it is
+                simply returned. If a callable was provided, it is called, and
+                its output is used to initialize the variable.
+
+        :note:
+            This static method should be used in `__init__()` when creating a
+            :class:`Layer` subclass that has trainable parameters. This
+            enables the layer to support initialization with numpy arrays,
+            existing Theano shared variables, and callables for generating
+            initial parameter values.
         """
         if isinstance(param, np.ndarray):
             if param.shape != shape:
@@ -117,7 +201,8 @@ class Layer(object):
             return theano.shared(param)
 
         elif isinstance(param, theano.compile.SharedVariable):
-            # cannot check shape here, the shared variable might not be initialized correctly yet.
+            # cannot check shape here, the shared variable might not be
+            # initialized correctly yet.
             return param
 
         elif hasattr(param, '__call__'):
@@ -132,6 +217,11 @@ class Layer(object):
 
 
 class MultipleInputsLayer(Layer):
+    """
+    This class represents a layer that aggregates input from multiple layers.
+    It should be subclassed when implementing new types of layers that
+    obtain their input from multiple layers.
+    """
     def __init__(self, input_layers):
         self.input_layers = input_layers
 
@@ -148,8 +238,53 @@ class MultipleInputsLayer(Layer):
             return self.get_output_for(layer_inputs, *args, **kwargs)
 
     def get_output_shape_for(self, input_shapes):
+        """
+        Computes the output shape of this layer, given a list of input shapes.
+
+        :parameters:
+            - input_shape : list of tuple
+                a list of tuples, with each tuple representing the shape of
+                one of the inputs (in the correct order). These tuples should
+                have as many elements as there are input dimensions, and the
+                elements should be integers or `None`.
+
+        :returns:
+            - output : tuple
+                a tuple representing the shape of the output of this layer.
+                The tuple has as many elements as there are output dimensions,
+                and the elements are all either integers or `None`.
+
+        :note:
+            This method must be overridden when implementing a new
+            :class:`Layer` class with multiple inputs. By default it raises
+            `NotImplementedError`.
+        """
         raise NotImplementedError
 
     def get_output_for(self, inputs, *args, **kwargs):
+        """
+        Propagates the given inputs through this layer (and only this layer).
+
+        :parameters:
+            - inputs : list of Theano expressions
+                The Theano expressions to propagate through this layer
+
+        :returns:
+            - output : Theano expressions
+                the output of this layer given the inputs to this layer
+
+        :note:
+            This is called by the base :class:`MultipleInputsLayer`
+            implementation to propagate data through a network in
+            `get_output()`. While `get_output()` asks the underlying layers
+            for input and thus returns an expression for a layer's output in
+            terms of the network's input, `get_output_for()` just performs a
+            single step and returns an expression for a layer's output in
+            terms of that layer's input.
+
+            This method should be overridden when implementing a new
+            :class:`Layer` class with multiple inputs. By default it raises
+            `NotImplementedError`.
+        """
         raise NotImplementedError
 

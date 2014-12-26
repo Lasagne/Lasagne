@@ -311,7 +311,7 @@ class Layer(object):
         return input_shape # By default, the shape is assumed to be preserved.
         # This means that layers performing elementwise operations, or other
         # shape-preserving operations (such as normalization), only need to
-        # implement a single method, i.e. get_output_for(). 
+        # implement a single method, i.e. get_output_for().
 
     def get_output_for(self, input, *args, **kwargs):
         """
@@ -418,7 +418,7 @@ class InputLayer(Layer):
         if input is None:
             input = self.input_var
         return utils.as_theano_expression(input)
-            
+
 
 ## Layer implementations
 
@@ -457,7 +457,7 @@ class DenseLayer(Layer):
         if self.b is not None:
             activation = activation + self.b.dimshuffle('x', 0)
         return self.nonlinearity(activation)
-        
+
 
 class DropoutLayer(Layer):
     def __init__(self, input_layer, p=0.5, rescale=True):
@@ -608,18 +608,18 @@ class Conv2DLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.border_mode == 'valid':
-            output_width = (input_shape[2] - self.filter_size[0]) // self.strides[0] + 1
-            output_height = (input_shape[3] - self.filter_size[1]) // self.strides[1] + 1
+            output_rows = (input_shape[2] - self.filter_size[0]) // self.strides[0] + 1
+            output_columns = (input_shape[3] - self.filter_size[1]) // self.strides[1] + 1
         elif self.border_mode == 'full':
-            output_width = (input_shape[2] + self.filter_size[0]) // self.strides[0] - 1
-            output_height = (input_shape[3] + self.filter_size[1]) // self.strides[1] - 1
+            output_rows = (input_shape[2] + self.filter_size[0]) // self.strides[0] - 1
+            output_columns = (input_shape[3] + self.filter_size[1]) // self.strides[1] - 1
         elif self.border_mode == 'same':
-            output_width = input_shape[2] // self.strides[0]
-            output_height = input_shape[3] // self.strides[1]
+            output_rows = input_shape[2] // self.strides[0]
+            output_columns = input_shape[3] // self.strides[1]
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
-        return (input_shape[0], self.num_filters, output_width, output_height)
+        return (input_shape[0], self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, input_shape=None, *args, **kwargs):
         # the optional input_shape argument is for when get_output_for is called
@@ -663,7 +663,7 @@ class MaxPool2DLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape) # copy / convert to mutable list
-        
+
         if self.ignore_border:
             output_shape[2] = int(np.floor(float(output_shape[2]) / self.ds[0]))
             output_shape[3] = int(np.floor(float(output_shape[3]) / self.ds[1]))

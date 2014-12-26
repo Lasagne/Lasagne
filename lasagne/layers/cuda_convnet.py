@@ -96,18 +96,18 @@ class Conv2DCCLayer(CCLayer):
     def get_output_shape_for(self, input_shape):
         if self.dimshuffle:
             batch_size = input_shape[0]
-            input_width, input_height = input_shape[2:4]
+            input_rows, input_columns = input_shape[2:4]
         else:
             batch_size = input_shape[3]
-            input_width, input_height = input_shape[1:3]
+            input_rows, input_columns = input_shape[1:3]
 
-        output_width = (input_width + 2*self.pad - self.filter_size) // self.stride + 1
-        output_height = (input_height + 2*self.pad - self.filter_size) // self.stride + 1
+        output_rows = (input_rows + 2*self.pad - self.filter_size) // self.stride + 1
+        output_columns = (input_columns + 2*self.pad - self.filter_size) // self.stride + 1
 
         if self.dimshuffle:
-            return (batch_size, self.num_filters, output_width, output_height)
+            return (batch_size, self.num_filters, output_rows, output_columns)
         else:
-            return (self.num_filters, output_width, output_height, batch_size)
+            return (self.num_filters, output_rows, output_columns, batch_size)
 
     def get_output_for(self, input, *args, **kwargs):
         if self.dimshuffle:
@@ -117,8 +117,8 @@ class Conv2DCCLayer(CCLayer):
             filters = self.W
 
         if self.flip_filters:
-            filters = filters[:, ::-1, ::-1, :] # flip width, height
-        
+            filters = filters[:, ::-1, ::-1, :] # flip top-down, left-right
+
         contiguous_filters = gpu_contiguous(filters)
         contiguous_input = gpu_contiguous(input)
         conved = self.filter_acts_op(contiguous_input, contiguous_filters)
@@ -167,19 +167,19 @@ class MaxPool2DCCLayer(CCLayer):
         if self.dimshuffle:
             batch_size = input_shape[0]
             num_input_channels = input_shape[1]
-            input_width, input_height = input_shape[2:4]
+            input_rows, input_columns = input_shape[2:4]
         else:
             batch_size = input_shape[3]
             num_input_channels = input_shape[0]
-            input_width, input_height = input_shape[1:3]
+            input_rows, input_columns = input_shape[1:3]
 
-        output_width = int(np.ceil(float(input_width - self.ds + self.stride) / self.stride))
-        output_height = int(np.ceil(float(input_height - self.ds + self.stride) / self.stride))
-        
+        output_rows = int(np.ceil(float(input_rows - self.ds + self.stride) / self.stride))
+        output_columns = int(np.ceil(float(input_columns - self.ds + self.stride) / self.stride))
+
         if self.dimshuffle:
-            return (batch_size, num_input_channels, output_width, output_height)
+            return (batch_size, num_input_channels, output_rows, output_columns)
         else:
-            return (num_input_channels, output_width, output_height, batch_size)
+            return (num_input_channels, output_rows, output_columns, batch_size)
 
     def get_output_for(self, input, *args, **kwargs):
         if self.dimshuffle:

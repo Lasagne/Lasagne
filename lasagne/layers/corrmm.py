@@ -3,19 +3,26 @@ GpuCorrMM-based convolutional layers
 """
 
 import numpy as np
-
 import theano
 import theano.tensor as T
-from theano.sandbox.cuda.basic_ops import gpu_contiguous
-from theano.sandbox.cuda.blas import GpuCorrMM
 
 from .. import init
 from .. import nonlinearities
-from . import base
+
+from .base import Layer
+
+from theano.sandbox.cuda.basic_ops import gpu_contiguous
+from theano.sandbox.cuda.blas import GpuCorrMM
+
+
+__all__ = [
+    "MMLayer",
+    "Conv2DMMLayer",
+]
 
 
 # base class for all layers that rely on GpuCorrMM directly
-class MMLayer(base.Layer):
+class MMLayer(Layer):
     pass
 
 

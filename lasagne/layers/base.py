@@ -19,9 +19,9 @@ class Layer(object):
     The :class:`Layer` class represents a single layer of a neural network.
     It should be subclassed when implementing new types of layers.
 
-    A :class:`Layer` instance is also used to represent the neural network
-    consisting of all layers that feed into it (including the instance
-    itself).
+    Because each layer keeps track of the layer(s) feeding into it, a
+    network's output :class:`Layer` instance doubles as a handle to the full
+    network.
     """
     def __init__(self, input_layer):
         self.input_layer = input_layer

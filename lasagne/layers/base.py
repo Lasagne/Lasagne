@@ -608,18 +608,18 @@ class Conv2DLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.border_mode == 'valid':
-            output_height = (input_shape[2] - self.filter_size[0]) // self.strides[0] + 1
-            output_width = (input_shape[3] - self.filter_size[1]) // self.strides[1] + 1
+            output_rows = (input_shape[2] - self.filter_size[0]) // self.strides[0] + 1
+            output_columns = (input_shape[3] - self.filter_size[1]) // self.strides[1] + 1
         elif self.border_mode == 'full':
-            output_height = (input_shape[2] + self.filter_size[0]) // self.strides[0] - 1
-            output_width = (input_shape[3] + self.filter_size[1]) // self.strides[1] - 1
+            output_rows = (input_shape[2] + self.filter_size[0]) // self.strides[0] - 1
+            output_columns = (input_shape[3] + self.filter_size[1]) // self.strides[1] - 1
         elif self.border_mode == 'same':
-            output_height = input_shape[2] // self.strides[0]
-            output_width = input_shape[3] // self.strides[1]
+            output_rows = input_shape[2] // self.strides[0]
+            output_columns = input_shape[3] // self.strides[1]
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
-        return (input_shape[0], self.num_filters, output_height, output_width)
+        return (input_shape[0], self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, input_shape=None, *args, **kwargs):
         # the optional input_shape argument is for when get_output_for is called

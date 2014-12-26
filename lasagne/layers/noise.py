@@ -1,0 +1,53 @@
+import numpy as np
+import theano
+import theano.tensor as T
+
+from .base import Layer
+
+# from theano.tensor.shared_randomstreams import RandomStreams
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+_srng = RandomStreams()
+
+
+__all__ = [
+    "DropoutLayer",
+    "dropout",
+    "GaussianNoiseLayer",
+]
+
+
+class DropoutLayer(Layer):
+    def __init__(self, input_layer, p=0.5, rescale=True):
+        super(DropoutLayer, self).__init__(input_layer)
+        self.p = p
+        self.rescale = rescale
+
+    def get_output_for(self, input, deterministic=False, *args, **kwargs):
+        if deterministic or self.p == 0:
+            return input
+        else:
+            retain_prob = 1 - self.p
+            if self.rescale:
+                input /= retain_prob
+
+            # use nonsymbolic shape for dropout mask if possible
+            input_shape = self.input_layer.get_output_shape()
+            if any(s is None for s in input_shape):
+                input_shape = input.shape
+
+            return input * _srng.binomial(input_shape, p=retain_prob,
+                                          dtype=theano.config.floatX)
+
+dropout = DropoutLayer # shortcut
+
+
+class GaussianNoiseLayer(Layer):
+    def __init__(self, input_layer, sigma=0.1):
+        super(GaussianNoiseLayer, self).__init__(input_layer)
+        self.sigma = sigma
+
+    def get_output_for(self, input, deterministic=False, *args, **kwargs):
+        if deterministic or self.sigma == 0:
+            return input
+        else:
+            return input + _srng.normal(input.shape, avg=0.0, std=self.sigma)

@@ -1,20 +1,33 @@
 import numpy as np
-
 import theano
 import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
-from . import base
+
+from .base import Layer
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
+
+
+__all__ = [
+    "CCLayer",
+    "Conv2DCCLayer",
+    "MaxPool2DCCLayer",
+    "ShuffleBC01ToC01BLayer",
+    "bc01_to_c01b",
+    "ShuffleC01BToBC01Layer",
+    "c01b_to_bc01",
+    "NINLayer_c01b",
+]
+
 
 # TODO: make sure to document the limitations and 'best practices' (i.e. minibatch size % 128 == 0)
 # TODO: see if the 'dimshuffle' logic can be put in the base class instead.
 
 
 # base class for all layers that use ops from pylearn2.sandbox.cuda_convnet
-class CCLayer(base.Layer):
+class CCLayer(Layer):
     pass
 
 
@@ -200,7 +213,7 @@ class MaxPool2DCCLayer(CCLayer):
 
 ## Helper classes for switching between bc01 and c01b input formats
 
-class ShuffleBC01ToC01BLayer(base.Layer):
+class ShuffleBC01ToC01BLayer(Layer):
     """
     This layer dimshuffles 4D input for interoperability between c01b and bc01 ops.
     bc01 (theano) -> c01b (cuda-convnet)
@@ -214,7 +227,7 @@ class ShuffleBC01ToC01BLayer(base.Layer):
 bc01_to_c01b = ShuffleBC01ToC01BLayer # shortcut
 
 
-class ShuffleC01BToBC01Layer(base.Layer):
+class ShuffleC01BToBC01Layer(Layer):
     """
     This layer dimshuffles 4D input for interoperability between c01b and bc01 ops.
     c01b (cuda-convnet) -> bc01 (theano)
@@ -230,7 +243,7 @@ c01b_to_bc01 = ShuffleC01BToBC01Layer # shortcut
 
 ## c01b versions of other Layer classes
 
-class NINLayer_c01b(base.Layer):
+class NINLayer_c01b(Layer):
     """
     This does the same as lasagne.layers.NINLayer, but operates with c01b
     axis arrangement instead of bc01. This reduces the number of shuffles

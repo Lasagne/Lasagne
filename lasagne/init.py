@@ -82,3 +82,28 @@ class Uniform(Initializer):
 
         return floatX(np.random.uniform(
             low=range[0], high=range[1], size=shape))
+
+
+class Orthogonal(Initializer):
+    """
+    Orthogonal matrix initialization. For n-dimensional shapes where n > 2,
+    the n-1 trailing axes are flattened. For convolutional layers, this
+    corresponds to the fan-in, so this makes the initialization usable for
+    both dense and convolutional layers.
+    """
+    def __init__(self, gain=1.0):
+        if gain == 'relu':
+            gain = np.sqrt(2)
+
+        self.gain = gain
+
+    def sample(self, shape):
+        if len(shape) < 2:
+            raise RuntimeError("Only shapes of length 2 or more are supported.")
+
+        flat_shape = (shape[0], np.prod(shape[1:]))
+        a = np.random.normal(0.0, 1.0, flat_shape)
+        u, _, v = np.linalg.svd(a, full_matrices=False)
+        q = u if u.shape == flat_shape else v # pick the one with the correct shape
+        q = q.reshape(shape)
+        return floatX(self.gain * q[:shape[0], :shape[1]])

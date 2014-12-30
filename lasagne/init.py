@@ -106,4 +106,4 @@ class Orthogonal(Initializer):
         u, _, v = np.linalg.svd(a, full_matrices=False)
         q = u if u.shape == flat_shape else v # pick the one with the correct shape
         q = q.reshape(shape)
-        return floatX(self.gain * q[:shape[0], :shape[1]])
+        return floatX(self.gain * q)

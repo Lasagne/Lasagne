@@ -13,6 +13,23 @@ __all__ = [
 
 
 class InputLayer(Layer):
+    """
+    This layer holds a symbolic variable that represents a network input. A
+    variable can be specified when the layer is instantiated, else it is
+    created.
+
+    :parameters:
+        - shape : tuple of int
+            The shape of the input
+
+        - input_var : Theano symbolic variable or None (default: None)
+            A variable representing a network input. If it is not provided,
+            a variable will be created.
+
+    :usage:
+        >>> from lasagne.layers import InputLayer
+        >>> l_in = InputLayer((100, 20))
+    """
     def __init__(self, shape, input_var=None):
         self.shape = shape
         ndim = len(shape)

@@ -17,7 +17,7 @@ class RecurrentLayer(Layer):
     '''
     def __init__(self, input_layer, input_to_hidden, hidden_to_hidden,
                  nonlinearity=nonlinearities.rectify,
-                 h_init=init.Constant(0.)):
+                 hid_init=init.Constant(0.)):
         '''
         Create a recurrent layer.
 
@@ -30,7 +30,7 @@ class RecurrentLayer(Layer):
                 Layer which connects the previous hidden state to the new state
             - nonlinearity : function or theano.tensor.elemwise.Elemwise
                 Nonlinearity to apply when computing new state
-            - h_init : function or np.ndarray or theano.shared
+            - hid_init : function or np.ndarray or theano.shared
                 Initial hidden state
         '''
         super(RecurrentLayer, self).__init__(input_layer)
@@ -47,12 +47,12 @@ class RecurrentLayer(Layer):
         (n_batch, self.num_units) = self.input_to_hidden.get_output_shape()
 
         # Initialize hidden state
-        self.h_init = self.create_param(h_init, (n_batch, self.num_units))
+        self.hid_init = self.create_param(hid_init, (n_batch, self.num_units))
 
     def get_params(self):
         return (helper.get_all_params(self.input_to_hidden) +
                 helper.get_all_params(self.hidden_to_hidden) +
-                [self.h_init])
+                [self.hid_init])
 
     def get_bias_params(self):
         return (helper.get_all_bias_params(self.input_to_hidden) +
@@ -72,13 +72,13 @@ class RecurrentLayer(Layer):
         input = input.dimshuffle(1, 0, 2)
 
         # Create single recurrent computation step function
-        def step(layer_input, previous_output):
+        def step(layer_input, hid_previous):
             return self.nonlinearity(
                 self.input_to_hidden.get_output(layer_input) +
-                self.hidden_to_hidden.get_output(previous_output))
+                self.hidden_to_hidden.get_output(hid_previous))
 
         output = theano.scan(step, sequences=input,
-                             outputs_info=[self.h_init])[0]
+                             outputs_info=[self.hid_init])[0]
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)
 
@@ -189,28 +189,28 @@ class LSTMLayer(Layer):
             Recurrent Neural Networks".
     '''
     def __init__(self, input_layer, num_units,
-                 W_input_to_input_gate=init.Normal(0.1),
-                 W_hidden_to_input_gate=init.Normal(0.1),
-                 W_cell_to_input_gate=init.Normal(0.1),
-                 b_input_gate=init.Normal(0.1),
-                 nonlinearity_input_gate=nonlinearities.sigmoid,
-                 W_input_to_forget_gate=init.Normal(0.1),
-                 W_hidden_to_forget_gate=init.Normal(0.1),
-                 W_cell_to_forget_gate=init.Normal(0.1),
-                 b_forget_gate=init.Normal(0.1),
-                 nonlinearity_forget_gate=nonlinearities.sigmoid,
-                 W_input_to_cell=init.Normal(0.1),
-                 W_hidden_to_cell=init.Normal(0.1),
+                 W_in_to_ingate=init.Normal(0.1),
+                 W_hid_to_ingate=init.Normal(0.1),
+                 W_cell_to_ingate=init.Normal(0.1),
+                 b_ingate=init.Normal(0.1),
+                 nonlinearity_ingate=nonlinearities.sigmoid,
+                 W_in_to_forgetgate=init.Normal(0.1),
+                 W_hid_to_forgetgate=init.Normal(0.1),
+                 W_cell_to_forgetgate=init.Normal(0.1),
+                 b_forgetgate=init.Normal(0.1),
+                 nonlinearity_forgetgate=nonlinearities.sigmoid,
+                 W_in_to_cell=init.Normal(0.1),
+                 W_hid_to_cell=init.Normal(0.1),
                  b_cell=init.Normal(0.1),
                  nonlinearity_cell=nonlinearities.tanh,
-                 W_input_to_output_gate=init.Normal(0.1),
-                 W_hidden_to_output_gate=init.Normal(0.1),
-                 W_cell_to_output_gate=init.Normal(0.1),
-                 b_output_gate=init.Normal(0.1),
-                 nonlinearity_output_gate=nonlinearities.sigmoid,
-                 nonlinearity_output=nonlinearities.tanh,
-                 c_init=init.Constant(0.),
-                 h_init=init.Constant(0.)):
+                 W_in_to_outgate=init.Normal(0.1),
+                 W_hid_to_outgate=init.Normal(0.1),
+                 W_cell_to_outgate=init.Normal(0.1),
+                 b_outgate=init.Normal(0.1),
+                 nonlinearity_outgate=nonlinearities.sigmoid,
+                 nonlinearity_out=nonlinearities.tanh,
+                 cell_init=init.Constant(0.),
+                 hid_init=init.Constant(0.)):
         '''
         Initialize an LSTM layer.  For details on what the parameters mean, see
         (7-11) from [#graves2014generating]_.
@@ -220,79 +220,79 @@ class LSTMLayer(Layer):
                 Input to this recurrent layer
             - num_units : int
                 Number of hidden units
-            - W_input_to_input_gate : function or np.ndarray or theano.shared
+            - W_in_to_ingate : function or np.ndarray or theano.shared
                 :math:`W_{xi}`
-            - W_hidden_to_input_gate : function or np.ndarray or theano.shared
+            - W_hid_to_ingate : function or np.ndarray or theano.shared
                 :math:`W_{hi}`
-            - W_cell_to_input_gate : function or np.ndarray or theano.shared
+            - W_cell_to_ingate : function or np.ndarray or theano.shared
                 :math:`W_{ci}`
-            - b_input_gate : function or np.ndarray or theano.shared
+            - b_ingate : function or np.ndarray or theano.shared
                 :math:`b_i`
-            - nonlinearity_input_gate : function
+            - nonlinearity_ingate : function
                 :math:`\sigma`
-            - W_input_to_forget_gate : function or np.ndarray or theano.shared
+            - W_in_to_forgetgate : function or np.ndarray or theano.shared
                 :math:`W_{xf}`
-            - W_hidden_to_forget_gate : function or np.ndarray or theano.shared
+            - W_hid_to_forgetgate : function or np.ndarray or theano.shared
                 :math:`W_{hf}`
-            - W_cell_to_forget_gate : function or np.ndarray or theano.shared
+            - W_cell_to_forgetgate : function or np.ndarray or theano.shared
                 :math:`W_{cf}`
-            - b_forget_gate : function or np.ndarray or theano.shared
+            - b_forgetgate : function or np.ndarray or theano.shared
                 :math:`b_f`
-            - nonlinearity_forget_gate : function
+            - nonlinearity_forgetgate : function
                 :math:`\sigma`
-            - W_input_to_cell : function or np.ndarray or theano.shared
+            - W_in_to_cell : function or np.ndarray or theano.shared
                 :math:`W_{ic}`
-            - W_hidden_to_cell : function or np.ndarray or theano.shared
+            - W_hid_to_cell : function or np.ndarray or theano.shared
                 :math:`W_{hc}`
             - b_cell : function or np.ndarray or theano.shared
                 :math:`b_c`
             - nonlinearity_cell : function or np.ndarray or theano.shared
                 :math:`\tanh`
-            - W_input_to_output_gate : function or np.ndarray or theano.shared
+            - W_in_to_outgate : function or np.ndarray or theano.shared
                 :math:`W_{io}`
-            - W_hidden_to_output_gate : function or np.ndarray or theano.shared
+            - W_hid_to_outgate : function or np.ndarray or theano.shared
                 :math:`W_{ho}`
-            - W_cell_to_output_gate : function or np.ndarray or theano.shared
+            - W_cell_to_outgate : function or np.ndarray or theano.shared
                 :math:`W_{co}`
-            - b_output_gate : function or np.ndarray or theano.shared
+            - b_outgate : function or np.ndarray or theano.shared
                 :math:`b_o`
-            - nonlinearity_output_gate : function
+            - nonlinearity_outgate : function
                 :math:`\sigma`
-            - nonlinearity_output : function or np.ndarray or theano.shared
+            - nonlinearity_out : function or np.ndarray or theano.shared
                 :math:`\tanh`
-            - c_init : function or np.ndarray or theano.shared
+            - cell_init : function or np.ndarray or theano.shared
                 :math:`c_0`
-            - h_init : function or np.ndarray or theano.shared
+            - hid_init : function or np.ndarray or theano.shared
                 :math:`h_0`
         '''
         # Initialize parent layer
         super(LSTMLayer, self).__init__(input_layer)
 
         # For any of the nonlinearities, if None is supplied, use identity
-        if nonlinearity_input_gate is None:
-            self.nonlinearity_input_gate = nonlinearities.identity
+        if nonlinearity_ingate is None:
+            self.nonlinearity_ingate = nonlinearities.identity
         else:
-            self.nonlinearity_input_gate = nonlinearity_input_gate
+            self.nonlinearity_ingate = nonlinearity_ingate
 
-        if nonlinearity_forget_gate is None:
-            self.nonlinearity_forget_gate = nonlinearities.identity
+        if nonlinearity_forgetgate is None:
+            self.nonlinearity_forgetgate = nonlinearities.identity
         else:
-            self.nonlinearity_forget_gate = nonlinearity_forget_gate
+            self.nonlinearity_forgetgate = nonlinearity_forgetgate
 
         if nonlinearity_cell is None:
             self.nonlinearity_cell = nonlinearities.identity
         else:
             self.nonlinearity_cell = nonlinearity_cell
 
-        if nonlinearity_output_gate is None:
-            self.nonlinearity_output_gate = nonlinearities.identity
+        if nonlinearity_outgate is None:
+            self.nonlinearity_outgate = nonlinearities.identity
         else:
-            self.nonlinearity_output_gate = nonlinearity_output_gate
+            self.nonlinearity_outgate = nonlinearity_outgate
 
-        if nonlinearity_output is None:
-            self.nonlinearity_output = nonlinearities.identity
+        if nonlinearity_out is None:
+            self.nonlinearity_out = nonlinearities.identity
         else:
-            self.nonlinearity_output = nonlinearity_output
+            self.nonlinearity_out = nonlinearity_out
 
         self.num_units = num_units
 
@@ -300,49 +300,49 @@ class LSTMLayer(Layer):
         (num_batch, _, num_inputs) = self.input_layer.get_output_shape()
 
         # Initialize parameters using the supplied args
-        self.W_input_to_input_gate = self.create_param(
-            W_input_to_input_gate, (num_inputs, num_units))
+        self.W_in_to_ingate = self.create_param(
+            W_in_to_ingate, (num_inputs, num_units))
 
-        self.W_hidden_to_input_gate = self.create_param(
-            W_hidden_to_input_gate, (num_units, num_units))
+        self.W_hid_to_ingate = self.create_param(
+            W_hid_to_ingate, (num_units, num_units))
 
-        self.W_cell_to_input_gate = self.create_param(
-            W_cell_to_input_gate, (num_units))
+        self.W_cell_to_ingate = self.create_param(
+            W_cell_to_ingate, (num_units))
 
-        self.b_input_gate = self.create_param(b_input_gate, (num_units))
+        self.b_ingate = self.create_param(b_ingate, (num_units))
 
-        self.W_input_to_forget_gate = self.create_param(
-            W_input_to_forget_gate, (num_inputs, num_units))
+        self.W_in_to_forgetgate = self.create_param(
+            W_in_to_forgetgate, (num_inputs, num_units))
 
-        self.W_hidden_to_forget_gate = self.create_param(
-            W_hidden_to_forget_gate, (num_units, num_units))
+        self.W_hid_to_forgetgate = self.create_param(
+            W_hid_to_forgetgate, (num_units, num_units))
 
-        self.W_cell_to_forget_gate = self.create_param(
-            W_cell_to_forget_gate, (num_units))
+        self.W_cell_to_forgetgate = self.create_param(
+            W_cell_to_forgetgate, (num_units))
 
-        self.b_forget_gate = self.create_param(b_forget_gate, (num_units,))
+        self.b_forgetgate = self.create_param(b_forgetgate, (num_units,))
 
-        self.W_input_to_cell = self.create_param(
-            W_input_to_cell, (num_inputs, num_units))
+        self.W_in_to_cell = self.create_param(
+            W_in_to_cell, (num_inputs, num_units))
 
-        self.W_hidden_to_cell = self.create_param(
-            W_hidden_to_cell, (num_units, num_units))
+        self.W_hid_to_cell = self.create_param(
+            W_hid_to_cell, (num_units, num_units))
 
         self.b_cell = self.create_param(b_cell, (num_units,))
 
-        self.W_input_to_output_gate = self.create_param(
-            W_input_to_output_gate, (num_inputs, num_units))
+        self.W_in_to_outgate = self.create_param(
+            W_in_to_outgate, (num_inputs, num_units))
 
-        self.W_hidden_to_output_gate = self.create_param(
-            W_hidden_to_output_gate, (num_units, num_units))
+        self.W_hid_to_outgate = self.create_param(
+            W_hid_to_outgate, (num_units, num_units))
 
-        self.W_cell_to_output_gate = self.create_param(
-            W_cell_to_output_gate, (num_units))
+        self.W_cell_to_outgate = self.create_param(
+            W_cell_to_outgate, (num_units))
 
-        self.b_output_gate = self.create_param(b_output_gate, (num_units,))
+        self.b_outgate = self.create_param(b_outgate, (num_units,))
 
-        self.c_init = self.create_param(c_init, (num_batch, num_units))
-        self.h_init = self.create_param(h_init, (num_batch, num_units))
+        self.cell_init = self.create_param(cell_init, (num_batch, num_units))
+        self.hid_init = self.create_param(hid_init, (num_batch, num_units))
 
     def get_params(self):
         '''
@@ -352,21 +352,21 @@ class LSTMLayer(Layer):
             - params : list of theano.shared
                 List of all parameters
         '''
-        return [self.W_input_to_input_gate,
-                self.W_hidden_to_input_gate,
-                self.W_cell_to_input_gate,
-                self.b_input_gate,
-                self.W_input_to_forget_gate,
-                self.W_hidden_to_forget_gate,
-                self.W_cell_to_forget_gate,
-                self.b_forget_gate,
-                self.W_input_to_cell,
-                self.W_hidden_to_cell,
+        return [self.W_in_to_ingate,
+                self.W_hid_to_ingate,
+                self.W_cell_to_ingate,
+                self.b_ingate,
+                self.W_in_to_forgetgate,
+                self.W_hid_to_forgetgate,
+                self.W_cell_to_forgetgate,
+                self.b_forgetgate,
+                self.W_in_to_cell,
+                self.W_hid_to_cell,
                 self.b_cell,
-                self.W_input_to_output_gate,
-                self.W_hidden_to_output_gate,
-                self.W_cell_to_output_gate,
-                self.b_output_gate]
+                self.W_in_to_outgate,
+                self.W_hid_to_outgate,
+                self.W_cell_to_outgate,
+                self.b_outgate]
 
     def get_bias_params(self):
         '''
@@ -376,8 +376,8 @@ class LSTMLayer(Layer):
             - bias_params : list of theano.shared
                 List of all bias parameters
         '''
-        return [self.b_input_gate, self.b_forget_gate,
-                self.b_cell, self.b_output_gate]
+        return [self.b_ingate, self.b_forgetgate,
+                self.b_cell, self.b_outgate]
 
     def get_output_shape_for(self, input_shape):
         '''
@@ -416,59 +416,59 @@ class LSTMLayer(Layer):
         input = input.dimshuffle(1, 0, 2)
 
         # Create single recurrent computation step function
-        def step(layer_input, previous_cell, previous_output,
-                 W_input_to_input_gate, W_hidden_to_input_gate,
-                 W_cell_to_input_gate, b_input_gate, W_input_to_forget_gate,
-                 W_hidden_to_forget_gate, W_cell_to_forget_gate, b_forget_gate,
-                 W_input_to_cell, W_hidden_to_cell, b_cell,
-                 W_input_to_output_gate, W_hidden_to_output_gate,
-                 W_cell_to_output_gate, b_output_gate):
+        def step(layer_input, cell_previous, hid_previous,
+                 W_in_to_ingate, W_hid_to_ingate,
+                 W_cell_to_ingate, b_ingate, W_in_to_forgetgate,
+                 W_hid_to_forgetgate, W_cell_to_forgetgate, b_forgetgate,
+                 W_in_to_cell, W_hid_to_cell, b_cell,
+                 W_in_to_outgate, W_hid_to_outgate,
+                 W_cell_to_outgate, b_outgate):
             # i_t = \sigma(W_{xi}x_t + W_{hi}h_{t-1} + W_{ci}c_{t-1} + b_i)
-            input_gate = self.nonlinearity_input_gate(
-                T.dot(layer_input, W_input_to_input_gate) +
-                T.dot(previous_output, W_hidden_to_input_gate) +
-                previous_cell*W_cell_to_input_gate +
-                b_input_gate)
+            ingate = self.nonlinearity_ingate(
+                T.dot(layer_input, W_in_to_ingate) +
+                T.dot(hid_previous, W_hid_to_ingate) +
+                cell_previous*W_cell_to_ingate +
+                b_ingate)
             # f_t = \sigma(W_{xf}x_t + W_{hf}h_{t-1} + W_{cf}c_{t-1} + b_f)
-            forget_gate = self.nonlinearity_forget_gate(
-                T.dot(layer_input, W_input_to_forget_gate) +
-                T.dot(previous_output, W_hidden_to_forget_gate) +
-                previous_cell*W_cell_to_forget_gate +
-                b_forget_gate)
+            forgetgate = self.nonlinearity_forgetgate(
+                T.dot(layer_input, W_in_to_forgetgate) +
+                T.dot(hid_previous, W_hid_to_forgetgate) +
+                cell_previous*W_cell_to_forgetgate +
+                b_forgetgate)
             # c_t = f_tc_{t - 1} + i_t\tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c)
-            cell = (forget_gate*previous_cell +
-                    input_gate*self.nonlinearity_cell(
-                        T.dot(layer_input, W_input_to_cell) +
-                        T.dot(previous_output, W_hidden_to_cell) +
+            cell = (forgetgate*cell_previous +
+                    ingate*self.nonlinearity_cell(
+                        T.dot(layer_input, W_in_to_cell) +
+                        T.dot(hid_previous, W_hid_to_cell) +
                         b_cell))
             # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
-            output_gate = self.nonlinearity_output_gate(
-                T.dot(layer_input, W_input_to_output_gate) +
-                T.dot(previous_output, W_hidden_to_output_gate) +
-                cell*W_cell_to_output_gate +
-                b_output_gate)
+            outgate = self.nonlinearity_outgate(
+                T.dot(layer_input, W_in_to_outgate) +
+                T.dot(hid_previous, W_hid_to_outgate) +
+                cell*W_cell_to_outgate +
+                b_outgate)
             # h_t = o_t \tanh(c_t)
-            output = output_gate*self.nonlinearity_output(cell)
+            output = outgate*self.nonlinearity_out(cell)
             return [cell, output]
 
         # Scan op iterates over first dimension of input and repeatedly
         # applied the step function
         output = theano.scan(step, sequences=input,
-                             outputs_info=[self.c_init, self.h_init],
-                             non_sequences=[self.W_input_to_input_gate,
-                                            self.W_hidden_to_input_gate,
-                                            self.W_cell_to_input_gate,
-                                            self.b_input_gate,
-                                            self.W_input_to_forget_gate,
-                                            self.W_hidden_to_forget_gate,
-                                            self.W_cell_to_forget_gate,
-                                            self.b_forget_gate,
-                                            self.W_input_to_cell,
-                                            self.W_hidden_to_cell, self.b_cell,
-                                            self.W_input_to_output_gate,
-                                            self.W_hidden_to_output_gate,
-                                            self.W_cell_to_output_gate,
-                                            self.b_output_gate])[0][1]
+                             outputs_info=[self.cell_init, self.hid_init],
+                             non_sequences=[self.W_in_to_ingate,
+                                            self.W_hid_to_ingate,
+                                            self.W_cell_to_ingate,
+                                            self.b_ingate,
+                                            self.W_in_to_forgetgate,
+                                            self.W_hid_to_forgetgate,
+                                            self.W_cell_to_forgetgate,
+                                            self.b_forgetgate,
+                                            self.W_in_to_cell,
+                                            self.W_hid_to_cell, self.b_cell,
+                                            self.W_in_to_outgate,
+                                            self.W_hid_to_outgate,
+                                            self.W_cell_to_outgate,
+                                            self.b_outgate])[0][1]
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)
 

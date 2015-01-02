@@ -1,4 +1,4 @@
-Welcome to nntools
+Welcome to Lasagne
 ==================
 
 XXX General intro
@@ -7,8 +7,8 @@ User's Guide
 ------------
 
 This part of the documentation is mostly prose.  It starts with
-installation instructions for setting up nntools, then walks
-step-by-step through an example of using nntools to classify MNIST
+installation instructions for setting up Lasagne, then walks
+step-by-step through an example of using Lasagne to classify MNIST
 digits.
 
 .. toctree::

@@ -6,7 +6,7 @@ import itertools
 import urllib
 
 import numpy as np
-import nntools
+import lasagne
 import theano
 import theano.tensor as T
 
@@ -35,11 +35,11 @@ def load_data():
     X_test, y_test = data[2]
 
     return dict(
-        X_train=theano.shared(nntools.utils.floatX(X_train)),
+        X_train=theano.shared(lasagne.utils.floatX(X_train)),
         y_train=T.cast(theano.shared(y_train), 'int32'),
-        X_valid=theano.shared(nntools.utils.floatX(X_valid)),
+        X_valid=theano.shared(lasagne.utils.floatX(X_valid)),
         y_valid=T.cast(theano.shared(y_valid), 'int32'),
-        X_test=theano.shared(nntools.utils.floatX(X_test)),
+        X_test=theano.shared(lasagne.utils.floatX(X_test)),
         y_test=T.cast(theano.shared(y_test), 'int32'),
         num_examples_train=X_train.shape[0],
         num_examples_valid=X_valid.shape[0],
@@ -52,31 +52,31 @@ def load_data():
 def build_model(input_dim, output_dim,
                 batch_size=BATCH_SIZE, num_hidden_units=NUM_HIDDEN_UNITS):
 
-    l_in = nntools.layers.InputLayer(
+    l_in = lasagne.layers.InputLayer(
         shape=(batch_size, input_dim),
         )
-    l_hidden1 = nntools.layers.DenseLayer(
+    l_hidden1 = lasagne.layers.DenseLayer(
         l_in,
         num_units=num_hidden_units,
-        nonlinearity=nntools.nonlinearities.rectify,
+        nonlinearity=lasagne.nonlinearities.rectify,
         )
-    l_hidden1_dropout = nntools.layers.DropoutLayer(
+    l_hidden1_dropout = lasagne.layers.DropoutLayer(
         l_hidden1,
         p=0.5,
         )
-    l_hidden2 = nntools.layers.DenseLayer(
+    l_hidden2 = lasagne.layers.DenseLayer(
         l_hidden1_dropout,
         num_units=num_hidden_units,
-        nonlinearity=nntools.nonlinearities.rectify,
+        nonlinearity=lasagne.nonlinearities.rectify,
         )
-    l_hidden2_dropout = nntools.layers.DropoutLayer(
+    l_hidden2_dropout = lasagne.layers.DropoutLayer(
         l_hidden2,
         p=0.5,
         )
-    l_out = nntools.layers.DenseLayer(
+    l_out = lasagne.layers.DenseLayer(
         l_hidden2_dropout,
         num_units=output_dim,
-        nonlinearity=nntools.nonlinearities.softmax,
+        nonlinearity=lasagne.nonlinearities.softmax,
         )
     return l_out
 
@@ -101,8 +101,8 @@ def create_iter_functions(dataset, output_layer,
         output_layer.get_output(X_batch, deterministic=True), axis=1)
     accuracy = T.mean(T.eq(pred, y_batch))
 
-    all_params = nntools.layers.get_all_params(output_layer)
-    updates = nntools.updates.nesterov_momentum(
+    all_params = lasagne.layers.get_all_params(output_layer)
+    updates = lasagne.updates.nesterov_momentum(
         loss_train, all_params, learning_rate, momentum)
 
     iter_train = theano.function(

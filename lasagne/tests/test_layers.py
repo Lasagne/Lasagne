@@ -7,7 +7,7 @@ import theano
 class TestLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import Layer
+        from lasagne.layers.base import Layer
         return Layer(Mock())
 
     def test_get_output_shape(self, layer):
@@ -34,7 +34,7 @@ class TestLayer:
             input, arg, kwarg=kwarg)
 
     def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: object()}
+        input = {layer: theano.tensor.matrix()}
         assert layer.get_output(input) is input[layer]
 
     def test_get_output_input_is_a_mapping_no_key(self, layer):
@@ -42,6 +42,11 @@ class TestLayer:
 
         output = layer.get_output({})
         assert output is layer.get_output_for.return_value
+
+    def test_get_output_input_is_a_mapping_to_array(self, layer):
+        input = {layer: [[1,2,3]]}
+        output = layer.get_output(input)
+        assert numpy.all(output.eval() == input[layer])
 
     def test_create_param_numpy_bad_shape_raises_error(self, layer):
         param = numpy.array([[1, 2, 3], [4, 5, 6]])
@@ -72,7 +77,7 @@ class TestLayer:
 class TestMultipleInputsLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import MultipleInputsLayer
+        from lasagne.layers.base import MultipleInputsLayer
         return MultipleInputsLayer([Mock(), Mock()])
 
     def test_get_output_shape(self, layer):
@@ -112,7 +117,7 @@ class TestMultipleInputsLayer:
             input, arg, kwarg=kwarg)
 
     def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: object()}
+        input = {layer: theano.tensor.matrix()}
         assert layer.get_output(input) is input[layer]
 
     def test_get_output_input_is_a_mapping_no_key(self, layer):
@@ -121,11 +126,16 @@ class TestMultipleInputsLayer:
         output = layer.get_output({})
         assert output is layer.get_output_for.return_value
 
+    def test_get_output_input_is_a_mapping_to_array(self, layer):
+        input = {layer: [[1,2,3]]}
+        output = layer.get_output(input)
+        assert numpy.all(output.eval() == input[layer])
+
 
 class TestInputLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import InputLayer
+        from lasagne.layers.base import InputLayer
         return InputLayer((3, 2))
 
     def test_input_var(self, layer):
@@ -141,15 +151,20 @@ class TestInputLayer:
         variable = theano.Variable("myvariable")
         assert layer.get_output(variable) is variable
 
+    def test_get_output_input_is_array(self, layer):
+        input = [[1,2,3]]
+        output = layer.get_output(input)
+        assert numpy.all(output.eval() == input)
+
     def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: object()}
+        input = {layer: theano.tensor.matrix()}
         assert layer.get_output(input) is input[layer]
 
 
 class TestDenseLayer:
     @pytest.fixture
     def layer_vars(self):
-        from nntools.layers.base import DenseLayer
+        from lasagne.layers.base import DenseLayer
         input_layer = Mock()
         W = Mock()
         b = Mock()
@@ -229,17 +244,17 @@ class TestDenseLayer:
 class TestDropoutLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import DropoutLayer
+        from lasagne.layers.base import DropoutLayer
         return DropoutLayer(Mock())
 
     @pytest.fixture
     def layer_no_rescale(self):
-        from nntools.layers.base import DropoutLayer
+        from lasagne.layers.base import DropoutLayer
         return DropoutLayer(Mock(), rescale=False)
 
     @pytest.fixture
     def layer_p_02(self):
-        from nntools.layers.base import DropoutLayer
+        from lasagne.layers.base import DropoutLayer
         return DropoutLayer(Mock(), p=0.2)
 
     def test_get_output_for_non_deterministic(self, layer):
@@ -273,7 +288,7 @@ class TestDropoutLayer:
 class TestGaussianNoiseLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import GaussianNoiseLayer
+        from lasagne.layers.base import GaussianNoiseLayer
         return GaussianNoiseLayer(Mock())
 
     def test_get_output_for_non_deterministic(self, layer):
@@ -294,7 +309,7 @@ class TestGaussianNoiseLayer:
 class TestConcatLayer:
     @pytest.fixture
     def layer(self):
-        from nntools.layers.base import ConcatLayer
+        from lasagne.layers.base import ConcatLayer
         return ConcatLayer([Mock(), Mock()], axis=1)
 
     def test_get_output_for(self, layer):
@@ -303,4 +318,21 @@ class TestConcatLayer:
         result = layer.get_output_for(inputs)
         result_eval = result.eval()
         desired_result = numpy.hstack([input.get_value() for input in inputs])
+        assert (result_eval == desired_result).all()
+
+
+class TestElemwiseSumLayer:
+    @pytest.fixture
+    def layer(self):
+        from lasagne.layers.base import ElemwiseSumLayer
+        return ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, -1])
+
+    def test_get_output_for(self, layer):
+        a = numpy.array([[0, 1], [2, 3]])
+        b = numpy.array([[1, 2], [4, 5]])
+        inputs = [theano.shared(a),
+                  theano.shared(b)]
+        result = layer.get_output_for(inputs)
+        result_eval = result.eval()
+        desired_result = 2*a - b
         assert (result_eval == desired_result).all()

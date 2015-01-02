@@ -232,7 +232,7 @@ c01b_to_bc01 = ShuffleC01BToBC01Layer # shortcut
 
 class NINLayer_c01b(base.Layer):
     """
-    This does the same as nntools.layers.NINLayer, but operates with c01b
+    This does the same as lasagne.layers.NINLayer, but operates with c01b
     axis arrangement instead of bc01. This reduces the number of shuffles
     and reshapes required and might be faster as a result.
     """

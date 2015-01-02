@@ -20,8 +20,9 @@ _srng = RandomStreams()
 
 def get_all_layers(layer):
     """
-    This function gathers all layers below a given :class:`Layer` instance,
-    including the layer itself.
+    This function gathers all layers below one or more given :class:`Layer`
+    instances, including the given layer(s). Its main use is to collect all
+    layers of a network just given the output layer(s).
 
     :usage:
         >>> l_in = InputLayer((100, 20))
@@ -29,18 +30,27 @@ def get_all_layers(layer):
         >>> all_layers = get_all_layers(l1)
         >>> all_layers == [l1, l_in]
         True
+        >>> l2 = DenseLayer(l_in, num_units=10)
+        >>> all_layers = get_all_layers([l2, l1])
+        >>> all_layers == [l2, l1, l_in]
+        True
 
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to gather all layers feeding
-            into it.
+            into it, or a list of :class:`Layer` instances.
 
     :returns:
         - layers : list
-            a list of :class:`Layer` instances feeding into the given instance.
+            a list of :class:`Layer` instances feeding into the given
+            instance(s) either directly or indirectly, and the given
+            instance(s) themselves.
     """
-    layers = [layer]
-    layers_to_expand = [layer]
+    if isinstance(layer, (list, tuple)):
+        layers = list(layer)
+    else:
+        layers = [layer]
+    layers_to_expand = list(layers)
     while len(layers_to_expand) > 0:
         current_layer = layers_to_expand.pop(0)
         children = []
@@ -60,8 +70,10 @@ def get_all_layers(layer):
 
 def get_all_params(layer):
     """
-    This function gathers all learnable parameters of all layers below a given
-    :class:`Layer` instance, including the layer itself.
+    This function gathers all learnable parameters of all layers below one
+    or more given :class:`Layer` instances, including the layer(s) itself.
+    Its main use is to collect all parameters of a network just given the
+    output layer(s).
 
     :usage:
         >>> l_in = InputLayer((100, 20))
@@ -72,7 +84,8 @@ def get_all_params(layer):
 
     :parameters:
         - layer : Layer
-            the :class:`Layer` instance for which to gather all parameters.
+            the :class:`Layer` instance for which to gather all parameters,
+            or a list of :class:`Layer` instances.
 
     :returns:
         - params : list
@@ -85,8 +98,8 @@ def get_all_params(layer):
 
 def get_all_bias_params(layer):
     """
-    This function gathers all learnable bias parameters of all layers below a
-    given :class`Layer` instance, including the layer itself.
+    This function gathers all learnable bias parameters of all layers below one
+    or more given :class`Layer` instances, including the layer(s) itself.
 
     This is useful for situations where the biases should be treated
     separately from other parameters, e.g. they are typically excluded from
@@ -101,7 +114,8 @@ def get_all_bias_params(layer):
 
     :parameters:
         - layer : Layer
-            the :class:`Layer` instance for which to gather all bias parameters.
+            the :class:`Layer` instance for which to gather all bias parameters,
+            or a list of :class:`Layer` instances.
 
     :returns:
         - params : list
@@ -116,7 +130,7 @@ def get_all_bias_params(layer):
 def get_all_non_bias_params(layer):
     """
     This function gathers all learnable non-bias parameters of all layers below
-    a given :class`Layer` instance, including the layer itself.
+    one or more given :class`Layer` instances, including the layer(s) itself.
 
     This is useful for situations where the biases should be treated
     separately from other parameters, e.g. they are typically excluded from
@@ -132,7 +146,7 @@ def get_all_non_bias_params(layer):
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to gather all non-bias
-            parameters.
+            parameters, or a list of :class:`Layer` instances.
 
     :returns:
         - params : list
@@ -148,8 +162,8 @@ def get_all_non_bias_params(layer):
 def count_params(layer):
     """
     This function counts all learnable parameters (i.e. the number of scalar
-    values) of all layers below a given :class`Layer` instance, including the
-    layer itself.
+    values) of all layers below one or more given :class`Layer` instances,
+    including the layer(s) itself.
 
     This is useful to compare the capacity of various network architectures.
     All parameters returned by the :class:`Layer`s' `get_params` methods are
@@ -166,7 +180,8 @@ def count_params(layer):
 
     :parameters:
         - layer : Layer
-            the :class:`Layer` instance for which to count the parameters.
+            the :class:`Layer` instance for which to count the parameters,
+            or a list of :class:`Layer` instances.
     :returns:
         - count : int
             the total number of learnable parameters.
@@ -180,8 +195,8 @@ def count_params(layer):
 
 def get_all_param_values(layer):
     """
-    This function gathers returns the values of the parameters of all layers
-    below a given :class:`Layer` instance, including the layer itself.
+    This function returns the values of the parameters of all layers below one
+    or more given :class:`Layer` instances, including the layer(s) itself.
 
     This function can be used in conjunction with set_all_param_values to save
     and restore model parameters.
@@ -198,7 +213,7 @@ def get_all_param_values(layer):
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to gather all parameter
-            values.
+            values, or a list of :class:`Layer` instances.
 
     :returns:
         - param_values : list of numpy.array
@@ -211,8 +226,8 @@ def get_all_param_values(layer):
 def set_all_param_values(layer, values):
     """
     Given a list of numpy arrays, this function sets the parameters of all
-    layers below a given :class:`Layer` instance (including the layer itself)
-    to the given values.
+    layers below one or more given :class:`Layer` instances (including the
+    layer(s) itself) to the given values.
 
     This function can be used in conjunction with get_all_param_values to save
     and restore model parameters.
@@ -229,7 +244,7 @@ def set_all_param_values(layer, values):
     :parameters:
         - layer : Layer
             the :class:`Layer` instance for which to set all parameter
-            values.
+            values, or a list of :class:`Layer` instances.
         - values : list of numpy.array
     """
     params = get_all_params(layer)
@@ -261,11 +276,33 @@ class Layer(object):
 
     def get_output(self, input=None, *args, **kwargs):
         """
-        input can be None, a Theano expression, or a dictionary mapping
-        layer instances to Theano expressions.
+        Computes the output of the network at this layer. Optionally, you can
+        define an input to propagate through the network instead of using the
+        input variables associated with the network's input layers.
+
+        :parameters:
+            - input : None, Theano expression, numpy array, or dict
+                If None, uses the inputs of the :class:`InputLayer` instances.
+                If a Theano expression, this will replace the inputs of all
+                :class:`InputLayer` instances (useful if your network has a
+                single input layer).
+                If a numpy array, this will be wrapped as a Theano constant
+                and used just like a Theano expression.
+                If a dictionary, any :class:`Layer` instance (including the
+                input layers) can be mapped to a Theano expression or numpy
+                array to use instead of its regular output.
+
+        :returns:
+            - output : Theano expression
+                the output of this layer given the input to the network
+
+        :note:
+            When implementing a new :class:`Layer` class, you will usually
+            keep this unchanged and just override `get_output_for()`.
         """
         if isinstance(input, dict) and (self in input):
-            return input[self] # this layer is mapped to an expression
+            # this layer is mapped to an expression or numpy array
+            return utils.as_theano_expression(input[self])
         else: # in all other cases, just pass the network input on to the next layer.
             layer_input = self.input_layer.get_output(input, *args, **kwargs)
             return self.get_output_for(layer_input, *args, **kwargs)
@@ -277,6 +314,26 @@ class Layer(object):
         # implement a single method, i.e. get_output_for(). 
 
     def get_output_for(self, input, *args, **kwargs):
+        """
+        Propagates the given input through this layer (and only this layer).
+
+        :parameters:
+            - input : Theano expression
+                the expression to propagate through this layer
+
+        :returns:
+            - output : Theano expression
+                the output of this layer given the input to this layer
+
+        :note:
+            This is called by the base :class:`Layer` implementation to
+            propagate data through a network in `get_output()`. While
+            `get_output()` asks the underlying layers for input and thus
+            returns an expression for a layer's output in terms of the
+            network's input, `get_output_for()` just performs a single step
+            and returns an expression for a layer's output in terms of
+            that layer's input.
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -324,8 +381,9 @@ class MultipleInputsLayer(Layer):
 
     def get_output(self, input=None, *args, **kwargs):
         if isinstance(input, dict) and (self in input):
-            return input[self] # this layer is mapped to an expression
-        else: # in all other cases, just pass the network input on to the next layer.
+            # this layer is mapped to an expression or numpy array
+            return utils.as_theano_expression(input[self])
+        else: # in all other cases, just pass the network input on to the next layers.
             layer_inputs = [input_layer.get_output(input, *args, **kwargs) for input_layer in self.input_layers]
             return self.get_output_for(layer_inputs, *args, **kwargs)
 
@@ -337,24 +395,29 @@ class MultipleInputsLayer(Layer):
 
 
 class InputLayer(Layer):
-    def __init__(self, shape):
+    def __init__(self, shape, input_var=None):
         self.shape = shape
         ndim = len(shape)
-
-        # create the right TensorType for the given number of dimensions
-        input_var_type = T.TensorType(theano.config.floatX, [False] * ndim)
-        self.input_var = input_var_type("input")
+        if input_var is None:
+            # create the right TensorType for the given number of dimensions
+            input_var_type = T.TensorType(theano.config.floatX, [False] * ndim)
+            input_var = input_var_type("input")
+        else:
+            # ensure the given variable has the correct dimensionality
+            if input_var.ndim != ndim:
+                raise ValueError("shape has %d dimensions, "
+                    "but variable has %d" % (ndim, input_var.ndim))
+        self.input_var = input_var
 
     def get_output_shape(self):
         return self.shape
 
     def get_output(self, input=None, *args, **kwargs):
+        if isinstance(input, dict):
+            input = input.get(self, None)
         if input is None:
-            return self.input_var
-        elif isinstance(input, theano.gof.Variable):
-            return input
-        elif isinstance(input, dict):
-            return input[self]
+            input = self.input_var
+        return utils.as_theano_expression(input)
             
 
 ## Layer implementations
@@ -409,7 +472,8 @@ class DropoutLayer(Layer):
             if self.rescale:
                 input /= retain_prob
 
-            return input * utils.floatX(_srng.binomial(input.shape, p=retain_prob, dtype='int32'))
+            return input * _srng.binomial(input.shape, p=retain_prob,
+                                          dtype=theano.config.floatX)
 
 dropout = DropoutLayer # shortcut
 
@@ -1261,25 +1325,6 @@ class FlattenLayer(Layer):
 flatten = FlattenLayer # shortcut
 
 
-class ConcatLayer(MultipleInputsLayer):
-    def __init__(self, input_layers, axis=1):
-        super(ConcatLayer, self).__init__(input_layers)
-        self.axis = axis
-
-    def get_output_shape_for(self, input_shapes):
-        sizes = [input_shape[self.axis] for input_shape in input_shapes]
-        output_shape = list(input_shapes[0]) # make a mutable copy
-        output_shape[self.axis] = sum(sizes)
-        return tuple(output_shape)
-
-    def get_output_for(self, inputs, *args, **kwargs):
-        # unfortunately the gradient of T.concatenate has no GPU
-        # implementation, so we have to do this differently.
-        return utils.concatenate(inputs, axis=self.axis)
-
-concat = ConcatLayer # shortcut
-
-
 class PadLayer(Layer):
     def __init__(self, input_layer, width, val=0, batch_ndim=2):
         super(PadLayer, self).__init__(input_layer)
@@ -1301,3 +1346,74 @@ class PadLayer(Layer):
         return padding.pad(input, self.width, self.val, self.batch_ndim)
 
 pad = PadLayer # shortcut
+
+
+## Merging multiple layers
+
+class ConcatLayer(MultipleInputsLayer):
+    def __init__(self, input_layers, axis=1):
+        super(ConcatLayer, self).__init__(input_layers)
+        self.axis = axis
+
+    def get_output_shape_for(self, input_shapes):
+        sizes = [input_shape[self.axis] for input_shape in input_shapes]
+        output_shape = list(input_shapes[0]) # make a mutable copy
+        output_shape[self.axis] = sum(sizes)
+        return tuple(output_shape)
+
+    def get_output_for(self, inputs, *args, **kwargs):
+        # unfortunately the gradient of T.concatenate has no GPU
+        # implementation, so we have to do this differently.
+        return utils.concatenate(inputs, axis=self.axis)
+
+concat = ConcatLayer # shortcut
+
+
+class ElemwiseSumLayer(MultipleInputsLayer):
+    """
+    This layer performs an elementwise sum of its input layers.
+    It requires all input layers to have the same output shape.
+
+    Hint: Depending on your architecture, this can be used to avoid the more
+    costly :class:`ConcatLayer`. For example, instead of concatenating layers
+    before a :class:`DenseLayer`, insert separate :class:`DenseLayer` instances
+    of the same number of output units and add them up afterwards. (This avoids
+    the copy operations in concatenation, but splits up the dot product.)
+    """
+
+    def __init__(self, input_layers, coeffs=1):
+        """
+        Creates a layer perfoming an elementwise sum of its input layers.
+
+        :parameters:
+            - input_layers: list
+                A list of :class:`Layer` instances of same output shape to sum
+            - coeffs: list or scalar
+                A same-sized list of coefficients, or a single coefficient that
+                is to be applied to all instances. By default, these will not
+                be included in the learnable parameters of this layer.
+        """
+        super(ElemwiseSumLayer, self).__init__(input_layers)
+        if isinstance(coeffs, list):
+            if len(coeffs) != len(input_layers):
+                raise ValueError("Mismatch: got %d coeffs for %d input_layers" %
+                                 (len(coeffs), len(input_layers)))
+        else:
+            coeffs = [coeffs] * len(input_layers)
+        self.coeffs = coeffs
+
+    def get_output_shape_for(self, input_shapes):
+        if any(shape != input_shapes[0] for shape in input_shapes):
+            raise ValueError("Mismatch: not all input shapes are the same")
+        return input_shapes[0]
+
+    def get_output_for(self, inputs, *args, **kwargs):
+        output = None
+        for coeff, input in zip(self.coeffs, inputs):
+            if coeff != 1:
+                input *= coeff
+            if output is not None:
+                output += input
+            else:
+                output = input
+        return output

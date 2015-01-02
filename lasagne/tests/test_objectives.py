@@ -3,7 +3,7 @@ import numpy as np
 
 
 def test_mse():
-    from nntools.objectives import mse
+    from lasagne.objectives import mse
 
     output = np.array([
         [1.0, 0.0, 1.0, 0.0],
@@ -16,7 +16,7 @@ def test_mse():
 
 
 def test_crossentropy():
-    from nntools.objectives import crossentropy
+    from lasagne.objectives import crossentropy
 
     output = np.array([
         [np.e ** -2],
@@ -29,7 +29,7 @@ def test_crossentropy():
 
 
 def test_objective():
-    from nntools.objectives import Objective
+    from lasagne.objectives import Objective
 
     input_layer = mock.Mock()
     loss_function = mock.Mock()
@@ -50,7 +50,7 @@ def test_objective():
 
 
 def test_objective_no_target():
-    from nntools.objectives import Objective
+    from lasagne.objectives import Objective
 
     input_layer = mock.Mock()
     loss_function = mock.Mock()

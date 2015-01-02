@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_shape():
     from lasagne.init import Initializer
 
@@ -61,3 +64,40 @@ def test_uniform_range_as_range():
     assert sample.shape == (300, 400)
     assert -0.1 < sample.min() < 0.1
     assert 0.9 < sample.max() < 1.1
+
+
+def test_orthogonal():
+    import numpy as np
+    from lasagne.init import Orthogonal
+
+    sample = Orthogonal().sample((100, 200))
+    assert np.allclose(np.dot(sample, sample.T), np.eye(100), atol=1e-6)
+
+    sample = Orthogonal().sample((200, 100))
+    assert np.allclose(np.dot(sample.T, sample), np.eye(100), atol=1e-6)
+
+
+def test_orthogonal_gain():
+    import numpy as np
+    from lasagne.init import Orthogonal
+
+    gain = 2
+    sample = Orthogonal(gain).sample((100, 200))
+    assert np.allclose(np.dot(sample, sample.T), gain * gain * np.eye(100), atol=1e-6)
+
+
+def test_orthogonal_multi():
+    import numpy as np
+    from lasagne.init import Orthogonal
+
+    sample = Orthogonal().sample((100, 50, 80))
+    sample = sample.reshape(100, 50*80)
+    assert np.allclose(np.dot(sample, sample.T), np.eye(100), atol=1e-6)
+
+
+def test_orthogonal_1d_not_supported():
+    import numpy as np
+    from lasagne.init import Orthogonal
+
+    with pytest.raises(RuntimeError):
+        Orthogonal().sample((100,))

@@ -115,8 +115,8 @@ def main(num_epochs=NUM_EPOCHS):
     dataset = load_data()
 
     output_layer = build_model(
+        input_height=dataset['input_height'],
         input_width=dataset['input_width'],
-        input_height=dataset['input_width'],
         output_dim=dataset['output_dim'],
         )
 

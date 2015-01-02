@@ -36,8 +36,8 @@ def load_data():
         num_examples_train=X_train.shape[0],
         num_examples_valid=X_valid.shape[0],
         num_examples_test=X_test.shape[0],
-        input_width=X_train.shape[2],
-        input_height=X_train.shape[3],
+        input_height=X_train.shape[2],
+        input_width=X_train.shape[3],
         output_dim=10,
         )
 
@@ -96,8 +96,8 @@ def main(num_epochs=NUM_EPOCHS):
     dataset = load_data()
 
     output_layer = build_model(
+        input_height=dataset['input_height'],
         input_width=dataset['input_width'],
-        input_height=dataset['input_width'],
         output_dim=dataset['output_dim'],
         )
 

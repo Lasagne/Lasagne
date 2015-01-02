@@ -18,13 +18,13 @@ def sgd(loss, all_params, learning_rate):
     return updates
 
 
-def momentum(loss, all_params, learning_rate, momentum=0.9, weight_decay=0.0):
+def momentum(loss, all_params, learning_rate, momentum=0.9):
     all_grads = theano.grad(loss, all_params)
     updates = []
     
     for param_i, grad_i in zip(all_params, all_grads):
         mparam_i = theano.shared(np.zeros(param_i.get_value().shape, dtype=theano.config.floatX))
-        v = momentum * mparam_i - weight_decay * learning_rate * param_i  - learning_rate * grad_i
+        v = momentum * mparam_i - learning_rate * grad_i
         updates.append((mparam_i, v))
         updates.append((param_i, param_i + v))
 
@@ -33,15 +33,14 @@ def momentum(loss, all_params, learning_rate, momentum=0.9, weight_decay=0.0):
 
 # using the alternative formulation of nesterov momentum described at https://github.com/lisa-lab/pylearn2/pull/136
 # such that the gradient can be evaluated at the current parameters.
-def nesterov_momentum(loss, all_params, learning_rate, momentum=0.9, weight_decay=0.0):
+def nesterov_momentum(loss, all_params, learning_rate, momentum=0.9):
     all_grads = theano.grad(loss, all_params)
     updates = []
     
     for param_i, grad_i in zip(all_params, all_grads):
         mparam_i = theano.shared(np.zeros(param_i.get_value().shape, dtype=theano.config.floatX))
-        full_grad = grad_i + weight_decay * param_i
-        v = momentum * mparam_i - learning_rate * full_grad # new momemtum
-        w = param_i + momentum * v - learning_rate * full_grad # new parameter values
+        v = momentum * mparam_i - learning_rate * grad_i # new momemtum
+        w = param_i + momentum * v - learning_rate * grad_i # new parameter values
         updates.append((mparam_i, v))
         updates.append((param_i, w))
 

@@ -1,7 +1,7 @@
 import numpy as np
 import theano
 import theano.tensor as T
-import nntools
+import lasagne
 
 # Sequence length
 LENGTH = 10
@@ -48,19 +48,19 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 X_val, y_val = gen_data()
 
 # Construct LSTM RNN: One LSTM layer and one dense output layer
-l_in = nntools.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
+l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-l_forward = nntools.layers.LSTMLayer(l_in, N_HIDDEN)
-l_backward = nntools.layers.LSTMLayer(l_in, N_HIDDEN)
-l_recurrent = nntools.layers.BidirectionalLayer(l_in, l_forward, l_backward)
+l_forward = lasagne.layers.LSTMLayer(l_in, N_HIDDEN)
+l_backward = lasagne.layers.LSTMLayer(l_in, N_HIDDEN)
+l_recurrent = lasagne.layers.BidirectionalLayer(l_in, l_forward, l_backward)
 
-l_reshape = nntools.layers.ReshapeLayer(l_recurrent,
+l_reshape = lasagne.layers.ReshapeLayer(l_recurrent,
                                         (N_BATCH*LENGTH, N_HIDDEN))
 
-l_recurrent_out = nntools.layers.DenseLayer(l_reshape,
+l_recurrent_out = lasagne.layers.DenseLayer(l_reshape,
                                             num_units=y_val.shape[-1],
                                             nonlinearity=None)
-l_out = nntools.layers.ReshapeLayer(l_recurrent_out,
+l_out = lasagne.layers.ReshapeLayer(l_recurrent_out,
                                     (N_BATCH, LENGTH, y_val.shape[-1]))
 
 # Cost function is mean squared error
@@ -70,8 +70,8 @@ target_output = T.tensor3('target_output')
 cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
-all_params = nntools.layers.get_all_params(l_out)
-updates = nntools.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
+all_params = lasagne.layers.get_all_params(l_out)
+updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
 train = theano.function([input, target_output], cost, updates=updates)
 y_pred = theano.function([input], l_out.get_output(input))

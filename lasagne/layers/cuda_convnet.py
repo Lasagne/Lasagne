@@ -1,20 +1,33 @@
 import numpy as np
-
 import theano
 import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
-from . import base
+
+from .base import Layer
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
+
+
+__all__ = [
+    "CCLayer",
+    "Conv2DCCLayer",
+    "MaxPool2DCCLayer",
+    "ShuffleBC01ToC01BLayer",
+    "bc01_to_c01b",
+    "ShuffleC01BToBC01Layer",
+    "c01b_to_bc01",
+    "NINLayer_c01b",
+]
+
 
 # TODO: make sure to document the limitations and 'best practices' (i.e. minibatch size % 128 == 0)
 # TODO: see if the 'dimshuffle' logic can be put in the base class instead.
 
 
 # base class for all layers that use ops from pylearn2.sandbox.cuda_convnet
-class CCLayer(base.Layer):
+class CCLayer(Layer):
     pass
 
 
@@ -96,18 +109,18 @@ class Conv2DCCLayer(CCLayer):
     def get_output_shape_for(self, input_shape):
         if self.dimshuffle:
             batch_size = input_shape[0]
-            input_width, input_height = input_shape[2:4]
+            input_rows, input_columns = input_shape[2:4]
         else:
             batch_size = input_shape[3]
-            input_width, input_height = input_shape[1:3]
+            input_rows, input_columns = input_shape[1:3]
 
-        output_width = (input_width + 2*self.pad - self.filter_size) // self.stride + 1
-        output_height = (input_height + 2*self.pad - self.filter_size) // self.stride + 1
+        output_rows = (input_rows + 2*self.pad - self.filter_size) // self.stride + 1
+        output_columns = (input_columns + 2*self.pad - self.filter_size) // self.stride + 1
 
         if self.dimshuffle:
-            return (batch_size, self.num_filters, output_width, output_height)
+            return (batch_size, self.num_filters, output_rows, output_columns)
         else:
-            return (self.num_filters, output_width, output_height, batch_size)
+            return (self.num_filters, output_rows, output_columns, batch_size)
 
     def get_output_for(self, input, *args, **kwargs):
         if self.dimshuffle:
@@ -117,8 +130,8 @@ class Conv2DCCLayer(CCLayer):
             filters = self.W
 
         if self.flip_filters:
-            filters = filters[:, ::-1, ::-1, :] # flip width, height
-        
+            filters = filters[:, ::-1, ::-1, :] # flip top-down, left-right
+
         contiguous_filters = gpu_contiguous(filters)
         contiguous_input = gpu_contiguous(input)
         conved = self.filter_acts_op(contiguous_input, contiguous_filters)
@@ -167,19 +180,19 @@ class MaxPool2DCCLayer(CCLayer):
         if self.dimshuffle:
             batch_size = input_shape[0]
             num_input_channels = input_shape[1]
-            input_width, input_height = input_shape[2:4]
+            input_rows, input_columns = input_shape[2:4]
         else:
             batch_size = input_shape[3]
             num_input_channels = input_shape[0]
-            input_width, input_height = input_shape[1:3]
+            input_rows, input_columns = input_shape[1:3]
 
-        output_width = int(np.ceil(float(input_width - self.ds + self.stride) / self.stride))
-        output_height = int(np.ceil(float(input_height - self.ds + self.stride) / self.stride))
-        
+        output_rows = int(np.ceil(float(input_rows - self.ds + self.stride) / self.stride))
+        output_columns = int(np.ceil(float(input_columns - self.ds + self.stride) / self.stride))
+
         if self.dimshuffle:
-            return (batch_size, num_input_channels, output_width, output_height)
+            return (batch_size, num_input_channels, output_rows, output_columns)
         else:
-            return (num_input_channels, output_width, output_height, batch_size)
+            return (num_input_channels, output_rows, output_columns, batch_size)
 
     def get_output_for(self, input, *args, **kwargs):
         if self.dimshuffle:
@@ -200,7 +213,7 @@ class MaxPool2DCCLayer(CCLayer):
 
 ## Helper classes for switching between bc01 and c01b input formats
 
-class ShuffleBC01ToC01BLayer(base.Layer):
+class ShuffleBC01ToC01BLayer(Layer):
     """
     This layer dimshuffles 4D input for interoperability between c01b and bc01 ops.
     bc01 (theano) -> c01b (cuda-convnet)
@@ -214,7 +227,7 @@ class ShuffleBC01ToC01BLayer(base.Layer):
 bc01_to_c01b = ShuffleBC01ToC01BLayer # shortcut
 
 
-class ShuffleC01BToBC01Layer(base.Layer):
+class ShuffleC01BToBC01Layer(Layer):
     """
     This layer dimshuffles 4D input for interoperability between c01b and bc01 ops.
     c01b (cuda-convnet) -> bc01 (theano)
@@ -230,7 +243,7 @@ c01b_to_bc01 = ShuffleC01BToBC01Layer # shortcut
 
 ## c01b versions of other Layer classes
 
-class NINLayer_c01b(base.Layer):
+class NINLayer_c01b(Layer):
     """
     This does the same as lasagne.layers.NINLayer, but operates with c01b
     axis arrangement instead of bc01. This reduces the number of shuffles

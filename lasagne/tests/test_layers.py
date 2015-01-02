@@ -135,7 +135,7 @@ class TestMultipleInputsLayer:
 class TestInputLayer:
     @pytest.fixture
     def layer(self):
-        from lasagne.layers.base import InputLayer
+        from lasagne.layers.input import InputLayer
         return InputLayer((3, 2))
 
     def test_input_var(self, layer):
@@ -164,7 +164,7 @@ class TestInputLayer:
 class TestDenseLayer:
     @pytest.fixture
     def layer_vars(self):
-        from lasagne.layers.base import DenseLayer
+        from lasagne.layers.dense import DenseLayer
         input_layer = Mock()
         W = Mock()
         b = Mock()
@@ -242,26 +242,30 @@ class TestDenseLayer:
 
 
 class TestDropoutLayer:
-    @pytest.fixture
-    def layer(self):
-        from lasagne.layers.base import DropoutLayer
-        return DropoutLayer(Mock())
+    @pytest.fixture(params=[(100, 100), (None, 100)])
+    def input_layer(self, request):
+        return Mock(get_output_shape=lambda: request.param)
 
     @pytest.fixture
-    def layer_no_rescale(self):
-        from lasagne.layers.base import DropoutLayer
-        return DropoutLayer(Mock(), rescale=False)
+    def layer(self, input_layer):
+        from lasagne.layers.noise import DropoutLayer
+        return DropoutLayer(input_layer)
 
     @pytest.fixture
-    def layer_p_02(self):
-        from lasagne.layers.base import DropoutLayer
-        return DropoutLayer(Mock(), p=0.2)
+    def layer_no_rescale(self, input_layer):
+        from lasagne.layers.noise import DropoutLayer
+        return DropoutLayer(input_layer, rescale=False)
+
+    @pytest.fixture
+    def layer_p_02(self, input_layer):
+        from lasagne.layers.noise import DropoutLayer
+        return DropoutLayer(input_layer, p=0.2)
 
     def test_get_output_for_non_deterministic(self, layer):
         input = theano.shared(numpy.ones((100, 100)))
         result = layer.get_output_for(input)
         result_eval = result.eval()
-        assert 0.99 < result_eval.mean() < 1.01
+        assert 0.9 < result_eval.mean() < 1.1
         assert (numpy.unique(result_eval) == [0., 2.]).all()
 
     def test_get_output_for_deterministic(self, layer):
@@ -274,21 +278,21 @@ class TestDropoutLayer:
         input = theano.shared(numpy.ones((100, 100)))
         result = layer_no_rescale.get_output_for(input)
         result_eval = result.eval()
-        assert 0.49 < result_eval.mean() < 0.51
+        assert 0.4 < result_eval.mean() < 0.6
         assert (numpy.unique(result_eval) == [0., 1.]).all()
 
     def test_get_output_for_p_02(self, layer_p_02):
         input = theano.shared(numpy.ones((100, 100)))
         result = layer_p_02.get_output_for(input)
         result_eval = result.eval()
-        assert 0.99 < result_eval.mean() < 1.01
+        assert 0.9 < result_eval.mean() < 1.1
         assert (numpy.round(numpy.unique(result_eval), 2) == [0., 1.25]).all()
 
 
 class TestGaussianNoiseLayer:
     @pytest.fixture
     def layer(self):
-        from lasagne.layers.base import GaussianNoiseLayer
+        from lasagne.layers.noise import GaussianNoiseLayer
         return GaussianNoiseLayer(Mock())
 
     def test_get_output_for_non_deterministic(self, layer):
@@ -309,7 +313,7 @@ class TestGaussianNoiseLayer:
 class TestConcatLayer:
     @pytest.fixture
     def layer(self):
-        from lasagne.layers.base import ConcatLayer
+        from lasagne.layers.merge import ConcatLayer
         return ConcatLayer([Mock(), Mock()], axis=1)
 
     def test_get_output_for(self, layer):
@@ -324,7 +328,7 @@ class TestConcatLayer:
 class TestElemwiseSumLayer:
     @pytest.fixture
     def layer(self):
-        from lasagne.layers.base import ElemwiseSumLayer
+        from lasagne.layers.merge import ElemwiseSumLayer
         return ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, -1])
 
     def test_get_output_for(self, layer):

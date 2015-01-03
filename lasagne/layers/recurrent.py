@@ -470,61 +470,46 @@ class LSTMLayer(Layer):
             mask = mask.dimshuffle(1, 0, 'x')
 
         # Create single recurrent computation step function
-        def step(layer_input, cell_previous, hid_previous,
-                 W_in_to_ingate, W_hid_to_ingate, W_in_to_forgetgate,
-                 W_hid_to_forgetgate, W_in_to_cell, W_hid_to_cell,
-                 W_in_to_outgate, W_hid_to_outgate, b_ingate, b_forgetgate,
-                 b_cell, b_outgate, *args):
-
-            if self.peepholes:
-                (W_cell_to_ingate,
-                 W_cell_to_forgetgate,
-                 W_cell_to_outgate) = args
+        def step(layer_input, cell_previous, hid_previous):
 
             # i_t = \sigma(W_{xi}x_t + W_{hi}h_{t-1} + W_{ci}c_{t-1} + b_i)
-            ingate = (T.dot(layer_input, W_in_to_ingate) +
-                      T.dot(hid_previous, W_hid_to_ingate) + b_ingate)
+            ingate = (T.dot(layer_input, self.W_in_to_ingate) +
+                      T.dot(hid_previous, self.W_hid_to_ingate) +
+                      self.b_ingate)
             if self.peepholes:
-                ingate += cell_previous*W_cell_to_ingate
+                ingate += cell_previous*self.W_cell_to_ingate
             ingate = self.nonlinearity_ingate(ingate)
 
             # f_t = \sigma(W_{xf}x_t + W_{hf}h_{t-1} + W_{cf}c_{t-1} + b_f)
-            forgetgate = (T.dot(layer_input, W_in_to_forgetgate) +
-                          T.dot(hid_previous, W_hid_to_forgetgate) +
-                          b_forgetgate)
+            forgetgate = (T.dot(layer_input, self.W_in_to_forgetgate) +
+                          T.dot(hid_previous, self.W_hid_to_forgetgate) +
+                          self.b_forgetgate)
             if self.peepholes:
-                forgetgate += cell_previous*W_cell_to_forgetgate
+                forgetgate += cell_previous*self.W_cell_to_forgetgate
             forgetgate = self.nonlinearity_forgetgate(forgetgate)
 
             # c_t = f_tc_{t - 1} + i_t\tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c)
             cell = (forgetgate*cell_previous +
                     ingate*self.nonlinearity_cell(
-                        T.dot(layer_input, W_in_to_cell) +
-                        T.dot(hid_previous, W_hid_to_cell) +
-                        b_cell))
+                        T.dot(layer_input, self.W_in_to_cell) +
+                        T.dot(hid_previous, self.W_hid_to_cell) +
+                        self.b_cell))
 
             # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
-            outgate = (T.dot(layer_input, W_in_to_outgate) +
-                       T.dot(hid_previous, W_hid_to_outgate) + b_outgate)
+            outgate = (T.dot(layer_input, self.W_in_to_outgate) +
+                       T.dot(hid_previous, self.W_hid_to_outgate) +
+                       self.b_outgate)
             if self.peepholes:
-                outgate += cell*W_cell_to_outgate
+                outgate += cell*self.W_cell_to_outgate
             outgate = self.nonlinearity_outgate(outgate)
 
             # h_t = o_t \tanh(c_t)
             hid = outgate*self.nonlinearity_out(cell)
             return [cell, hid]
 
-        def step_back(layer_input, mask, cell_previous, hid_previous,
-                 W_in_to_ingate, W_hid_to_ingate, W_in_to_forgetgate,
-                 W_hid_to_forgetgate, W_in_to_cell, W_hid_to_cell,
-                 W_in_to_outgate, W_hid_to_outgate, b_ingate, b_forgetgate,
-                 b_cell, b_outgate, *args):
+        def step_back(layer_input, mask, cell_previous, hid_previous):
 
-            cell, hid = step(layer_input, cell_previous, hid_previous,
-                 W_in_to_ingate, W_hid_to_ingate, W_in_to_forgetgate,
-                 W_hid_to_forgetgate, W_in_to_cell, W_hid_to_cell,
-                 W_in_to_outgate, W_hid_to_outgate, b_ingate, b_forgetgate,
-                 b_cell, b_outgate, *args)
+            cell, hid = step(layer_input, cell_previous, hid_previous)
 
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
@@ -542,15 +527,10 @@ class LSTMLayer(Layer):
             sequences = input
             step_fun = step
 
-        non_sequences = self.get_weight_params() + self.get_bias_params()
-        if self.peepholes:
-            non_sequences.extend(self.get_peephole_params())
-
         # Scan op iterates over first dimension of input and repeatedly
         # applied the step function
         output = theano.scan(step_fun, sequences=sequences,
                              outputs_info=[self.cell_init, self.hid_init],
-                             non_sequences=non_sequences,
                              go_backwards=self.backwards)[0][1]
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)

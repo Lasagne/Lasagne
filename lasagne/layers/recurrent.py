@@ -17,7 +17,10 @@ class RecurrentLayer(Layer):
     '''
     def __init__(self, input_layer, input_to_hidden, hidden_to_hidden,
                  nonlinearity=nonlinearities.rectify,
-                 hid_init=init.Constant(0.)):
+                 hid_init=init.Constant(0.),
+                 backwards=False,
+                 learn_init=False
+                 ):
         '''
         Create a recurrent layer.
 
@@ -32,11 +35,16 @@ class RecurrentLayer(Layer):
                 Nonlinearity to apply when computing new state
             - hid_init : function or np.ndarray or theano.shared
                 Initial hidden state
+            - backwards: boolean indicating if layer should go backwards
+            - learn_init: if true initial hidden values are learned
         '''
         super(RecurrentLayer, self).__init__(input_layer)
 
         self.input_to_hidden = input_to_hidden
         self.hidden_to_hidden = hidden_to_hidden
+        self.learn_init = learn_init
+        self.backwards = backwards
+
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -50,26 +58,74 @@ class RecurrentLayer(Layer):
         self.hid_init = self.create_param(hid_init, (n_batch, self.num_units))
 
     def get_params(self):
-        return (helper.get_all_params(self.input_to_hidden) +
-                helper.get_all_params(self.hidden_to_hidden) +
-                [self.hid_init])
+        '''
+        Get all parameters of this layer.
+
+        :returns:
+            - params : list of theano.shared
+                List of all parameters
+        '''
+        params = (helper.get_all_params(self.input_to_hidden) +
+                helper.get_all_params(self.hidden_to_hidden))
+
+        if self.learn_init:
+            return params + self.get_init_params()
+        else:
+            return params
+
+    def get_init_params(self):
+        '''
+        Get all initital parameters of this layer.
+        :returns:
+            - init_params : list of theano.shared
+                List of all initial parameters
+        '''
+        return [self.hid_init]
 
     def get_bias_params(self):
+        '''
+        Get all bias parameters of this layer.
+
+        :returns:
+            - bias_params : list of theano.shared
+                List of all bias parameters
+        '''
         return (helper.get_all_bias_params(self.input_to_hidden) +
                 helper.get_all_bias_params(self.hidden_to_hidden))
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[1], self.num_units)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, mask=None, *args, **kwargs):
+        '''
+        Compute this layer's output function given a symbolic input variable
+
+        :parameters:
+            - input : theano.TensorType
+                Symbolic input variable
+            - mask  : A theano shared variable of shape (BATCH_SIZE, SEG_LEN).
+                      dtype is identical to input.
+                      Mask must be given when backwards is true.
+
+        :returns:
+            - layer_output : theano.TensorType
+                Symbolic output variable
+        '''
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
                                    T.prod(input.shape[2:])))
+
+        if self.backwards:
+            assert mask != None, "Mask must be given to get_output_for when" \
+                                 " backwards is true"
 
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
+
+        if self.backwards:
+            mask = mask.dimshuffle(1, 0, 'x')
 
         # Create single recurrent computation step function
         def step(layer_input, hid_previous):
@@ -77,10 +133,29 @@ class RecurrentLayer(Layer):
                 self.input_to_hidden.get_output(layer_input) +
                 self.hidden_to_hidden.get_output(hid_previous))
 
-        output = theano.scan(step, sequences=input,
+
+        def stepbck(layer_input, mask, hid_previous):
+            hid = step(layer_input,hid_previous)*mask + hid_previous*(1 - mask)
+            return [hid]
+
+
+
+        if self.backwards:
+            sequences = [input, mask]
+            step_fun = stepbck
+        else:
+            sequences = input
+            step_fun = step
+
+        output = theano.scan(step_fun, sequences=sequences,
+                             go_backwards=self.backwards,
                              outputs_info=[self.hid_init])[0]
+
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)
+
+        if self.backwards:
+            output = output[:, ::-1, :]
 
         return output
 

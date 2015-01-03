@@ -82,7 +82,7 @@ target_output = T.tensor3('target_output')
 mask = T.matrix('mask')
 
 # Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input,mask=mask)[:, DELAY:, :]
+cost = T.mean((l_out.get_output(input, mask=mask)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)

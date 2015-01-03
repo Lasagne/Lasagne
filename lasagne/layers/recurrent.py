@@ -269,7 +269,10 @@ class LSTMLayer(Layer):
                 If True, process the sequence backwards
             - learn_init : boolean
                 If True, initial hidden values are learned
-            - peepholes : if true the LSTM uses peephole connections
+            - peepholes : boolean
+                If True, the LSTM uses peephole connections.
+                When False, W_cell_to_ingate, W_cell_to_forgetgate and
+                W_cell_to_outgate are ignored.
         '''
         # Initialize parent layer
         super(LSTMLayer, self).__init__(input_layer)
@@ -340,7 +343,6 @@ class LSTMLayer(Layer):
             W_hid_to_outgate, (num_units, num_units))
 
         self.b_outgate = self.create_param(b_outgate, (num_units,))
-
 
         # init peepholes
         if self.peepholes:
@@ -468,9 +470,6 @@ class LSTMLayer(Layer):
             mask = mask.dimshuffle(1, 0, 'x')
 
         # Create single recurrent computation step function
-
-
-
         def step(layer_input, cell_previous, hid_previous,
                  W_in_to_ingate, W_hid_to_ingate, W_in_to_forgetgate,
                  W_hid_to_forgetgate, W_in_to_cell, W_hid_to_cell,
@@ -478,19 +477,21 @@ class LSTMLayer(Layer):
                  b_cell, b_outgate, *args):
 
             if self.peepholes:
-                W_cell_to_ingate, W_cell_to_forgetgate, W_cell_to_outgate = args
+                (W_cell_to_ingate,
+                 W_cell_to_forgetgate,
+                 W_cell_to_outgate) = args
 
             # i_t = \sigma(W_{xi}x_t + W_{hi}h_{t-1} + W_{ci}c_{t-1} + b_i)
-            ingate = T.dot(layer_input, W_in_to_ingate) + \
-                     T.dot(hid_previous, W_hid_to_ingate) + b_ingate
+            ingate = (T.dot(layer_input, W_in_to_ingate) +
+                      T.dot(hid_previous, W_hid_to_ingate) + b_ingate)
             if self.peepholes:
                 ingate += cell_previous*W_cell_to_ingate
             ingate = self.nonlinearity_ingate(ingate)
 
-
             # f_t = \sigma(W_{xf}x_t + W_{hf}h_{t-1} + W_{cf}c_{t-1} + b_f)
-            forgetgate = T.dot(layer_input, W_in_to_forgetgate) + \
-                         T.dot(hid_previous, W_hid_to_forgetgate) + b_forgetgate
+            forgetgate = (T.dot(layer_input, W_in_to_forgetgate) +
+                          T.dot(hid_previous, W_hid_to_forgetgate) +
+                          b_forgetgate)
             if self.peepholes:
                 forgetgate += cell_previous*W_cell_to_forgetgate
             forgetgate = self.nonlinearity_forgetgate(forgetgate)
@@ -503,8 +504,8 @@ class LSTMLayer(Layer):
                         b_cell))
 
             # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
-            outgate = T.dot(layer_input, W_in_to_outgate) + \
-                      T.dot(hid_previous, W_hid_to_outgate) + b_outgate
+            outgate = (T.dot(layer_input, W_in_to_outgate) +
+                       T.dot(hid_previous, W_hid_to_outgate) + b_outgate)
             if self.peepholes:
                 outgate += cell*W_cell_to_outgate
             outgate = self.nonlinearity_outgate(outgate)

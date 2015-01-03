@@ -210,7 +210,9 @@ class LSTMLayer(Layer):
                  nonlinearity_outgate=nonlinearities.sigmoid,
                  nonlinearity_out=nonlinearities.tanh,
                  cell_init=init.Constant(0.),
-                 hid_init=init.Constant(0.)):
+                 hid_init=init.Constant(0.),
+                 backwards=False,
+                 learn_init=False):
         '''
         Initialize an LSTM layer.  For details on what the parameters mean, see
         (7-11) from [#graves2014generating]_.
@@ -264,6 +266,10 @@ class LSTMLayer(Layer):
                 :math:`c_0`
             - hid_init : function or np.ndarray or theano.shared
                 :math:`h_0`
+            - backwards : boolean, indicate if scan should be forwards or backwards, for 
+                 bidirectional LSTM. If true a mask must be given to  the get_output_for 
+                 method. 
+            - learn_init : learn initial cell and hidden states  
         '''
         # Initialize parent layer
         super(LSTMLayer, self).__init__(input_layer)
@@ -294,7 +300,9 @@ class LSTMLayer(Layer):
         else:
             self.nonlinearity_out = nonlinearity_out
 
+        self.learn_init = learn_init
         self.num_units = num_units
+        self.backwards = backwards
 
         # Input dimensionality is the output dimensionality of the input layer
         (num_batch, _, num_inputs) = self.input_layer.get_output_shape()
@@ -352,21 +360,41 @@ class LSTMLayer(Layer):
             - params : list of theano.shared
                 List of all parameters
         '''
+        params = self.get_weight_params() + self.get_bias_params()
+        if self.learn_init:
+            return params + self.get_init_params()
+        else:
+            return params
+
+    def get_weight_params(self):
+        '''
+        Get all weights of this layer
+        :returns:
+            - weight_params : list of theano.shared
+                List of all weight parameters
+        '''
         return [self.W_in_to_ingate,
                 self.W_hid_to_ingate,
                 self.W_cell_to_ingate,
-                self.b_ingate,
                 self.W_in_to_forgetgate,
                 self.W_hid_to_forgetgate,
                 self.W_cell_to_forgetgate,
-                self.b_forgetgate,
                 self.W_in_to_cell,
                 self.W_hid_to_cell,
-                self.b_cell,
                 self.W_in_to_outgate,
                 self.W_hid_to_outgate,
-                self.W_cell_to_outgate,
-                self.b_outgate]
+                self.W_cell_to_outgate]
+
+
+    def get_init_params(self):
+        '''
+        Get all initital parameters of this layer.
+        :returns:
+            - init_params : list of theano.shared
+                List of all initial parameters
+        '''
+        return [self.hid_init, self.cell_init]
+
 
     def get_bias_params(self):
         '''
@@ -393,18 +421,25 @@ class LSTMLayer(Layer):
         '''
         return (input_shape[0], input_shape[1], self.num_units)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, mask=None, *args, **kwargs):
         '''
         Compute this layer's output function given a symbolic input variable
 
         :parameters:
             - input : theano.TensorType
                 Symbolic input variable
+            - mask  : A theano shared variable of shape (BATCH_SIZE, SEG_LEN).
+                      dtype is identical to input.
+                      Mask must be given when backwards is true.
 
         :returns:
             - layer_output : theano.TensorType
                 Symbolic output variable
         '''
+        if self.backwards:
+            assert mask != None, "Mask must be given to get_output_for when" \
+                                 " backwards is true"
+
         # Treat all layers after the first as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
@@ -414,6 +449,9 @@ class LSTMLayer(Layer):
         # but scan requires the iterable dimension to be first
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
+
+        if self.backwards:
+            mask = mask.dimshuffle(1, 0, 'x')
 
         # Create single recurrent computation step function
         def step(layer_input, cell_previous, hid_previous,
@@ -448,12 +486,44 @@ class LSTMLayer(Layer):
                 cell*W_cell_to_outgate +
                 b_outgate)
             # h_t = o_t \tanh(c_t)
-            output = outgate*self.nonlinearity_out(cell)
-            return [cell, output]
+            hid = outgate*self.nonlinearity_out(cell)
+
+            return [cell, hid]
+
+        def stepbck(layer_input, mask, cell_previous, hid_previous,
+                 W_in_to_ingate, W_hid_to_ingate,
+                 W_cell_to_ingate, b_ingate, W_in_to_forgetgate,
+                 W_hid_to_forgetgate, W_cell_to_forgetgate, b_forgetgate,
+                 W_in_to_cell, W_hid_to_cell, b_cell,
+                 W_in_to_outgate, W_hid_to_outgate,
+                 W_cell_to_outgate, b_outgate):
+
+            cell, hid = step(layer_input, cell_previous, hid_previous,
+                    W_in_to_ingate, W_hid_to_ingate,
+                    W_cell_to_ingate, b_ingate, W_in_to_forgetgate,
+                    W_hid_to_forgetgate, W_cell_to_forgetgate, b_forgetgate,
+                    W_in_to_cell, W_hid_to_cell, b_cell,
+                    W_in_to_outgate, W_hid_to_outgate,
+                    W_cell_to_outgate, b_outgate)
+
+            not_mask = 1 - mask
+            cell = cell*mask + cell_previous*not_mask
+            hid = hid*mask + hid_previous*not_mask
+
+            return [cell, hid]
+
+
+
+        if self.backwards:
+            sequences = [input, mask]
+            step_fun = stepbck
+        else:
+            sequences = input
+            step_fun = step
 
         # Scan op iterates over first dimension of input and repeatedly
-        # applied the step function
-        output = theano.scan(step, sequences=input,
+        # applied the step function   
+        output = theano.scan(step_fun, sequences=sequences,
                              outputs_info=[self.cell_init, self.hid_init],
                              non_sequences=[self.W_in_to_ingate,
                                             self.W_hid_to_ingate,
@@ -468,8 +538,13 @@ class LSTMLayer(Layer):
                                             self.W_in_to_outgate,
                                             self.W_hid_to_outgate,
                                             self.W_cell_to_outgate,
-                                            self.b_outgate])[0][1]
+                                            self.b_outgate],
+                                            go_backwards=self.backwards)[0][1]
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)
+
+        # if scan is backward reverse the output
+        if self.backwards:
+            output = output[:, ::-1, :]
 
         return output

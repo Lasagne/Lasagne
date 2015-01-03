@@ -2,6 +2,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
+
 # Sequence length
 LENGTH = 10
 # Number of units in the hidden (recurrent) layer
@@ -11,11 +12,11 @@ N_BATCH = 30
 # Delay used to generate artificial training data
 DELAY = 2
 # SGD learning rate
-LEARNING_RATE = 1e-5
+LEARNING_RATE = 1e-1
 # Number of iterations to train the net
 N_ITERATIONS = 1000
 
-
+theano.config.exception_verbosity='high'
 def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
     '''
     Generate a simple lag sequence
@@ -35,10 +36,10 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
             Target sequence, where
             y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
     '''
-    X = np.random.rand(n_batch, length, 2)
+    X = .5*np.random.rand(n_batch, length, 2)
     y = X[:, :, 0].reshape((n_batch, length, 1))
     # Compute y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
-    y[:, delay:, 0] -= (X[:, :-delay, 1]
+    y[:, delay:, 0] += (X[:, :-delay, 1]
                         + .01*np.random.randn(n_batch, length - delay))
     return X.astype(theano.config.floatX), y.astype(theano.config.floatX)
 
@@ -46,60 +47,61 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
 
-# Construct vanilla RNN: One recurrent layer (with input weights) and one
-# dense output layer
+# for testing backwards
+#X_val = X_val[:,::-1,:]
+#y_val = y_val[:,::-1,:]
+# mask
+mask_val = np.ones(shape=(N_BATCH, LENGTH), dtype=theano.config.floatX)
+
+# Construct LSTM RNN: One LSTM layer and one dense output layer
 l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-# This input layer is used to tell the input-to-hidden what shape to expect
-# As we iterate over time steps, the input will be batch size x feature dim
-l_recurrent_in = lasagne.layers.InputLayer(shape=(N_BATCH, X_val.shape[-1]))
-l_input_to_hidden = lasagne.layers.DenseLayer(l_recurrent_in, N_HIDDEN,
-                                              nonlinearity=None)
+l_fwd = lasagne.layers.LSTMLayer(l_in, N_HIDDEN, backwards=False,
+                                 learn_init=True)
+l_bck = lasagne.layers.LSTMLayer(l_in, N_HIDDEN, backwards=True,
+                                 learn_init=True)
 
-# As above, we need to tell the hidden-to-hidden layer what shape to expect
-l_recurrent_hid = lasagne.layers.InputLayer(shape=(N_BATCH, N_HIDDEN))
-l_hidden_to_hidden_1 = lasagne.layers.DenseLayer(l_recurrent_hid, N_HIDDEN,
-                                                 nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
-l_hidden_to_hidden_2 = lasagne.layers.DenseLayer(l_hidden_to_hidden_1,
-                                                 N_HIDDEN, nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
+l_fwd_reshape = lasagne.layers.ReshapeLayer(l_fwd, (N_BATCH*LENGTH, N_HIDDEN))
+l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
 
-l_recurrent = lasagne.layers.RecurrentLayer(l_in,
-                                            l_input_to_hidden,
-                                            l_hidden_to_hidden_2,
-                                            nonlinearity=None)
-l_reshape = lasagne.layers.ReshapeLayer(l_recurrent,
-                                        (N_BATCH*LENGTH, N_HIDDEN))
+l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
-l_recurrent_out = lasagne.layers.DenseLayer(l_reshape,
+
+l_recurrent_out = lasagne.layers.DenseLayer(l_concat,
                                             num_units=y_val.shape[-1],
                                             nonlinearity=None)
 l_out = lasagne.layers.ReshapeLayer(l_recurrent_out,
                                     (N_BATCH, LENGTH, y_val.shape[-1]))
 
-print "Total parameters: {}".format(
-    sum([p.get_value().size for p in lasagne.layers.get_all_params(l_out)]))
-
 # Cost function is mean squared error
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')
+mask = T.TensorType(dtype=theano.config.floatX, broadcastable=(False, False))('mask')
+
 # Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
+cost = T.mean((l_out.get_output(input,mask=mask)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)
 updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
-train = theano.function([input, target_output], cost, updates=updates)
-y_pred = theano.function([input], l_out.get_output(input))
-compute_cost = theano.function([input, target_output], cost)
+train = theano.function([input, target_output, mask], cost, updates=updates,on_unused_input='warn')
+y_pred = theano.function([input, mask], l_out.get_output(input,mask=mask),on_unused_input='warn')
+compute_cost = theano.function([input, target_output, mask], cost,on_unused_input='warn')
 
 # Train the net
 costs = np.zeros(N_ITERATIONS)
 for n in range(N_ITERATIONS):
     X, y = gen_data()
-    costs[n] = train(X, y)
+
+    # you should use your own training data mask instead of mask_val
+    costs[n] = train(X, y, mask_val)
     if not n % 100:
-        cost_val = compute_cost(X_val, y_val)
+        cost_val = compute_cost(X_val, y_val, mask_val)
         print "Iteration {} validation cost = {}".format(n, cost_val)
+
+import matplotlib.pyplot as plt
+plt.plot(costs)
+plt.xlabel('Iteration')
+plt.ylabel('Cost')
+plt.show()

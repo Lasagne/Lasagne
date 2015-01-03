@@ -104,9 +104,11 @@ class RecurrentLayer(Layer):
         :parameters:
             - input : theano.TensorType
                 Symbolic input variable
-            - mask  : A theano shared variable of shape (BATCH_SIZE, SEG_LEN).
-                      dtype is identical to input.
-                      Mask must be given when backwards is true.
+            - mask : theano.TensorType
+                Theano variable denoting whether each time step in each
+                sequence in the batch is part of the sequence or not.  This is
+                needed when scanning backwards.  If all sequences are of the
+                same length, it should be all 1s.
 
         :returns:
             - layer_output : theano.TensorType
@@ -422,9 +424,11 @@ class LSTMLayer(Layer):
         :parameters:
             - input : theano.TensorType
                 Symbolic input variable
-            - mask  : A theano shared variable of shape (BATCH_SIZE, SEG_LEN).
-                      dtype is identical to input.
-                      Mask must be given when backwards is true.
+            - mask : theano.TensorType
+                Theano variable denoting whether each time step in each
+                sequence in the batch is part of the sequence or not.  This is
+                needed when scanning backwards.  If all sequences are of the
+                same length, it should be all 1s.
 
         :returns:
             - layer_output : theano.TensorType

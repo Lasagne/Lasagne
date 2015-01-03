@@ -1,7 +1,7 @@
 import numpy as np
 import theano
 import theano.tensor as T
-import nntools
+import lasagne
 
 # Sequence length
 LENGTH = 10
@@ -47,43 +47,56 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
 
+# mask
+mask_val = np.ones(shape=(N_BATCH, LENGTH), dtype=theano.config.floatX)
+
 # Construct LSTM RNN: One LSTM layer and one dense output layer
-l_in = nntools.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
+l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-l_forward = nntools.layers.LSTMLayer(l_in, N_HIDDEN)
-l_backward = nntools.layers.LSTMLayer(l_in, N_HIDDEN)
-l_recurrent = nntools.layers.BidirectionalLayer(l_in, l_forward, l_backward)
+# setup fwd and bck LSTM layer.
+l_fwd = lasagne.layers.LSTMLayer(
+    l_in, N_HIDDEN, backwards=False, learn_init=True)
+l_bck = lasagne.layers.LSTMLayer(
+    l_in, N_HIDDEN, backwards=True, learn_init=True)
 
-l_reshape = nntools.layers.ReshapeLayer(l_recurrent,
-                                        (N_BATCH*LENGTH, N_HIDDEN))
+# concatenate forward and backward LSTM layers
+l_fwd_reshape = lasagne.layers.ReshapeLayer(l_fwd, (N_BATCH*LENGTH, N_HIDDEN))
+l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
 
-l_recurrent_out = nntools.layers.DenseLayer(l_reshape,
-                                            num_units=y_val.shape[-1],
-                                            nonlinearity=None)
-l_out = nntools.layers.ReshapeLayer(l_recurrent_out,
-                                    (N_BATCH, LENGTH, y_val.shape[-1]))
+l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
-# Cost function is mean squared error
+l_recurrent_out = lasagne.layers.DenseLayer(
+    l_concat, num_units=y_val.shape[-1], nonlinearity=None)
+l_out = lasagne.layers.ReshapeLayer(
+    l_recurrent_out, (N_BATCH, LENGTH, y_val.shape[-1]))
+
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')
+mask = T.matrix('mask')
+
 # Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
+cost = T.mean((l_out.get_output(input, mask=mask)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
-all_params = nntools.layers.get_all_params(l_out)
-updates = nntools.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
+all_params = lasagne.layers.get_all_params(l_out)
+updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
-train = theano.function([input, target_output], cost, updates=updates)
-y_pred = theano.function([input], l_out.get_output(input))
-compute_cost = theano.function([input, target_output], cost)
+train = theano.function([input, target_output, mask],
+                        cost, updates=updates, on_unused_input='warn')
+y_pred = theano.function(
+    [input, mask], l_out.get_output(input, mask=mask), on_unused_input='warn')
+compute_cost = theano.function(
+    [input, target_output, mask], cost, on_unused_input='warn')
 
 # Train the net
 costs = np.zeros(N_ITERATIONS)
 for n in range(N_ITERATIONS):
     X, y = gen_data()
-    costs[n] = train(X, y)
+
+    # you should use your own training data mask instead of mask_val
+    costs[n] = train(X, y, mask_val)
     if not n % 100:
-        cost_val = compute_cost(X_val, y_val)
+        cost_val = compute_cost(X_val, y_val, mask_val)
         print "Iteration {} validation cost = {}".format(n, cost_val)
 
 import matplotlib.pyplot as plt

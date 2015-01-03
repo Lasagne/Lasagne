@@ -134,14 +134,17 @@ class RecurrentLayer(Layer):
                 self.input_to_hidden.get_output(layer_input) +
                 self.hidden_to_hidden.get_output(hid_previous))
 
-        def stepbck(layer_input, mask, hid_previous):
+        def step_back(layer_input, mask, hid_previous):
+            # If mask is 0, use previous state until mask = 1 is found.
+            # This propagates the layer initial state when moving backwards
+            # until the end of the sequence is found.
             hid = (step(layer_input, hid_previous)*mask
                    + hid_previous*(1 - mask))
             return [hid]
 
         if self.backwards:
             sequences = [input, mask]
-            step_fun = stepbck
+            step_fun = step_back
         else:
             sequences = input
             step_fun = step
@@ -561,7 +564,7 @@ class LSTMLayer(Layer):
 
             return [cell, hid]
 
-        def stepbck(layer_input, mask, cell_previous, hid_previous,
+        def step_back(layer_input, mask, cell_previous, hid_previous,
                  W_in_to_ingate, W_hid_to_ingate,
                  W_cell_to_ingate, b_ingate, W_in_to_forgetgate,
                  W_hid_to_forgetgate, W_cell_to_forgetgate, b_forgetgate,
@@ -577,6 +580,9 @@ class LSTMLayer(Layer):
                     W_in_to_outgate, W_hid_to_outgate,
                     W_cell_to_outgate, b_outgate)
 
+            # If mask is 0, use previous state until mask = 1 is found.
+            # This propagates the layer initial state when moving backwards
+            # until the end of the sequence is found.
             not_mask = 1 - mask
             cell = cell*mask + cell_previous*not_mask
             hid = hid*mask + hid_previous*not_mask
@@ -585,7 +591,7 @@ class LSTMLayer(Layer):
 
         if self.backwards:
             sequences = [input, mask]
-            step_fun = stepbck
+            step_fun = step_back
         else:
             sequences = input
             step_fun = step

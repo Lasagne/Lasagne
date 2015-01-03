@@ -55,14 +55,13 @@ l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
 # setup fwd and bck LSTM layer.
 l_fwd = lasagne.layers.LSTMLayer(
-    l_in, N_HIDDEN, backwards=False, learn_init=True)
+    l_in, N_HIDDEN, backwards=False, learn_init=True, peepholes=False)
 l_bck = lasagne.layers.LSTMLayer(
-    l_in, N_HIDDEN, backwards=True, learn_init=True)
+    l_in, N_HIDDEN, backwards=True, learn_init=True, peepholes=False)
 
 # concatenate forward and backward LSTM layers
 l_fwd_reshape = lasagne.layers.ReshapeLayer(l_fwd, (N_BATCH*LENGTH, N_HIDDEN))
 l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
-
 l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
 l_recurrent_out = lasagne.layers.DenseLayer(

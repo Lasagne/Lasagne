@@ -2,6 +2,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
+
 # Sequence length
 LENGTH = 10
 # Number of units in the hidden (recurrent) layer

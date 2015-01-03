@@ -58,10 +58,10 @@ l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
 
 # setup fwd and bck LSTM layer.
-l_fwd = lasagne.layers.LSTMLayer(l_in, N_HIDDEN, backwards=False,
-                                 learn_init=True)
-l_bck = lasagne.layers.LSTMLayer(l_in, N_HIDDEN, backwards=True,
-                                 learn_init=True)
+l_fwd = lasagne.layers.LSTMLayer(
+    l_in, N_HIDDEN, backwards=False,learn_init=True)
+l_bck = lasagne.layers.LSTMLayer(
+    l_in, N_HIDDEN, backwards=True, learn_init=True)
 
 # concatenate forward and backward LSTM layers
 l_fwd_reshape = lasagne.layers.ReshapeLayer(l_fwd, (N_BATCH*LENGTH, N_HIDDEN))
@@ -70,13 +70,11 @@ l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
 l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
 
-l_recurrent_out = lasagne.layers.DenseLayer(l_concat,
-                                            num_units=y_val.shape[-1],
-                                            nonlinearity=None)
-l_out = lasagne.layers.ReshapeLayer(l_recurrent_out,
-                                    (N_BATCH, LENGTH, y_val.shape[-1]))
+l_recurrent_out = lasagne.layers.DenseLayer(
+    l_concat, num_units=y_val.shape[-1], nonlinearity=None)
+l_out = lasagne.layers.ReshapeLayer(
+    l_recurrent_out,(N_BATCH, LENGTH, y_val.shape[-1]))
 
-# Cost function is mean squared error
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')
 mask = T.matrix('mask')
@@ -88,12 +86,12 @@ cost = T.mean((l_out.get_output(input, mask=mask)[:, DELAY:, :]
 all_params = lasagne.layers.get_all_params(l_out)
 updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
-train = theano.function([input, target_output, mask], cost, updates=updates,
-                        on_unused_input='warn')
-y_pred = theano.function([input, mask], l_out.get_output(input,mask=mask),
-                         on_unused_input='warn')
-compute_cost = theano.function([input, target_output, mask], cost,
-                               on_unused_input='warn')
+train = theano.function(
+    [input, target_output, mask], cost, updates=updates, on_unused_input='warn')
+y_pred = theano.function(
+    [input, mask], l_out.get_output(input,mask=mask), on_unused_input='warn')
+compute_cost = theano.function(
+    [input, target_output, mask], cost, on_unused_input='warn')
 
 # Train the net
 costs = np.zeros(N_ITERATIONS)

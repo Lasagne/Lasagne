@@ -54,64 +54,58 @@ l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 # This input layer is used to tell the input-to-hidden what shape to expect
 # As we iterate over time steps, the input will be batch size x feature dim
 l_recurrent_in_fwd = lasagne.layers.InputLayer(shape=(N_BATCH, X_val.shape[-1]))
-l_input_to_hidden_fwd = lasagne.layers.DenseLayer(l_recurrent_in_fwd, N_HIDDEN,
-                                              nonlinearity=None)
+l_input_to_hidden_fwd = lasagne.layers.DenseLayer(
+    l_recurrent_in_fwd, N_HIDDEN, nonlinearity=None)
 
 # As above, we need to tell the hidden-to-hidden layer what shape to expect
 l_recurrent_hid_fwd = lasagne.layers.InputLayer(shape=(N_BATCH, N_HIDDEN))
-l_hidden_to_hidden_1_fwd = lasagne.layers.DenseLayer(l_recurrent_hid_fwd,
-                                                     N_HIDDEN,
-                                                 nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
-l_hidden_to_hidden_2_fwd = lasagne.layers.DenseLayer(l_hidden_to_hidden_1_fwd,
-                                                 N_HIDDEN, nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
+l_hidden_to_hidden_1_fwd = lasagne.layers.DenseLayer(
+    l_recurrent_hid_fwd,
+    N_HIDDEN, nonlinearity=None,
+    b=lasagne.init.Constant(1.))
+l_hidden_to_hidden_2_fwd = lasagne.layers.DenseLayer(
+    l_hidden_to_hidden_1_fwd,N_HIDDEN,
+    nonlinearity=None,
+    b=lasagne.init.Constant(1.))
 
-l_recurrent_fwd = lasagne.layers.RecurrentLayer(l_in,
-                                            l_input_to_hidden_fwd,
-                                            l_hidden_to_hidden_2_fwd,
-                                            nonlinearity=None,
-                                            backwards=False)
-
+l_recurrent_fwd = lasagne.layers.RecurrentLayer(
+    l_in, l_input_to_hidden_fwd,l_hidden_to_hidden_2_fwd,
+    nonlinearity=None, backwards=False)
 
 l_recurrent_in_bck = lasagne.layers.InputLayer(shape=(N_BATCH, X_val.shape[-1]))
-l_input_to_hidden_bck = lasagne.layers.DenseLayer(l_recurrent_in_bck, N_HIDDEN,
-                                              nonlinearity=None)
+l_input_to_hidden_bck = lasagne.layers.DenseLayer(
+    l_recurrent_in_bck, N_HIDDEN, nonlinearity=None)
 
 # As above, we need to tell the hidden-to-hidden layer what shape to expect
 l_recurrent_hid_bck = lasagne.layers.InputLayer(shape=(N_BATCH, N_HIDDEN))
-l_hidden_to_hidden_1_bck = lasagne.layers.DenseLayer(l_recurrent_hid_bck,
-                                                     N_HIDDEN,
-                                                 nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
-l_hidden_to_hidden_2_bck = lasagne.layers.DenseLayer(l_hidden_to_hidden_1_bck,
-                                                 N_HIDDEN, nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
+l_hidden_to_hidden_1_bck = lasagne.layers.DenseLayer(
+    l_recurrent_hid_bck, N_HIDDEN,
+    nonlinearity=None, b=lasagne.init.Constant(1.))
+l_hidden_to_hidden_2_bck = lasagne.layers.DenseLayer(
+    l_hidden_to_hidden_1_bck, N_HIDDEN,
+    nonlinearity=None, b=lasagne.init.Constant(1.))
 
-l_recurrent_bck = lasagne.layers.RecurrentLayer(l_in,
-                                            l_input_to_hidden_bck,
-                                            l_hidden_to_hidden_2_bck,
-                                            nonlinearity=None,
-                                            backwards=True)
+l_recurrent_bck = lasagne.layers.RecurrentLayer(
+    l_in, l_input_to_hidden_bck, l_hidden_to_hidden_2_bck,
+    nonlinearity=None, backwards=True)
 
 
 # concat layers
-l_recurrent_fwd_rs = lasagne.layers.ReshapeLayer(l_recurrent_fwd,
-                                                 (N_BATCH*LENGTH, N_HIDDEN))
-l_recurrent_bck_rs = lasagne.layers.ReshapeLayer(l_recurrent_bck,
-                                                 (N_BATCH*LENGTH, N_HIDDEN))
+l_recurrent_fwd_rs = lasagne.layers.ReshapeLayer(
+    l_recurrent_fwd, (N_BATCH*LENGTH, N_HIDDEN))
+
+l_recurrent_bck_rs = lasagne.layers.ReshapeLayer(
+    l_recurrent_bck, (N_BATCH*LENGTH, N_HIDDEN))
 
 
 
-l_concat = lasagne.layers.ConcatLayer([l_recurrent_fwd_rs,
-                                       l_recurrent_bck_rs], axis=1)
+l_concat = lasagne.layers.ConcatLayer(
+    [l_recurrent_fwd_rs, l_recurrent_bck_rs], axis=1)
 
-
-l_recurrent_out = lasagne.layers.DenseLayer(l_concat,
-                                            num_units=y_val.shape[-1],
-                                            nonlinearity=None)
-l_out = lasagne.layers.ReshapeLayer(l_recurrent_out,
-                                    (N_BATCH, LENGTH, y_val.shape[-1]))
+l_recurrent_out = lasagne.layers.DenseLayer(
+    l_concat, num_units=y_val.shape[-1], nonlinearity=None)
+l_out = lasagne.layers.ReshapeLayer(
+    l_recurrent_out, (N_BATCH, LENGTH, y_val.shape[-1]))
 
 
 

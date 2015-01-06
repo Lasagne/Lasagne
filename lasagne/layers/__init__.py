@@ -9,3 +9,4 @@ from .shape import *
 from .merge import *
 from .cuda_convnet import *
 from .corrmm import *
+from .dnn import *

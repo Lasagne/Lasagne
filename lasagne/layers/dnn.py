@@ -29,8 +29,8 @@ class Pool2DDNNLayer(DNNLayer):
         
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape) # copy / convert to mutable list
-        output_shape[2] = int(np.floor(float(output_shape[2] - self.ds[0]) / self.strides[0])) + 1
-        output_shape[3] = int(np.floor(float(output_shape[3] - self.ds[1]) / self.strides[1])) + 1
+        output_shape[2] = (output_shape[2] - self.ds[0]) // self.strides[0] + 1
+        output_shape[3] = (output_shape[3] - self.ds[1]) // self.strides[1] + 1
         return tuple(output_shape)
 
     def get_output_for(self, input, *args, **kwargs):

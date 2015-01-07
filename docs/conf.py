@@ -101,25 +101,15 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ----------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-import sphinx_bootstrap_theme
-html_theme = 'bootstrap'
+# on_rtd is whether we are on readthedocs.org
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options = {
-    'bootswatch_theme':     'yeti', 
-    'bootstrap_version':    '3',
-    'navbar_title':         'Lasagne',
-    'source_link_position': None,
+if not on_rtd:  # only import and set the theme if we're building docs locally
+    import sphinx_rtd_theme
+    html_theme = 'sphinx_rtd_theme'
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
-}
-
-# Add any paths that contain custom themes here, relative to this directory.
-#html_theme_path = []
-html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+# otherwise, readthedocs.org uses their theme by default, so no need to specify it
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".

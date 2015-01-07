@@ -36,14 +36,19 @@ class Conv2DDNNLayer(Layer):
         elif border_mode is None and pad is None:
             # no option specified, default to valid mode
             self.pad = (0, 0)
+            self.border_mode = 'valid'
         elif border_mode is not None:
             if border_mode == 'valid':
                 self.pad = (0, 0)
+                self.border_mode = 'valid'
             elif border_mode == 'full':
                 self.pad = (self.filter_size[0] - 1, self.filter_size[1] - 1)
+                self.border_mode = 'full'
             elif border_mode == 'same':
+                # dnn_conv does not support same, so we just specify padding directly.
                 # only works for odd filter size, but the even filter size case is probably not worth supporting.
                 self.pad = ((self.filter_size[0] - 1) // 2, (self.filter_size[1] - 1) // 2)
+                self.border_mode = None
             else:
                 raise RuntimeError("Unsupported border_mode for Conv2DDNNLayer: %s" % border_mode)
         else:
@@ -78,9 +83,11 @@ class Conv2DDNNLayer(Layer):
         return (batch_size, self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, *args, **kwargs):
-        # TODO which one is really 'flipped'?
+        # by default we assume 'cross', consistent with corrmm.
         conv_mode = 'conv' if self.flip_filters else 'cross'
-        border_mode = self.border_mode if self.border_mode else self.pad
+        # if 'border_mode' is one of 'valid' or 'full' use that.
+        # else use pad directly.
+        border_mode = self.border_mode if (self.border_mode is not None) else self.pad
 
         conved = dnn.dnn_conv(img=input,
                               kerns=self.W,

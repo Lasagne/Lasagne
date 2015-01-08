@@ -7,8 +7,14 @@ from .. import nonlinearities
 
 from .base import Layer
 
-from theano.sandbox.cuda.dnn import dnn_pool
 
+dnn_available = False
+
+if theano.config.device.startswith("gpu"):
+    from theano.sandbox.cuda import dnn
+    if dnn.dnn_available():
+        dnn_available = True
+ 
 
 __all__ = [
     "Pool2DDNNLayer",
@@ -34,7 +40,9 @@ class Pool2DDNNLayer(DNNLayer):
         return tuple(output_shape)
 
     def get_output_for(self, input, *args, **kwargs):
-        return dnn_pool(input, self.ds, self.strides, self.mode)
+        if not dnn_available:
+            raise RuntimeError("cudnn is not available.")
+        return dnn.dnn_pool(input, self.ds, self.strides, self.mode)
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer): # for consistency

@@ -48,7 +48,7 @@ def build_model(input_width, input_height, output_dim,
         shape=(batch_size, 1, input_width, input_height),
         )
 
-    l_conv1 = lasagne.layers.Conv2DNNLayer(
+    l_conv1 = lasagne.layers.Conv2DDNNLayer(
         l_in,
         num_filters=32,
         filter_size=(5, 5),
@@ -57,7 +57,7 @@ def build_model(input_width, input_height, output_dim,
         )
     l_pool1 = lasagne.layers.MaxPool2DDNNLayer(l_conv1, ds=(2, 2))
 
-    l_conv2 = lasagne.layers.Conv2DNNLayer(
+    l_conv2 = lasagne.layers.Conv2DDNNLayer(
         l_pool1,
         num_filters=32,
         filter_size=(5, 5),

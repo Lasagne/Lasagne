@@ -34,3 +34,8 @@ def test_example(example, module_name):
             pytest.skip(e)
         else:
             raise
+    except RuntimeError as e: # ignore errors caused by cudnn absence
+        if "cudnn is not available" in str(e):
+            pytest.skip(e)
+        else:
+            raise

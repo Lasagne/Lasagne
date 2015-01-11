@@ -120,6 +120,8 @@ class Conv2DDNNLayer(DNNLayer):
         return (batch_size, self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, *args, **kwargs):
+        if not dnn_available:
+            raise RuntimeError('cudnn is not available.')
         # by default we assume 'cross', consistent with corrmm.
         conv_mode = 'conv' if self.flip_filters else 'cross'
         # if 'border_mode' is one of 'valid' or 'full' use that.

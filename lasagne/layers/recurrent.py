@@ -279,6 +279,8 @@ class LSTMLayer(Layer):
                 When False, W_cell_to_ingate, W_cell_to_forgetgate and
                 W_cell_to_outgate are ignored.
         '''
+
+        # Initialize parent layer
         super(LSTMLayer, self).__init__(input_layer)
 
         # For any of the nonlinearities, if None is supplied, use identity

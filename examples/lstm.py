@@ -2,7 +2,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-
+theano.config.compute_test_value = 'raise'
 # Sequence length
 LENGTH = 10
 # Number of units in the hidden (recurrent) layer
@@ -47,17 +47,21 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
 
+N_FEATURES = X_val.shape[-1]
+N_OUTPUT = y_val.shape[-1]
+assert X_val.shape == (N_BATCH, LENGTH, N_FEATURES)
+assert y_val.shape == (N_BATCH, LENGTH, N_OUTPUT)
 # mask
 mask_val = np.ones(shape=(N_BATCH, LENGTH), dtype=theano.config.floatX)
 
 # Construct LSTM RNN: One LSTM layer and one dense output layer
-l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
+l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, N_FEATURES))
 
 # setup fwd and bck LSTM layer.
 l_fwd = lasagne.layers.LSTMLayer(
-    l_in, N_HIDDEN, backwards=False, learn_init=True, peepholes=False)
+    l_in, N_HIDDEN, backwards=False, learn_init=True, peepholes=True)
 l_bck = lasagne.layers.LSTMLayer(
-    l_in, N_HIDDEN, backwards=True, learn_init=True, peepholes=False)
+    l_in, N_HIDDEN, backwards=True, learn_init=True, peepholes=True)
 
 # concatenate forward and backward LSTM layers
 l_fwd_reshape = lasagne.layers.ReshapeLayer(l_fwd, (N_BATCH*LENGTH, N_HIDDEN))
@@ -65,13 +69,21 @@ l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
 l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
 l_recurrent_out = lasagne.layers.DenseLayer(
-    l_concat, num_units=y_val.shape[-1], nonlinearity=None)
+    l_concat, num_units=N_OUTPUT, nonlinearity=None)
 l_out = lasagne.layers.ReshapeLayer(
-    l_recurrent_out, (N_BATCH, LENGTH, y_val.shape[-1]))
+    l_recurrent_out, (N_BATCH, LENGTH, N_OUTPUT))
 
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')
 mask = T.matrix('mask')
+
+# add test values
+input.tag.test_value = np.random.rand(
+    *X_val.shape).astype(theano.config.floatX)
+target_output.tag.test_value = np.random.rand(
+    *y_val.shape).astype(theano.config.floatX)
+mask.tag.test_value = np.random.rand(
+    *mask_val.shape).astype(theano.config.floatX)
 
 # Cost = mean squared error, starting from delay point
 cost = T.mean((l_out.get_output(input, mask=mask)[:, DELAY:, :]

@@ -62,8 +62,7 @@ class DenseLayer(Layer):
 
         self.num_units = num_units
 
-        output_shape = self.input_layer.get_output_shape()
-        num_inputs = int(np.prod(output_shape[1:]))
+        num_inputs = int(np.prod(self.input_shape[1:]))
 
         self.W = self.create_param(W, (num_inputs, num_units), name="W")
         self.b = self.create_param(b, (num_units,), name="b") if b is not None else None
@@ -109,8 +108,7 @@ class NINLayer(Layer):
         self.num_units = num_units
         self.untie_biases = untie_biases
 
-        output_shape = self.input_layer.get_output_shape()
-        num_input_channels = output_shape[1]
+        num_input_channels = self.input_shape[1]
 
         self.W = self.create_param(W, (num_input_channels, num_units), name="W")
         if b is None:

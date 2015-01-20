@@ -60,7 +60,7 @@ class FeaturePoolLayer(Layer):
         self.axis = axis
         self.pool_function = pool_function
 
-        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.ds != 0:
             raise RuntimeError("Number of input feature maps (%d) is not a multiple of the pool size (ds=%d)" %
                     (num_feature_maps, self.ds))
@@ -103,7 +103,7 @@ class FeatureWTALayer(Layer):
         self.ds = ds
         self.axis = axis
 
-        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.ds != 0:
             raise RuntimeError("Number of input feature maps (%d) is not a multiple of the group size (ds=%d)" %
                     (num_feature_maps, self.ds))

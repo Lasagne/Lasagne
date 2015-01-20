@@ -76,7 +76,7 @@ class Conv2DMMLayer(MMLayer):
         self.corr_mm_op = GpuCorrMM(subsample=self.strides, pad=self.pad)
 
     def get_W_shape(self):
-        num_input_channels = self.input_layer.get_output_shape()[1]
+        num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
 
     def get_params(self):

@@ -42,7 +42,7 @@ class Conv1DLayer(Layer):
             self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
-        num_input_channels = self.input_layer.get_output_shape()[1]
+        num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_length)
 
     def get_params(self):
@@ -65,9 +65,9 @@ class Conv1DLayer(Layer):
 
     def get_output_for(self, input, input_shape=None, *args, **kwargs):
         # the optional input_shape argument is for when get_output_for is called
-        # directly with a different shape than the output_shape of self.input_layer.
+        # directly with a different shape than self.input_shape.
         if input_shape is None:
-            input_shape = self.input_layer.get_output_shape()
+            input_shape = self.input_shape
 
         filter_shape = self.get_W_shape()
 
@@ -119,7 +119,7 @@ class Conv2DLayer(Layer):
             self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
-        num_input_channels = self.input_layer.get_output_shape()[1]
+        num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
 
     def get_params(self):
@@ -145,9 +145,9 @@ class Conv2DLayer(Layer):
 
     def get_output_for(self, input, input_shape=None, *args, **kwargs):
         # the optional input_shape argument is for when get_output_for is called
-        # directly with a different shape than the output_shape of self.input_layer.
+        # directly with a different shape than self.input_shape.
         if input_shape is None:
-            input_shape = self.input_layer.get_output_shape()
+            input_shape = self.input_shape
 
         filter_shape = self.get_W_shape()
 

@@ -19,12 +19,26 @@ class Layer(object):
     The :class:`Layer` class represents a single layer of a neural network.
     It should be subclassed when implementing new types of layers.
 
-    Because each layer keeps track of the layer(s) feeding into it, a
-    network's output :class:`Layer` instance doubles as a handle to the full
-    network.
+    Because each layer can keep track of the layer(s) feeding into it, a
+    network's output :class:`Layer` instance can double as a handle to the
+    full network.
     """
     def __init__(self, input_layer, name=None):
-        self.input_layer = input_layer
+        """
+        Instantiates the layer.
+
+        :parameters:
+            - input_layer : a :class:`Layer` instance or a tuple
+                the layer feeding into this layer, or the expected input shape
+            - name : a string or None
+                an optional name to attach to this layer
+        """
+        if isinstance(input_layer, tuple):
+            self.input_shape = input_layer
+            self.input_layer = None
+        else:
+            self.input_shape = input_layer.get_output_shape()
+            self.input_layer = input_layer
         self.name = name
 
     def get_params(self):
@@ -74,10 +88,9 @@ class Layer(object):
 
         :note:
             When implementing a new :class:`Layer` class, you will usually
-            keep this unchanged and just override `get_output_shape_for()`.        
+            keep this unchanged and just override `get_output_shape_for()`.
         """
-        input_shape = self.input_layer.get_output_shape()
-        return self.get_output_shape_for(input_shape)
+        return self.get_output_shape_for(self.input_shape)
 
     def get_output(self, input=None, *args, **kwargs):
         """
@@ -108,6 +121,10 @@ class Layer(object):
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
             return utils.as_theano_expression(input[self])
+        elif self.input_layer is None:
+            raise RuntimeError("get_output() called on a free-floating layer; "
+                               "there isn't anything to get its input from. "
+                               "Did you mean get_output_for()?")
         else: # in all other cases, just pass the input on to the next layer.
             layer_input = self.input_layer.get_output(input, *args, **kwargs)
             return self.get_output_for(layer_input, *args, **kwargs)
@@ -230,17 +247,34 @@ class MultipleInputsLayer(Layer):
     obtain their input from multiple layers.
     """
     def __init__(self, input_layers, name=None):
-        self.input_layers = input_layers
+        """
+        Instantiates the layer.
+
+        :parameters:
+            - input_layers : a list of :class:`Layer` instances or tuples
+                the layers feeding into this layer, or expected input shapes
+            - name : a string or None
+                an optional name to attach to this layer
+        """
+        self.input_shapes = [input_layer if isinstance(input_layer, tuple)
+                             else input_layer.get_output_shape()
+                             for input_layer in input_layers]
+        self.input_layers = [None if isinstance(input_layer, tuple)
+                             else input_layer
+                             for input_layer in input_layers]
         self.name = name
 
     def get_output_shape(self):
-        input_shapes = [input_layer.get_output_shape() for input_layer in self.input_layers]
-        return self.get_output_shape_for(input_shapes)
+        return self.get_output_shape_for(self.input_shapes)
 
     def get_output(self, input=None, *args, **kwargs):
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
             return utils.as_theano_expression(input[self])
+        elif any(input_layer is None for input_layer in self.input_layers):
+            raise RuntimeError("get_output() called on a free-floating layer; "
+                               "there isn't anything to get its inputs from. "
+                               "Did you mean get_output_for()?")
         else: # in all other cases, just pass the network input on to the next layers.
             layer_inputs = [input_layer.get_output(input, *args, **kwargs) for input_layer in self.input_layers]
             return self.get_output_for(layer_inputs, *args, **kwargs)

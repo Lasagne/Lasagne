@@ -97,10 +97,10 @@ class Conv2DCCLayer(CCLayer):
 
     def get_W_shape(self):
         if self.dimshuffle:
-            num_input_channels = self.input_layer.get_output_shape()[1]
+            num_input_channels = self.input_shape[1]
             return (self.num_filters, num_input_channels, self.filter_size, self.filter_size)
         else:
-            num_input_channels = self.input_layer.get_output_shape()[0]
+            num_input_channels = self.input_shape[0]
             return (num_input_channels, self.filter_size, self.filter_size, self.num_filters)
 
     def get_params(self):
@@ -264,8 +264,7 @@ class NINLayer_c01b(Layer):
         self.num_units = num_units
         self.untie_biases = untie_biases
 
-        output_shape = self.input_layer.get_output_shape()
-        num_input_channels = output_shape[0]
+        num_input_channels = self.input_shape[0]
 
         self.W = self.create_param(W, (num_units, num_input_channels))
         if b is None:

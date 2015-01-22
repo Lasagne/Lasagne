@@ -201,10 +201,10 @@ class LSTMLayer(Layer):
                  W_cell_to_forgetgate=init.Normal(0.1),
                  b_forgetgate=init.Normal(0.1),
                  nonlinearity_forgetgate=nonlinearities.sigmoid,
-                 W_in_to_modulationgate=init.Normal(0.1),
-                 W_hid_to_modulationgate=init.Normal(0.1),
-                 b_modulationgate=init.Normal(0.1),
-                 nonlinearity_modulationgate=nonlinearities.tanh,
+                 W_in_to_cell=init.Normal(0.1),
+                 W_hid_to_cell=init.Normal(0.1),
+                 b_cell=init.Normal(0.1),
+                 nonlinearity_cell=nonlinearities.tanh,
                  W_in_to_outgate=init.Normal(0.1),
                  W_hid_to_outgate=init.Normal(0.1),
                  W_cell_to_outgate=init.Normal(0.1),
@@ -245,13 +245,13 @@ class LSTMLayer(Layer):
                 :math:`b_f`
             - nonlinearity_forgetgate : function
                 :math:`\sigma`
-            - W_in_to_modulationgate : function or np.ndarray or theano.shared
+            - W_in_to_cell : function or np.ndarray or theano.shared
                 :math:`W_{ic}`
-            - W_hid_to_modulationgate : function or np.ndarray or theano.shared
+            - W_hid_to_cell : function or np.ndarray or theano.shared
                 :math:`W_{hc}`
-            - b_modulationgate : function or np.ndarray or theano.shared
+            - b_cell : function or np.ndarray or theano.shared
                 :math:`b_c`
-            - nonlinearity_modulationgate : function or np.ndarray or
+            - nonlinearity_cell : function or np.ndarray or
                 theano.shared
                 :math:`\tanh`
             - W_in_to_outgate : function or np.ndarray or theano.shared
@@ -294,10 +294,10 @@ class LSTMLayer(Layer):
         else:
             self.nonlinearity_forgetgate = nonlinearity_forgetgate
 
-        if nonlinearity_modulationgate is None:
-            self.nonlinearity_modulationgate = nonlinearities.identity
+        if nonlinearity_cell is None:
+            self.nonlinearity_cell = nonlinearities.identity
         else:
-            self.nonlinearity_modulationgate = nonlinearity_modulationgate
+            self.nonlinearity_cell = nonlinearity_cell
 
         if nonlinearity_outgate is None:
             self.nonlinearity_outgate = nonlinearities.identity
@@ -334,14 +334,14 @@ class LSTMLayer(Layer):
 
         self.b_forgetgate = self.create_param(b_forgetgate, (num_units,))
 
-        self.W_in_to_modulationgate = self.create_param(
-            W_in_to_modulationgate, (num_inputs, num_units))
+        self.W_in_to_cell = self.create_param(
+            W_in_to_cell, (num_inputs, num_units))
 
-        self.W_hid_to_modulationgate = self.create_param(
-            W_hid_to_modulationgate, (num_units, num_units))
+        self.W_hid_to_cell = self.create_param(
+            W_hid_to_cell, (num_units, num_units))
 
-        self.b_modulationgate = self.create_param(
-            b_modulationgate, (num_units,))
+        self.b_cell = self.create_param(
+            b_cell, (num_units,))
 
         self.W_in_to_outgate = self.create_param(
             W_in_to_outgate, (num_inputs, num_units))
@@ -354,17 +354,17 @@ class LSTMLayer(Layer):
         # stack input to gate weights into a (num_inputs, 4*num_units) tensor
         self.W_in_to_gates = T.concatenate(
             [self.W_in_to_ingate, self.W_in_to_forgetgate,
-            self.W_in_to_modulationgate, self.W_in_to_outgate], axis=1)
+            self.W_in_to_cell, self.W_in_to_outgate], axis=1)
 
         # stack hid to gate weights into a (num_units, 4*num_units) tensor
         self.W_hid_to_gates = T.concatenate(
             [self.W_hid_to_ingate, self.W_hid_to_forgetgate,
-            self.W_hid_to_modulationgate, self.W_hid_to_outgate], axis=1)
+            self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
 
         # stack gate biases into a (4*num_units) vector
         self.b_gates = T.concatenate(
             [self.b_ingate, self.b_forgetgate,
-            self.b_modulationgate, self.b_outgate], axis=0)
+            self.b_cell, self.b_outgate], axis=0)
 
         # init peepholes
         if self.peepholes:
@@ -414,8 +414,8 @@ class LSTMLayer(Layer):
                 self.W_hid_to_ingate,
                 self.W_in_to_forgetgate,
                 self.W_hid_to_forgetgate,
-                self.W_in_to_modulationgate,
-                self.W_hid_to_modulationgate,
+                self.W_in_to_cell,
+                self.W_hid_to_cell,
                 self.W_in_to_outgate,
                 self.W_hid_to_outgate]
 
@@ -448,7 +448,7 @@ class LSTMLayer(Layer):
                 List of all bias parameters
         '''
         return [self.b_ingate, self.b_forgetgate,
-                self.b_modulationgate, self.b_outgate]
+                self.b_cell, self.b_outgate]
 
     def get_output_shape_for(self, input_shape):
         '''
@@ -522,7 +522,7 @@ class LSTMLayer(Layer):
             gates = input_dot_W_n + T.dot(hid_previous, self.W_hid_to_gates)
             ingate = slice_w(gates,0)
             forgetgate = slice_w(gates,1)
-            modulationgate = slice_w(gates,2)
+            cell_input = slice_w(gates,2)
             outgate = slice_w(gates,3)
 
 
@@ -533,10 +533,10 @@ class LSTMLayer(Layer):
 
             ingate = self.nonlinearity_ingate(ingate)
             forgetgate = self.nonlinearity_forgetgate(forgetgate)
-            modulationgate = self.nonlinearity_modulationgate(modulationgate)
+            cell_input = self.nonlinearity_cell(cell_input)
             outgate = self.nonlinearity_outgate(outgate)
 
-            cell = forgetgate*cell_previous + ingate*modulationgate
+            cell = forgetgate*cell_previous + ingate*cell_input
             hid = outgate*self.nonlinearity_out(cell)
             return [cell, hid]
 

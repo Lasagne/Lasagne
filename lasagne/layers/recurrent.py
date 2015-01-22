@@ -480,17 +480,17 @@ class LSTMLayer(Layer):
                 Symbolic input variable
             - mask : theano.TensorType
                 Theano variable denoting whether each time step in each
-                sequence in the batch is part of the sequence or not.  This is
-                needed when scanning backwards.  If all sequences are of the
-                same length, it should be all 1s.
+                sequence in the batch is part of the sequence or not.  If None,
+                then it assumed that all sequences are of the same length.  If
+                not all sequences are of the same length, then it must be
+                supplied as a matrix of shape (n_batch, n_time_steps) where
+                `mask[i, j] = 1` when `j <= (length of sequence i)` and
+                `mask[i, j] = 0` when `j > (length of sequence i)`.
 
         :returns:
             - layer_output : theano.TensorType
                 Symbolic output variable
         '''
-        if self.backwards:
-            assert mask is not None, ("Mask must be given to get_output_for"
-                                      " when backwards is true")
         # Treat all layers after the first as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
@@ -554,7 +554,7 @@ class LSTMLayer(Layer):
             hid = outgate*self.nonlinearity_out(cell)
             return [cell, hid]
 
-        def step_back(input_dot_W_n, mask, cell_previous, hid_previous):
+        def step_masked(input_dot_W_n, mask, cell_previous, hid_previous):
 
             cell, hid = step(input_dot_W_n, cell_previous, hid_previous)
 
@@ -567,13 +567,13 @@ class LSTMLayer(Layer):
 
             return [cell, hid]
 
-        if self.backwards:
+        if self.backwards and mask is not None:
             # mask is given as (batch_size, seq_len). Because scan iterates
             # over first dimension, we dimshuffle to (seq_len, batch_size) and
             # add a broadcastable dimension
             mask = mask.dimshuffle(1, 0, 'x')
             sequences = [input_dot_W, mask]
-            step_fun = step_back
+            step_fun = step_masked
         else:
             sequences = input_dot_W
             step_fun = step

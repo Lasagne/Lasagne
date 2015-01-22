@@ -51,8 +51,6 @@ n_features = X_val.shape[-1]
 n_output = y_val.shape[-1]
 assert X_val.shape == (N_BATCH, LENGTH, n_features)
 assert y_val.shape == (N_BATCH, LENGTH, n_output)
-# mask
-mask_val = np.ones(shape=(N_BATCH, LENGTH), dtype=theano.config.floatX)
 
 # Construct LSTM RNN: One LSTM layer and one dense output layer
 l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, n_features))
@@ -75,29 +73,26 @@ l_out = lasagne.layers.ReshapeLayer(
 
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')
-mask = T.matrix('mask')
 
 # add test values
 input.tag.test_value = np.random.rand(
     *X_val.shape).astype(theano.config.floatX)
 target_output.tag.test_value = np.random.rand(
     *y_val.shape).astype(theano.config.floatX)
-mask.tag.test_value = np.random.rand(
-    *mask_val.shape).astype(theano.config.floatX)
 
 # Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input, mask=mask)[:, DELAY:, :]
+cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)
 updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
-train = theano.function([input, target_output, mask],
+train = theano.function([input, target_output],
                         cost, updates=updates, on_unused_input='warn')
 y_pred = theano.function(
-    [input, mask], l_out.get_output(input, mask=mask), on_unused_input='warn')
+    [input], l_out.get_output(input), on_unused_input='warn')
 compute_cost = theano.function(
-    [input, target_output, mask], cost, on_unused_input='warn')
+    [input, target_output], cost, on_unused_input='warn')
 
 # Train the net
 costs = np.zeros(N_ITERATIONS)
@@ -105,9 +100,9 @@ for n in range(N_ITERATIONS):
     X, y = gen_data()
 
     # you should use your own training data mask instead of mask_val
-    costs[n] = train(X, y, mask_val)
+    costs[n] = train(X, y)
     if not n % 100:
-        cost_val = compute_cost(X_val, y_val, mask_val)
+        cost_val = compute_cost(X_val, y_val)
         print "Iteration {} validation cost = {}".format(n, cost_val)
 
 import matplotlib.pyplot as plt

@@ -376,11 +376,6 @@ class LSTMLayer(Layer):
             self.W_cell_to_outgate = self.create_param(
                 W_cell_to_outgate, (num_units))
 
-            # Stack peepholes into a (3*num_units) vector
-            self.W_cell_to_gates = T.concatenate(
-                [self.W_cell_to_ingate, self.W_cell_to_forgetgate,
-                self.W_cell_to_outgate], axis=0)
-
         # Setup initial values for the cell and the hidden units
         self.cell_init = self.create_param(cell_init, (num_batch, num_units))
         self.hid_init = self.create_param(hid_init, (num_batch, num_units))
@@ -514,9 +509,6 @@ class LSTMLayer(Layer):
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
 
-        def slice_c(x, n):
-            return x[n*self.num_units:(n+1)*self.num_units]
-
         # Create single recurrent computation step function
         # input_dot_W_n is the n'th timestep of the input, dotted with W
         # The step function calculates the following:
@@ -538,9 +530,9 @@ class LSTMLayer(Layer):
 
             if self.peepholes:
                 # Compute peephole connections
-                ingate += cell_previous*slice_c(self.W_cell_to_gates, 0)
-                forgetgate = cell_previous*slice_c(self.W_cell_to_gates, 1)
-                outgate = cell_previous*slice_c(self.W_cell_to_gates, 2)
+                ingate += cell_previous*self.W_cell_to_ingate
+                forgetgate = cell_previous*self.W_cell_to_forgetgate
+                outgate = cell_previous*self.W_cell_to_outgate
 
             # Apply nonlinearities
             ingate = self.nonlinearity_ingate(ingate)

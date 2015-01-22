@@ -47,15 +47,15 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
 
-N_FEATURES = X_val.shape[-1]
-N_OUTPUT = y_val.shape[-1]
-assert X_val.shape == (N_BATCH, LENGTH, N_FEATURES)
-assert y_val.shape == (N_BATCH, LENGTH, N_OUTPUT)
+n_features = X_val.shape[-1]
+n_output = y_val.shape[-1]
+assert X_val.shape == (N_BATCH, LENGTH, n_features)
+assert y_val.shape == (N_BATCH, LENGTH, n_output)
 # mask
 mask_val = np.ones(shape=(N_BATCH, LENGTH), dtype=theano.config.floatX)
 
 # Construct LSTM RNN: One LSTM layer and one dense output layer
-l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, N_FEATURES))
+l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, n_features))
 
 # setup fwd and bck LSTM layer.
 l_fwd = lasagne.layers.LSTMLayer(
@@ -69,9 +69,9 @@ l_bck_reshape = lasagne.layers.ReshapeLayer(l_bck, (N_BATCH*LENGTH, N_HIDDEN))
 l_concat = lasagne.layers.ConcatLayer([l_fwd_reshape, l_bck_reshape], axis=1)
 
 l_recurrent_out = lasagne.layers.DenseLayer(
-    l_concat, num_units=N_OUTPUT, nonlinearity=None)
+    l_concat, num_units=n_output, nonlinearity=None)
 l_out = lasagne.layers.ReshapeLayer(
-    l_recurrent_out, (N_BATCH, LENGTH, N_OUTPUT))
+    l_recurrent_out, (N_BATCH, LENGTH, n_output))
 
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')

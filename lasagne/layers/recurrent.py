@@ -424,12 +424,17 @@ class LSTMLayer(Layer):
         Get all peephole connection parameters of this layer.
 
         :returns:
-            - init_params : list of theano.shared
-                List of all peephole parameters
+            - peephole_params : list of theano.shared
+                List of all peephole parameters.  If this LSTM layer doesn't
+                use peephole connections (peepholes=False), then an empty list
+                is returned.
         '''
-        return [self.W_cell_to_ingate,
-                self.W_cell_to_forgetgate,
-                self.W_cell_to_outgate]
+        if self.peepholes:
+            return [self.W_cell_to_ingate,
+                    self.W_cell_to_forgetgate,
+                    self.W_cell_to_outgate]
+        else:
+            return []
 
     def get_init_params(self):
         '''

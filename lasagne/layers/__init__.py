@@ -10,3 +10,4 @@ from .merge import *
 from .cuda_convnet import *
 from .corrmm import *
 from .recurrent import *
+from .dnn import *

@@ -3,6 +3,8 @@ Lasagne
 
 Lasagne is a lightweight library to build and train neural networks in Theano.
 
+For support, please refer to the lasagne-users mailing list: https://groups.google.com/forum/#!forum/lasagne-users
+
 Lasagne is a work in progress, input is welcome.
 
 Design goals:

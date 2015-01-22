@@ -1,6 +1,5 @@
 import theano
 import theano.tensor as T
-import numpy as np
 from .. import nonlinearities
 from .. import init
 
@@ -150,7 +149,6 @@ class RecurrentLayer(Layer):
         else:
             sequences = input
             step_fun = step
-
 
         output = theano.scan(step_fun, sequences=sequences,
                              go_backwards=self.backwards,
@@ -502,6 +500,7 @@ class LSTMLayer(Layer):
         # slice_c is similar but for peephole weights.
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
+
         def slice_c(x, n):
             return x[n*self.num_units:(n+1)*self.num_units]
 
@@ -520,11 +519,10 @@ class LSTMLayer(Layer):
 
             # calculate gates pre-activations and slice
             gates = input_dot_W_n + T.dot(hid_previous, self.W_hid_to_gates)
-            ingate = slice_w(gates,0)
-            forgetgate = slice_w(gates,1)
-            cell_input = slice_w(gates,2)
-            outgate = slice_w(gates,3)
-
+            ingate = slice_w(gates, 0)
+            forgetgate = slice_w(gates, 1)
+            cell_input = slice_w(gates, 2)
+            outgate = slice_w(gates, 3)
 
             if self.peepholes:
                 ingate += cell_previous*slice_c(self.W_cell_to_gates, 0)
@@ -554,8 +552,8 @@ class LSTMLayer(Layer):
             return [cell, hid]
 
         if self.backwards:
-            # mask is given as (batch_size, seq_len). Because scan iterates over
-            # first dim. we dimshuffle to (seq_len, batch_size) and add a
+            # mask is given as (batch_size, seq_len). Because scan iterates
+            # over first dim. we dimshuffle to (seq_len, batch_size) and add a
             # broadcastable dimension
             mask = mask.dimshuffle(1, 0, 'x')
             sequences = [input_dot_W, mask]

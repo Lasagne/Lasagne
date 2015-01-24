@@ -15,6 +15,12 @@ def crossentropy(x, t):
     return T.mean(T.nnet.binary_crossentropy(x, t))
 
 
+def negative_log_likelihood(x, t):
+    """Calculates the negative-log-likelihood"""
+    return -T.mean(T.log(x)[T.arange(t.shape[0]), t])
+
+
+
 class Objective(object):
     def __init__(self, input_layer, loss_function=mse):
         self.input_layer = input_layer

@@ -4,6 +4,7 @@ import cPickle as pickle
 import gzip
 import itertools
 import urllib
+import os
 
 import numpy as np
 import lasagne
@@ -22,7 +23,9 @@ MOMENTUM = 0.9
 
 
 def _load_data(url=DATA_URL, filename=DATA_FILENAME):
-    urllib.urlretrieve(url, filename)
+    if not os.path.exists(filename):
+        urllib.urlretrieve(url, filename)
+
     with gzip.open(filename, 'rb') as f:
         data = pickle.load(f)
     return data
@@ -91,11 +94,10 @@ def create_iter_functions(dataset, output_layer,
     batch_slice = slice(
         batch_index * batch_size, (batch_index + 1) * batch_size)
 
-    def loss(output):
-        return -T.mean(T.log(output)[T.arange(y_batch.shape[0]), y_batch])
+    objective = lasagne.objectives.Objective(output_layer, loss_function=lasagne.objectives.negative_log_likelihood)
 
-    loss_train = loss(output_layer.get_output(X_batch))
-    loss_eval = loss(output_layer.get_output(X_batch, deterministic=True))
+    loss_train = objective.get_loss(X_batch, target=y_batch)
+    loss_eval = objective.get_loss(X_batch, target=y_batch, deterministic=True)
 
     pred = T.argmax(
         output_layer.get_output(X_batch, deterministic=True), axis=1)

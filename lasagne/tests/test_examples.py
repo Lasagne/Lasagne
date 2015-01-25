@@ -28,14 +28,10 @@ def example(request):
 def test_example(example, module_name):
     try:
         main = getattr(import_module(module_name), 'main')
-        main(1)  # run the example for one iteration
-    except ImportError as e:  # some examples require pylearn2
-        if "pylearn2" in str(e):
+    except ImportError as e:
+        if "pylearn2" in str(e) or "dnn not available" in str(e):
             pytest.skip(e)
         else:
             raise
-    except RuntimeError as e: # ignore errors caused by cudnn absence
-        if "cudnn is not available" in str(e):
-            pytest.skip(e)
-        else:
-            raise
+
+    main(1)  # run the example for one iteration

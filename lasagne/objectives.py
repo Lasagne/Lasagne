@@ -15,8 +15,16 @@ def crossentropy(x, t):
     return T.mean(T.nnet.binary_crossentropy(x, t))
 
 
-def negative_log_likelihood(x, t):
-    """Calculates the negative-log-likelihood"""
+def multinomial_nll(x, t):
+    """Calculates the multinomial negative-log-loss
+
+    :param x: (predicted) class probabilities; a theano expression resulting
+    in a 2D array; samples run along axis 0, class probabilities along axis 1
+    :param t: (correct) class index values; a theano expression resulting in
+    a 1D integer array that gives the class index of each sample
+
+    :return: the mean negative log loss
+    """
     return -T.mean(T.log(x)[T.arange(t.shape[0]), t])
 
 

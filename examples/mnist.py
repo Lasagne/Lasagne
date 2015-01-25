@@ -23,9 +23,7 @@ MOMENTUM = 0.9
 
 
 def _load_data(url=DATA_URL, filename=DATA_FILENAME):
-    if not os.path.exists(filename):
-        urllib.urlretrieve(url, filename)
-
+    urllib.urlretrieve(url, filename)
     with gzip.open(filename, 'rb') as f:
         data = pickle.load(f)
     return data
@@ -94,7 +92,7 @@ def create_iter_functions(dataset, output_layer,
     batch_slice = slice(
         batch_index * batch_size, (batch_index + 1) * batch_size)
 
-    objective = lasagne.objectives.Objective(output_layer, loss_function=lasagne.objectives.negative_log_likelihood)
+    objective = lasagne.objectives.Objective(output_layer, loss_function=lasagne.objectives.multinomial_nll)
 
     loss_train = objective.get_loss(X_batch, target=y_batch)
     loss_eval = objective.get_loss(X_batch, target=y_batch, deterministic=True)

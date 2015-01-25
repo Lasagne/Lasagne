@@ -23,6 +23,10 @@ __all__ = [
 ]
 
 
+if not theano.config.device.startswith("gpu"):
+    raise ImportError("requires a GPU to work")
+
+
 # TODO: make sure to document the limitations and 'best practices' (i.e. minibatch size % 128 == 0)
 # TODO: see if the 'dimshuffle' logic can be put in the base class instead.
 

@@ -29,7 +29,8 @@ def test_example(example, module_name):
     try:
         main = getattr(import_module(module_name), 'main')
     except ImportError as e:
-        if "pylearn2" in str(e) or "dnn not available" in str(e):
+        skip_exceptions = ["requires a GPU", "pylearn2", "dnn not available"]
+        if any([text in str(e) for text in skip_exceptions]):
             pytest.skip(e)
         else:
             raise

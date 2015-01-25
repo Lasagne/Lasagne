@@ -21,6 +21,10 @@ __all__ = [
 ]
 
 
+if not theano.config.device.startswith("gpu"):
+    raise ImportError("requires a GPU to work")
+
+
 # base class for all layers that rely on GpuCorrMM directly
 class MMLayer(Layer):
     pass

@@ -7,7 +7,11 @@ from .conv import *
 from .pool import *
 from .shape import *
 from .merge import *
-from .corrmm import *
+
+try:
+    from .corrmm import *
+except ImportError:
+    pass
 
 try:
     from .cuda_convnet import *

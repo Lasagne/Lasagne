@@ -8,6 +8,7 @@ from .. import nonlinearities
 from .base import Layer
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
+from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 
 
 __all__ = [
@@ -35,8 +36,6 @@ class Conv2DCCLayer(CCLayer):
     def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
                  dimshuffle=True, flip_filters=False, partial_sum=1):
-        from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
-
         super(Conv2DCCLayer, self).__init__(input_layer)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity

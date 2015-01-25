@@ -1,5 +1,6 @@
 import numpy as np
 import theano
+from theano.sandbox.cuda import dnn
 import theano.tensor as T
 
 from .. import init
@@ -8,12 +9,8 @@ from .. import nonlinearities
 from .base import Layer
 
 
-dnn_available = False
-
-if theano.config.device.startswith("gpu"):
-    from theano.sandbox.cuda import dnn
-    if dnn.dnn_available():
-        dnn_available = True
+if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
+    raise ImportError("dnn not available")
 
 
 __all__ = [

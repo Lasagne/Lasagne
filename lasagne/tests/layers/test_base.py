@@ -10,6 +10,9 @@ class TestLayer:
         from lasagne.layers.base import Layer
         return Layer(Mock())
 
+    def test_input_shape(self, layer):
+        assert layer.input_shape == layer.input_layer.get_output_shape()
+
     def test_get_output_shape(self, layer):
         assert layer.get_output_shape() == layer.input_layer.get_output_shape()
 
@@ -47,6 +50,31 @@ class TestLayer:
         input = {layer: [[1,2,3]]}
         output = layer.get_output(input)
         assert numpy.all(output.eval() == input[layer])
+
+    @pytest.fixture
+    def layer_from_shape(self):
+        from lasagne.layers.base import Layer
+        return Layer((None, 20))
+
+    def test_layer_from_shape(self, layer_from_shape):
+        layer = layer_from_shape
+        assert layer.input_layer is None
+        assert layer.input_shape == (None, 20)
+        assert layer.get_output_shape() == (None, 20)
+
+    def test_layer_from_shape_invalid_get_output(self, layer_from_shape):
+        layer = layer_from_shape
+        with pytest.raises(RuntimeError):
+            layer.get_output()
+        with pytest.raises(RuntimeError):
+            layer.get_output(Mock())
+        with pytest.raises(RuntimeError):
+            layer.get_output({Mock(): Mock()})
+
+    def test_layer_from_shape_valid_get_output(self, layer_from_shape):
+        layer = layer_from_shape
+        input = {layer: theano.tensor.matrix()}
+        assert layer.get_output(input) is input[layer]
 
     def test_create_param_numpy_bad_shape_raises_error(self, layer):
         param = numpy.array([[1, 2, 3], [4, 5, 6]])
@@ -140,3 +168,37 @@ class TestMultipleInputsLayer:
         input = {layer: [[1,2,3]]}
         output = layer.get_output(input)
         assert numpy.all(output.eval() == input[layer])
+
+    @pytest.fixture
+    def layer_from_shape(self):
+        from lasagne.layers.base import MultipleInputsLayer
+        return MultipleInputsLayer([(None, 20), Mock()])
+
+    def test_layer_from_shape(self, layer_from_shape):
+        layer = layer_from_shape
+        assert layer.input_layers[0] is None
+        assert layer.input_shapes[0] == (None, 20)
+        shape1 = layer.input_layers[1].get_output_shape()
+        assert layer.input_layers[1] is not None
+        assert layer.input_shapes[1] == shape1
+        layer.get_output_shape_for = Mock()
+        result = layer.get_output_shape()
+        assert result is layer.get_output_shape_for.return_value
+        layer.get_output_shape_for.assert_called_with([
+            layer.input_shapes[0],
+            layer.input_layers[1].get_output_shape.return_value,
+            ])
+
+    def test_layer_from_shape_invalid_get_output(self, layer_from_shape):
+        layer = layer_from_shape
+        with pytest.raises(RuntimeError):
+            layer.get_output()
+        with pytest.raises(RuntimeError):
+            layer.get_output(Mock())
+        with pytest.raises(RuntimeError):
+            layer.get_output({layer.input_layers[1]: Mock()})
+
+    def test_layer_from_shape_valid_get_output(self, layer_from_shape):
+        layer = layer_from_shape
+        input = {layer: theano.tensor.matrix()}
+        assert layer.get_output(input) is input[layer]

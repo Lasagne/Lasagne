@@ -96,3 +96,17 @@ class TestDenseLayer:
         nonlinearity_arg = nonlinearity.call_args[0][0]
         assert (nonlinearity_arg.eval() ==
                 numpy.dot(input.get_value().reshape(2, -1), W) + b).all()
+
+    def test_param_names(self, layer):
+        assert layer.W.name == "W"
+        assert layer.b.name == "b"
+
+    def test_named_layer_param_names(self, DenseLayer, dummy_input_layer):
+        layer = DenseLayer(
+            input_layer=dummy_input_layer,
+            num_units=3,
+            name = "foo"
+            )
+
+        assert layer.W.name == "foo.W"
+        assert layer.b.name == "foo.b"

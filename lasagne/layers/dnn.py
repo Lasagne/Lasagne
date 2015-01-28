@@ -88,14 +88,14 @@ class Conv2DDNNLayer(DNNLayer):
                 pad = (pad, pad)
             self.pad = pad
 
-        self.W = self.create_param(W, self.get_W_shape())
+        self.W = self.create_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
             output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
+            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]), name="b")
         else:
-            self.b = self.create_param(b, (num_filters,))
+            self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
         num_input_channels = self.input_layer.get_output_shape()[1]

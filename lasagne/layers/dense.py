@@ -65,8 +65,8 @@ class DenseLayer(Layer):
         output_shape = self.input_layer.get_output_shape()
         num_inputs = int(np.prod(output_shape[1:]))
 
-        self.W = self.create_param(W, (num_inputs, num_units))
-        self.b = self.create_param(b, (num_units,)) if b is not None else None
+        self.W = self.create_param(W, (num_inputs, num_units), name="W")
+        self.b = self.create_param(b, (num_units,), name="b") if b is not None else None
 
     def get_params(self):
         return [self.W] + self.get_bias_params()
@@ -112,14 +112,14 @@ class NINLayer(Layer):
         output_shape = self.input_layer.get_output_shape()
         num_input_channels = output_shape[1]
 
-        self.W = self.create_param(W, (num_input_channels, num_units))
+        self.W = self.create_param(W, (num_input_channels, num_units), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
             output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_units,) + output_shape[2:])
+            self.b = self.create_param(b, (num_units,) + output_shape[2:], name="b")
         else:
-            self.b = self.create_param(b, (num_units,))
+            self.b = self.create_param(b, (num_units,), name="b")
 
     def get_params(self):
         return [self.W] + self.get_bias_params()

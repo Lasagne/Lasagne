@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import lasagne
+from lasagne.layers import dnn  # fails early if not available
 import theano
 import theano.tensor as T
 

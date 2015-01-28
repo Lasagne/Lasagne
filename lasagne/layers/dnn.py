@@ -1,5 +1,6 @@
 import numpy as np
 import theano
+from theano.sandbox.cuda import dnn
 import theano.tensor as T
 
 from .. import init
@@ -8,12 +9,8 @@ from .. import nonlinearities
 from .base import Layer
 
 
-dnn_available = False
-
-if theano.config.device.startswith("gpu"):
-    from theano.sandbox.cuda import dnn
-    if dnn.dnn_available():
-        dnn_available = True
+if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
+    raise ImportError("dnn not available")
 
 
 __all__ = [
@@ -41,8 +38,6 @@ class Pool2DDNNLayer(DNNLayer):
         return tuple(output_shape)
 
     def get_output_for(self, input, *args, **kwargs):
-        if not dnn_available:
-            raise RuntimeError("cudnn is not available.")
         return dnn.dnn_pool(input, self.ds, self.strides, self.mode)
 
 
@@ -120,8 +115,6 @@ class Conv2DDNNLayer(DNNLayer):
         return (batch_size, self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, *args, **kwargs):
-        if not dnn_available:
-            raise RuntimeError('cudnn is not available.')
         # by default we assume 'cross', consistent with corrmm.
         conv_mode = 'conv' if self.flip_filters else 'cross'
         # if 'border_mode' is one of 'valid' or 'full' use that.

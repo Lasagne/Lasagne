@@ -39,8 +39,8 @@ class CCLayer(Layer):
 class Conv2DCCLayer(CCLayer):
     def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
-                 dimshuffle=True, flip_filters=False, partial_sum=1):
-        super(Conv2DCCLayer, self).__init__(input_layer)
+                 dimshuffle=True, flip_filters=False, partial_sum=1, **kwargs):
+        super(Conv2DCCLayer, self).__init__(input_layer, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -155,10 +155,10 @@ class Conv2DCCLayer(CCLayer):
 
 
 class MaxPool2DCCLayer(CCLayer):
-    def __init__(self, input_layer, ds, ignore_border=False, strides=None, dimshuffle=True):
+    def __init__(self, input_layer, ds, ignore_border=False, strides=None, dimshuffle=True, **kwargs):
         from pylearn2.sandbox.cuda_convnet.pool import MaxPool
 
-        super(MaxPool2DCCLayer, self).__init__(input_layer)
+        super(MaxPool2DCCLayer, self).__init__(input_layer, **kwargs)
         if ds[0] != ds[1]:
             raise RuntimeError("MaxPool2DCCLayer only supports square pooling regions, but ds=(%d, %d)" % ds)
 
@@ -253,8 +253,9 @@ class NINLayer_c01b(Layer):
     and reshapes required and might be faster as a result.
     """
     def __init__(self, input_layer, num_units, untie_biases=False,
-        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
-        super(NINLayer_c01b, self).__init__(input_layer)
+        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+        **kwargs):
+        super(NINLayer_c01b, self).__init__(input_layer, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:

@@ -23,8 +23,10 @@ class Layer(object):
     network's output :class:`Layer` instance doubles as a handle to the full
     network.
     """
-    def __init__(self, input_layer):
-        self.input_layer = input_layer
+    def __init__(self, input_layer, name=None):
+        if input_layer is not None:
+            self.input_layer = input_layer
+        self.name = name
 
     def get_params(self):
         """
@@ -222,8 +224,9 @@ class MultipleInputsLayer(Layer):
     It should be subclassed when implementing new types of layers that
     obtain their input from multiple layers.
     """
-    def __init__(self, input_layers):
+    def __init__(self, input_layers, name=None):
         self.input_layers = input_layers
+        self.name = name
 
     def get_output_shape(self):
         input_shapes = [input_layer.get_output_shape() for input_layer in self.input_layers]

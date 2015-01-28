@@ -52,8 +52,9 @@ class DenseLayer(Layer):
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
     """
-    def __init__(self, input_layer, num_units, W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
-        super(DenseLayer, self).__init__(input_layer)
+    def __init__(self, input_layer, num_units, W=init.Uniform(), b=init.Constant(0.),
+        nonlinearity=nonlinearities.rectify, **kwargs):
+        super(DenseLayer, self).__init__(input_layer, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -97,8 +98,9 @@ class NINLayer(Layer):
     1D, 2D, 3D, ... convolutions.
     """
     def __init__(self, input_layer, num_units, untie_biases=False,
-        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
-        super(NINLayer, self).__init__(input_layer)
+        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+        **kwargs):
+        super(NINLayer, self).__init__(input_layer, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:

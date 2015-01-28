@@ -30,7 +30,8 @@ class InputLayer(Layer):
         >>> from lasagne.layers import InputLayer
         >>> l_in = InputLayer((100, 20))
     """
-    def __init__(self, shape, input_var=None):
+    def __init__(self, shape, input_var=None, **kwargs):
+        super(InputLayer, self).__init__(None, **kwargs)
         self.shape = shape
         ndim = len(shape)
         if input_var is None:

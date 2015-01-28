@@ -73,6 +73,11 @@ class TestLayer:
         assert (result.get_value() == array).all()
         factory.assert_called_with((2, 3))
 
+    def test_named_layer(self):
+        from lasagne.layers.base import Layer
+        l = Layer(Mock(), name="foo")
+        assert l.name == "foo"
+
 
 class TestMultipleInputsLayer:
     @pytest.fixture

@@ -4,6 +4,7 @@ import cPickle as pickle
 import gzip
 import itertools
 import urllib
+import os
 
 import numpy as np
 import lasagne
@@ -91,11 +92,10 @@ def create_iter_functions(dataset, output_layer,
     batch_slice = slice(
         batch_index * batch_size, (batch_index + 1) * batch_size)
 
-    def loss(output):
-        return -T.mean(T.log(output)[T.arange(y_batch.shape[0]), y_batch])
+    objective = lasagne.objectives.Objective(output_layer, loss_function=lasagne.objectives.multinomial_nll)
 
-    loss_train = loss(output_layer.get_output(X_batch))
-    loss_eval = loss(output_layer.get_output(X_batch, deterministic=True))
+    loss_train = objective.get_loss(X_batch, target=y_batch)
+    loss_eval = objective.get_loss(X_batch, target=y_batch, deterministic=True)
 
     pred = T.argmax(
         output_layer.get_output(X_batch, deterministic=True), axis=1)

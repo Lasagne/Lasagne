@@ -30,8 +30,7 @@ class InputLayer(Layer):
         >>> from lasagne.layers import InputLayer
         >>> l_in = InputLayer((100, 20))
     """
-    def __init__(self, shape, input_var=None, **kwargs):
-        super(InputLayer, self).__init__(None, **kwargs)
+    def __init__(self, shape, input_var=None, name=None, **kwargs):
         self.shape = shape
         ndim = len(shape)
         if input_var is None:
@@ -44,6 +43,7 @@ class InputLayer(Layer):
                 raise ValueError("shape has %d dimensions, "
                     "but variable has %d" % (ndim, input_var.ndim))
         self.input_var = input_var
+        self.name = name
 
     def get_output_shape(self):
         return self.shape

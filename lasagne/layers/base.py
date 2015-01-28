@@ -24,8 +24,7 @@ class Layer(object):
     network.
     """
     def __init__(self, input_layer, name=None):
-        if input_layer is not None:
-            self.input_layer = input_layer
+        self.input_layer = input_layer
         self.name = name
 
     def get_params(self):

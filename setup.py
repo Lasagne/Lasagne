@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os
 from setuptools import find_packages
 from setuptools import setup

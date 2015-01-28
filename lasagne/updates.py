@@ -1,6 +1,7 @@
 """
 Functions to generate Theano update dictionaries for training.
 """
+from __future__ import absolute_import
 
 import numpy as np
 

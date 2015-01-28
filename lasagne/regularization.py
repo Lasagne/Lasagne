@@ -1,7 +1,8 @@
+from __future__ import absolute_import
 import theano
 import theano.tensor as T
 
-import layers
+from . import layers
 
 
 def l2(layer, include_biases=False):

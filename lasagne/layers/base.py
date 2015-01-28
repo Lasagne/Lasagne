@@ -201,9 +201,11 @@ class Layer(object):
                 name = "%s.%s" % (self.name, name)
 
         if isinstance(param, theano.compile.SharedVariable):
-            # cannot check shape here, the shared variable might not be
-            # initialized correctly yet. Note that we cannot assign
-            # a name here.
+            # We cannot check the shape here, the shared variable might not be
+            # initialized correctly yet. We can check the dimensionality though.
+            # Note that we cannot assign a name here.
+            if param.ndim != len(shape):
+                raise RuntimeError("shared variable has %d dimensions, should be %d" % (param.ndim, len(shape)))
             return param
 
         elif isinstance(param, np.ndarray):

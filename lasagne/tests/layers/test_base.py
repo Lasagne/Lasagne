@@ -65,6 +65,11 @@ class TestLayer:
         result = layer.create_param(param, (2, 3))
         assert result is param
 
+    def test_create_param_shared_bad_ndim_raises_error(self, layer):
+        param = theano.shared(numpy.array([[1, 2, 3], [4, 5, 6]]))
+        with pytest.raises(RuntimeError):
+            layer.create_param(param, (2, 3, 4))
+
     def test_create_param_callable_returns_return_value(self, layer):
         array = numpy.array([[1, 2, 3], [4, 5, 6]])
         factory = Mock()
@@ -72,6 +77,11 @@ class TestLayer:
         result = layer.create_param(factory, (2, 3))
         assert (result.get_value() == array).all()
         factory.assert_called_with((2, 3))
+
+    def test_named_layer(self):
+        from lasagne.layers.base import Layer
+        l = Layer(Mock(), name="foo")
+        assert l.name == "foo"
 
 
 class TestMultipleInputsLayer:

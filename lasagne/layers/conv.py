@@ -18,8 +18,8 @@ __all__ = [
 class Conv1DLayer(Layer):
     def __init__(self, input_layer, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
-                 convolution=conv.conv1d_mc0):
-        super(Conv1DLayer, self).__init__(input_layer)
+                 convolution=conv.conv1d_mc0, **kwargs):
+        super(Conv1DLayer, self).__init__(input_layer, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -32,14 +32,14 @@ class Conv1DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
-        self.W = self.create_param(W, self.get_W_shape())
+        self.W = self.create_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
             output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_filters, output_shape[2]))
+            self.b = self.create_param(b, (num_filters, output_shape[2]), name="b")
         else:
-            self.b = self.create_param(b, (num_filters,))
+            self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
         num_input_channels = self.input_layer.get_output_shape()[1]
@@ -95,8 +95,8 @@ class Conv1DLayer(Layer):
 class Conv2DLayer(Layer):
     def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
-                 convolution=T.nnet.conv2d):
-        super(Conv2DLayer, self).__init__(input_layer)
+                 convolution=T.nnet.conv2d, **kwargs):
+        super(Conv2DLayer, self).__init__(input_layer, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -109,14 +109,14 @@ class Conv2DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
-        self.W = self.create_param(W, self.get_W_shape())
+        self.W = self.create_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
             output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
+            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]), name="b")
         else:
-            self.b = self.create_param(b, (num_filters,))
+            self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
         num_input_channels = self.input_layer.get_output_shape()[1]

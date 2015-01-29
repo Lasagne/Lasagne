@@ -23,8 +23,9 @@ class Layer(object):
     network's output :class:`Layer` instance doubles as a handle to the full
     network.
     """
-    def __init__(self, input_layer):
+    def __init__(self, input_layer, name=None):
         self.input_layer = input_layer
+        self.name = name
 
     def get_params(self):
         """
@@ -162,8 +163,7 @@ class Layer(object):
         """
         raise NotImplementedError
 
-    @staticmethod
-    def create_param(param, shape):
+    def create_param(self, param, shape, name=None):
         """
         Helper method to create Theano shared variables for layer parameters
         and to initialize them.
@@ -189,28 +189,35 @@ class Layer(object):
                 its output is used to initialize the variable.
 
         :note:
-            This static method should be used in `__init__()` when creating a
+            This method should be used in `__init__()` when creating a
             :class:`Layer` subclass that has trainable parameters. This
             enables the layer to support initialization with numpy arrays,
             existing Theano shared variables, and callables for generating
             initial parameter values.
         """
-        if isinstance(param, np.ndarray):
+        if name is not None:
+            if self.name is not None:
+                name = "%s.%s" % (self.name, name)
+
+        if isinstance(param, theano.compile.SharedVariable):
+            # We cannot check the shape here, the shared variable might not be
+            # initialized correctly yet. We can check the dimensionality though.
+            # Note that we cannot assign a name here.
+            if param.ndim != len(shape):
+                raise RuntimeError("shared variable has %d dimensions, should be %d" % (param.ndim, len(shape)))
+            return param
+
+        elif isinstance(param, np.ndarray):
             if param.shape != shape:
                 raise RuntimeError("parameter array has shape %s, should be %s" % (param.shape, shape))
-            return theano.shared(param)
-
-        elif isinstance(param, theano.compile.SharedVariable):
-            # cannot check shape here, the shared variable might not be
-            # initialized correctly yet.
-            return param
+            return theano.shared(param, name=name)
 
         elif hasattr(param, '__call__'):
             arr = param(shape)
             if not isinstance(arr, np.ndarray):
                 raise RuntimeError("cannot initialize parameters: the provided callable did not return a numpy array")
 
-            return theano.shared(utils.floatX(arr))
+            return theano.shared(utils.floatX(arr), name=name)
 
         else:
             raise RuntimeError("cannot initialize parameters: 'param' is not a numpy array, a Theano shared variable, or a callable")
@@ -222,8 +229,9 @@ class MultipleInputsLayer(Layer):
     It should be subclassed when implementing new types of layers that
     obtain their input from multiple layers.
     """
-    def __init__(self, input_layers):
+    def __init__(self, input_layers, name=None):
         self.input_layers = input_layers
+        self.name = name
 
     def get_output_shape(self):
         input_shapes = [input_layer.get_output_shape() for input_layer in self.input_layers]

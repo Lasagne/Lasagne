@@ -15,8 +15,8 @@ __all__ = [
 
 
 class ConcatLayer(MultipleInputsLayer):
-    def __init__(self, input_layers, axis=1):
-        super(ConcatLayer, self).__init__(input_layers)
+    def __init__(self, input_layers, axis=1, **kwargs):
+        super(ConcatLayer, self).__init__(input_layers, **kwargs)
         self.axis = axis
 
     def get_output_shape_for(self, input_shapes):
@@ -45,7 +45,7 @@ class ElemwiseSumLayer(MultipleInputsLayer):
     the copy operations in concatenation, but splits up the dot product.)
     """
 
-    def __init__(self, input_layers, coeffs=1):
+    def __init__(self, input_layers, coeffs=1, **kwargs):
         """
         Creates a layer perfoming an elementwise sum of its input layers.
 
@@ -57,7 +57,7 @@ class ElemwiseSumLayer(MultipleInputsLayer):
                 is to be applied to all instances. By default, these will not
                 be included in the learnable parameters of this layer.
         """
-        super(ElemwiseSumLayer, self).__init__(input_layers)
+        super(ElemwiseSumLayer, self).__init__(input_layers, **kwargs)
         if isinstance(coeffs, list):
             if len(coeffs) != len(input_layers):
                 raise ValueError("Mismatch: got %d coeffs for %d input_layers" %

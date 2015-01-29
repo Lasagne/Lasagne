@@ -2,6 +2,7 @@ import theano
 import theano.tensor as T
 from .. import nonlinearities
 from .. import init
+from .. import utils
 
 from .base import Layer
 from . import helper
@@ -349,17 +350,17 @@ class LSTMLayer(Layer):
 
         # Stack input to gate weight matrices into a (num_inputs, 4*num_units)
         # matrix, which speeds up computation
-        self.W_in_to_gates = T.concatenate(
+        self.W_in_to_gates = utils.concatenate(
             [self.W_in_to_ingate, self.W_in_to_forgetgate,
             self.W_in_to_cell, self.W_in_to_outgate], axis=1)
 
         # Same for hidden to gate weight matrices
-        self.W_hid_to_gates = T.concatenate(
+        self.W_hid_to_gates = utils.concatenate(
             [self.W_hid_to_ingate, self.W_hid_to_forgetgate,
             self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
 
         # Stack gate biases into a (4*num_units) vector
-        self.b_gates = T.concatenate(
+        self.b_gates = utils.concatenate(
             [self.b_ingate, self.b_forgetgate,
             self.b_cell, self.b_outgate], axis=0)
 

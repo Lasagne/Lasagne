@@ -491,17 +491,16 @@ class LSTMLayer(Layer):
             input = input.reshape((input.shape[0], input.shape[1],
                                    T.prod(input.shape[2:])))
 
+        # Because scan iterates over the first dimension we dimshuffle to
+        # (n_time_steps, n_batch, n_features)
+        input = input.dimshuffle(1, 0, 2)
+
         # Because the input is given for all time steps, we can precompute
         # the inputs to the gates before scanning.
-        # input is provided as (n_batch, n_time_steps, n_features)
+        # input is dimshuffled to (n_time_steps, n_batch, n_features)
         # W_in_to_gates is (n_features, 4*num_units). input_dot_W is then
-        # (n_batch, n_time_steps, 4*num_units).
-        input_dot_W = T.dot(input, self.W_in_to_gates)
-        # Because scan iterate over the first dimension we dimshuffle to
-        # (n_time_steps, n_batch, n_features)
-        input_dot_W = input_dot_W.dimshuffle(1, 0, 2)
-        # Apply bias vectors
-        input_dot_W += self.b_gates
+        # (n_time_steps, n_batch, 4*num_units).
+        input_dot_W = T.dot(input, self.W_in_to_gates) + self.b_gates
 
         # input_dow_w is (n_batch, n_time_steps, 4*num_units). We define a
         # slicing function that extract the input to each LSTM gate

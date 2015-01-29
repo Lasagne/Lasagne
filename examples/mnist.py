@@ -26,7 +26,8 @@ def _load_data(url=DATA_URL, filename=DATA_FILENAME):
     try:
         with gzip.open(filename, 'rb') as f:
             data = pickle.load(f)
-    except IOError:
+    except (IOError, EOFError):
+        print("Downloading MNIST")
         urllib.urlretrieve(url, filename)
         with gzip.open(filename, 'rb') as f:
             data = pickle.load(f)

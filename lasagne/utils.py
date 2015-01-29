@@ -1,6 +1,6 @@
 import numpy as np
 
-import theano 
+import theano
 import theano.tensor as T
 
 
@@ -12,13 +12,16 @@ def floatX(arr):
     return arr.astype(theano.config.floatX)
 
 
-def shared_empty(dim=2):
+def shared_empty(dim=2, dtype=None):
     """
     Shortcut to create an empty Theano shared variable with
     the specified number of dimensions.
     """
+    if dtype is None:
+        dtype = theano.config.floatX
+
     shp = tuple([1] * dim)
-    return theano.shared(np.zeros(shp, dtype=theano.config.floatX))
+    return theano.shared(np.zeros(shp, dtype=dtype))
 
 
 def as_theano_expression(input):

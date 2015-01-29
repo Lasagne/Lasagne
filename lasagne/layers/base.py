@@ -23,22 +23,22 @@ class Layer(object):
     network's output :class:`Layer` instance can double as a handle to the
     full network.
     """
-    def __init__(self, input_layer, name=None):
+    def __init__(self, incoming, name=None):
         """
         Instantiates the layer.
 
         :parameters:
-            - input_layer : a :class:`Layer` instance or a tuple
+            - incoming : a :class:`Layer` instance or a tuple
                 the layer feeding into this layer, or the expected input shape
             - name : a string or None
                 an optional name to attach to this layer
         """
-        if isinstance(input_layer, tuple):
-            self.input_shape = input_layer
+        if isinstance(incoming, tuple):
+            self.input_shape = incoming
             self.input_layer = None
         else:
-            self.input_shape = input_layer.get_output_shape()
-            self.input_layer = input_layer
+            self.input_shape = incoming.get_output_shape()
+            self.input_layer = incoming
         self.name = name
 
     def get_params(self):
@@ -246,22 +246,22 @@ class MultipleInputsLayer(Layer):
     It should be subclassed when implementing new types of layers that
     obtain their input from multiple layers.
     """
-    def __init__(self, input_layers, name=None):
+    def __init__(self, incomings, name=None):
         """
         Instantiates the layer.
 
         :parameters:
-            - input_layers : a list of :class:`Layer` instances or tuples
+            - incomings : a list of :class:`Layer` instances or tuples
                 the layers feeding into this layer, or expected input shapes
             - name : a string or None
                 an optional name to attach to this layer
         """
-        self.input_shapes = [input_layer if isinstance(input_layer, tuple)
-                             else input_layer.get_output_shape()
-                             for input_layer in input_layers]
-        self.input_layers = [None if isinstance(input_layer, tuple)
-                             else input_layer
-                             for input_layer in input_layers]
+        self.input_shapes = [incoming if isinstance(incoming, tuple)
+                             else incoming.get_output_shape()
+                             for incoming in incomings]
+        self.input_layers = [None if isinstance(incoming, tuple)
+                             else incoming
+                             for incoming in incomings]
         self.name = name
 
     def get_output_shape(self):

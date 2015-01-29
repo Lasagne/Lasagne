@@ -27,8 +27,8 @@ flatten = FlattenLayer # shortcut
 
 
 class PadLayer(Layer):
-    def __init__(self, input_layer, width, val=0, batch_ndim=2, **kwargs):
-        super(PadLayer, self).__init__(input_layer, **kwargs)
+    def __init__(self, incoming, width, val=0, batch_ndim=2, **kwargs):
+        super(PadLayer, self).__init__(incoming, **kwargs)
         self.width = width
         self.val = val
         self.batch_ndim = batch_ndim

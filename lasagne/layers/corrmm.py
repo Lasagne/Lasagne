@@ -31,10 +31,10 @@ class MMLayer(Layer):
 
 
 class Conv2DMMLayer(MMLayer):
-    def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
                  flip_filters=False, **kwargs):
-        super(Conv2DMMLayer, self).__init__(input_layer, **kwargs)
+        super(Conv2DMMLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:

@@ -25,8 +25,8 @@ class DNNLayer(Layer):
 
 
 class Pool2DDNNLayer(DNNLayer):
-    def __init__(self, input_layer, ds, strides=None, mode='max', **kwargs):
-        super(Pool2DDNNLayer, self).__init__(input_layer, **kwargs)
+    def __init__(self, incoming, ds, strides=None, mode='max', **kwargs):
+        super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.ds = ds # a tuple
         self.mode = mode
         self.strides = strides if strides is not None else ds
@@ -42,14 +42,14 @@ class Pool2DDNNLayer(DNNLayer):
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer): # for consistency
-    def __init__(self, input_layer, ds, strides=None, **kwargs):
-        super(MaxPool2DDNNLayer, self).__init__(input_layer, ds, strides, mode='max', **kwargs)
+    def __init__(self, incoming, ds, strides=None, **kwargs):
+        super(MaxPool2DDNNLayer, self).__init__(incoming, ds, strides, mode='max', **kwargs)
 
 class Conv2DDNNLayer(DNNLayer):
-    def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
                  flip_filters=False, **kwargs):
-        super(Conv2DDNNLayer, self).__init__(input_layer, **kwargs)
+        super(Conv2DDNNLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:

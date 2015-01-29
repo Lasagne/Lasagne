@@ -16,10 +16,10 @@ __all__ = [
 
 
 class Conv1DLayer(Layer):
-    def __init__(self, input_layer, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=conv.conv1d_mc0, **kwargs):
-        super(Conv1DLayer, self).__init__(input_layer, **kwargs)
+        super(Conv1DLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -93,10 +93,10 @@ class Conv1DLayer(Layer):
 
 
 class Conv2DLayer(Layer):
-    def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=T.nnet.conv2d, **kwargs):
-        super(Conv2DLayer, self).__init__(input_layer, **kwargs)
+        super(Conv2DLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:

@@ -23,7 +23,7 @@ class TestDenseLayer:
         W.return_value = numpy.ones((12, 3))
         b.return_value = numpy.ones((3,)) * 3
         layer = DenseLayer(
-            input_layer=dummy_input_layer,
+            dummy_input_layer,
             num_units=3,
             W=W,
             b=b,
@@ -50,7 +50,7 @@ class TestDenseLayer:
 
     def test_init_none_nonlinearity(self, DenseLayer, dummy_input_layer):
         layer = DenseLayer(
-            input_layer=dummy_input_layer,
+            dummy_input_layer,
             num_units=3,
             nonlinearity=None,
             )
@@ -103,7 +103,7 @@ class TestDenseLayer:
 
     def test_named_layer_param_names(self, DenseLayer, dummy_input_layer):
         layer = DenseLayer(
-            input_layer=dummy_input_layer,
+            dummy_input_layer,
             num_units=3,
             name = "foo"
             )

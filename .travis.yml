@@ -1,13 +1,18 @@
 language: python
 python:
   - "2.7"
-  - "3.3"
   - "3.4"
 before_install:
-  - sudo apt-get build-dep -qq python-numpy python-scipy
-  - sudo apt-get install -qq libatlas3gf-base libatlas-dev liblapack-dev gfortran
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq libatlas-dev libatlas-base-dev liblapack-dev gfortran
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda/bin:$PATH
+  - conda update --yes conda
 install:
-  - pip install -r requirements.txt
-  - python setup.py dev
+  - travis_retry conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
+  - travis_retry pip install -r requirements.txt
+  - travis_retry python setup.py dev
 script: travis_wait py.test --runslow
 cache: apt

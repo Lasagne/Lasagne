@@ -1,6 +1,7 @@
 from mock import Mock
 import numpy as np
 import pytest
+import importlib
 import theano
 from theano.tensor.nnet import conv2d
 
@@ -35,19 +36,20 @@ def DummyInputLayer():
 class TestConv2DLayerImplementations:
     @pytest.fixture(
         params=[
-            ('Conv2DLayer', {}),
-            ('Conv2DCCLayer', {'flip_filters': True}),
-            ('Conv2DMMLayer', {'flip_filters': True}),
-            ('Conv2DDNNLayer', {'flip_filters': True}),
+            ('lasagne.layers', 'Conv2DLayer', {}),
+            ('lasagne.layers.cuda_convnet', 'Conv2DCCLayer', {'flip_filters': True}),
+            ('lasagne.layers.corrmm', 'Conv2DMMLayer', {'flip_filters': True}),
+            ('lasagne.layers.dnn', 'Conv2DDNNLayer', {'flip_filters': True}),
             ],
         )
     def Conv2DImpl(self, request):
-        from lasagne import layers
-        impl_name, impl_default_kwargs = request.param
+        impl_module_name, impl_name, impl_default_kwargs = request.param
         try:
-            impl = getattr(layers, impl_name)
-        except AttributeError:
-            pytest.skip("{} not available".format(request.param))
+            mod = importlib.import_module(impl_module_name)
+        except ImportError:
+            pytest.skip("{} not available".format(impl_module_name))
+
+        impl = getattr(mod, impl_name)
 
         def wrapper(*args, **kwargs):
             kwargs2 = impl_default_kwargs.copy()

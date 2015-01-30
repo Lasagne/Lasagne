@@ -16,10 +16,10 @@ __all__ = [
 
 
 class Conv1DLayer(Layer):
-    def __init__(self, input_layer, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_length, stride=1, border_mode="valid", untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=conv.conv1d_mc0, **kwargs):
-        super(Conv1DLayer, self).__init__(input_layer, **kwargs)
+        super(Conv1DLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -42,7 +42,7 @@ class Conv1DLayer(Layer):
             self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
-        num_input_channels = self.input_layer.get_output_shape()[1]
+        num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_length)
 
     def get_params(self):
@@ -65,9 +65,9 @@ class Conv1DLayer(Layer):
 
     def get_output_for(self, input, input_shape=None, *args, **kwargs):
         # the optional input_shape argument is for when get_output_for is called
-        # directly with a different shape than the output_shape of self.input_layer.
+        # directly with a different shape than self.input_shape.
         if input_shape is None:
-            input_shape = self.input_layer.get_output_shape()
+            input_shape = self.input_shape
 
         filter_shape = self.get_W_shape()
 
@@ -93,10 +93,10 @@ class Conv1DLayer(Layer):
 
 
 class Conv2DLayer(Layer):
-    def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1), border_mode="valid", untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  convolution=T.nnet.conv2d, **kwargs):
-        super(Conv2DLayer, self).__init__(input_layer, **kwargs)
+        super(Conv2DLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -119,7 +119,7 @@ class Conv2DLayer(Layer):
             self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
-        num_input_channels = self.input_layer.get_output_shape()[1]
+        num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
 
     def get_params(self):
@@ -145,9 +145,9 @@ class Conv2DLayer(Layer):
 
     def get_output_for(self, input, input_shape=None, *args, **kwargs):
         # the optional input_shape argument is for when get_output_for is called
-        # directly with a different shape than the output_shape of self.input_layer.
+        # directly with a different shape than self.input_shape.
         if input_shape is None:
-            input_shape = self.input_layer.get_output_shape()
+            input_shape = self.input_shape
 
         filter_shape = self.get_W_shape()
 

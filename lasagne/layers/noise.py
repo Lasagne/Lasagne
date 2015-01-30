@@ -17,8 +17,8 @@ __all__ = [
 
 
 class DropoutLayer(Layer):
-    def __init__(self, input_layer, p=0.5, rescale=True, **kwargs):
-        super(DropoutLayer, self).__init__(input_layer, **kwargs)
+    def __init__(self, incoming, p=0.5, rescale=True, **kwargs):
+        super(DropoutLayer, self).__init__(incoming, **kwargs)
         self.p = p
         self.rescale = rescale
 
@@ -31,7 +31,7 @@ class DropoutLayer(Layer):
                 input /= retain_prob
 
             # use nonsymbolic shape for dropout mask if possible
-            input_shape = self.input_layer.get_output_shape()
+            input_shape = self.input_shape
             if any(s is None for s in input_shape):
                 input_shape = input.shape
 
@@ -42,8 +42,8 @@ dropout = DropoutLayer # shortcut
 
 
 class GaussianNoiseLayer(Layer):
-    def __init__(self, input_layer, sigma=0.1, **kwargs):
-        super(GaussianNoiseLayer, self).__init__(input_layer, **kwargs)
+    def __init__(self, incoming, sigma=0.1, **kwargs):
+        super(GaussianNoiseLayer, self).__init__(incoming, **kwargs)
         self.sigma = sigma
 
     def get_output_for(self, input, deterministic=False, *args, **kwargs):

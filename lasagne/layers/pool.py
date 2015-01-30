@@ -16,8 +16,8 @@ __all__ = [
 
 
 class MaxPool2DLayer(Layer):
-    def __init__(self, input_layer, ds, ignore_border=False, **kwargs):
-        super(MaxPool2DLayer, self).__init__(input_layer, **kwargs)
+    def __init__(self, incoming, ds, ignore_border=False, **kwargs):
+        super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
         self.ds = ds # a tuple
         self.ignore_border = ignore_border
 
@@ -48,19 +48,19 @@ class FeaturePoolLayer(Layer):
     IMPORTANT: this layer requires that the number of feature maps is
     a multiple of the pool size.
     """
-    def __init__(self, input_layer, ds, axis=1, pool_function=T.max, **kwargs):
+    def __init__(self, incoming, ds, axis=1, pool_function=T.max, **kwargs):
         """
         ds: the number of feature maps to be pooled together
         axis: the axis along which to pool. The default value of 1 works
         for DenseLayer and Conv*DLayers
         pool_function: the pooling function to use
         """
-        super(FeaturePoolLayer, self).__init__(input_layer, **kwargs)
+        super(FeaturePoolLayer, self).__init__(incoming, **kwargs)
         self.ds = ds
         self.axis = axis
         self.pool_function = pool_function
 
-        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.ds != 0:
             raise RuntimeError("Number of input feature maps (%d) is not a multiple of the pool size (ds=%d)" %
                     (num_feature_maps, self.ds))
@@ -92,18 +92,18 @@ class FeatureWTALayer(Layer):
     IMPORTANT: this layer requires that the number of feature maps is
     a multiple of the pool size.
     """
-    def __init__(self, input_layer, ds, axis=1, **kwargs):
+    def __init__(self, incoming, ds, axis=1, **kwargs):
         """
         ds: the number of feature maps per group. This is called 'ds'
         for consistency with the pooling layers, even though this
         layer does not actually perform a downsampling operation.
         axis: the axis along which the groups are formed.
         """
-        super(FeatureWTALayer, self).__init__(input_layer, **kwargs)
+        super(FeatureWTALayer, self).__init__(incoming, **kwargs)
         self.ds = ds
         self.axis = axis
 
-        num_feature_maps = self.input_layer.get_output_shape()[self.axis]
+        num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.ds != 0:
             raise RuntimeError("Number of input feature maps (%d) is not a multiple of the group size (ds=%d)" %
                     (num_feature_maps, self.ds))
@@ -139,8 +139,8 @@ class GlobalPoolLayer(Layer):
     """
     Layer that pools globally across all trailing dimensions beyond the 2nd.
     """
-    def __init__(self, input_layer, pool_function=T.mean, **kwargs):
-        super(GlobalPoolLayer, self).__init__(input_layer, **kwargs)
+    def __init__(self, incoming, pool_function=T.mean, **kwargs):
+        super(GlobalPoolLayer, self).__init__(incoming, **kwargs)
         self.pool_function = pool_function
 
     def get_output_shape_for(self, input_shape):

@@ -15,8 +15,8 @@ __all__ = [
 
 
 class ConcatLayer(MultipleInputsLayer):
-    def __init__(self, input_layers, axis=1, **kwargs):
-        super(ConcatLayer, self).__init__(input_layers, **kwargs)
+    def __init__(self, incomings, axis=1, **kwargs):
+        super(ConcatLayer, self).__init__(incomings, **kwargs)
         self.axis = axis
 
     def get_output_shape_for(self, input_shapes):
@@ -45,25 +45,26 @@ class ElemwiseSumLayer(MultipleInputsLayer):
     the copy operations in concatenation, but splits up the dot product.)
     """
 
-    def __init__(self, input_layers, coeffs=1, **kwargs):
+    def __init__(self, incomings, coeffs=1, **kwargs):
         """
         Creates a layer perfoming an elementwise sum of its input layers.
 
         :parameters:
-            - input_layers: list
-                A list of :class:`Layer` instances of same output shape to sum
+            - incomings : a list of :class:`Layer` instances or tuples
+                the layers feeding into this layer, or expected input shapes,
+                with all incoming shapes being equal
             - coeffs: list or scalar
                 A same-sized list of coefficients, or a single coefficient that
                 is to be applied to all instances. By default, these will not
                 be included in the learnable parameters of this layer.
         """
-        super(ElemwiseSumLayer, self).__init__(input_layers, **kwargs)
+        super(ElemwiseSumLayer, self).__init__(incomings, **kwargs)
         if isinstance(coeffs, list):
-            if len(coeffs) != len(input_layers):
-                raise ValueError("Mismatch: got %d coeffs for %d input_layers" %
-                                 (len(coeffs), len(input_layers)))
+            if len(coeffs) != len(incomings):
+                raise ValueError("Mismatch: got %d coeffs for %d incomings" %
+                                 (len(coeffs), len(incomings)))
         else:
-            coeffs = [coeffs] * len(input_layers)
+            coeffs = [coeffs] * len(incomings)
         self.coeffs = coeffs
 
     def get_output_shape_for(self, input_shapes):

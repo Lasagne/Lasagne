@@ -52,9 +52,9 @@ class DenseLayer(Layer):
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
     """
-    def __init__(self, input_layer, num_units, W=init.Uniform(), b=init.Constant(0.),
+    def __init__(self, incoming, num_units, W=init.Uniform(), b=init.Constant(0.),
         nonlinearity=nonlinearities.rectify, **kwargs):
-        super(DenseLayer, self).__init__(input_layer, **kwargs)
+        super(DenseLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -62,8 +62,7 @@ class DenseLayer(Layer):
 
         self.num_units = num_units
 
-        output_shape = self.input_layer.get_output_shape()
-        num_inputs = int(np.prod(output_shape[1:]))
+        num_inputs = int(np.prod(self.input_shape[1:]))
 
         self.W = self.create_param(W, (num_inputs, num_units), name="W")
         self.b = self.create_param(b, (num_units,), name="b") if b is not None else None
@@ -97,10 +96,10 @@ class NINLayer(Layer):
     Any number of trailing dimensions is supported, so NINLayer can be used to implement
     1D, 2D, 3D, ... convolutions.
     """
-    def __init__(self, input_layer, num_units, untie_biases=False,
+    def __init__(self, incoming, num_units, untie_biases=False,
         W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
         **kwargs):
-        super(NINLayer, self).__init__(input_layer, **kwargs)
+        super(NINLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -109,8 +108,7 @@ class NINLayer(Layer):
         self.num_units = num_units
         self.untie_biases = untie_biases
 
-        output_shape = self.input_layer.get_output_shape()
-        num_input_channels = output_shape[1]
+        num_input_channels = self.input_shape[1]
 
         self.W = self.create_param(W, (num_input_channels, num_units), name="W")
         if b is None:

@@ -8,6 +8,7 @@ from .. import nonlinearities
 from .base import Layer
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
+from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 
 
 __all__ = [
@@ -22,6 +23,10 @@ __all__ = [
 ]
 
 
+if not theano.config.device.startswith("gpu"):
+    raise ImportError("requires a GPU to work")
+
+
 # TODO: make sure to document the limitations and 'best practices' (i.e. minibatch size % 128 == 0)
 # TODO: see if the 'dimshuffle' logic can be put in the base class instead.
 
@@ -32,12 +37,10 @@ class CCLayer(Layer):
 
 
 class Conv2DCCLayer(CCLayer):
-    def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
-                 dimshuffle=True, flip_filters=False, partial_sum=1):
-        from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
-
-        super(Conv2DCCLayer, self).__init__(input_layer)
+                 dimshuffle=True, flip_filters=False, partial_sum=1, **kwargs):
+        super(Conv2DCCLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -94,10 +97,10 @@ class Conv2DCCLayer(CCLayer):
 
     def get_W_shape(self):
         if self.dimshuffle:
-            num_input_channels = self.input_layer.get_output_shape()[1]
+            num_input_channels = self.input_shape[1]
             return (self.num_filters, num_input_channels, self.filter_size, self.filter_size)
         else:
-            num_input_channels = self.input_layer.get_output_shape()[0]
+            num_input_channels = self.input_shape[0]
             return (num_input_channels, self.filter_size, self.filter_size, self.num_filters)
 
     def get_params(self):
@@ -152,10 +155,10 @@ class Conv2DCCLayer(CCLayer):
 
 
 class MaxPool2DCCLayer(CCLayer):
-    def __init__(self, input_layer, ds, ignore_border=False, strides=None, dimshuffle=True):
+    def __init__(self, incoming, ds, ignore_border=False, strides=None, dimshuffle=True, **kwargs):
         from pylearn2.sandbox.cuda_convnet.pool import MaxPool
 
-        super(MaxPool2DCCLayer, self).__init__(input_layer)
+        super(MaxPool2DCCLayer, self).__init__(incoming, **kwargs)
         if ds[0] != ds[1]:
             raise RuntimeError("MaxPool2DCCLayer only supports square pooling regions, but ds=(%d, %d)" % ds)
 
@@ -249,9 +252,10 @@ class NINLayer_c01b(Layer):
     axis arrangement instead of bc01. This reduces the number of shuffles
     and reshapes required and might be faster as a result.
     """
-    def __init__(self, input_layer, num_units, untie_biases=False,
-        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify):
-        super(NINLayer_c01b, self).__init__(input_layer)
+    def __init__(self, incoming, num_units, untie_biases=False,
+        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+        **kwargs):
+        super(NINLayer_c01b, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -260,8 +264,7 @@ class NINLayer_c01b(Layer):
         self.num_units = num_units
         self.untie_biases = untie_biases
 
-        output_shape = self.input_layer.get_output_shape()
-        num_input_channels = output_shape[0]
+        num_input_channels = self.input_shape[0]
 
         self.W = self.create_param(W, (num_units, num_input_channels))
         if b is None:

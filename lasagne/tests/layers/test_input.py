@@ -30,3 +30,11 @@ class TestInputLayer:
     def test_get_output_input_is_a_mapping(self, layer):
         input = {layer: theano.tensor.matrix()}
         assert layer.get_output(input) is input[layer]
+
+    def test_input_var_name(self, layer):
+        assert layer.input_var.name == "input"
+
+    def test_named_layer_input_var_name(self):
+        from lasagne.layers.input import InputLayer
+        layer = InputLayer((3, 2), name="foo")
+        assert layer.input_var.name == "foo.input"

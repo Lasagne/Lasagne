@@ -1,5 +1,6 @@
 import numpy as np
 import theano
+from theano.sandbox.cuda import dnn
 import theano.tensor as T
 
 from .. import init
@@ -8,12 +9,8 @@ from .. import nonlinearities
 from .base import Layer
 
 
-dnn_available = False
-
-if theano.config.device.startswith("gpu"):
-    from theano.sandbox.cuda import dnn
-    if dnn.dnn_available():
-        dnn_available = True
+if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
+    raise ImportError("dnn not available")
 
 
 __all__ = [
@@ -28,8 +25,8 @@ class DNNLayer(Layer):
 
 
 class Pool2DDNNLayer(DNNLayer):
-    def __init__(self, input_layer, ds, strides=None, mode='max'):
-        super(Pool2DDNNLayer, self).__init__(input_layer)
+    def __init__(self, incoming, ds, strides=None, mode='max', **kwargs):
+        super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.ds = ds # a tuple
         self.mode = mode
         self.strides = strides if strides is not None else ds
@@ -41,20 +38,18 @@ class Pool2DDNNLayer(DNNLayer):
         return tuple(output_shape)
 
     def get_output_for(self, input, *args, **kwargs):
-        if not dnn_available:
-            raise RuntimeError("cudnn is not available.")
         return dnn.dnn_pool(input, self.ds, self.strides, self.mode)
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer): # for consistency
-    def __init__(self, input_layer, ds, strides=None):
-        super(MaxPool2DDNNLayer, self).__init__(input_layer, ds, strides, mode='max')
+    def __init__(self, incoming, ds, strides=None, **kwargs):
+        super(MaxPool2DDNNLayer, self).__init__(incoming, ds, strides, mode='max', **kwargs)
 
 class Conv2DDNNLayer(DNNLayer):
-    def __init__(self, input_layer, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
                  W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
-                 flip_filters=False):
-        super(Conv2DDNNLayer, self).__init__(input_layer)
+                 flip_filters=False, **kwargs):
+        super(Conv2DDNNLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
@@ -93,17 +88,17 @@ class Conv2DDNNLayer(DNNLayer):
                 pad = (pad, pad)
             self.pad = pad
 
-        self.W = self.create_param(W, self.get_W_shape())
+        self.W = self.create_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
             output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]))
+            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]), name="b")
         else:
-            self.b = self.create_param(b, (num_filters,))
+            self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
-        num_input_channels = self.input_layer.get_output_shape()[1]
+        num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
 
     def get_params(self):
@@ -120,8 +115,6 @@ class Conv2DDNNLayer(DNNLayer):
         return (batch_size, self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, *args, **kwargs):
-        if not dnn_available:
-            raise RuntimeError('cudnn is not available.')
         # by default we assume 'cross', consistent with corrmm.
         conv_mode = 'conv' if self.flip_filters else 'cross'
         # if 'border_mode' is one of 'valid' or 'full' use that.

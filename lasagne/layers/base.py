@@ -19,12 +19,27 @@ class Layer(object):
     The :class:`Layer` class represents a single layer of a neural network.
     It should be subclassed when implementing new types of layers.
 
-    Because each layer keeps track of the layer(s) feeding into it, a
-    network's output :class:`Layer` instance doubles as a handle to the full
-    network.
+    Because each layer can keep track of the layer(s) feeding into it, a
+    network's output :class:`Layer` instance can double as a handle to the
+    full network.
     """
-    def __init__(self, input_layer):
-        self.input_layer = input_layer
+    def __init__(self, incoming, name=None):
+        """
+        Instantiates the layer.
+
+        :parameters:
+            - incoming : a :class:`Layer` instance or a tuple
+                the layer feeding into this layer, or the expected input shape
+            - name : a string or None
+                an optional name to attach to this layer
+        """
+        if isinstance(incoming, tuple):
+            self.input_shape = incoming
+            self.input_layer = None
+        else:
+            self.input_shape = incoming.get_output_shape()
+            self.input_layer = incoming
+        self.name = name
 
     def get_params(self):
         """
@@ -73,10 +88,9 @@ class Layer(object):
 
         :note:
             When implementing a new :class:`Layer` class, you will usually
-            keep this unchanged and just override `get_output_shape_for()`.        
+            keep this unchanged and just override `get_output_shape_for()`.
         """
-        input_shape = self.input_layer.get_output_shape()
-        return self.get_output_shape_for(input_shape)
+        return self.get_output_shape_for(self.input_shape)
 
     def get_output(self, input=None, *args, **kwargs):
         """
@@ -107,6 +121,10 @@ class Layer(object):
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
             return utils.as_theano_expression(input[self])
+        elif self.input_layer is None:
+            raise RuntimeError("get_output() called on a free-floating layer; "
+                               "there isn't anything to get its input from. "
+                               "Did you mean get_output_for()?")
         else: # in all other cases, just pass the input on to the next layer.
             layer_input = self.input_layer.get_output(input, *args, **kwargs)
             return self.get_output_for(layer_input, *args, **kwargs)
@@ -162,8 +180,7 @@ class Layer(object):
         """
         raise NotImplementedError
 
-    @staticmethod
-    def create_param(param, shape):
+    def create_param(self, param, shape, name=None):
         """
         Helper method to create Theano shared variables for layer parameters
         and to initialize them.
@@ -189,28 +206,35 @@ class Layer(object):
                 its output is used to initialize the variable.
 
         :note:
-            This static method should be used in `__init__()` when creating a
+            This method should be used in `__init__()` when creating a
             :class:`Layer` subclass that has trainable parameters. This
             enables the layer to support initialization with numpy arrays,
             existing Theano shared variables, and callables for generating
             initial parameter values.
         """
-        if isinstance(param, np.ndarray):
+        if name is not None:
+            if self.name is not None:
+                name = "%s.%s" % (self.name, name)
+
+        if isinstance(param, theano.compile.SharedVariable):
+            # We cannot check the shape here, the shared variable might not be
+            # initialized correctly yet. We can check the dimensionality though.
+            # Note that we cannot assign a name here.
+            if param.ndim != len(shape):
+                raise RuntimeError("shared variable has %d dimensions, should be %d" % (param.ndim, len(shape)))
+            return param
+
+        elif isinstance(param, np.ndarray):
             if param.shape != shape:
                 raise RuntimeError("parameter array has shape %s, should be %s" % (param.shape, shape))
-            return theano.shared(param)
-
-        elif isinstance(param, theano.compile.SharedVariable):
-            # cannot check shape here, the shared variable might not be
-            # initialized correctly yet.
-            return param
+            return theano.shared(param, name=name)
 
         elif hasattr(param, '__call__'):
             arr = param(shape)
             if not isinstance(arr, np.ndarray):
                 raise RuntimeError("cannot initialize parameters: the provided callable did not return a numpy array")
 
-            return theano.shared(utils.floatX(arr))
+            return theano.shared(utils.floatX(arr), name=name)
 
         else:
             raise RuntimeError("cannot initialize parameters: 'param' is not a numpy array, a Theano shared variable, or a callable")
@@ -222,17 +246,35 @@ class MultipleInputsLayer(Layer):
     It should be subclassed when implementing new types of layers that
     obtain their input from multiple layers.
     """
-    def __init__(self, input_layers):
-        self.input_layers = input_layers
+    def __init__(self, incomings, name=None):
+        """
+        Instantiates the layer.
+
+        :parameters:
+            - incomings : a list of :class:`Layer` instances or tuples
+                the layers feeding into this layer, or expected input shapes
+            - name : a string or None
+                an optional name to attach to this layer
+        """
+        self.input_shapes = [incoming if isinstance(incoming, tuple)
+                             else incoming.get_output_shape()
+                             for incoming in incomings]
+        self.input_layers = [None if isinstance(incoming, tuple)
+                             else incoming
+                             for incoming in incomings]
+        self.name = name
 
     def get_output_shape(self):
-        input_shapes = [input_layer.get_output_shape() for input_layer in self.input_layers]
-        return self.get_output_shape_for(input_shapes)
+        return self.get_output_shape_for(self.input_shapes)
 
     def get_output(self, input=None, *args, **kwargs):
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
             return utils.as_theano_expression(input[self])
+        elif any(input_layer is None for input_layer in self.input_layers):
+            raise RuntimeError("get_output() called on a free-floating layer; "
+                               "there isn't anything to get its inputs from. "
+                               "Did you mean get_output_for()?")
         else: # in all other cases, just pass the network input on to the next layers.
             layer_inputs = [input_layer.get_output(input, *args, **kwargs) for input_layer in self.input_layers]
             return self.get_output_for(layer_inputs, *args, **kwargs)

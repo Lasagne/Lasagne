@@ -91,6 +91,9 @@ def concatenate(tensor_list, axis=0):
         - out : tensor
             the concatenated tensor expression.
     """
+    if axis < 0:
+        axis += tensor_list[0].ndim
+
     concat_size = sum(tensor.shape[axis] for tensor in tensor_list)
 
     output_shape = ()

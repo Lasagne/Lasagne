@@ -59,7 +59,8 @@ def get_all_layers(layer):
         elif hasattr(current_layer, 'input_layer'):
             children = [current_layer.input_layer]
 
-        # filter the layers that have already been visited.
+        # filter the layers that have already been visited, and remove None
+        # elements (for layers without incoming layers)
         children = [child for child in children
                     if child not in layers
                     and child is not None]

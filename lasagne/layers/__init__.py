@@ -7,7 +7,4 @@ from .conv import *
 from .pool import *
 from .shape import *
 from .merge import *
-from .cuda_convnet import *
-from .corrmm import *
 from .recurrent import *
-from .dnn import *

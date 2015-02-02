@@ -51,15 +51,12 @@ X_val, y_val = gen_data()
 # dense output layer
 l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-# This input layer is used to tell the input-to-hidden what shape to expect
 # As we iterate over time steps, the input will be batch size x feature dim
-l_recurrent_in = lasagne.layers.InputLayer(shape=(N_BATCH, X_val.shape[-1]))
-l_input_to_hidden = lasagne.layers.DenseLayer(l_recurrent_in, N_HIDDEN,
-                                              nonlinearity=None)
+l_input_to_hidden = lasagne.layers.DenseLayer((N_BATCH, X_val.shape[-1]),
+                                              N_HIDDEN, nonlinearity=None)
 
 # As above, we need to tell the hidden-to-hidden layer what shape to expect
-l_recurrent_hid = lasagne.layers.InputLayer(shape=(N_BATCH, N_HIDDEN))
-l_hidden_to_hidden_1 = lasagne.layers.DenseLayer(l_recurrent_hid, N_HIDDEN,
+l_hidden_to_hidden_1 = lasagne.layers.DenseLayer((N_BATCH, N_HIDDEN), N_HIDDEN,
                                                  nonlinearity=None,
                                                  b=lasagne.init.Constant(1.))
 l_hidden_to_hidden_2 = lasagne.layers.DenseLayer(l_hidden_to_hidden_1,

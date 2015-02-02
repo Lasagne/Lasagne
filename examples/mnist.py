@@ -1,10 +1,11 @@
 from __future__ import print_function
 
-from lasagne._compat import pickle
 import gzip
 import itertools
-import urllib
 import os
+
+from lasagne.compat import pickle
+from lasagne.compat import urlretrieve
 
 import numpy as np
 import lasagne
@@ -28,7 +29,7 @@ def _load_data(url=DATA_URL, filename=DATA_FILENAME):
             data = pickle.load(f)
     except (IOError, EOFError):
         print("Downloading MNIST")
-        urllib.urlretrieve(url, filename)
+        urlretrieve(url, filename)
         with gzip.open(filename, 'rb') as f:
             data = pickle.load(f)
     return data

@@ -26,7 +26,7 @@ class RecurrentLayer(Layer):
             - input_layer : nntools.layers.Layer
                 Input to the recurrent layer
             - input_to_hidden : nntools.layers.Layer
-                Layer which connects input to thie hidden state
+                Layer which connects input to the hidden state
             - hidden_to_hidden : nntools.layers.Layer
                 Layer which connects the previous hidden state to the new state
             - nonlinearity : function or theano.tensor.elemwise.Elemwise
@@ -164,6 +164,11 @@ class RecurrentLayer(Layer):
 
 
 class ReshapeLayer(Layer):
+    '''ReshapeLayers exist because RecurrentLayers expects a shape of
+    (n_batch, n_time_steps, n_features) but the DenseLayer will flatten 
+    that shape to (n_batch, n_time_steps*n_features) by default which is wrong. 
+    So, you need to manually reshape before and after using a DenseLayer.
+    '''
     def __init__(self, input_layer, shape):
         super(ReshapeLayer, self).__init__(input_layer)
         self.shape = shape
@@ -268,7 +273,9 @@ class LSTMLayer(Layer):
             - hid_init : function or np.ndarray or theano.shared
                 :math:`h_0`
             - backwards : boolean
-                If True, process the sequence backwards
+                If True, process the sequence backwards and then reverse the 
+                output again such that the output from the layer is always
+                from x_1 to x_n.
             - learn_init : boolean
                 If True, initial hidden values are learned
             - peepholes : boolean

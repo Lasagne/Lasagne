@@ -51,7 +51,6 @@ X_val, y_val = gen_data()
 # dense output layer
 l_in = nntools.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-# This input layer is used to tell the input-to-hidden what shape to expect
 # As we iterate over time steps, the input will be batch size x feature dim
 l_recurrent_in = nntools.layers.InputLayer(shape=(N_BATCH, X_val.shape[-1]))
 l_input_to_hidden = nntools.layers.DenseLayer(l_recurrent_in, N_HIDDEN,

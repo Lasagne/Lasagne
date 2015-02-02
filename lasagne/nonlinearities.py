@@ -1,7 +1,6 @@
 """
 Nonlinearities
 """
-from __future__ import absolute_import
 import theano
 import theano.tensor as T
 

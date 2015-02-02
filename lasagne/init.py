@@ -1,7 +1,6 @@
 """
 Functions to create initializers for parameter variables
 """
-from __future__ import absolute_import
 
 from numbers import Number
 

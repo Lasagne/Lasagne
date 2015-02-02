@@ -1,5 +1,4 @@
 from __future__ import print_function
-from __future__ import absolute_import
 
 from lasagne._compat import pickle
 import gzip

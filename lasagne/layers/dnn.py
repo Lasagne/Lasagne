@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import numpy as np
 import theano
 from theano.sandbox.cuda import dnn

@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from glob import glob
 from importlib import import_module
 from os.path import basename

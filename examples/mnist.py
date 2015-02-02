@@ -1,7 +1,7 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
-import cPickle as pickle
+from lasagne._compat import pickle
 import gzip
 import itertools
 import urllib

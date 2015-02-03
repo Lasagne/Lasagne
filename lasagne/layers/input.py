@@ -20,7 +20,7 @@ class InputLayer(Layer):
 
     :parameters:
         - shape : tuple of int
-            The shape of the input
+            The shape of the input.
 
         - input_var : Theano symbolic variable or None (default: None)
             A variable representing a network input. If it is not provided,

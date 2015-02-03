@@ -1,7 +1,7 @@
 import numpy as np
 import theano
 import theano.tensor as T
-import nntools
+import lasagne
 
 # Sequence length
 LENGTH = 10
@@ -47,39 +47,24 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
 
-# Construct vanilla RNN: One recurrent layer (with input weights) and one
-# dense output layer
-l_in = nntools.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
+# Construct vanilla RNN
+l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-# As we iterate over time steps, the input will be batch size x feature dim
-l_recurrent_in = nntools.layers.InputLayer(shape=(N_BATCH, X_val.shape[-1]))
-l_input_to_hidden = nntools.layers.DenseLayer(l_recurrent_in, N_HIDDEN,
-                                              nonlinearity=None)
-
-# As above, we need to tell the hidden-to-hidden layer what shape to expect
-l_recurrent_hid = nntools.layers.InputLayer(shape=(N_BATCH, N_HIDDEN))
-l_hidden_to_hidden_1 = nntools.layers.DenseLayer(l_recurrent_hid, N_HIDDEN,
-                                                 nonlinearity=None,
-                                                 b=nntools.init.Constant(1.))
-l_hidden_to_hidden_2 = nntools.layers.DenseLayer(l_hidden_to_hidden_1,
-                                                 N_HIDDEN, nonlinearity=None,
-                                                 b=nntools.init.Constant(1.))
-
-l_recurrent = nntools.layers.RecurrentLayer(l_in,
-                                            l_input_to_hidden,
-                                            l_hidden_to_hidden_2,
-                                            nonlinearity=None)
-l_reshape = nntools.layers.ReshapeLayer(l_recurrent,
+l_recurrent = lasagne.layers.RecurrentLayer(l_in, N_HIDDEN, nonlinearity=None)
+# We need a reshape layer which combines the first (batch size) and second
+# (number of timesteps) dimensions, otherwise the DenseLayer will treat the
+# number of time steps as a feature dimension
+l_reshape = lasagne.layers.ReshapeLayer(l_recurrent,
                                         (N_BATCH*LENGTH, N_HIDDEN))
 
-l_recurrent_out = nntools.layers.DenseLayer(l_reshape,
+l_recurrent_out = lasagne.layers.DenseLayer(l_reshape,
                                             num_units=y_val.shape[-1],
                                             nonlinearity=None)
-l_out = nntools.layers.ReshapeLayer(l_recurrent_out,
+l_out = lasagne.layers.ReshapeLayer(l_recurrent_out,
                                     (N_BATCH, LENGTH, y_val.shape[-1]))
 
 print "Total parameters: {}".format(
-    sum([p.get_value().size for p in nntools.layers.get_all_params(l_out)]))
+    sum([p.get_value().size for p in lasagne.layers.get_all_params(l_out)]))
 
 # Cost function is mean squared error
 input = T.tensor3('input')
@@ -88,8 +73,8 @@ target_output = T.tensor3('target_output')
 cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
-all_params = nntools.layers.get_all_params(l_out)
-updates = nntools.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
+all_params = lasagne.layers.get_all_params(l_out)
+updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
 train = theano.function([input, target_output], cost, updates=updates)
 y_pred = theano.function([input], l_out.get_output(input))

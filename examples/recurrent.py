@@ -47,26 +47,13 @@ def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
 # Generate a "validation" sequence whose cost we will periodically compute
 X_val, y_val = gen_data()
 
-# Construct vanilla RNN: One recurrent layer (with input weights) and one
-# dense output layer
+# Construct vanilla RNN
 l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
 
-# As we iterate over time steps, the input will be batch size x feature dim
-l_input_to_hidden = lasagne.layers.DenseLayer((N_BATCH, X_val.shape[-1]),
-                                              N_HIDDEN, nonlinearity=None)
-
-# As above, we need to tell the hidden-to-hidden layer what shape to expect
-l_hidden_to_hidden_1 = lasagne.layers.DenseLayer((N_BATCH, N_HIDDEN), N_HIDDEN,
-                                                 nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
-l_hidden_to_hidden_2 = lasagne.layers.DenseLayer(l_hidden_to_hidden_1,
-                                                 N_HIDDEN, nonlinearity=None,
-                                                 b=lasagne.init.Constant(1.))
-
-l_recurrent = lasagne.layers.RecurrentLayer(l_in,
-                                            l_input_to_hidden,
-                                            l_hidden_to_hidden_2,
-                                            nonlinearity=None)
+l_recurrent = lasagne.layers.RecurrentLayer(l_in, N_HIDDEN, nonlinearity=None)
+# We need a reshape layer which combines the first (batch size) and second
+# (number of timesteps) dimensions, otherwise the DenseLayer will treat the
+# number of time steps as a feature dimension
 l_reshape = lasagne.layers.ReshapeLayer(l_recurrent,
                                         (N_BATCH*LENGTH, N_HIDDEN))
 

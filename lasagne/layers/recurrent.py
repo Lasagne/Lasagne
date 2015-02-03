@@ -5,10 +5,12 @@ from .. import init
 from .. import utils
 
 from .base import Layer
+from .input import InputLayer
+from .dense import DenseLayer
 from . import helper
 
 
-class RecurrentLayer(Layer):
+class CustomRecurrentLayer(Layer):
     '''
     A layer which implements a recurrent connection.
 
@@ -38,7 +40,7 @@ class RecurrentLayer(Layer):
             - learn_init : boolean
                 If True, initial hidden values are learned
         '''
-        super(RecurrentLayer, self).__init__(input_layer)
+        super(CustomRecurrentLayer, self).__init__(input_layer)
 
         self.input_to_hidden = input_to_hidden
         self.hidden_to_hidden = hidden_to_hidden
@@ -161,6 +163,60 @@ class RecurrentLayer(Layer):
             output = output[:, ::-1, :]
 
         return output
+
+
+class RecurrentLayer(CustomRecurrentLayer):
+    '''
+    A "vanilla" RNN layer, which has dense input-to-hidden and
+    hidden-to-hidden connections.
+
+    Expects inputs of shape
+        (n_batch, n_time_steps, n_features_1, n_features_2, ...)
+    '''
+    def __init__(self, input_layer, num_units, W_in_to_hid=init.Uniform(),
+                 W_hid_to_hid=init.Uniform(), b=init.Constant(0.),
+                 nonlinearity=nonlinearities.rectify,
+                 hid_init=init.Constant(0.), backwards=False,
+                 learn_init=False):
+        '''
+        Create a recurrent layer.
+
+        :parameters:
+            - input_layer : nntools.layers.Layer
+                Input to the recurrent layer
+            - num_units : int
+                Number of hidden units in the layer
+            - W_in_to_hid : function or np.ndarray or theano.shared
+                Initializer for input-to-hidden weight matrix
+            - W_hid_to_hid : function or np.ndarray or theano.shared
+                Initializer for hidden-to-hidden weight matrix
+            - b : function or np.ndarray or theano.shared
+                Initializer for bias vector
+            - nonlinearity : function or theano.tensor.elemwise.Elemwise
+                Nonlinearity to apply when computing new state
+            - hid_init : function or np.ndarray or theano.shared
+                Initial hidden state
+            - backwards : boolean
+                If True, process the sequence backwards
+            - learn_init : boolean
+                If True, initial hidden values are learned
+        '''
+
+        input_shape = input_layer.get_output_shape()
+        # We will be passing the input at each time step to the dense layer,
+        # so we need to remove the first dimension
+        in_to_hid = DenseLayer(InputLayer((input_shape[0],) + input_shape[2:]),
+                               num_units, W=W_in_to_hid, b=b,
+                               nonlinearity=nonlinearity)
+        # The hidden-to-hidden layer expects its inputs to have num_units
+        # features because it recycles the previous hidden state
+        hid_to_hid = DenseLayer(InputLayer((input_shape[0], num_units)),
+                                num_units, W=W_hid_to_hid, b=None,
+                                nonlinearity=nonlinearity)
+
+        super(RecurrentLayer, self).__init__(
+            input_layer, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
+            hid_init=hid_init, backwards=backwards, learn_init=backwards)
 
 
 class ReshapeLayer(Layer):

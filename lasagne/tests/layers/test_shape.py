@@ -78,3 +78,9 @@ class TestReshapeLayer:
             layerclass(inputlayer, ([0, 1], 3, 5, 7, 10))
         with pytest.raises(ValueError):
             layerclass(inputlayer, (None, 3, 5, 7, 10))
+
+    def test_reference_out_of_range(self, layerclass, two_unknown):
+        inputlayer, inputdata = two_unknown
+        layer = layerclass(inputlayer, (16, 3, 5, 7, [5]))
+        with pytest.raises(ValueError):
+            layer.get_output_for(inputdata)

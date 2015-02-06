@@ -89,6 +89,10 @@ class ReshapeLayer(Layer):
         masked_output_shape = list(output_shape)
         for dim, o in enumerate(output_shape):
             if isinstance(o, list):
+                if o[0] >= len(input_shape):
+                    raise ValueError("specification contains [%d], but input "
+                                     "shape has %d dimensions only" %
+                                     (o[0], len(input_shape)))
                 output_shape[dim] = input_shape[o[0]]
                 masked_output_shape[dim] = input_shape[o[0]]
                 if ((input_shape[o[0]] is None)

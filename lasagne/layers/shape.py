@@ -11,6 +11,7 @@ __all__ = [
     "FlattenLayer",
     "flatten",
     "ReshapeLayer",
+    "reshape",
     "PadLayer",
     "pad",
 ]
@@ -133,6 +134,8 @@ class ReshapeLayer(Layer):
                 output_shape[dim] = input.shape[o[0]]
         # Everything else is handled by Theano
         return input.reshape(tuple(output_shape))
+
+reshape = ReshapeLayer # shortcut
 
 
 class PadLayer(Layer):

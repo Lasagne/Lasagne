@@ -9,6 +9,7 @@ from .base import Layer
 
 __all__ = [
     "FlattenLayer",
+    "FlattenPixelsLayer",
     "flatten",
     "PadLayer",
     "pad",
@@ -24,6 +25,14 @@ class FlattenLayer(Layer):
         return input.flatten(2)
 
 flatten = FlattenLayer # shortcut
+
+
+class FlattenPixelsLayer(Layer):
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0] * int(np.prod(input_shape[2:])), input_shape[1])
+
+    def get_output_for(self, input, *args, **kwargs):
+        return input.dimshuffle(1,0,2,3).flatten(2).dimshuffle(1,0)
 
 
 class PadLayer(Layer):

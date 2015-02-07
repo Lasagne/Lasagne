@@ -1,6 +1,9 @@
+# Virtualenv
 bin/
 include/
 src/
+
+# Dataset used in examples
 mnist.pkl.gz
 
 # Byte-compiled / optimized / DLL files

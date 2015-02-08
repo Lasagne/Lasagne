@@ -9,3 +9,4 @@ from . import objectives
 from . import regularization
 from . import updates
 from . import utils
+from . import normalization

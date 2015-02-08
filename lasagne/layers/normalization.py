@@ -55,7 +55,7 @@ class LocalResponseNormalization2DLayer(Layer):
         extra_channels = T.alloc(0., b, ch + 2*half_n, r, c)
         input_sqr = T.set_subtensor(extra_channels[:,half_n:half_n+ch,:,:], input_sqr)
         scale = self.k
-        for i in xrange(self.n):
+        for i in range(self.n):
             scale += self.alpha * input_sqr[:,i:i+ch,:,:]
         scale = scale ** self.beta
         return input / scale

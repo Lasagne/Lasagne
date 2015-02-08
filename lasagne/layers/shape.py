@@ -104,9 +104,10 @@ class ReshapeLayer(Layer):
                     masked_input_shape[o[0]] = 1
                     masked_output_shape[dim] = 1
         # From the shapes, compute the sizes of the input and output tensor
-        noneprod = lambda x, y: None if x is None or y is None else x * y
-        input_size = reduce(noneprod, masked_input_shape)
-        output_size = reduce(noneprod, masked_output_shape)
+        input_size = (None if any(x is None for x in masked_input_shape)
+                      else np.prod(masked_input_shape))
+        output_size = (None if any(x is None for x in masked_output_shape)
+                       else np.prod(masked_output_shape))
         del masked_input_shape, masked_output_shape
         # Finally, infer value for -1 if needed
         if -1 in output_shape:

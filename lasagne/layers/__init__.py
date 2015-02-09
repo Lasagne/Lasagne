@@ -7,3 +7,4 @@ from .conv import *
 from .pool import *
 from .shape import *
 from .merge import *
+from .normalization import *

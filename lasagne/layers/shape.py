@@ -142,6 +142,23 @@ reshape = ReshapeLayer # shortcut
 class DimShuffleLayer(Layer):
     def __init__(self, incoming, pattern):
         super(DimShuffleLayer, self).__init__(incoming)
+
+        # Sanity check the pattern
+        used_dims = set()
+        for p in pattern:
+            if isinstance(p, (int, long)):
+                # Dimension p
+                if p in used_dims:
+                    raise ValueError, "pattern contains dimension {0} more "\
+                            "than once".format(p)
+                used_dims.add(p)
+            elif p == 'x':
+                # Broadcast
+                pass
+            else:
+                raise ValueError, "pattern should only contain dimension" \
+                                  "indices or 'x', not {0}".format(p)
+
         self.pattern = pattern
 
     def get_output_shape_for(self, input_shape):
@@ -155,17 +172,14 @@ class DimShuffleLayer(Layer):
                     raise ValueError, "pattern contains {0}, but input shape has " \
                         "{1} dimensions only".format(p, len(input_shape))
                 # Dimension p
-                if dims_used[p]:
-                    raise ValueError, "pattern contains dimension {0} more "\
-                            "than once".format(p)
                 o = input_shape[p]
                 dims_used[p] = True
             elif p == 'x':
                 # Broadcast; will be of size 1
                 o = 1
             else:
-                raise ValueError, "pattern should only contain dimension" \
-                                  "indices or 'x', not {0}".format(p)
+                raise RuntimeError, "invalid pattern entry, should have " \
+                    "caught in the constructor"
             output_shape.append(o)
 
         for i, (dim_size, used) in enumerate(zip(input_shape, dims_used)):

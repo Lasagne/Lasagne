@@ -139,6 +139,48 @@ class ReshapeLayer(Layer):
 reshape = ReshapeLayer # shortcut
 
 
+class DimShuffleLayer(Layer):
+    def __init__(self, incoming, pattern):
+        super(DimShuffleLayer, self).__init__(incoming)
+        self.pattern = pattern
+
+    def get_output_shape_for(self, input_shape):
+        # Build output shape while keeping track of the dimensions that we are
+        # attempting to collapse, so we can ensure that they are broadcastable
+        output_shape = []
+        dims_used = [False] * len(input_shape)
+        for p in self.pattern:
+            if isinstance(p, (int, long)):
+                if p < 0  or  p >= len(input_shape):
+                    raise ValueError, "pattern contains {0}, but input shape has " \
+                        "{1} dimensions only".format(p, len(input_shape))
+                # Dimension p
+                if dims_used[p]:
+                    raise ValueError, "pattern contains dimension {0} more "\
+                            "than once".format(p)
+                o = input_shape[p]
+                dims_used[p] = True
+            elif p == 'x':
+                # Broadcast; will be of size 1
+                o = 1
+            else:
+                raise ValueError, "pattern should only contain dimension" \
+                                  "indices or 'x', not {0}".format(p)
+            output_shape.append(o)
+
+        for i, (dim_size, used) in enumerate(zip(input_shape, dims_used)):
+            if not used and dim_size != 1:
+                raise ValueError, "pattern attempted to collapse dimension " \
+                    "{0} of size {1}; dimensions with size != 1 are not" \
+                    "broadcastable and cannot be " \
+                    "collapsed".format(i, dim_size)
+
+        return tuple(output_shape)
+
+    def get_output_for(self, input, *args, **kwargs):
+        return input.dimshuffle(self.pattern)
+
+
 class PadLayer(Layer):
     def __init__(self, incoming, width, val=0, batch_ndim=2, **kwargs):
         super(PadLayer, self).__init__(incoming, **kwargs)

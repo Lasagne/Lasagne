@@ -84,3 +84,24 @@ class TestReshapeLayer:
         layer = layerclass(inputlayer, (16, 3, 5, 7, [5]))
         with pytest.raises(ValueError):
             layer.get_output_for(inputdata)
+
+
+class TestDimShuffleLayer:
+    @pytest.fixture
+    def input_shape(self):
+        return (2, 3, 1, 5, 7)
+
+    @pytest.fixture
+    def input_layer(self, input_shape):
+        from lasagne.layers.input import InputLayer
+        return InputLayer(input_shape)
+
+    @pytest.fixture
+    def input_data(self, input_shape):
+        return numpy.ones(input_shape)
+
+    def test_rearrange(self, input_data, input_layer):
+        from lasagne.layers.shape import DimShuffleLayer
+        ds = DimShuffleLayer(input_layer, [4, 3, 2, 1, 0])
+        assert ds.get_output_shape() == (7, 5, 1, 3, 2)
+

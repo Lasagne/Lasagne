@@ -64,8 +64,8 @@ class ReshapeLayer(Layer):
         input, reshaping is cheap, for others it may require copying the data.
     """
 
-    def __init__(self, incoming, shape):
-        super(ReshapeLayer, self).__init__(incoming)
+    def __init__(self, incoming, shape, **kwargs):
+        super(ReshapeLayer, self).__init__(incoming, **kwargs)
         shape = tuple(shape)
         for s in shape:
             if isinstance(s, int):

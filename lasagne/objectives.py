@@ -181,6 +181,6 @@ class MaskedObjective(object):
             normalize_mask = self.normalize_mask
 
         if normalize_mask:
-            mask = mask / T.cast(1.0 / T.sum(mask), theano.config.floatX)
+            mask = mask / T.sum(mask)
 
         return self.loss_function(network_output, target, mask)

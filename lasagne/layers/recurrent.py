@@ -594,8 +594,8 @@ class LSTMLayer(Layer):
             if self.peepholes:
                 # Compute peephole connections
                 ingate += cell_previous*self.W_cell_to_ingate
-                forgetgate = cell_previous*self.W_cell_to_forgetgate
-                outgate = cell_previous*self.W_cell_to_outgate
+                forgetgate += cell_previous*self.W_cell_to_forgetgate
+                outgate += cell_previous*self.W_cell_to_outgate
 
             # Apply nonlinearities
             ingate = self.nonlinearity_ingate(ingate)

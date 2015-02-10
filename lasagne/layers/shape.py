@@ -146,7 +146,7 @@ class DimShuffleLayer(Layer):
         # Sanity check the pattern
         used_dims = set()
         for p in pattern:
-            if isinstance(p, (int, long)):
+            if isinstance(p, int):
                 # Dimension p
                 if p in used_dims:
                     raise ValueError("pattern contains dimension {0} more "
@@ -167,7 +167,7 @@ class DimShuffleLayer(Layer):
         output_shape = []
         dims_used = [False] * len(input_shape)
         for p in self.pattern:
-            if isinstance(p, (int, long)):
+            if isinstance(p, int):
                 if p < 0  or  p >= len(input_shape):
                     raise ValueError("pattern contains {0}, but input shape has "
                         "{1} dimensions only".format(p, len(input_shape)))

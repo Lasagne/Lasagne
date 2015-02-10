@@ -149,15 +149,15 @@ class DimShuffleLayer(Layer):
             if isinstance(p, (int, long)):
                 # Dimension p
                 if p in used_dims:
-                    raise ValueError, "pattern contains dimension {0} more "\
-                            "than once".format(p)
+                    raise ValueError("pattern contains dimension {0} more "
+                                     "than once".format(p))
                 used_dims.add(p)
             elif p == 'x':
                 # Broadcast
                 pass
             else:
-                raise ValueError, "pattern should only contain dimension" \
-                                  "indices or 'x', not {0}".format(p)
+                raise ValueError("pattern should only contain dimension"
+                                 "indices or 'x', not {0}".format(p))
 
         self.pattern = pattern
 
@@ -169,8 +169,8 @@ class DimShuffleLayer(Layer):
         for p in self.pattern:
             if isinstance(p, (int, long)):
                 if p < 0  or  p >= len(input_shape):
-                    raise ValueError, "pattern contains {0}, but input shape has " \
-                        "{1} dimensions only".format(p, len(input_shape))
+                    raise ValueError("pattern contains {0}, but input shape has "
+                        "{1} dimensions only".format(p, len(input_shape)))
                 # Dimension p
                 o = input_shape[p]
                 dims_used[p] = True
@@ -178,16 +178,16 @@ class DimShuffleLayer(Layer):
                 # Broadcast; will be of size 1
                 o = 1
             else:
-                raise RuntimeError, "invalid pattern entry, should have " \
-                    "caught in the constructor"
+                raise RuntimeError("invalid pattern entry, should have "
+                    "caught in the constructor")
             output_shape.append(o)
 
         for i, (dim_size, used) in enumerate(zip(input_shape, dims_used)):
             if not used and dim_size != 1:
-                raise ValueError, "pattern attempted to collapse dimension " \
-                    "{0} of size {1}; dimensions with size != 1 are not" \
-                    "broadcastable and cannot be " \
-                    "collapsed".format(i, dim_size)
+                raise ValueError("pattern attempted to collapse dimension "
+                    "{0} of size {1}; dimensions with size != 1 are not"
+                    "broadcastable and cannot be "
+                    "collapsed".format(i, dim_size))
 
         return tuple(output_shape)
 

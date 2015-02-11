@@ -139,9 +139,9 @@ class ReshapeLayer(Layer):
 reshape = ReshapeLayer # shortcut
 
 
-class DimShuffleLayer(Layer):
-    def __init__(self, incoming, pattern):
-        super(DimShuffleLayer, self).__init__(incoming)
+class DimshuffleLayer(Layer):
+    def __init__(self, incoming, pattern, **kwargs):
+        super(DimshuffleLayer, self).__init__(incoming, **kwargs)
 
         # Sanity check the pattern
         used_dims = set()
@@ -183,9 +183,9 @@ class DimShuffleLayer(Layer):
             output_shape.append(o)
 
         for i, (dim_size, used) in enumerate(zip(input_shape, dims_used)):
-            if not used and dim_size != 1:
+            if not used and dim_size != 1 and dim_size is not None:
                 raise ValueError("pattern attempted to collapse dimension "
-                    "{0} of size {1}; dimensions with size != 1 are not"
+                    "{0} of size {1}; dimensions with size != 1/None are not"
                     "broadcastable and cannot be "
                     "collapsed".format(i, dim_size))
 

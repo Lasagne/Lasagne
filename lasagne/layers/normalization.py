@@ -16,25 +16,34 @@ __all__ = [
 
 class LocalResponseNormalization2DLayer(Layer):
     """
-
-    Cross-Channel Local Response Normalization for 2D feature maps, in the
-    style of AlexNet.
+    Cross-channel Local Response Normalization for 2D feature maps.
 
     Aggregation is purely across channels, not within channels,
     and performed "pixelwise".
 
-    Input order is assumed to be BC01.
+    Input order is assumed to be `BC01`.
 
-    If the value of the ith channel is x_i, the output is
+    If the value of the ith channel is :math:`x_i`, the output is
 
-    x_i = x_i / (k + ( alpha \sum_j x_j^2 ))^beta
+    .. math::
 
-    where the summation is performed over this position on n neighboring channels.
+        x_i = \frac{x_i}{ (k + ( \alpha \sum_j x_j^2 ))^\beta }
+
+    where the summation is performed over this position on :math:`n`
+    neighboring channels.
 
     This code is adapted from pylearn2.
     """
 
     def __init__(self, incoming, alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
+        """
+        :parameters:
+            - incoming: input layer or shape
+            - alpha: see equation above
+            - k: see equation above
+            - beta: see equation above
+            - n: number of adjacent channels to normalize over.
+        """
         super(LocalResponseNormalization2DLayer, self).__init__(incoming, **kwargs)
         self.alpha = alpha
         self.k = k

@@ -142,6 +142,39 @@ reshape = ReshapeLayer # shortcut
 
 
 class DimshuffleLayer(Layer):
+    """
+    A layer that rearranges the dimension of its input tensor, maintaining
+    the same same total number of elements.
+
+    :parameters:
+        - incoming : a :class:`Layer` instance or a tuple
+            the layer feeding into this layer, or the expected input shape
+
+        - pattern : tuple
+            The new dimension order, with each element giving the index
+            of the dimension in the input tensor or `'x'` to broadcast it.
+            For example `(3,2,1,0)` will reverse the order of a 4-dimensional
+            tensor. Use `'x'` to broadcast, e.g. `(3,2,1,'x',0)` will
+            take a 4 tensor of shape `(2,3,5,7)` as input and produce a
+            tensor of shape `(7,5,3,1,2)` with the 4th dimension being
+            broadcast-able. In general, all dimensions in the input tensor
+            must be used to generate the output tensor. Omitting a dimension
+            attempts to collapse it; this can only be done to broadcast-able
+            dimensions, e.g. a 5-tensor of shape `(7,5,3,1,2)` with the 4th
+            being broadcast-able can be shuffled with the pattern `(4,2,1,0)`
+            collapsing the 4th dimension resulting in a tensor of shape
+            `(2,3,5,7)`.
+
+    :usage:
+        >>> from lasagne.layers import InputLayer, DimshuffleLayer
+        >>> l_in = InputLayer((2, 3, 5, 7))
+        >>> l1 = DimshuffleLayer(l_in, (3, 2, 1, 'x', 0))
+        >>> l1.get_output_shape()
+        (7, 5, 3, 1, 2)
+        >>> l2 = DimshuffleLayer(l1, (4, 2, 1, 0))
+        >>> l2.get_output_shape()
+        (2, 3, 5, 7)
+    """
     def __init__(self, incoming, pattern, **kwargs):
         super(DimshuffleLayer, self).__init__(incoming, **kwargs)
 

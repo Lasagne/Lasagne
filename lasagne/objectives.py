@@ -96,7 +96,7 @@ class Objective(object):
         if target is None:
             target = self.target_var
 
-        return T.mean(self.loss_function(network_output, target))
+        return self.loss_function(network_output, target).mean()
 
 
 
@@ -164,6 +164,6 @@ class MaskedObjective(object):
             normalize_mask = self.normalize_mask
 
         if normalize_mask:
-            mask = mask / T.sum(mask)
+            mask = mask / mask.sum()
 
-        return T.sum(self.loss_function(network_output, target, mask) * mask)
+        return (self.loss_function(network_output, target) * mask).sum()

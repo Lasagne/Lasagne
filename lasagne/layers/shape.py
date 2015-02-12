@@ -12,6 +12,8 @@ __all__ = [
     "flatten",
     "ReshapeLayer",
     "reshape",
+    "DimshuffleLayer",
+    "dimshuffle",
     "PadLayer",
     "pad",
 ]
@@ -193,6 +195,8 @@ class DimshuffleLayer(Layer):
 
     def get_output_for(self, input, *args, **kwargs):
         return input.dimshuffle(self.pattern)
+
+dimshuffle = DimshuffleLayer # shortcut
 
 
 class PadLayer(Layer):

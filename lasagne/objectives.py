@@ -2,45 +2,35 @@ import theano
 import theano.tensor as T
 
 
-def mse(x, t, m=None):
+def mse(x, t):
     """Calculates the MSE mean across all dimensions, i.e. feature
      dimension AND minibatch dimension.
 
     :parameters:
         - x : predicted values
         - t : target values
-        - m : mask; None for no mask, or an array the same shape as `t`
-            that selects/weights the contribution of elements in `x` and `t`
 
     :returns:
         - output : the mean square error across all dimensions
     """
-    if m is None:
-        return T.mean((x - t) ** 2)
-    else:
-        return T.sum(((x - t) ** 2) * m)
+    return (x - t) ** 2
 
 
-def crossentropy(x, t, m=None):
+def crossentropy(x, t):
     """Calculates the binary crossentropy mean across all dimentions,
     i.e.  feature dimension AND minibatch dimension.
 
     :parameters:
         - x : predicted values
         - t : target values
-        - m : mask; None for no mask, or an array the same shape as `t`
-            that selects/weights the contribution of elements in `x` and `t`
 
     :returns:
         - output : the mean binary cross entropy across all dimensions
     """
-    if m is None:
-        return T.mean(T.nnet.binary_crossentropy(x, t))
-    else:
-        return T.sum(T.nnet.binary_crossentropy(x, t) * m)
+    return T.nnet.binary_crossentropy(x, t)
 
 
-def multinomial_nll(x, t, m=None):
+def multinomial_nll(x, t):
     """Calculates the mean multinomial negative-log-loss
 
     :parameters:
@@ -52,19 +42,11 @@ def multinomial_nll(x, t, m=None):
             a 1D integer array that gives the class index of each sample
             (the position of the 1 in the row in a 1-of-N encoding, or
             1-hot encoding),
-        - m : mask; None for no mask, or a 1D array that selects/weights
-            the contributions of the log-loss scores of each sample before
-            they are summed
 
     :returns:
         - output : the mean multinomial negative log loss
     """
-    if m is None:
-        return T.mean(T.nnet.categorical_crossentropy(x, t))
-    else:
-        if m.ndim != 1:
-            raise ValueError, 'mask must be a 1D array'
-        return T.sum(T.nnet.categorical_crossentropy(x, t) * m)
+    return T.nnet.categorical_crossentropy(x, t)
 
 
 
@@ -114,7 +96,7 @@ class Objective(object):
         if target is None:
             target = self.target_var
 
-        return self.loss_function(network_output, target)
+        return T.mean(self.loss_function(network_output, target))
 
 
 
@@ -138,6 +120,8 @@ class MaskedObjective(object):
             - loss_function : a loss function of the form `f(x, t, m)` that
                 returns a scalar loss given tensors that represent the
                 predicted values, true values and mask as arguments.
+            - normalize_mask : if True, the mask will be normalized by
+                dividing it by its sum before being applied
         """
         self.input_layer = input_layer
         self.loss_function = loss_function
@@ -156,13 +140,12 @@ class MaskedObjective(object):
             - target : (default `None`) an expression that results in the
                 desired output that the network is being trained to generate
                 given the input
-            - mask : None for no mask, or a mask that is the same shape
-                as `target`/`self.target_var` - or will broadcast to that
-                shape - that selects/weights the contributions of
-                the samples to the final loss
+            - mask : None for no mask, or a soft mask that is the same shape
+                as - or broadcast-able to the shape of - the result of
+                applying the loss function. It selects/weights the
+                contributions of the resulting loss values
             - normalize_mask : None to use the value passed to the
-                constructor, or a bool to override it. If True, the mask will
-                be normalized by dividing it by its sum before being applied.
+                constructor, or a bool to override it.
             - args : additional arguments passed to `input_layer`'s
                 `get_output` method
             - kwargs : additional keyword arguments passed to `input_layer`'s
@@ -183,4 +166,4 @@ class MaskedObjective(object):
         if normalize_mask:
             mask = mask / T.sum(mask)
 
-        return self.loss_function(network_output, target, mask)
+        return T.sum(self.loss_function(network_output, target, mask) * mask)

@@ -43,7 +43,7 @@ def conv1d_mc0(input, filters, image_shape=None, filter_shape=None, border_mode=
         image_shape_mc0 = None
     else:
         image_shape_mc0 = (image_shape[0], image_shape[1], 1, image_shape[2]) # (b, c, i0) to (b, c, 1, i0)
-    
+
     if filter_shape is None:
         filter_shape_mc0 = None
     else:
@@ -52,7 +52,10 @@ def conv1d_mc0(input, filters, image_shape=None, filter_shape=None, border_mode=
     input_mc0 = input.dimshuffle(0, 1, 'x', 2)
     filters_mc0 = filters.dimshuffle(0, 1, 'x', 2)
 
-    conved = T.nnet.conv2d(input_mc0, filters_mc0, image_shape=image_shape_mc0, filter_shape=filter_shape_mc0, subsample=(1, subsample[0]))
+    conved = T.nnet.conv2d(
+        input_mc0, filters_mc0, image_shape=image_shape_mc0,
+        filter_shape=filter_shape_mc0, subsample=(1, subsample[0]),
+        border_mode=border_mode)
     return conved[:, :, 0, :] # drop the unused dimension
 
 
@@ -64,7 +67,7 @@ def conv1d_mc1(input, filters, image_shape=None, filter_shape=None, border_mode=
         image_shape_mc1 = None
     else:
         image_shape_mc1 = (image_shape[0], image_shape[1], image_shape[2], 1) # (b, c, i0) to (b, c, i0, 1)
-    
+
     if filter_shape is None:
         filter_shape_mc1 = None
     else:
@@ -73,7 +76,10 @@ def conv1d_mc1(input, filters, image_shape=None, filter_shape=None, border_mode=
     input_mc1 = input.dimshuffle(0, 1, 2, 'x')
     filters_mc1 = filters.dimshuffle(0, 1, 2, 'x')
 
-    conved = T.nnet.conv2d(input_mc1, filters_mc1, image_shape=image_shape_mc1, filter_shape=filter_shape_mc1, subsample=(subsample[0], 1))
+    conved = T.nnet.conv2d(
+        input_mc1, filters_mc1, image_shape=image_shape_mc1,
+        filter_shape=filter_shape_mc1, subsample=(subsample[0], 1),
+        border_mode=border_mode)
     return conved[:, :, :, 0] # drop the unused dimension
 
 

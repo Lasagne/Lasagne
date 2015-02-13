@@ -175,8 +175,10 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None):
         constraint = rel_max * avg_norm
 
     if abs_max is not None:
-
         constraint = abs_max if constraint is None else min(abs_max, constraint)
+
+    if constraint is None:
+        return orig_update
 
     if orig_update.ndim == 4:
         sum_over = (1, 2, 3)

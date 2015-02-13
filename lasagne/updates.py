@@ -6,6 +6,7 @@ import numpy as np
 
 import theano
 import theano.tensor as T
+from theano.config import floatX
 
 
 def sgd(loss, all_params, learning_rate):
@@ -167,21 +168,8 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None):
         )
 
     norms = T.sqrt(T.sum(T.sqr(orig_update), axis=sum_over))
-    target_norms = T.clip(norms, 0, constraint)
-    update = orig_update * (target_norms / (1e-7 + norms)).dimshuffle(*broadcast)
+    target_norms = T.clip(norms, 0, floatX(constraint))
+    update = (orig_update *
+              (target_norms / (1e-7 + norms)).dimshuffle(*broadcast))
 
     return update
-
-
-
-
-
-
-
-
-
-
-
-
-
-

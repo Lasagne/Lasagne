@@ -595,7 +595,6 @@ class LSTMLayer(Layer):
                 # Compute peephole connections
                 ingate += cell_previous*self.W_cell_to_ingate
                 forgetgate += cell_previous*self.W_cell_to_forgetgate
-                outgate += cell_previous*self.W_cell_to_outgate
 
             # Apply nonlinearities
             ingate = self.nonlinearity_ingate(ingate)
@@ -605,6 +604,8 @@ class LSTMLayer(Layer):
 
             # Compute new cell value
             cell = forgetgate*cell_previous + ingate*cell_input
+            if self.peepholes:
+                outgate += cell*self.W_cell_to_outgate
             # Compute new hidden unit activation
             hid = outgate*self.nonlinearity_out(cell)
             return [cell, hid]

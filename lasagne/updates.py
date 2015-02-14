@@ -150,6 +150,33 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None,
     the lesser of `abs_max` (if provided) and `rel_max` (if provided) times
     the average norm of the values originally stored in `param`.
 
+    Weight vectors violating the constraint are rescaled so that they are
+    within the allowed range.
+
+
+    :parameters:
+        - orig_update : TensorVariable
+            Theano expression for original update
+        - param : TheanoSharedVariable
+            Shared variable containing initial parameter values.
+            (Required if `rel_max` is used)
+        - abs_max : scalar
+            This value sets the absolute maximum value allowed for the
+            incoming weight vectors after the update.
+            (Optional)
+        - rel_max : scalar
+            This value sets the relative maximum value allowed for the
+            incoming weight vectors after the update.  The relative maximum
+            is computed by multiplying this value by the average incoming
+            weight vector norm for the values originally stored in the
+            `param` shared variable.
+
+    :returns:
+        - update : TensorVariable
+            Original update with rescaling applied to weight vectors
+            that violate the specified constraints.
+
+
     Right now this supports:
         * 2D param matrices with shape (input_dim, output_dim)
         * {3,4,5}D param tensors with shape

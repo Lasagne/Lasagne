@@ -6,7 +6,6 @@ import numpy as np
 
 import theano
 import theano.tensor as T
-from theano.config import floatX
 
 
 def sgd(loss, all_params, learning_rate):
@@ -25,7 +24,7 @@ def momentum(loss, all_params, learning_rate, momentum=0.9):
 
     for param_i, grad_i in zip(all_params, all_grads):
         mparam_i = theano.shared(np.zeros(param_i.get_value().shape,
-                                          dtype=floatX))
+                                          dtype=theano.config.floatX))
         v = momentum * mparam_i - learning_rate * grad_i
         updates.append((mparam_i, v))
         updates.append((param_i, param_i + v))
@@ -42,7 +41,7 @@ def nesterov_momentum(loss, all_params, learning_rate, momentum=0.9):
 
     for param_i, grad_i in zip(all_params, all_grads):
         mparam_i = theano.shared(np.zeros(param_i.get_value().shape,
-                                          dtype=floatX))
+                                          dtype=theano.config.floatX))
         v = momentum * mparam_i - learning_rate * grad_i  # new momemtum
         w = param_i + momentum * v - learning_rate * grad_i  # new param values
         updates.append((mparam_i, v))
@@ -58,7 +57,7 @@ def adagrad(loss, all_params, learning_rate=1.0, epsilon=1e-6):
     """
     all_grads = theano.grad(loss, all_params)
     all_accumulators = [theano.shared(np.zeros(param.get_value().shape,
-                                               dtype=floatX))
+                                               dtype=theano.config.floatX))
                         for param in all_params]
 
     updates = []
@@ -83,7 +82,7 @@ def rmsprop(loss, all_params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
     """
     all_grads = theano.grad(loss, all_params)
     all_accumulators = [theano.shared(np.zeros(param.get_value().shape,
-                                               dtype=floatX))
+                                               dtype=theano.config.floatX))
                         for param in all_params]
 
     updates = []
@@ -111,11 +110,14 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     """
     all_grads = theano.grad(loss, all_params)
     all_accumulators = [theano.shared(np.zeros(param.get_value().shape,
-                                               dtype=floatX))
+                                               dtype=theano.config.floatX))
                         for param in all_params]
-    all_delta_accumulators = [theano.shared(np.zeros(param.get_value().shape,
-                                                     dtype=floatX))
-                              for param in all_params]
+
+    all_delta_accumulators = [
+        theano.shared(np.zeros(param.get_value().shape,
+                               dtype=theano.config.floatX))
+        for param in all_params
+    ]
 
     # all_accumulators: accumulate gradient magnitudes
     # all_delta_accumulators: accumulate update magnitudes (recursive!)
@@ -138,7 +140,8 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     return updates
 
 
-def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None):
+def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None,
+                    epsilon=1e-7):
     '''
     Max weight norm constraints
 
@@ -149,7 +152,8 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None):
 
     Right now this supports:
         * 2D param matrices with shape (input_dim, output_dim)
-        * 4D param tensors with shape (output_chans, input_chans, dim0, dim1)
+        * {3,4,5}D param tensors with shape
+                    (output_chans, input_chans, dim0, dim1, ...)
     '''
 
     constraint = None
@@ -161,17 +165,7 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None):
 
         # Compute average norm of `param`
         vals = param.get_value()
-        if vals.ndim == 4:  # Conv2DLayer weights [ch_out, ch_in, dim0, dim1]
-            sum_over = (1, 2, 3)
-        elif vals.ndim == 2:  # DenseLayer weights [in_dim, out_dim]
-            sum_over = (0,)
-        else:
-            raise ValueError(
-                "Unsupported param dimensionality {}".format(vals.ndim)
-            )
-
-        avg_norm = np.mean(np.sqrt(np.sum(vals**2, axis=sum_over)))
-
+        avg_norm = np.mean(compute_norms(vals))
         constraint = rel_max * avg_norm
 
     if abs_max is not None:
@@ -180,20 +174,41 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None):
     if constraint is None:
         return orig_update
 
-    if orig_update.ndim == 4:
-        sum_over = (1, 2, 3)
-        broadcast = (0, 'x', 'x', 'x')
-    elif orig_update.ndim == 2:
+    ndim = orig_update.ndim
+
+    if ndim == 2: # DenseLayer
         sum_over = (0,)
         broadcast = ('x', 0)
+    elif ndim in [3, 4, 5]: # Conv{1,2,3}DLayer
+        sum_over = tuple(d for d in range(1, ndim))
+        broadcast = (0,) + tuple('x' for d in range(1, ndim))
     else:
         raise ValueError(
             "Unsupported update dimensionality {}".format(orig_update.ndim)
         )
 
+    dtype = np.dtype(theano.config.floatX).type
+
     norms = T.sqrt(T.sum(T.sqr(orig_update), axis=sum_over))
-    target_norms = T.clip(norms, 0, floatX(constraint))
+    target_norms = T.clip(norms, 0, dtype(constraint))
     update = (orig_update *
-              (target_norms / (1e-7 + norms)).dimshuffle(*broadcast))
+              (target_norms / (dtype(epsilon) + norms)).dimshuffle(*broadcast))
 
     return update
+
+def compute_norms(array):
+
+    ndim = array.ndim
+
+    if ndim == 2: # DenseLayer
+        sum_over = (0,)
+    elif ndim in [3, 4, 5]: # Conv{1,2,3}DLayer
+        sum_over = tuple(d for d in range(1, ndim))
+    else:
+        raise ValueError(
+            "Unsupported update dimensionality {}".format(array.ndim)
+        )
+
+    norms = np.sqrt(np.sum(array**2, axis=sum_over))
+
+    return norms

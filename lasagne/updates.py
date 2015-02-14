@@ -223,7 +223,20 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None,
 
     return update
 
+
 def compute_norms(array):
+    '''
+    Compute incoming weight vector norms.
+
+    :parameters:
+        - array : ndarray
+            Weight array from a DenseLayer or Conv{3,4,5}DLayer.
+
+    :returns:
+        - norms : 1D array
+            1D array of incoming weight vector norms.
+    '''
+
 
     ndim = array.ndim
 

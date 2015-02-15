@@ -1,5 +1,6 @@
 import theano
 import theano.tensor as T
+from theano.tensor.nnet import binary_crossentropy, categorical_crossentropy
 
 
 def mse(x, t):
@@ -14,39 +15,6 @@ def mse(x, t):
         - output : the mean square error across all dimensions
     """
     return (x - t) ** 2
-
-
-def crossentropy(x, t):
-    """Calculates the binary crossentropy mean across all dimentions,
-    i.e.  feature dimension AND minibatch dimension.
-
-    :parameters:
-        - x : predicted values
-        - t : target values
-
-    :returns:
-        - output : the mean binary cross entropy across all dimensions
-    """
-    return T.nnet.binary_crossentropy(x, t)
-
-
-def multinomial_nll(x, t):
-    """Calculates the mean multinomial negative-log-loss
-
-    :parameters:
-        - x : (predicted) class probabilities; a theano expression resulting
-            in a 2D array; samples run along axis 0, class probabilities
-            along axis 1
-        - t : (correct) class probabilities; a theano expression resulting in
-            a 2D tensor that gives the class probabilities in its rows, OR
-            a 1D integer array that gives the class index of each sample
-            (the position of the 1 in the row in a 1-of-N encoding, or
-            1-hot encoding),
-
-    :returns:
-        - output : the mean multinomial negative log loss
-    """
-    return T.nnet.categorical_crossentropy(x, t)
 
 
 

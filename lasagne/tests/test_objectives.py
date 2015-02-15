@@ -48,8 +48,8 @@ class TestObjectives:
         assert result_with_mask.eval() == 10
 
 
-    def test_crossentropy(self):
-        from lasagne.objectives import crossentropy
+    def test_binary_crossentropy(self):
+        from lasagne.objectives import binary_crossentropy
 
         output = np.array([
             [np.e ** -2]*4,
@@ -60,15 +60,15 @@ class TestObjectives:
 
         # Cross entropy sum is (2*4) + (1*4) = 12
         # Mean is 1.5
-        result = self.get_loss(crossentropy, output, target)
+        result = self.get_loss(binary_crossentropy, output, target)
         assert result.eval() == 1.5
         # Masked cross entropy sum is 1*4*0.25 = 1
-        result_with_mask = self.get_masked_loss(crossentropy, output, target, mask)
+        result_with_mask = self.get_masked_loss(binary_crossentropy, output, target, mask)
         assert result_with_mask.eval() == 1
 
 
-    def test_multinomial_nll(self):
-        from lasagne.objectives import multinomial_nll
+    def test_categorical_crossentropy(self):
+        from lasagne.objectives import categorical_crossentropy
 
         output = np.array([
             [1.0, 1.0-np.e**-1, np.e**-1],
@@ -85,18 +85,22 @@ class TestObjectives:
 
         # Multinomial NLL sum is 1 + 2 + 3 = 6
         # Mean is 2
-        result = self.get_loss(multinomial_nll, output, target_1hot)
+        result = self.get_loss(categorical_crossentropy, output, target_1hot)
         assert result.eval() == 2
         # Multinomial NLL sum is (0*0 + 1*0 + 1*1) + (2*0 + 2*1 + 0*0)
         # + (3*0 + 0*0 + 3*1) = 6
         # Mean is 2
-        result = self.get_loss(multinomial_nll, output, target_2d)
+        result = self.get_loss(categorical_crossentropy, output, target_2d)
         assert result.eval() == 2
         # Masked NLL sum is 2 + 3 = 5
-        result_with_mask = self.get_masked_loss(multinomial_nll, output, target_1hot, mask_1hot)
+        result_with_mask = self.get_masked_loss(categorical_crossentropy,
+                                                output, target_1hot,
+                                                mask_1hot)
         assert result_with_mask.eval() == 5
         # Masked NLL sum is 2 + 3 = 5
-        result_with_mask = self.get_masked_loss(multinomial_nll, output, target_2d, mask_1hot)
+        result_with_mask = self.get_masked_loss(categorical_crossentropy,
+                                                output, target_2d,
+                                                mask_1hot)
         assert result_with_mask.eval() == 5
 
 

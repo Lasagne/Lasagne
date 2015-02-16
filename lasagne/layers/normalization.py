@@ -55,9 +55,10 @@ class LocalResponseNormalization2DLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return input_shape
 
-    def get_output_for(self, input, input_shape=None, *args, **kwargs):
-        if input_shape is None:
-            input_shape = self.input_shape
+    def get_output_for(self, input, *args, **kwargs):
+        input_shape = self.input_shape
+        if any(s is None for s in input_shape):
+            input_shape = input.shape
         half_n = self.n // 2
         input_sqr = T.sqr(input)
         b, ch, r, c = input_shape

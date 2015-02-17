@@ -170,6 +170,7 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None,
             is computed by multiplying this value by the average incoming
             weight vector norm for the values originally stored in the
             `param` shared variable.
+            (Optional)
 
     :returns:
         - update : TensorVariable

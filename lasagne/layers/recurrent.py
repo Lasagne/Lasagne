@@ -221,8 +221,8 @@ class RecurrentLayer(CustomRecurrentLayer):
 
 class ReshapeLayer(Layer):
     '''ReshapeLayers exist because RecurrentLayers expects a shape of
-    (n_batch, n_time_steps, n_features) but the DenseLayer will flatten 
-    that shape to (n_batch, n_time_steps*n_features) by default which is wrong. 
+    (n_batch, n_time_steps, n_features) but the DenseLayer will flatten
+    that shape to (n_batch, n_time_steps*n_features) by default which is wrong.
     So, you need to manually reshape before and after using a DenseLayer.
     '''
     def __init__(self, input_layer, shape):
@@ -329,7 +329,7 @@ class LSTMLayer(Layer):
             - hid_init : function or np.ndarray or theano.shared
                 :math:`h_0`
             - backwards : boolean
-                If True, process the sequence backwards and then reverse the 
+                If True, process the sequence backwards and then reverse the
                 output again such that the output from the layer is always
                 from x_1 to x_n.
             - learn_init : boolean
@@ -566,9 +566,8 @@ class LSTMLayer(Layer):
         # (n_time_steps, n_batch, 4*num_units).
         input_dot_W = T.dot(input, self.W_in_to_gates) + self.b_gates
 
-        # input_dow_w is (n_batch, n_time_steps, 4*num_units). We define a
+        # input_dot_w is (n_batch, n_time_steps, 4*num_units). We define a
         # slicing function that extract the input to each LSTM gate
-        # slice_c is similar but for peephole weights.
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
 

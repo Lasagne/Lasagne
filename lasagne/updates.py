@@ -140,23 +140,23 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     return updates
 
 
-def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None,
-                    epsilon=1e-7):
+def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
+                    norm_axes=None, epsilon=1e-7):
     '''
-    Max weight norm constraints
+    Max weight norm constraints and gradient clipping
 
-    This takes a parameter update and rescales it so that incoming weight
+    This takes a TensorVariable and rescales it so that incoming weight
     norms are below a specified constraint value.  The constraint value is
     the lesser of `abs_max` (if provided) and `rel_max` (if provided) times
     the average norm of the values originally stored in `param`.
 
-    Weight vectors violating the constraint are rescaled so that they are
+    Vectors violating the constraint are rescaled so that they are
     within the allowed range.
 
 
     :parameters:
-        - orig_update : TensorVariable
-            Theano expression for original update
+        - tensor_var : TensorVariable
+            Theano expression for update, gradient, or other quantity.
         - param : TheanoSharedVariable
             Shared variable containing initial parameter values.
             (Required if `rel_max` is used)
@@ -171,6 +171,16 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None,
             weight vector norm for the values originally stored in the
             `param` shared variable.
             (Optional)
+        - norm_axes : sequence (list or tuple)
+            The axes over which to compute the norm.  This overrides the
+            default norm axes defined for the number of dimensions
+            in `tensor_var`.
+            (Optional)
+        - epsilon : scalar
+            Value used to prevent numerical instability when dividing by
+            very small or zero norms.
+            (Optional)
+
 
     :returns:
         - update : TensorVariable
@@ -200,38 +210,55 @@ def norm_constraint(orig_update, param=None, abs_max=None, rel_max=None,
         constraint = abs_max if constraint is None else min(abs_max, constraint)
 
     if constraint is None:
-        return orig_update
+        return tensor_var
 
-    ndim = orig_update.ndim
+    ndim = tensor_var.ndim
 
-    if ndim == 2: # DenseLayer
+    if norm_axes is not None:
+        sum_over = tuple(norm_axes)
+        # broadcast over dimensions in `sum_over`
+        broadcast = []
+        count = 0
+        for d in range(ndim):
+            if d in sum_over:
+                broadcast.append('x')
+            else:
+                broadcast.append(count)
+                count += 1
+        broadcast = tuple(broadcast)
+    elif ndim == 2: # DenseLayer
         sum_over = (0,)
         broadcast = ('x', 0)
     elif ndim in [3, 4, 5]: # Conv{1,2,3}DLayer
-        sum_over = tuple(d for d in range(1, ndim))
+        sum_over = tuple(range(1, ndim))
         broadcast = (0,) + tuple('x' for d in range(1, ndim))
     else:
         raise ValueError(
-            "Unsupported update dimensionality {}".format(orig_update.ndim)
+            "Unsupported update dimensionality {}".format(tensor_var.ndim)
         )
 
     dtype = np.dtype(theano.config.floatX).type
 
-    norms = T.sqrt(T.sum(T.sqr(orig_update), axis=sum_over))
+    norms = T.sqrt(T.sum(T.sqr(tensor_var), axis=sum_over))
     target_norms = T.clip(norms, 0, dtype(constraint))
-    update = (orig_update *
+    update = (tensor_var *
               (target_norms / (dtype(epsilon) + norms)).dimshuffle(*broadcast))
 
     return update
 
 
-def compute_norms(array):
+def compute_norms(array, norm_axes=None):
     '''
     Compute incoming weight vector norms.
 
     :parameters:
         - array : ndarray
             Weight array from a DenseLayer or Conv{3,4,5}DLayer.
+        - norm_axes : sequence (list or tuple)
+            The axes over which to compute the norm.  This overrides the
+            default norm axes defined for the number of dimensions
+            in array
+            (Optional)
 
     :returns:
         - norms : 1D array
@@ -241,7 +268,9 @@ def compute_norms(array):
 
     ndim = array.ndim
 
-    if ndim == 2: # DenseLayer
+    if norm_axes is not None:
+        sum_over = tuple(norm_axes)
+    elif ndim == 2: # DenseLayer
         sum_over = (0,)
     elif ndim in [3, 4, 5]: # Conv{1,2,3}DLayer
         sum_over = tuple(d for d in range(1, ndim))

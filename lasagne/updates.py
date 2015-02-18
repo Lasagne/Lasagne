@@ -216,16 +216,6 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
 
     if norm_axes is not None:
         sum_over = tuple(norm_axes)
-        # broadcast over dimensions in `sum_over`
-        broadcast = []
-        count = 0
-        for d in range(ndim):
-            if d in sum_over:
-                broadcast.append('x')
-            else:
-                broadcast.append(count)
-                count += 1
-        broadcast = tuple(broadcast)
     elif ndim == 2: # DenseLayer
         sum_over = (0,)
         broadcast = ('x', 0)
@@ -237,8 +227,12 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
             "Unsupported update dimensionality {}".format(tensor_var.ndim)
         )
 
-    dtype = np.dtype(theano.config.floatX).type
+    # broadcast over dimensions in `sum_over`
+    count = iter(range(ndim))
+    broadcast = tuple('x' if d in sum_over else count.next()
+                      for d in range(ndim))
 
+    dtype = np.dtype(theano.config.floatX).type
     norms = T.sqrt(T.sum(T.sqr(tensor_var), axis=sum_over))
     target_norms = T.clip(norms, 0, dtype(constraint))
     update = (tensor_var *

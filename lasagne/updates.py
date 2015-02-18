@@ -218,10 +218,8 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
         sum_over = tuple(norm_axes)
     elif ndim == 2: # DenseLayer
         sum_over = (0,)
-        broadcast = ('x', 0)
     elif ndim in [3, 4, 5]: # Conv{1,2,3}DLayer
         sum_over = tuple(range(1, ndim))
-        broadcast = (0,) + tuple('x' for d in range(1, ndim))
     else:
         raise ValueError(
             "Unsupported update dimensionality {}".format(tensor_var.ndim)

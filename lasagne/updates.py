@@ -188,10 +188,11 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
             that violate the specified constraints.
 
 
-    Right now this supports:
-        * 2D param matrices with shape (input_dim, output_dim)
-        * {3,4,5}D param tensors with shape
+    Right now this has predefined norm ops for:
+        * 2D dense weight matrices with shape (input_dim, output_dim)
+        * {3,4,5}D convolutional filter tensors with shape
                     (output_chans, input_chans, dim0, dim1, ...)
+    For other uses, you can use the `norm_axes` argument.
     '''
 
     constraint = None

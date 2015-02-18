@@ -217,13 +217,14 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
 
     if norm_axes is not None:
         sum_over = tuple(norm_axes)
-    elif ndim == 2: # DenseLayer
+    elif ndim == 2:  # DenseLayer
         sum_over = (0,)
-    elif ndim in [3, 4, 5]: # Conv{1,2,3}DLayer
+    elif ndim in [3, 4, 5]:  # Conv{1,2,3}DLayer
         sum_over = tuple(range(1, ndim))
     else:
         raise ValueError(
-            "Unsupported update dimensionality {}".format(tensor_var.ndim)
+            "Unsupported tensor dimensionality {}."
+            "Please use `norm_axes`".format(ndim)
         )
 
     # broadcast over dimensions in `sum_over`
@@ -258,18 +259,18 @@ def compute_norms(array, norm_axes=None):
             1D array of incoming weight vector norms.
     '''
 
-
     ndim = array.ndim
 
     if norm_axes is not None:
         sum_over = tuple(norm_axes)
-    elif ndim == 2: # DenseLayer
+    elif ndim == 2:  # DenseLayer
         sum_over = (0,)
-    elif ndim in [3, 4, 5]: # Conv{1,2,3}DLayer
+    elif ndim in [3, 4, 5]:  # Conv{1,2,3}DLayer
         sum_over = tuple(d for d in range(1, ndim))
     else:
         raise ValueError(
-            "Unsupported update dimensionality {}".format(array.ndim)
+            "Unsupported tensor dimensionality {}."
+            "Please use `norm_axes`".format(array.ndim)
         )
 
     norms = np.sqrt(np.sum(array**2, axis=sum_over))

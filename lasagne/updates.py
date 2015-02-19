@@ -227,17 +227,11 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
             "Please use `norm_axes`".format(ndim)
         )
 
-    # broadcast over dimensions in `sum_over`
-    count = iter(range(ndim))
-    broadcast = tuple('x' if d in sum_over else next(count)
-                      for d in range(ndim))
-
     dtype = np.dtype(theano.config.floatX).type
-    norms = T.sqrt(T.sum(T.sqr(tensor_var), axis=sum_over))
+    norms = T.sqrt(T.sum(T.sqr(tensor_var), axis=sum_over, keepdims=True))
     target_norms = T.clip(norms, 0, dtype(constraint))
     constrained_output = \
-        (tensor_var *
-         (target_norms / (dtype(epsilon) + norms)).dimshuffle(*broadcast))
+        (tensor_var * (target_norms / (dtype(epsilon) + norms)))
 
     return constrained_output
 

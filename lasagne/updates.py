@@ -183,8 +183,8 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
 
 
     :returns:
-        - update : TensorVariable
-            Original update with rescaling applied to weight vectors
+        - constrained_output : TensorVariable
+            Input `tensor_var` with rescaling applied to weight vectors
             that violate the specified constraints.
 
 
@@ -235,10 +235,11 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
     dtype = np.dtype(theano.config.floatX).type
     norms = T.sqrt(T.sum(T.sqr(tensor_var), axis=sum_over))
     target_norms = T.clip(norms, 0, dtype(constraint))
-    update = (tensor_var *
-              (target_norms / (dtype(epsilon) + norms)).dimshuffle(*broadcast))
+    constrained_output = \
+        (tensor_var *
+         (target_norms / (dtype(epsilon) + norms)).dimshuffle(*broadcast))
 
-    return update
+    return constrained_output
 
 
 def compute_norms(array, norm_axes=None):

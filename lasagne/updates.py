@@ -224,7 +224,7 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
     else:
         raise ValueError(
             "Unsupported tensor dimensionality {}."
-            "Please use `norm_axes`".format(ndim)
+            "Must specify `norm_axes`".format(ndim)
         )
 
     dtype = np.dtype(theano.config.floatX).type
@@ -261,11 +261,11 @@ def compute_norms(array, norm_axes=None):
     elif ndim == 2:  # DenseLayer
         sum_over = (0,)
     elif ndim in [3, 4, 5]:  # Conv{1,2,3}DLayer
-        sum_over = tuple(d for d in range(1, ndim))
+        sum_over = tuple(range(1, ndim))
     else:
         raise ValueError(
             "Unsupported tensor dimensionality {}."
-            "Please use `norm_axes`".format(array.ndim)
+            "Must specify `norm_axes`".format(array.ndim)
         )
 
     norms = np.sqrt(np.sum(array**2, axis=sum_over))

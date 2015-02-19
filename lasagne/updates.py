@@ -242,7 +242,7 @@ def compute_norms(array, norm_axes=None):
 
     :parameters:
         - array : ndarray
-            Weight array from a DenseLayer or Conv{3,4,5}DLayer.
+            Weight array
         - norm_axes : sequence (list or tuple)
             The axes over which to compute the norm.  This overrides the
             default norm axes defined for the number of dimensions

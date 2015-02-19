@@ -229,7 +229,7 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
 
     # broadcast over dimensions in `sum_over`
     count = iter(range(ndim))
-    broadcast = tuple('x' if d in sum_over else count.next()
+    broadcast = tuple('x' if d in sum_over else next(count)
                       for d in range(ndim))
 
     dtype = np.dtype(theano.config.floatX).type

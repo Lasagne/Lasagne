@@ -20,7 +20,7 @@ class CustomRecurrentLayer(Layer):
     def __init__(self, input_layer, input_to_hidden, hidden_to_hidden,
                  nonlinearity=nonlinearities.rectify,
                  hid_init=init.Constant(0.), backwards=False,
-                 learn_init=False):
+                 learn_init=False, gradient_steps=-1):
         '''
         Create a recurrent layer.
 
@@ -39,6 +39,9 @@ class CustomRecurrentLayer(Layer):
                 If True, process the sequence backwards
             - learn_init : boolean
                 If True, initial hidden values are learned
+            - gradient_steps : int
+                Number of timesteps to include in backpropagated gradient
+                If -1, backpropagate through the entire sequence
         '''
         super(CustomRecurrentLayer, self).__init__(input_layer)
 
@@ -46,6 +49,7 @@ class CustomRecurrentLayer(Layer):
         self.hidden_to_hidden = hidden_to_hidden
         self.learn_init = learn_init
         self.backwards = backwards
+        self.gradient_steps = gradient_steps
 
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -154,7 +158,8 @@ class CustomRecurrentLayer(Layer):
 
         output = theano.scan(step_fun, sequences=sequences,
                              go_backwards=self.backwards,
-                             outputs_info=[self.hid_init])[0]
+                             outputs_info=[self.hid_init],
+                             truncate_gradient=self.gradient_steps)[0]
 
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)
@@ -177,7 +182,7 @@ class RecurrentLayer(CustomRecurrentLayer):
                  W_hid_to_hid=init.Uniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify,
                  hid_init=init.Constant(0.), backwards=False,
-                 learn_init=False):
+                 learn_init=False, gradient_steps=-1):
         '''
         Create a recurrent layer.
 
@@ -200,6 +205,9 @@ class RecurrentLayer(CustomRecurrentLayer):
                 If True, process the sequence backwards
             - learn_init : boolean
                 If True, initial hidden values are learned
+            - gradient_steps : int
+                Number of timesteps to include in backpropagated gradient
+                If -1, backpropagate through the entire sequence
         '''
 
         input_shape = input_layer.get_output_shape()
@@ -216,7 +224,8 @@ class RecurrentLayer(CustomRecurrentLayer):
 
         super(RecurrentLayer, self).__init__(
             input_layer, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
-            hid_init=hid_init, backwards=backwards, learn_init=backwards)
+            hid_init=hid_init, backwards=backwards, learn_init=backwards,
+            gradient_steps=gradient_steps)
 
 
 class ReshapeLayer(Layer):
@@ -274,7 +283,8 @@ class LSTMLayer(Layer):
                  hid_init=init.Constant(0.),
                  backwards=False,
                  learn_init=False,
-                 peepholes=True):
+                 peepholes=True,
+                 gradient_steps=-1):
         '''
         Initialize an LSTM layer.  For details on what the parameters mean, see
         (7-11) from [#graves2014generating]_.
@@ -338,6 +348,9 @@ class LSTMLayer(Layer):
                 If True, the LSTM uses peephole connections.
                 When False, W_cell_to_ingate, W_cell_to_forgetgate and
                 W_cell_to_outgate are ignored.
+            - gradient_steps : int
+                Number of timesteps to include in backpropagated gradient
+                If -1, backpropagate through the entire sequence
         '''
 
         # Initialize parent layer
@@ -373,6 +386,7 @@ class LSTMLayer(Layer):
         self.num_units = num_units
         self.backwards = backwards
         self.peepholes = peepholes
+        self.gradient_steps = gradient_steps
 
         # Input dimensionality is the output dimensionality of the input layer
         (num_batch, _, num_inputs) = self.input_layer.get_output_shape()
@@ -637,7 +651,8 @@ class LSTMLayer(Layer):
         # applies the step function
         output = theano.scan(step_fun, sequences=sequences,
                              outputs_info=[self.cell_init, self.hid_init],
-                             go_backwards=self.backwards)[0][1]
+                             go_backwards=self.backwards,
+                             truncate_gradient=self.gradient_steps)[0][1]
 
         # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
         output = output.dimshuffle(1, 0, 2)

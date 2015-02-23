@@ -181,18 +181,35 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
             very small or zero norms.
             (Optional)
 
-
     :returns:
         - constrained_output : TensorVariable
             Input `tensor_var` with rescaling applied to weight vectors
             that violate the specified constraints.
 
+    :usage:
+        >>> # Weight norm constraints
+        >>> from collections import OrderedDict
+        >>> updates = nesterov_momentum(loss, all_params, learning_rate)
+        >>> updates = OrderedDict(updates)
+        >>> # Absolute constraint of 5.0 for `param1`
+        >>> updates[param1] = norm_constraint(updates[param1], abs_max=5.0)
+        >>> # Relative constraint of 1.0 for `param2`
+        >>> updates[param2] = norm_constraint(updates[param2], rel_max=1.0)
 
-    Right now this has predefined norm ops for:
-        * 2D dense weight matrices with shape (input_dim, output_dim)
-        * {3,4,5}D convolutional filter tensors with shape
-                    (output_chans, input_chans, dim0, dim1, ...)
-    For other uses, you can use the `norm_axes` argument.
+        >>> # Gradient clipping
+        >>> all_grads = theano.grad(loss, all_params)
+        >>> # Clip all gradients to 5.0
+        >>> updates = []
+        >>> for param, grad in zip(all_params, all_grads):
+        >>>     clipped_grad = norm_constraint(grad, abs_max=5.0)
+        >>>     updates.append((param, param - learning_rate * clipped_grad))
+
+    :note:
+        Right now this has predefined norm ops for:
+            * 2D dense weight matrices with shape (input_dim, output_dim)
+            * {3,4,5}D convolutional filter tensors with shape
+                        (output_chans, input_chans, dim0, dim1, ...)
+        For other uses, you can use the `norm_axes` argument.
     '''
 
     constraint = None

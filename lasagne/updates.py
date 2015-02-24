@@ -140,37 +140,20 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     return updates
 
 
-def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
-                    norm_axes=None, epsilon=1e-7):
+def norm_constraint(tensor_var, max_norm, norm_axes=None, epsilon=1e-7):
     '''
     Max weight norm constraints and gradient clipping
 
     This takes a TensorVariable and rescales it so that incoming weight
-    norms are below a specified constraint value.  The constraint value is
-    the lesser of `abs_max` (if provided) and `rel_max` (if provided) times
-    the average norm of the values originally stored in `param`.
-
-    Vectors violating the constraint are rescaled so that they are
-    within the allowed range.
-
+    norms are below a specified constraint value. Vectors violating the
+    constraint are rescaled so that they are within the allowed range.
 
     :parameters:
         - tensor_var : TensorVariable
             Theano expression for update, gradient, or other quantity.
-        - param : TheanoSharedVariable
-            Shared variable containing initial parameter values.
-            (Required if `rel_max` is used)
-        - abs_max : scalar
-            This value sets the absolute maximum value allowed for the
-            incoming weight vectors after the update.
-            (Optional)
-        - rel_max : scalar
-            This value sets the relative maximum value allowed for the
-            incoming weight vectors after the update.  The relative maximum
-            is computed by multiplying this value by the average incoming
-            weight vector norm for the values originally stored in the
-            `param` shared variable.
-            (Optional)
+        - max_norm : scalar
+            This value sets the maximum allowed value of any norm in
+            `tensor_var`.
         - norm_axes : sequence (list or tuple)
             The axes over which to compute the norm.  This overrides the
             default norm axes defined for the number of dimensions
@@ -187,22 +170,17 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
             that violate the specified constraints.
 
     :usage:
-        >>> # Weight norm constraints
-        >>> from collections import OrderedDict
-        >>> updates = nesterov_momentum(loss, all_params, learning_rate)
-        >>> updates = OrderedDict(updates)
-        >>> # Absolute constraint of 5.0 for `param1`
-        >>> updates[param1] = norm_constraint(updates[param1], abs_max=5.0)
-        >>> # Relative constraint of 1.0 for `param2`
-        >>> updates[param2] = norm_constraint(updates[param2], rel_max=1.0)
-
-        >>> # Gradient clipping
-        >>> all_grads = theano.grad(loss, all_params)
-        >>> # Clip all gradients to 5.0
-        >>> updates = []
-        >>> for param, grad in zip(all_params, all_grads):
-        >>>     clipped_grad = norm_constraint(grad, abs_max=5.0)
-        >>>     updates.append((param, param - learning_rate * clipped_grad))
+        >>> param = theano.shared(
+        ...     np.random.randn(100, 200).astype(theano.config.floatX))
+        >>> update = param + 100
+        >>> update = norm_constraint(update, 10)
+        >>> func = theano.function([], [], updates=[(param, update)])
+        >>> # Apply constrained update
+        >>> _ = func()
+        >>> from lasagne.utils import compute_norms
+        >>> norms = compute_norms(param.get_value())
+        >>> np.isclose(np.max(norms), 10)
+        True
 
     :note:
         Right now this has predefined norm ops for:
@@ -212,23 +190,6 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
         For other uses, you can use the `norm_axes` argument.
     '''
 
-    constraint = None
-
-    if rel_max is not None:
-
-        if param is None:
-            raise ValueError("`rel_max` requires that `param` is provided")
-
-        # Compute average norm of `param`
-        vals = param.get_value()
-        avg_norm = np.mean(compute_norms(vals))
-        constraint = rel_max * avg_norm
-
-    if abs_max is not None:
-        constraint = abs_max if constraint is None else min(abs_max, constraint)
-
-    if constraint is None:
-        return tensor_var
 
     ndim = tensor_var.ndim
 
@@ -246,45 +207,10 @@ def norm_constraint(tensor_var, param=None, abs_max=None, rel_max=None,
 
     dtype = np.dtype(theano.config.floatX).type
     norms = T.sqrt(T.sum(T.sqr(tensor_var), axis=sum_over, keepdims=True))
-    target_norms = T.clip(norms, 0, dtype(constraint))
+    target_norms = T.clip(norms, 0, dtype(max_norm))
     constrained_output = \
         (tensor_var * (target_norms / (dtype(epsilon) + norms)))
 
     return constrained_output
 
 
-def compute_norms(array, norm_axes=None):
-    '''
-    Compute incoming weight vector norms.
-
-    :parameters:
-        - array : ndarray
-            Weight array
-        - norm_axes : sequence (list or tuple)
-            The axes over which to compute the norm.  This overrides the
-            default norm axes defined for the number of dimensions
-            in array
-            (Optional)
-
-    :returns:
-        - norms : 1D array
-            1D array of incoming weight vector norms.
-    '''
-
-    ndim = array.ndim
-
-    if norm_axes is not None:
-        sum_over = tuple(norm_axes)
-    elif ndim == 2:  # DenseLayer
-        sum_over = (0,)
-    elif ndim in [3, 4, 5]:  # Conv{1,2,3}DLayer
-        sum_over = tuple(range(1, ndim))
-    else:
-        raise ValueError(
-            "Unsupported tensor dimensionality {}."
-            "Must specify `norm_axes`".format(array.ndim)
-        )
-
-    norms = np.sqrt(np.sum(array**2, axis=sum_over))
-
-    return norms

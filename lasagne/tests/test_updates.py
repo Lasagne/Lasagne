@@ -3,7 +3,7 @@ import pytest
 PCT_TOLERANCE = 1E-5
 
 
-def test_norm_constraint_abs():
+def test_norm_constraint():
     import numpy as np
     import theano
     from lasagne.updates import norm_constraint
@@ -48,7 +48,7 @@ def test_norm_constraint_norm_axes():
             <= max_norm*(1 + PCT_TOLERANCE))
 
 
-def test_norm_constraint_abs_dim6_raises():
+def test_norm_constraint_dim6_raises():
     import numpy as np
     import theano
     from lasagne.updates import norm_constraint

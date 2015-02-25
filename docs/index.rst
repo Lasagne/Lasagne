@@ -29,6 +29,7 @@ method, this part of the documentation is for you.
   :maxdepth: 2
 
   modules/layers
+  modules/updates
 
 Indices and tables
 ------------------

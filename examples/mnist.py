@@ -59,7 +59,7 @@ def load_data():
         num_examples_test=X_test.shape[0],
         input_dim=X_train.shape[1],
         output_dim=10,
-        )
+    )
 
 
 def build_model(input_dim, output_dim,
@@ -67,30 +67,30 @@ def build_model(input_dim, output_dim,
 
     l_in = lasagne.layers.InputLayer(
         shape=(batch_size, input_dim),
-        )
+    )
     l_hidden1 = lasagne.layers.DenseLayer(
         l_in,
         num_units=num_hidden_units,
         nonlinearity=lasagne.nonlinearities.rectify,
-        )
+    )
     l_hidden1_dropout = lasagne.layers.DropoutLayer(
         l_hidden1,
         p=0.5,
-        )
+    )
     l_hidden2 = lasagne.layers.DenseLayer(
         l_hidden1_dropout,
         num_units=num_hidden_units,
         nonlinearity=lasagne.nonlinearities.rectify,
-        )
+    )
     l_hidden2_dropout = lasagne.layers.DropoutLayer(
         l_hidden2,
         p=0.5,
-        )
+    )
     l_out = lasagne.layers.DenseLayer(
         l_hidden2_dropout,
         num_units=output_dim,
         nonlinearity=lasagne.nonlinearities.softmax,
-        )
+    )
     return l_out
 
 
@@ -104,14 +104,15 @@ def create_iter_functions(dataset, output_layer,
     batch_slice = slice(
         batch_index * batch_size, (batch_index + 1) * batch_size)
 
-    objective = lasagne.objectives.Objective(output_layer, loss_function=lasagne.objectives.multinomial_nll)
+    objective = lasagne.objectives.Objective(
+        output_layer, loss_function=lasagne.objectives.multinomial_nll)
 
     loss_train = objective.get_loss(X_batch, target=y_batch)
     loss_eval = objective.get_loss(X_batch, target=y_batch, deterministic=True)
 
     pred = T.argmax(
         output_layer.get_output(X_batch, deterministic=True), axis=1)
-    accuracy = T.mean(T.eq(pred, y_batch))
+    accuracy = T.mean(T.eq(pred, y_batch), dtype=theano.config.floatX)
 
     all_params = lasagne.layers.get_all_params(output_layer)
     updates = lasagne.updates.nesterov_momentum(
@@ -123,30 +124,30 @@ def create_iter_functions(dataset, output_layer,
         givens={
             X_batch: dataset['X_train'][batch_slice],
             y_batch: dataset['y_train'][batch_slice],
-            },
-        )
+        },
+    )
 
     iter_valid = theano.function(
         [batch_index], [loss_eval, accuracy],
         givens={
             X_batch: dataset['X_valid'][batch_slice],
             y_batch: dataset['y_valid'][batch_slice],
-            },
-        )
+        },
+    )
 
     iter_test = theano.function(
         [batch_index], [loss_eval, accuracy],
         givens={
             X_batch: dataset['X_test'][batch_slice],
             y_batch: dataset['y_test'][batch_slice],
-            },
-        )
+        },
+    )
 
     return dict(
         train=iter_train,
         valid=iter_valid,
         test=iter_test,
-        )
+    )
 
 
 def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
@@ -177,7 +178,7 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
             'train_loss': avg_train_loss,
             'valid_loss': avg_valid_loss,
             'valid_accuracy': avg_valid_accuracy,
-            }
+        }
 
 
 def main(num_epochs=NUM_EPOCHS):
@@ -185,7 +186,7 @@ def main(num_epochs=NUM_EPOCHS):
     output_layer = build_model(
         input_dim=dataset['input_dim'],
         output_dim=dataset['output_dim'],
-        )
+    )
     iter_funcs = create_iter_functions(dataset, output_layer)
 
     print("Starting training...")

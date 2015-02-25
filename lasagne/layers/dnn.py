@@ -87,6 +87,7 @@ class Conv2DDNNLayer(DNNLayer):
             if isinstance(pad, int):
                 pad = (pad, pad)
             self.pad = pad
+            self.border_mode = None
 
         self.W = self.create_param(W, self.get_W_shape(), name="W")
         if b is None:

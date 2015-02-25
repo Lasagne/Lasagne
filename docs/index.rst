@@ -29,6 +29,11 @@ method, this part of the documentation is for you.
   :maxdepth: 2
 
   modules/layers
+  modules/updates
+  modules/init
+  modules/nonlinearities
+  modules/objectives
+  modules/utils
 
 Indices and tables
 ------------------

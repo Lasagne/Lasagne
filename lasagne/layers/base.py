@@ -62,7 +62,7 @@ class Layer(object):
         for the layer.
 
         :returns:
-            - list
+            - bias_params : list
                 the list of Theano variables.
 
         :note:

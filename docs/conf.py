@@ -101,15 +101,17 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ----------------------------------------------
 
-# on_rtd is whether we are on readthedocs.org
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+import sphinx_bootstrap_theme
+html_theme = 'bootstrap'
 
-if not on_rtd:  # only import and set the theme if we're building docs locally
-    import sphinx_rtd_theme
-    html_theme = 'sphinx_rtd_theme'
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme_options = {
+  'bootswatch_theme': 'cosmo', # simplex', # yeti, spacelab, 
+  'bootstrap_version': '3',
+  'navbar_title': 'Lasagne',
+  'source_link_position': 'footer',
+}
 
-# otherwise, readthedocs.org uses their theme by default, so no need to specify it
+html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".

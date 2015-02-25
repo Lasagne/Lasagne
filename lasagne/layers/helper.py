@@ -102,7 +102,7 @@ def get_all_params(layer):
 def get_all_bias_params(layer):
     """
     This function gathers all learnable bias parameters of all layers below one
-    or more given :class`Layer` instances, including the layer(s) itself.
+    or more given :class:`Layer` instances, including the layer(s) itself.
 
     This is useful for situations where the biases should be treated
     separately from other parameters, e.g. they are typically excluded from
@@ -134,7 +134,7 @@ def get_all_bias_params(layer):
 def get_all_non_bias_params(layer):
     """
     This function gathers all learnable non-bias parameters of all layers below
-    one or more given :class`Layer` instances, including the layer(s) itself.
+    one or more given :class:`Layer` instances, including the layer(s) itself.
 
     This is useful for situations where the biases should be treated
     separately from other parameters, e.g. they are typically excluded from
@@ -167,7 +167,7 @@ def get_all_non_bias_params(layer):
 def count_params(layer):
     """
     This function counts all learnable parameters (i.e. the number of scalar
-    values) of all layers below one or more given :class`Layer` instances,
+    values) of all layers below one or more given :class:`Layer` instances,
     including the layer(s) itself.
 
     This is useful to compare the capacity of various network architectures.

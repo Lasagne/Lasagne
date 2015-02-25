@@ -1,10 +1,20 @@
 from __future__ import print_function
 
-import cPickle as pickle
 import gzip
 import itertools
-import urllib
+import pickle
 import os
+import sys
+
+PY2 = sys.version_info[0] == 2
+
+if PY2:
+    from urllib import urlretrieve
+    pickle_load = lambda f, encoding: pickle.load(f)
+else:
+    from urllib.request import urlretrieve
+    pickle_load = lambda f, encoding: pickle.load(f, encoding=encoding)
+
 
 import numpy as np
 import lasagne
@@ -23,15 +33,12 @@ MOMENTUM = 0.9
 
 
 def _load_data(url=DATA_URL, filename=DATA_FILENAME):
-    try:
-        with gzip.open(filename, 'rb') as f:
-            data = pickle.load(f)
-    except (IOError, EOFError):
+    if not os.path.exists(filename):
         print("Downloading MNIST")
-        urllib.urlretrieve(url, filename)
-        with gzip.open(filename, 'rb') as f:
-            data = pickle.load(f)
-    return data
+        urlretrieve(url, filename)
+
+    with gzip.open(filename, 'rb') as f:
+        return pickle_load(f, encoding='latin-1')
 
 
 def load_data():

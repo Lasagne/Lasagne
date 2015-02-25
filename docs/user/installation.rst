@@ -11,8 +11,14 @@ For most installations, it is recommended to install Lasagne and its
 dependencies inside a virtualenv or a conda environment.  The
 following commands assume that you have your environment active.
 
+You can either install from PyPI or install from source, such as from
+a Git clone.
+
 Install from PyPI
 =================
+
+.. note:: Lasagne hasn't been released as of now.  The only way to
+          install it for now is from source.
 
 Simply run:
 

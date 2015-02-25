@@ -2,10 +2,10 @@
 Tools to train neural nets in Theano
 """
 
-import nonlinearities
-import init
-import layers
-import objectives
-import regularization
-import updates
-import utils
+from . import nonlinearities
+from . import init
+from . import layers
+from . import objectives
+from . import regularization
+from . import updates
+from . import utils

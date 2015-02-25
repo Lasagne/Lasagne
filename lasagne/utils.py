@@ -117,3 +117,53 @@ def concatenate(tensor_list, axis=0):
         offset += tensor.shape[axis]
 
     return out
+
+
+def compute_norms(array, norm_axes=None):
+    """
+    Compute incoming weight vector norms.
+
+    :parameters:
+        - array : ndarray
+            Weight array
+        - norm_axes : sequence (list or tuple)
+            The axes over which to compute the norm.  This overrides the
+            default norm axes defined for the number of dimensions
+            in `array`. When this is not specified and `array` is a 2D array,
+            this is set to `(0,)`. If `array` is a 3D, 4D or 5D array, it is
+            set to a tuple listing all axes but axis 0. The former default is
+            useful for working with dense layers, the latter is useful for 1D,
+            2D and 3D convolutional layers.
+            (Optional)
+
+    :returns:
+        - norms : 1D array
+            1D array of incoming weight vector norms.
+    :usage:
+        >>> array = np.random.randn(100, 200)
+        >>> norms = compute_norms(array)
+        >>> norms.shape
+        (200,)
+
+        >>> norms = compute_norms(array, norm_axes=(1,))
+        >>> norms.shape
+        (100,)
+
+    """
+    ndim = array.ndim
+
+    if norm_axes is not None:
+        sum_over = tuple(norm_axes)
+    elif ndim == 2:  # DenseLayer
+        sum_over = (0,)
+    elif ndim in [3, 4, 5]:  # Conv{1,2,3}DLayer
+        sum_over = tuple(range(1, ndim))
+    else:
+        raise ValueError(
+            "Unsupported tensor dimensionality {}."
+            "Must specify `norm_axes`".format(array.ndim)
+        )
+
+    norms = np.sqrt(np.sum(array**2, axis=sum_over))
+
+    return norms

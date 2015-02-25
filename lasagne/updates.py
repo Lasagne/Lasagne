@@ -141,7 +141,7 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
 
 
 def norm_constraint(tensor_var, max_norm, norm_axes=None, epsilon=1e-7):
-    '''
+    """
     Max weight norm constraints and gradient clipping
 
     This takes a TensorVariable and rescales it so that incoming weight
@@ -157,7 +157,11 @@ def norm_constraint(tensor_var, max_norm, norm_axes=None, epsilon=1e-7):
         - norm_axes : sequence (list or tuple)
             The axes over which to compute the norm.  This overrides the
             default norm axes defined for the number of dimensions
-            in `tensor_var`.
+            in `tensor_var`. When this is not specified and `tensor_var` is a 
+            matrix (2D), this is set to `(0,)`. If `tensor_var` is a 3D, 4D or
+            5D tensor, it is set to a tuple listing all axes but axis 0. The
+            former default is useful for working with dense layers, the latter
+            is useful for 1D, 2D and 3D convolutional layers.
             (Optional)
         - epsilon : scalar
             Value used to prevent numerical instability when dividing by
@@ -183,14 +187,14 @@ def norm_constraint(tensor_var, max_norm, norm_axes=None, epsilon=1e-7):
         True
 
     :note:
-        Right now this has predefined norm ops for:
-            * 2D dense weight matrices with shape (input_dim, output_dim)
-            * {3,4,5}D convolutional filter tensors with shape
-                        (output_chans, input_chans, dim0, dim1, ...)
-        For other uses, you can use the `norm_axes` argument.
-    '''
-
-
+        When `norm_axes` is not specified, the axes over which the norm is
+        computed depend on the dimensionality of the input variable. If it is
+        2D, it is assumed to come from a dense layer, and the norm is computed
+        over axis 0. If it is 3D, 4D or 5D, it is assumed to come from a
+        convolutional layer and the norm is computed over all trailing axes
+        beyond axis 0. For other uses, you should explicitly specify the axes
+        over which to compute the norm using `norm_axes`.
+    """
     ndim = tensor_var.ndim
 
     if norm_axes is not None:
@@ -212,5 +216,3 @@ def norm_constraint(tensor_var, max_norm, norm_axes=None, epsilon=1e-7):
         (tensor_var * (target_norms / (dtype(epsilon) + norms)))
 
     return constrained_output
-
-

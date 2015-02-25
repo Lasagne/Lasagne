@@ -120,7 +120,7 @@ def concatenate(tensor_list, axis=0):
 
 
 def compute_norms(array, norm_axes=None):
-    '''
+    """
     Compute incoming weight vector norms.
 
     :parameters:
@@ -129,7 +129,11 @@ def compute_norms(array, norm_axes=None):
         - norm_axes : sequence (list or tuple)
             The axes over which to compute the norm.  This overrides the
             default norm axes defined for the number of dimensions
-            in array
+            in `array`. When this is not specified and `array` is a 2D array,
+            this is set to `(0,)`. If `array` is a 3D, 4D or 5D array, it is
+            set to a tuple listing all axes but axis 0. The former default is
+            useful for working with dense layers, the latter is useful for 1D,
+            2D and 3D convolutional layers.
             (Optional)
 
     :returns:
@@ -145,9 +149,7 @@ def compute_norms(array, norm_axes=None):
         >>> norms.shape
         (100,)
 
-    '''
-
-
+    """
     ndim = array.ndim
 
     if norm_axes is not None:

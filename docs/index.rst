@@ -30,6 +30,10 @@ method, this part of the documentation is for you.
 
   modules/layers
   modules/updates
+  modules/init
+  modules/nonlinearities
+  modules/objectives
+  modules/utils
 
 Indices and tables
 ------------------

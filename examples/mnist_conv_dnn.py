@@ -40,39 +40,39 @@ def load_data():
         input_height=X_train.shape[2],
         input_width=X_train.shape[3],
         output_dim=10,
-        )
+    )
 
 
 def build_model(input_width, input_height, output_dim,
                 batch_size=BATCH_SIZE):
     l_in = lasagne.layers.InputLayer(
         shape=(batch_size, 1, input_width, input_height),
-        )
+    )
 
-    l_conv1 = lasagne.layers.Conv2DDNNLayer(
+    l_conv1 = dnn.Conv2DDNNLayer(
         l_in,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.Uniform(),
-        )
-    l_pool1 = lasagne.layers.MaxPool2DDNNLayer(l_conv1, ds=(2, 2))
+    )
+    l_pool1 = dnn.MaxPool2DDNNLayer(l_conv1, ds=(2, 2))
 
-    l_conv2 = lasagne.layers.Conv2DDNNLayer(
+    l_conv2 = dnn.Conv2DDNNLayer(
         l_pool1,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.Uniform(),
-        )
-    l_pool2 = lasagne.layers.MaxPool2DDNNLayer(l_conv2, ds=(2, 2))
+    )
+    l_pool2 = dnn.MaxPool2DDNNLayer(l_conv2, ds=(2, 2))
 
     l_hidden1 = lasagne.layers.DenseLayer(
         l_pool2,
         num_units=256,
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.Uniform(),
-        )
+    )
 
     l_hidden1_dropout = lasagne.layers.DropoutLayer(l_hidden1, p=0.5)
 
@@ -81,7 +81,7 @@ def build_model(input_width, input_height, output_dim,
         num_units=output_dim,
         nonlinearity=lasagne.nonlinearities.softmax,
         W=lasagne.init.Uniform(),
-        )
+    )
 
     return l_out
 
@@ -93,13 +93,13 @@ def main(num_epochs=NUM_EPOCHS):
         input_height=dataset['input_height'],
         input_width=dataset['input_width'],
         output_dim=dataset['output_dim'],
-        )
+    )
 
     iter_funcs = create_iter_functions(
         dataset,
         output_layer,
         X_tensor_type=T.tensor4,
-        )
+    )
 
     print("Starting training...")
     for epoch in train(iter_funcs, dataset):

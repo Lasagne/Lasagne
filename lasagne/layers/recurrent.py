@@ -393,37 +393,42 @@ class LSTMLayer(Layer):
 
         # Initialize parameters using the supplied args
         self.W_in_to_ingate = self.create_param(
-            W_in_to_ingate, (num_inputs, num_units))
+            W_in_to_ingate, (num_inputs, num_units), name="W_in_to_ingate")
 
         self.W_hid_to_ingate = self.create_param(
-            W_hid_to_ingate, (num_units, num_units))
+            W_hid_to_ingate, (num_units, num_units), name="W_hid_to_ingate")
 
-        self.b_ingate = self.create_param(b_ingate, (num_units))
+        self.b_ingate = self.create_param(
+            b_ingate, (num_units), name="b_ingate")
 
         self.W_in_to_forgetgate = self.create_param(
-            W_in_to_forgetgate, (num_inputs, num_units))
+            W_in_to_forgetgate, (num_inputs, num_units), 
+            name="W_in_to_forgetgate")
 
         self.W_hid_to_forgetgate = self.create_param(
-            W_hid_to_forgetgate, (num_units, num_units))
+            W_hid_to_forgetgate, (num_units, num_units), 
+            name="W_hid_to_forgetgate")
 
-        self.b_forgetgate = self.create_param(b_forgetgate, (num_units,))
+        self.b_forgetgate = self.create_param(
+            b_forgetgate, (num_units,), name="b_forgetgate")
 
         self.W_in_to_cell = self.create_param(
-            W_in_to_cell, (num_inputs, num_units))
+            W_in_to_cell, (num_inputs, num_units), name="W_in_to_cell")
 
         self.W_hid_to_cell = self.create_param(
-            W_hid_to_cell, (num_units, num_units))
+            W_hid_to_cell, (num_units, num_units), name="W_hid_to_cell")
 
         self.b_cell = self.create_param(
-            b_cell, (num_units,))
+            b_cell, (num_units,), name="b_cell")
 
         self.W_in_to_outgate = self.create_param(
-            W_in_to_outgate, (num_inputs, num_units))
+            W_in_to_outgate, (num_inputs, num_units), name="W_in_to_outgate")
 
         self.W_hid_to_outgate = self.create_param(
-            W_hid_to_outgate, (num_units, num_units))
+            W_hid_to_outgate, (num_units, num_units), name="W_hid_to_outgate")
 
-        self.b_outgate = self.create_param(b_outgate, (num_units,))
+        self.b_outgate = self.create_param(
+            b_outgate, (num_units,), name="b_outgate")
 
         # Stack input to gate weight matrices into a (num_inputs, 4*num_units)
         # matrix, which speeds up computation
@@ -446,17 +451,19 @@ class LSTMLayer(Layer):
         # vectors.
         if self.peepholes:
             self.W_cell_to_ingate = self.create_param(
-                W_cell_to_ingate, (num_units))
+                W_cell_to_ingate, (num_units), name="W_cell_to_ingate")
 
             self.W_cell_to_forgetgate = self.create_param(
-                W_cell_to_forgetgate, (num_units))
+                W_cell_to_forgetgate, (num_units), name="W_cell_to_forgetgate")
 
             self.W_cell_to_outgate = self.create_param(
-                W_cell_to_outgate, (num_units))
+                W_cell_to_outgate, (num_units), name="W_cell_to_outgate")
 
         # Setup initial values for the cell and the hidden units
-        self.cell_init = self.create_param(cell_init, (num_batch, num_units))
-        self.hid_init = self.create_param(hid_init, (num_batch, num_units))
+        self.cell_init = self.create_param(
+            cell_init, (num_batch, num_units), name="cell_init")
+        self.hid_init = self.create_param(
+            hid_init, (num_batch, num_units), name="hid_init")
 
     def get_params(self):
         '''

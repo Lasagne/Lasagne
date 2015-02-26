@@ -137,7 +137,8 @@ def adadelta(loss, all_params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
         updates.append((acc_i, acc_i_new))
 
         update_i = (grad_i * T.sqrt(acc_delta_i + epsilon) /
-                    T.sqrt(acc_i_new + epsilon))  # use the 'old' acc_delta here
+                    # use the 'old' acc_delta here
+                    T.sqrt(acc_i_new + epsilon))
         updates.append((param_i, param_i - learning_rate * update_i))
 
         acc_delta_i_new = rho * acc_delta_i + (1 - rho) * update_i ** 2

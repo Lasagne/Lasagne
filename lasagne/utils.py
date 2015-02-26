@@ -36,10 +36,9 @@ def as_theano_expression(input):
         try:
             return theano.tensor.constant(input)
         except Exception as e:
-            raise TypeError("Input of type %s is not a Theano "
-                    "expression and cannot be wrapped as a Theano "
-                    "constant (original exception: %s)" %
-                    (type(input), e))
+            raise TypeError("Input of type %s is not a Theano expression and "
+                            "cannot be wrapped as a Theano constant (original "
+                            "exception: %s)" % (type(input), e))
 
 
 def one_hot(x, m=None):

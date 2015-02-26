@@ -37,7 +37,9 @@ class TestConv2DLayerImplementations:
     @pytest.fixture(
         params=[
             ('lasagne.layers', 'Conv2DLayer', {}),
-            ('lasagne.layers.cuda_convnet', 'Conv2DCCLayer', {'flip_filters': True}),
+            ('lasagne.layers.cuda_convnet',
+             'Conv2DCCLayer',
+             {'flip_filters': True}),
             ('lasagne.layers.corrmm', 'Conv2DMMLayer', {'flip_filters': True}),
             ('lasagne.layers.dnn', 'Conv2DDNNLayer', {'flip_filters': True}),
             ],

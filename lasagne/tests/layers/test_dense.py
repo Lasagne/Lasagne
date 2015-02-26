@@ -105,7 +105,7 @@ class TestDenseLayer:
         layer = DenseLayer(
             dummy_input_layer,
             num_units=3,
-            name = "foo"
+            name="foo"
             )
 
         assert layer.W.name == "foo.W"

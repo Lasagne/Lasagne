@@ -21,8 +21,8 @@ def test_norm_constraint():
     apply_update()
 
     assert param.dtype == update.dtype
-    assert (np.max(compute_norms(param.get_value()))
-            <= max_norm*(1 + PCT_TOLERANCE))
+    assert (np.max(compute_norms(param.get_value())) <=
+            max_norm*(1 + PCT_TOLERANCE))
 
 
 def test_norm_constraint_norm_axes():
@@ -44,15 +44,14 @@ def test_norm_constraint_norm_axes():
     apply_update()
 
     assert param.dtype == update.dtype
-    assert (np.max(compute_norms(param.get_value(), norm_axes=norm_axes))
-            <= max_norm*(1 + PCT_TOLERANCE))
+    assert (np.max(compute_norms(param.get_value(), norm_axes=norm_axes)) <=
+            max_norm*(1 + PCT_TOLERANCE))
 
 
 def test_norm_constraint_dim6_raises():
     import numpy as np
     import theano
     from lasagne.updates import norm_constraint
-    from lasagne.utils import compute_norms
 
     max_norm = 0.01
 
@@ -61,5 +60,5 @@ def test_norm_constraint_dim6_raises():
     )
 
     with pytest.raises(ValueError) as excinfo:
-        update = norm_constraint(param, max_norm)
+        norm_constraint(param, max_norm)
     assert "Unsupported tensor dimensionality" in str(excinfo.value)

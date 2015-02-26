@@ -12,7 +12,7 @@ class TestConcatLayer:
 
     def test_get_output_for(self, layer):
         inputs = [theano.shared(numpy.ones((3, 3))),
-            theano.shared(numpy.ones((3, 2)))]
+                  theano.shared(numpy.ones((3, 2)))]
         result = layer.get_output_for(inputs)
         result_eval = result.eval()
         desired_result = numpy.hstack([input.get_value() for input in inputs])

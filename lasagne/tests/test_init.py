@@ -83,7 +83,8 @@ def test_orthogonal_gain():
 
     gain = 2
     sample = Orthogonal(gain).sample((100, 200))
-    assert np.allclose(np.dot(sample, sample.T), gain * gain * np.eye(100), atol=1e-6)
+    assert np.allclose(np.dot(sample, sample.T), gain * gain * np.eye(100),
+                       atol=1e-6)
 
 
 def test_orthogonal_multi():
@@ -96,7 +97,6 @@ def test_orthogonal_multi():
 
 
 def test_orthogonal_1d_not_supported():
-    import numpy as np
     from lasagne.init import Orthogonal
 
     with pytest.raises(RuntimeError):

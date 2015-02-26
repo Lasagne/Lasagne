@@ -1,6 +1,4 @@
 import numpy as np
-import theano
-import theano.tensor as T
 
 from .. import utils
 
@@ -62,8 +60,8 @@ def get_all_layers(layer):
         # filter the layers that have already been visited, and remove None
         # elements (for layers without incoming layers)
         children = [child for child in children
-                    if child not in layers
-                    and child is not None]
+                    if child not in layers and
+                    child is not None]
         layers_to_expand.extend(children)
         layers.extend(children)
 
@@ -118,8 +116,8 @@ def get_all_bias_params(layer):
 
     :parameters:
         - layer : Layer
-            the :class:`Layer` instance for which to gather all bias parameters,
-            or a list of :class:`Layer` instances.
+            the :class:`Layer` instance for which to gather all bias
+            parameters, or a list of :class:`Layer` instances.
 
     :returns:
         - params : list
@@ -256,6 +254,5 @@ def set_all_param_values(layer, values):
         - values : list of numpy.array
     """
     params = get_all_params(layer)
-    for p,v in zip(params, values):
+    for p, v in zip(params, values):
         p.set_value(v)
-

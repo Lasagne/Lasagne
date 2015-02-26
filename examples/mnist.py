@@ -5,22 +5,23 @@ import itertools
 import pickle
 import os
 import sys
-
-PY2 = sys.version_info[0] == 2
-
-if PY2:
-    from urllib import urlretrieve
-    pickle_load = lambda f, encoding: pickle.load(f)
-else:
-    from urllib.request import urlretrieve
-    pickle_load = lambda f, encoding: pickle.load(f, encoding=encoding)
-
-
 import numpy as np
 import lasagne
 import theano
 import theano.tensor as T
 
+PY2 = sys.version_info[0] == 2
+
+if PY2:
+    from urllib import urlretrieve
+
+    def pickle_load(f, encoding):
+        return pickle.load(f)
+else:
+    from urllib.request import urlretrieve
+
+    def pickle_load(f, encoding):
+        return pickle.load(f, encoding=encoding)
 
 DATA_URL = 'http://deeplearning.net/data/mnist/mnist.pkl.gz'
 DATA_FILENAME = 'mnist.pkl.gz'
@@ -153,7 +154,6 @@ def create_iter_functions(dataset, output_layer,
 def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
     num_batches_train = dataset['num_examples_train'] // batch_size
     num_batches_valid = dataset['num_examples_valid'] // batch_size
-    num_batches_test = dataset['num_examples_test'] // batch_size
 
     for epoch in itertools.count(1):
         batch_train_losses = []

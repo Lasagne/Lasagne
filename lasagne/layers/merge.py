@@ -26,9 +26,7 @@ class ConcatLayer(MultipleInputsLayer):
         return tuple(output_shape)
 
     def get_output_for(self, inputs, *args, **kwargs):
-        # unfortunately the gradient of T.concatenate has no GPU
-        # implementation, so we have to do this differently.
-        return utils.concatenate(inputs, axis=self.axis)
+        return T.concatenate(inputs, axis=self.axis)
 
 concat = ConcatLayer # shortcut
 

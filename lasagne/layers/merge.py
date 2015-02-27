@@ -1,5 +1,4 @@
-
-from .. import utils
+import theano.tensor as T
 
 from .base import MultipleInputsLayer
 

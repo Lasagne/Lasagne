@@ -48,7 +48,6 @@ def multinomial_nll(x, t):
     return T.mean(T.nnet.categorical_crossentropy(x, t))
 
 
-
 class Objective(object):
     """
     Training objective

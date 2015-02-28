@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-import gzip
 import lasagne
 import theano
 import theano.tensor as T

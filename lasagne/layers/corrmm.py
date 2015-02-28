@@ -2,9 +2,7 @@
 GpuCorrMM-based convolutional layers
 """
 
-import numpy as np
 import theano
-import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
@@ -31,9 +29,10 @@ class MMLayer(Layer):
 
 
 class Conv2DMMLayer(MMLayer):
-    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1), border_mode=None, untie_biases=False,
-                 W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify, pad=None,
-                 flip_filters=False, **kwargs):
+    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
+                 border_mode=None, untie_biases=False, W=init.Uniform(),
+                 b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 pad=None, flip_filters=False, **kwargs):
         super(Conv2DMMLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -47,7 +46,9 @@ class Conv2DMMLayer(MMLayer):
         self.flip_filters = flip_filters
 
         if border_mode is not None and pad is not None:
-            raise RuntimeError("You cannot specify both 'border_mode' and 'pad'. To avoid ambiguity, please specify only one of them.")
+            raise RuntimeError("You cannot specify both 'border_mode' and "
+                               "'pad'. To avoid ambiguity, please specify "
+                               "only one of them.")
         elif border_mode is None and pad is None:
             # no option specified, default to valid mode
             self.pad = (0, 0)
@@ -55,12 +56,15 @@ class Conv2DMMLayer(MMLayer):
             if border_mode == 'valid':
                 self.pad = (0, 0)
             elif border_mode == 'full':
-                self.pad = (self.filter_size[0] - 1, self.filter_size[1] -1)
+                self.pad = (self.filter_size[0] - 1, self.filter_size[1] - 1)
             elif border_mode == 'same':
-                # only works for odd filter size, but the even filter size case is probably not worth supporting.
-                self.pad = ((self.filter_size[0] - 1) // 2, (self.filter_size[1] - 1) // 2)
+                # only works for odd filter size, but the even filter size case
+                # is probably not worth supporting.
+                self.pad = ((self.filter_size[0] - 1) // 2,
+                            (self.filter_size[1] - 1) // 2)
             else:
-                raise RuntimeError("Unsupported border_mode for Conv2DMMLayer: %s" % border_mode)
+                raise RuntimeError("Unsupported border_mode for "
+                                   "Conv2DMMLayer: %s" % border_mode)
         else:
             self.pad = pad
 
@@ -69,7 +73,8 @@ class Conv2DMMLayer(MMLayer):
             self.b = None
         elif self.untie_biases:
             output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_filters, output_shape[2], output_shape[3]), name="b")
+            self.b = self.create_param(b, (num_filters, output_shape[2],
+                                           output_shape[3]), name="b")
         else:
             self.b = self.create_param(b, (num_filters,), name="b")
 
@@ -77,7 +82,8 @@ class Conv2DMMLayer(MMLayer):
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
-        return (self.num_filters, num_input_channels, self.filter_size[0], self.filter_size[1])
+        return (self.num_filters, num_input_channels, self.filter_size[0],
+                self.filter_size[1])
 
     def get_params(self):
         return [self.W] + self.get_bias_params()
@@ -88,14 +94,16 @@ class Conv2DMMLayer(MMLayer):
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]
         input_rows, input_columns = input_shape[2:4]
-        output_rows = (input_rows + 2*self.pad[0] - self.filter_size[0]) // self.strides[0] + 1
-        output_columns = (input_columns + 2*self.pad[1] - self.filter_size[1]) // self.strides[1] + 1
+        output_rows = ((input_rows + 2*self.pad[0] - self.filter_size[0]) //
+                       self.strides[0] + 1)
+        output_columns = ((input_columns + 2*self.pad[1] -
+                           self.filter_size[1]) // self.strides[1] + 1)
         return (batch_size, self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, *args, **kwargs):
         filters = self.W
         if self.flip_filters:
-            filters = filters[:, :, ::-1, ::-1] # flip top-down, left-right
+            filters = filters[:, :, ::-1, ::-1]  # flip top-down, left-right
 
         contiguous_filters = gpu_contiguous(filters)
         contiguous_input = gpu_contiguous(input)
@@ -109,4 +117,3 @@ class Conv2DMMLayer(MMLayer):
             activation = conved + self.b.dimshuffle('x', 0, 'x', 'x')
 
         return self.nonlinearity(activation)
-

@@ -1,6 +1,4 @@
-import numpy as np
 import theano
-import theano.tensor as T
 
 from .base import Layer
 
@@ -38,7 +36,7 @@ class DropoutLayer(Layer):
             return input * _srng.binomial(input_shape, p=retain_prob,
                                           dtype=theano.config.floatX)
 
-dropout = DropoutLayer # shortcut
+dropout = DropoutLayer  # shortcut
 
 
 class GaussianNoiseLayer(Layer):

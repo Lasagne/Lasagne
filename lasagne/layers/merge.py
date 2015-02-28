@@ -1,10 +1,6 @@
-import numpy as np
-import theano
 import theano.tensor as T
 
-from .. import utils
-
-from .base import Layer, MultipleInputsLayer
+from .base import MultipleInputsLayer
 
 
 __all__ = [
@@ -21,14 +17,14 @@ class ConcatLayer(MultipleInputsLayer):
 
     def get_output_shape_for(self, input_shapes):
         sizes = [input_shape[self.axis] for input_shape in input_shapes]
-        output_shape = list(input_shapes[0]) # make a mutable copy
+        output_shape = list(input_shapes[0])  # make a mutable copy
         output_shape[self.axis] = sum(sizes)
         return tuple(output_shape)
 
     def get_output_for(self, inputs, *args, **kwargs):
         return T.concatenate(inputs, axis=self.axis)
 
-concat = ConcatLayer # shortcut
+concat = ConcatLayer  # shortcut
 
 
 class ElemwiseSumLayer(MultipleInputsLayer):

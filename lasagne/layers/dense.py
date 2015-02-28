@@ -1,5 +1,4 @@
 import numpy as np
-import theano
 import theano.tensor as T
 
 from .. import init
@@ -43,7 +42,7 @@ class DenseLayer(Layer):
 
             If None is provided, the layer will have no biases.
 
-        - nonlinearity : callable or None (default: lasagne.nonlinearities.rectify)
+        - nonlinearity : callable or None
             The nonlinearity that is applied to the layer activations. If None
             is provided, the layer will be linear.
 
@@ -52,8 +51,9 @@ class DenseLayer(Layer):
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
     """
-    def __init__(self, incoming, num_units, W=init.Uniform(), b=init.Constant(0.),
-        nonlinearity=nonlinearities.rectify, **kwargs):
+    def __init__(self, incoming, num_units, W=init.Uniform(),
+                 b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 **kwargs):
         super(DenseLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -65,7 +65,8 @@ class DenseLayer(Layer):
         num_inputs = int(np.prod(self.input_shape[1:]))
 
         self.W = self.create_param(W, (num_inputs, num_units), name="W")
-        self.b = self.create_param(b, (num_units,), name="b") if b is not None else None
+        self.b = (self.create_param(b, (num_units,), name="b")
+                  if b is not None else None)
 
     def get_params(self):
         return [self.W] + self.get_bias_params()
@@ -91,14 +92,14 @@ class DenseLayer(Layer):
 class NINLayer(Layer):
     """
     Network-in-network layer.
-    Like DenseLayer, but broadcasting across all trailing dimensions beyond the 2nd.
-    This results in a convolution operation with filter size 1 on all trailing dimensions.
-    Any number of trailing dimensions is supported, so NINLayer can be used to implement
-    1D, 2D, 3D, ... convolutions.
+    Like DenseLayer, but broadcasting across all trailing dimensions beyond the
+    2nd.  This results in a convolution operation with filter size 1 on all
+    trailing dimensions.  Any number of trailing dimensions is supported,
+    so NINLayer can be used to implement 1D, 2D, 3D, ... convolutions.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
-        W=init.Uniform(), b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
-        **kwargs):
+                 W=init.Uniform(), b=init.Constant(0.),
+                 nonlinearity=nonlinearities.rectify, **kwargs):
         super(NINLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -110,12 +111,14 @@ class NINLayer(Layer):
 
         num_input_channels = self.input_shape[1]
 
-        self.W = self.create_param(W, (num_input_channels, num_units), name="W")
+        self.W = self.create_param(W, (num_input_channels, num_units),
+                                   name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
             output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_units,) + output_shape[2:], name="b")
+            self.b = self.create_param(b, (num_units,) + output_shape[2:],
+                                       name="b")
         else:
             self.b = self.create_param(b, (num_units,), name="b")
 
@@ -129,17 +132,21 @@ class NINLayer(Layer):
         return (input_shape[0], self.num_units) + input_shape[2:]
 
     def get_output_for(self, input, *args, **kwargs):
-        out_r = T.tensordot(self.W, input, axes=[[0], [1]]) # cf * bc01... = fb01...
-        remaining_dims = range(2, input.ndim) # input dims to broadcast over
-        out = out_r.dimshuffle(1, 0, *remaining_dims) # bf01...
+        # cf * bc01... = fb01...
+        out_r = T.tensordot(self.W, input, axes=[[0], [1]])
+        # input dims to broadcast over
+        remaining_dims = range(2, input.ndim)
+        # bf01...
+        out = out_r.dimshuffle(1, 0, *remaining_dims)
 
         if self.b is None:
             activation = out
         else:
             if self.untie_biases:
-                remaining_dims_biases = range(1, input.ndim - 1) # no broadcast
+                # no broadcast
+                remaining_dims_biases = range(1, input.ndim - 1)
             else:
-                remaining_dims_biases = ['x'] * (input.ndim - 2) # broadcast
+                remaining_dims_biases = ['x'] * (input.ndim - 2)  # broadcast
             b_shuffled = self.b.dimshuffle('x', 0, *remaining_dims_biases)
             activation = out + b_shuffled
 

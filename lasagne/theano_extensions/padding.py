@@ -2,9 +2,6 @@
 Padding
 """
 
-import numpy as np
-
-import theano
 import theano.tensor as T
 
 
@@ -22,7 +19,7 @@ def pad(x, width, val=0, batch_ndim=1):
             out_shape += (in_shape[k],)
         else:
             out_shape += (in_shape[k] + 2 * width,)
-    
+
     if val == 0:
         out = T.zeros(out_shape)
     else:

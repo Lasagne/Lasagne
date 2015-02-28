@@ -1,4 +1,3 @@
-from mock import Mock
 import numpy
 import pytest
 import theano
@@ -93,8 +92,8 @@ class TestDimshuffleLayer:
 
     @pytest.fixture
     def input_var(self):
-        InputTensorType = theano.tensor.TensorType('float64',
-            broadcastable=(False, False, True, False, False),
+        InputTensorType = theano.tensor.TensorType(
+            'float64', broadcastable=(False, False, True, False, False),
             name='DimShuffleTestTensor')
         return InputTensorType(name='x')
 
@@ -109,8 +108,8 @@ class TestDimshuffleLayer:
 
     @pytest.fixture
     def input_var(self):
-        InputTensorType = theano.tensor.TensorType('float64',
-            broadcastable=(False, False, True, False, False),
+        InputTensorType = theano.tensor.TensorType(
+            'float64', broadcastable=(False, False, True, False, False),
             name='DimShuffleTestTensor')
         return InputTensorType(name='x')
 
@@ -132,20 +131,23 @@ class TestDimshuffleLayer:
         from lasagne.layers.shape import DimshuffleLayer
         ds = DimshuffleLayer(input_layer, [4, 3, 2, 1, 0])
         assert ds.get_output_shape() == (7, 5, 1, 3, 2)
-        assert ds.get_output_for(input_var).eval({input_var: input_data}).shape == (7, 5, 1, 3, 2)
+        assert ds.get_output_for(input_var).eval(
+            {input_var: input_data}).shape == (7, 5, 1, 3, 2)
 
     def test_broadcast(self, input_data, input_var, input_layer):
         from lasagne.layers.shape import DimshuffleLayer
         ds = DimshuffleLayer(input_layer, [0, 1, 2, 3, 4, 'x'])
         assert ds.get_output_shape() == (2, 3, 1, 5, 7, 1)
-        assert ds.get_output_for(input_var).eval({input_var: input_data}).shape == (2, 3, 1, 5, 7, 1)
+        assert ds.get_output_for(input_var).eval(
+            {input_var: input_data}).shape == (2, 3, 1, 5, 7, 1)
 
     def test_collapse(self, input_data, input_var, input_layer):
         from lasagne.layers.shape import DimshuffleLayer
         ds_ok = DimshuffleLayer(input_layer, [0, 1, 3, 4])
         ds_bad = DimshuffleLayer(input_layer, [0, 1, 2, 4])
         assert ds_ok.get_output_shape() == (2, 3, 5, 7)
-        assert ds_ok.get_output_for(input_var).eval({input_var: input_data}).shape == (2, 3, 5, 7)
+        assert ds_ok.get_output_for(input_var).eval(
+            {input_var: input_data}).shape == (2, 3, 5, 7)
         with pytest.raises(ValueError):
             ds_bad.get_output_shape()
 
@@ -154,7 +156,8 @@ class TestDimshuffleLayer:
         ds_ok = DimshuffleLayer(input_layer_with_None, [0, 1, 3, 4])
         ds_bad = DimshuffleLayer(input_layer_with_None, [0, 1, 2, 4])
         assert ds_ok.get_output_shape() == (2, 3, 5, 7)
-        assert ds_ok.get_output_for(input_var).eval({input_var: input_data}).shape == (2, 3, 5, 7)
+        assert ds_ok.get_output_for(input_var).eval(
+            {input_var: input_data}).shape == (2, 3, 5, 7)
         with pytest.raises(ValueError):
             ds_bad.get_output_shape()
 

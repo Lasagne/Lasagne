@@ -9,6 +9,7 @@ import numpy as np
 import lasagne
 import theano
 import theano.tensor as T
+import time
 
 PY2 = sys.version_info[0] == 2
 
@@ -193,9 +194,12 @@ def main(num_epochs=NUM_EPOCHS):
     iter_funcs = create_iter_functions(dataset, output_layer)
 
     print("Starting training...")
+    now = time.time()
     try:
         for epoch in train(iter_funcs, dataset):
-            print("Epoch {} of {}".format(epoch['number'], num_epochs))
+            print("Epoch {} of {} took {:.3f}s".format(
+                epoch['number'], num_epochs, time.time() - now))
+            now = time.time()
             print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
             print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
             print("  validation accuracy:\t\t{:.2f} %%".format(

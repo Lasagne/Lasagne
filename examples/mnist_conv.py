@@ -3,6 +3,7 @@ from __future__ import print_function
 import lasagne
 import theano
 import theano.tensor as T
+import time
 
 from mnist import _load_data
 from mnist import create_iter_functions
@@ -110,9 +111,12 @@ def main(num_epochs=NUM_EPOCHS):
         )
 
     print("Starting training...")
+    now = time.time()
     try:
         for epoch in train(iter_funcs, dataset):
-            print("Epoch {} of {}".format(epoch['number'], num_epochs))
+            print("Epoch {} of {} took {:.3f}s".format(
+                epoch['number'], num_epochs, time.time() - now))
+            now = time.time()
             print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
             print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
             print("  validation accuracy:\t\t{:.2f} %%".format(

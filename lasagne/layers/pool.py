@@ -1,5 +1,4 @@
 import numpy as np
-import theano
 import theano.tensor as T
 
 from .base import Layer
@@ -18,18 +17,22 @@ __all__ = [
 class MaxPool2DLayer(Layer):
     def __init__(self, incoming, ds, ignore_border=False, **kwargs):
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
-        self.ds = ds # a tuple
+        self.ds = ds  # a tuple
         self.ignore_border = ignore_border
 
     def get_output_shape_for(self, input_shape):
-        output_shape = list(input_shape) # copy / convert to mutable list
+        output_shape = list(input_shape)  # copy / convert to mutable list
 
         if self.ignore_border:
-            output_shape[2] = int(np.floor(float(output_shape[2]) / self.ds[0]))
-            output_shape[3] = int(np.floor(float(output_shape[3]) / self.ds[1]))
+            output_shape[2] = int(np.floor(float(output_shape[2]) /
+                                           self.ds[0]))
+            output_shape[3] = int(np.floor(float(output_shape[3]) /
+                                           self.ds[1]))
         else:
-            output_shape[2] = int(np.ceil(float(output_shape[2]) / self.ds[0]))
-            output_shape[3] = int(np.ceil(float(output_shape[3]) / self.ds[1]))
+            output_shape[2] = int(np.ceil(float(output_shape[2]) /
+                                          self.ds[0]))
+            output_shape[3] = int(np.ceil(float(output_shape[3]) /
+                                          self.ds[1]))
 
         return tuple(output_shape)
 
@@ -62,11 +65,12 @@ class FeaturePoolLayer(Layer):
 
         num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.ds != 0:
-            raise RuntimeError("Number of input feature maps (%d) is not a multiple of the pool size (ds=%d)" %
-                    (num_feature_maps, self.ds))
+            raise RuntimeError("Number of input feature maps (%d) is not a "
+                               "multiple of the pool size (ds=%d)" %
+                               (num_feature_maps, self.ds))
 
     def get_output_shape_for(self, input_shape):
-        output_shape = list(input_shape) # make a mutable copy
+        output_shape = list(input_shape)  # make a mutable copy
         output_shape[self.axis] = output_shape[self.axis] // self.ds
         return tuple(output_shape)
 
@@ -105,8 +109,9 @@ class FeatureWTALayer(Layer):
 
         num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.ds != 0:
-            raise RuntimeError("Number of input feature maps (%d) is not a multiple of the group size (ds=%d)" %
-                    (num_feature_maps, self.ds))
+            raise RuntimeError("Number of input feature maps (%d) is not a "
+                               "multiple of the group size (ds=%d)" %
+                               (num_feature_maps, self.ds))
 
     def get_output_for(self, input, *args, **kwargs):
         num_feature_maps = input.shape[self.axis]
@@ -126,13 +131,13 @@ class FeatureWTALayer(Layer):
             arange_shuffle_pattern += ('x',)
 
         input_reshaped = input.reshape(pool_shape)
-        max_indices = T.argmax(input_reshaped, axis=self.axis + 1, keepdims=True)
+        max_indices = T.argmax(input_reshaped, axis=self.axis + 1,
+                               keepdims=True)
 
         arange = T.arange(self.ds).dimshuffle(*arange_shuffle_pattern)
         mask = T.eq(max_indices, arange).reshape(input.shape)
 
         return input * mask
-
 
 
 class GlobalPoolLayer(Layer):

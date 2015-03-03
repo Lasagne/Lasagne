@@ -1,4 +1,3 @@
-import numpy as np
 import theano
 import theano.tensor as T
 
@@ -41,8 +40,8 @@ class InputLayer(Layer):
         else:
             # ensure the given variable has the correct dimensionality
             if input_var.ndim != ndim:
-                raise ValueError("shape has %d dimensions, "
-                    "but variable has %d" % (ndim, input_var.ndim))
+                raise ValueError("shape has %d dimensions, but variable has "
+                                 "%d" % (ndim, input_var.ndim))
         self.input_var = input_var
         self.name = name
 

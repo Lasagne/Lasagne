@@ -47,7 +47,7 @@ class TestLayer:
         assert output is layer.get_output_for.return_value
 
     def test_get_output_input_is_a_mapping_to_array(self, layer):
-        input = {layer: [[1,2,3]]}
+        input = {layer: [[1, 2, 3]]}
         output = layer.get_output(input)
         assert numpy.all(output.eval() == input[layer])
 
@@ -165,7 +165,7 @@ class TestMultipleInputsLayer:
         assert output is layer.get_output_for.return_value
 
     def test_get_output_input_is_a_mapping_to_array(self, layer):
-        input = {layer: [[1,2,3]]}
+        input = {layer: [[1, 2, 3]]}
         output = layer.get_output(input)
         assert numpy.all(output.eval() == input[layer])
 

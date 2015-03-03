@@ -1,6 +1,4 @@
 import numpy as np
-import theano
-import theano.tensor as T
 
 from ..theano_extensions import padding
 
@@ -19,7 +17,6 @@ __all__ = [
 ]
 
 
-
 class FlattenLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], int(np.prod(input_shape[1:])))
@@ -27,7 +24,7 @@ class FlattenLayer(Layer):
     def get_output_for(self, input, *args, **kwargs):
         return input.flatten(2)
 
-flatten = FlattenLayer # shortcut
+flatten = FlattenLayer  # shortcut
 
 
 class ReshapeLayer(Layer):
@@ -98,13 +95,14 @@ class ReshapeLayer(Layer):
                                      (o[0], len(input_shape)))
                 output_shape[dim] = input_shape[o[0]]
                 masked_output_shape[dim] = input_shape[o[0]]
-                if ((input_shape[o[0]] is None)
-                    and (masked_input_shape[o[0]] is None)):
-                    # first time we copied this unknown input size: mask it, we
-                    # have a 1:1 correspondence between out[dim] and in[o[0]]
-                    # and can ignore it for -1 inference even if it is unknown.
-                    masked_input_shape[o[0]] = 1
-                    masked_output_shape[dim] = 1
+                if (input_shape[o[0]] is None) \
+                   and (masked_input_shape[o[0]] is None):
+                        # first time we copied this unknown input size: mask
+                        # it, we have a 1:1 correspondence between out[dim] and
+                        # in[o[0]] and can ignore it for -1 inference even if
+                        # it is unknown.
+                        masked_input_shape[o[0]] = 1
+                        masked_output_shape[dim] = 1
         # From the shapes, compute the sizes of the input and output tensor
         input_size = (None if any(x is None for x in masked_input_shape)
                       else np.prod(masked_input_shape))
@@ -122,8 +120,8 @@ class ReshapeLayer(Layer):
                 output_shape[dim] = input_size // output_size
                 output_size *= output_shape[dim]
         # Sanity check
-        if ((input_size is not None) and (output_size is not None)
-            and (input_size != output_size)):
+        if (input_size is not None) and (output_size is not None) \
+           and (input_size != output_size):
             raise ValueError("%s cannot be reshaped to specification %s. "
                              "The total size mismatches." %
                              (input_shape, self.shape))
@@ -138,7 +136,7 @@ class ReshapeLayer(Layer):
         # Everything else is handled by Theano
         return input.reshape(tuple(output_shape))
 
-reshape = ReshapeLayer # shortcut
+reshape = ReshapeLayer  # shortcut
 
 
 class DimshuffleLayer(Layer):
@@ -203,9 +201,10 @@ class DimshuffleLayer(Layer):
         dims_used = [False] * len(input_shape)
         for p in self.pattern:
             if isinstance(p, int):
-                if p < 0  or  p >= len(input_shape):
-                    raise ValueError("pattern contains {0}, but input shape has "
-                        "{1} dimensions only".format(p, len(input_shape)))
+                if p < 0 or p >= len(input_shape):
+                    raise ValueError("pattern contains {0}, but input shape "
+                                     "has {1} dimensions "
+                                     "only".format(p, len(input_shape)))
                 # Dimension p
                 o = input_shape[p]
                 dims_used[p] = True
@@ -214,12 +213,13 @@ class DimshuffleLayer(Layer):
                 o = 1
             else:
                 raise RuntimeError("invalid pattern entry, should have "
-                    "caught in the constructor")
+                                   "caught in the constructor")
             output_shape.append(o)
 
         for i, (dim_size, used) in enumerate(zip(input_shape, dims_used)):
             if not used and dim_size != 1 and dim_size is not None:
-                raise ValueError("pattern attempted to collapse dimension "
+                raise ValueError(
+                    "pattern attempted to collapse dimension "
                     "{0} of size {1}; dimensions with size != 1/None are not"
                     "broadcastable and cannot be "
                     "collapsed".format(i, dim_size))
@@ -229,7 +229,7 @@ class DimshuffleLayer(Layer):
     def get_output_for(self, input, *args, **kwargs):
         return input.dimshuffle(self.pattern)
 
-dimshuffle = DimshuffleLayer # shortcut
+dimshuffle = DimshuffleLayer  # shortcut
 
 
 class PadLayer(Layer):
@@ -252,4 +252,4 @@ class PadLayer(Layer):
     def get_output_for(self, input, *args, **kwargs):
         return padding.pad(input, self.width, self.val, self.batch_ndim)
 
-pad = PadLayer # shortcut
+pad = PadLayer  # shortcut

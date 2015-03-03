@@ -23,7 +23,7 @@ class TestInputLayer:
         assert layer.get_output(variable) is variable
 
     def test_get_output_input_is_array(self, layer):
-        input = [[1,2,3]]
+        input = [[1, 2, 3]]
         output = layer.get_output(input)
         assert numpy.all(output.eval() == input)
 

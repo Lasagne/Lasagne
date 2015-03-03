@@ -126,16 +126,19 @@ def main(num_epochs=NUM_EPOCHS):
     )
 
     print("Starting training...")
+    try:
+        for epoch in train(iter_funcs, dataset):
+            print("Epoch {} of {}".format(epoch['number'], num_epochs))
+            print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
+            print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
+            print("  validation accuracy:\t\t{:.2f} %%".format(
+                epoch['valid_accuracy'] * 100))
 
-    for epoch in train(iter_funcs, dataset):
-        print("Epoch {} of {}".format(epoch['number'], num_epochs))
-        print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
-        print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
-        print("  validation accuracy:\t\t{:.2f} %%".format(
-              epoch['valid_accuracy'] * 100))
+            if epoch['number'] >= num_epochs:
+                break
 
-        if epoch['number'] >= num_epochs:
-            break
+    except KeyboardInterrupt:
+        pass
 
     return output_layer
 

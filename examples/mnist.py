@@ -182,7 +182,10 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
 
 
 def main(num_epochs=NUM_EPOCHS):
+    print("Loading data...")
     dataset = load_data()
+
+    print("Building model and compiling functions...")
     output_layer = build_model(
         input_dim=dataset['input_dim'],
         output_dim=dataset['output_dim'],

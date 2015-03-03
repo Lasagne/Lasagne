@@ -93,8 +93,10 @@ def build_model(input_width, input_height, output_dim,
 
 
 def main(num_epochs=NUM_EPOCHS):
+    print("Loading data...")
     dataset = load_data()
 
+    print("Building model and compiling functions...")
     output_layer = build_model(
         input_height=dataset['input_height'],
         input_width=dataset['input_width'],

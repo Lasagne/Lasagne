@@ -109,11 +109,11 @@ def main(num_epochs=NUM_EPOCHS):
 
     print("Starting training...")
     for epoch in train(iter_funcs, dataset):
-        print("Epoch %d of %d" % (epoch['number'], num_epochs))
-        print("  training loss:\t\t%.6f" % epoch['train_loss'])
-        print("  validation loss:\t\t%.6f" % epoch['valid_loss'])
-        print("  validation accuracy:\t\t%.2f %%" %
-              (epoch['valid_accuracy'] * 100))
+        print("Epoch {} of {}".format(epoch['number'], num_epochs))
+        print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
+        print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
+        print("  validation accuracy:\t\t{:.2f} %%".format(
+              epoch['valid_accuracy'] * 100))
 
         if epoch['number'] >= num_epochs:
             break

@@ -144,10 +144,10 @@ class Conv2DLayer(Layer):
             output_columns = ((input_shape[3] - self.filter_size[1]) //
                               self.strides[1] + 1)
         elif self.border_mode == 'full':
-            output_rows = ((input_shape[2] + self.filter_size[0]) //
-                           self.strides[0] - 1)
-            output_columns = ((input_shape[3] + self.filter_size[1]) //
-                              self.strides[1] - 1)
+            output_rows = ((input_shape[2] + self.filter_size[0] +
+                            self.strides[0] - 2) // self.strides[0])
+            output_columns = ((input_shape[3] + self.filter_size[1] +
+                               self.strides[1] - 2) // self.strides[1])
         elif self.border_mode == 'same':
             output_rows = input_shape[2] // self.strides[0]
             output_columns = input_shape[3] // self.strides[1]

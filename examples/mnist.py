@@ -9,6 +9,7 @@ import numpy as np
 import lasagne
 import theano
 import theano.tensor as T
+import time
 
 PY2 = sys.version_info[0] == 2
 
@@ -182,7 +183,10 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
 
 
 def main(num_epochs=NUM_EPOCHS):
+    print("Loading data...")
     dataset = load_data()
+
+    print("Building model and compiling functions...")
     output_layer = build_model(
         input_dim=dataset['input_dim'],
         output_dim=dataset['output_dim'],
@@ -190,15 +194,22 @@ def main(num_epochs=NUM_EPOCHS):
     iter_funcs = create_iter_functions(dataset, output_layer)
 
     print("Starting training...")
-    for epoch in train(iter_funcs, dataset):
-        print("Epoch %d of %d" % (epoch['number'], num_epochs))
-        print("  training loss:\t\t%.6f" % epoch['train_loss'])
-        print("  validation loss:\t\t%.6f" % epoch['valid_loss'])
-        print("  validation accuracy:\t\t%.2f %%" %
-              (epoch['valid_accuracy'] * 100))
+    now = time.time()
+    try:
+        for epoch in train(iter_funcs, dataset):
+            print("Epoch {} of {} took {:.3f}s".format(
+                epoch['number'], num_epochs, time.time() - now))
+            now = time.time()
+            print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
+            print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
+            print("  validation accuracy:\t\t{:.2f} %%".format(
+                epoch['valid_accuracy'] * 100))
 
-        if epoch['number'] >= num_epochs:
-            break
+            if epoch['number'] >= num_epochs:
+                break
+
+    except KeyboardInterrupt:
+        pass
 
     return output_layer
 

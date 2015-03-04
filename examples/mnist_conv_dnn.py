@@ -4,6 +4,7 @@ import lasagne
 from lasagne.layers import dnn  # fails early if not available
 import theano
 import theano.tensor as T
+import time
 
 from mnist import _load_data
 from mnist import create_iter_functions
@@ -87,8 +88,10 @@ def build_model(input_width, input_height, output_dim,
 
 
 def main(num_epochs=NUM_EPOCHS):
+    print("Loading data...")
     dataset = load_data()
 
+    print("Building model and compiling functions...")
     output_layer = build_model(
         input_height=dataset['input_height'],
         input_width=dataset['input_width'],
@@ -102,15 +105,22 @@ def main(num_epochs=NUM_EPOCHS):
     )
 
     print("Starting training...")
-    for epoch in train(iter_funcs, dataset):
-        print("Epoch %d of %d" % (epoch['number'], num_epochs))
-        print("  training loss:\t\t%.6f" % epoch['train_loss'])
-        print("  validation loss:\t\t%.6f" % epoch['valid_loss'])
-        print("  validation accuracy:\t\t%.2f %%" %
-              (epoch['valid_accuracy'] * 100))
+    now = time.time()
+    try:
+        for epoch in train(iter_funcs, dataset):
+            print("Epoch {} of {} took {:.3f}s".format(
+                epoch['number'], num_epochs, time.time() - now))
+            now = time.time()
+            print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
+            print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
+            print("  validation accuracy:\t\t{:.2f} %%".format(
+                epoch['valid_accuracy'] * 100))
 
-        if epoch['number'] >= num_epochs:
-            break
+            if epoch['number'] >= num_epochs:
+                break
+
+    except KeyboardInterrupt:
+        pass
 
     return output_layer
 

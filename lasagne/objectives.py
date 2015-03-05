@@ -23,8 +23,8 @@ class Objective(object):
     """
     Training objective
 
-    The  `get_loss` method returns an expression that can be used for
-    training with a gradient descent approach.
+    The  `get_loss` method returns cost expression useful for training or
+    evaluating a network.
     """
     def __init__(self, input_layer, loss_function=mse, aggregation='mean'):
         """
@@ -61,6 +61,8 @@ class Objective(object):
             - target : (default `None`) an expression that results in the
                 desired output that the network is being trained to generate
                 given the input
+            - aggregation : None to use the value passed to the
+                constructor or a value to override it
             - args : additional arguments passed to `input_layer`'s
                 `get_output` method
             - kwargs : additional keyword arguments passed to `input_layer`'s

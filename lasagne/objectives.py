@@ -17,8 +17,6 @@ def mse(x, t):
     return (x - t) ** 2
 
 
-
-
 class Objective(object):
     _valid_aggregation = {None, 'mean', 'sum'}
 
@@ -48,12 +46,12 @@ class Objective(object):
         self.loss_function = loss_function
         self.target_var = T.matrix("target")
         if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', ' \
-                'or None, not {0}'.format(aggregation))
+            raise ValueError('aggregation must be \'mean\', \'sum\', '
+                             'or None, not {0}'.format(aggregation))
         self.aggregation = aggregation
 
-
-    def get_loss(self, input=None, target=None, aggregation=None, *args, **kwargs):
+    def get_loss(self, input=None, target=None, aggregation=None,
+                 *args, **kwargs):
         """
         Get loss scalar expression
 
@@ -75,22 +73,19 @@ class Objective(object):
         if target is None:
             target = self.target_var
         if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', ' \
-                'or None, not {0}'.format(aggregation))
+            raise ValueError('aggregation must be \'mean\', \'sum\', '
+                             'or None, not {0}'.format(aggregation))
         if aggregation is None:
             aggregation = self.aggregation
 
         losses = self.loss_function(network_output, target)
 
-        if aggregation is None  or  aggregation == 'mean':
+        if aggregation is None or aggregation == 'mean':
             return losses.mean()
         elif aggregation == 'sum':
             return losses.sum()
         else:
             raise RuntimeError('This should have been caught earlier')
-
-
-
 
 
 class MaskedObjective(object):
@@ -127,8 +122,9 @@ class MaskedObjective(object):
         self.target_var = T.matrix("target")
         self.mask_var = T.matrix("mask")
         if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', ' \
-                '\'normalized_sum\' or None, not {0}'.format(aggregation))
+            raise ValueError('aggregation must be \'mean\', \'sum\', '
+                             '\'normalized_sum\' or None,'
+                             ' not {0}'.format(aggregation))
         self.aggregation = aggregation
 
     def get_loss(self, input=None, target=None, mask=None,
@@ -163,8 +159,9 @@ class MaskedObjective(object):
             mask = self.mask_var
 
         if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', ' \
-                '\'normalized_sum\' or None, not {0}'.format(aggregation))
+            raise ValueError('aggregation must be \'mean\', \'sum\', '
+                             '\'normalized_sum\' or None, '
+                             'not {0}'.format(aggregation))
 
         # Get aggregation value passed to constructor if None
         if aggregation is None:
@@ -172,7 +169,7 @@ class MaskedObjective(object):
 
         masked_losses = self.loss_function(network_output, target) * mask
 
-        if aggregation is None  or  aggregation == 'mean':
+        if aggregation is None or aggregation == 'mean':
             return masked_losses.mean()
         elif aggregation == 'sum':
             return masked_losses.sum()

@@ -94,7 +94,7 @@ class Objective(object):
 
 
 class MaskedObjective(object):
-    _valid_mask_normalization = {None, 'none', 'mean', 'sum'}
+    _valid_aggregation = {None, 'sum', 'mean', 'normalized_sum'}
 
     """
     Masked training objective
@@ -103,7 +103,7 @@ class MaskedObjective(object):
     training with a gradient descent approach, with masking applied to weight
     the contribution of samples to the final loss.
     """
-    def __init__(self, input_layer, loss_function=mse, mask_normalization='mean'):
+    def __init__(self, input_layer, loss_function=mse, aggregation='mean'):
         """
         Constructor
 
@@ -113,25 +113,26 @@ class MaskedObjective(object):
             - loss_function : a loss function of the form `f(x, t, m)` that
                 returns a scalar loss given tensors that represent the
                 predicted values, true values and mask as arguments.
-            - mask_normalization : either:
-                - `'mean'` : the elements of the loss will be multiplied by
-                the mask and the mean returned
+            - aggregation : either:
+                - `None` or `'mean'` : the elements of the loss will be
+                multiplied by the mask and the mean returned
                 - `'sum'` : the elements of the loss will be multiplied by
-                the mask, summed and divided by the sum of the mask
-                - `None` or `'none'` : the elements of the loss will be
-                multiplied by the mask and the sum returned
+                the mask and the sum returned
+                - `'normalized_sum'` : the elements of the loss will be
+                multiplied by the mask, summed and divided by the sum of
+                the mask
         """
         self.input_layer = input_layer
         self.loss_function = loss_function
         self.target_var = T.matrix("target")
         self.mask_var = T.matrix("mask")
-        if mask_normalization not in self._valid_mask_normalization:
-            raise ValueError('mask_normalization must be \'mean\', \'sum\', ' \
-                '\'none\' or None, not {0}'.format(mask_normalization))
-        self.mask_normalization = mask_normalization
+        if aggregation not in self._valid_aggregation:
+            raise ValueError('aggregation must be \'mean\', \'sum\', ' \
+                '\'normalized_sum\' or None, not {0}'.format(aggregation))
+        self.aggregation = aggregation
 
     def get_loss(self, input=None, target=None, mask=None,
-                 mask_normalization=None, *args, **kwargs):
+                 aggregation=None, *args, **kwargs):
         """
         Get loss scalar expression
 
@@ -145,7 +146,7 @@ class MaskedObjective(object):
                 as - or broadcast-able to the shape of - the result of
                 applying the loss function. It selects/weights the
                 contributions of the resulting loss values
-            - mask_normalization : None to use the value passed to the
+            - aggregation : None to use the value passed to the
                 constructor or a value to override it
             - args : additional arguments passed to `input_layer`'s
                 `get_output` method
@@ -161,21 +162,21 @@ class MaskedObjective(object):
         if mask is None:
             mask = self.mask_var
 
-        if mask_normalization not in self._valid_mask_normalization:
-            raise ValueError('mask_normalization must be \'mean\', \'sum\', ' \
-                '\'none\' or None, not {0}'.format(mask_normalization))
+        if aggregation not in self._valid_aggregation:
+            raise ValueError('aggregation must be \'mean\', \'sum\', ' \
+                '\'normalized_sum\' or None, not {0}'.format(aggregation))
 
-        # Get mask_normalization value passed to constructor if None
-        if mask_normalization is None:
-            mask_normalization = self.mask_normalization
+        # Get aggregation value passed to constructor if None
+        if aggregation is None:
+            aggregation = self.aggregation
 
         masked_losses = self.loss_function(network_output, target) * mask
 
-        if mask_normalization is None  or  mask_normalization == 'none':
-            return masked_losses.sum()
-        elif mask_normalization == 'sum':
-            return masked_losses.sum() / mask.sum()
-        elif mask_normalization == 'mean':
+        if aggregation is None  or  aggregation == 'mean':
             return masked_losses.mean()
+        elif aggregation == 'sum':
+            return masked_losses.sum()
+        elif aggregation == 'normalized_sum':
+            return masked_losses.sum() / mask.sum()
         else:
             raise RuntimeError('This should have been caught earlier')

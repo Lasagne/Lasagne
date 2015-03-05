@@ -22,11 +22,11 @@ class TestObjectives:
 
 
     @pytest.fixture
-    def get_masked_loss(self, loss_function, output, target, mask, mask_normalization=None):
+    def get_masked_loss(self, loss_function, output, target, mask, aggregation=None):
         from lasagne.objectives import MaskedObjective
         input_layer = self.input_layer(output)
         obj = MaskedObjective(input_layer, loss_function)
-        return obj.get_loss(target=target, mask=mask, mask_normalization=mask_normalization)
+        return obj.get_loss(target=target, mask=mask, aggregation=aggregation)
 
 
     def test_mse(self):
@@ -50,22 +50,28 @@ class TestObjectives:
 
         # Masked error sum is 1**2 + 3**2
         result_with_mask = self.get_masked_loss(mse, output, target,
-                                                mask, mask_normalization='none')
+                                                mask, aggregation='sum')
         assert result_with_mask.eval() == 10
         result_with_mask = self.get_masked_loss(mse, output, target,
-                                                mask_2d, mask_normalization='none')
+                                                mask_2d, aggregation='sum')
         assert result_with_mask.eval() == 10
         result_with_mask = self.get_masked_loss(mse, output, target,
-                                                mask, mask_normalization='mean')
+                                                mask, aggregation='mean')
         assert result_with_mask.eval() == 10/8.0
         result_with_mask = self.get_masked_loss(mse, output, target,
-                                                mask_2d, mask_normalization='mean')
+                                                mask_2d, aggregation='mean')
         assert result_with_mask.eval() == 10/8.0
         result_with_mask = self.get_masked_loss(mse, output, target,
-                                                mask, mask_normalization='sum')
+                                                mask, aggregation=None)
+        assert result_with_mask.eval() == 10/8.0
+        result_with_mask = self.get_masked_loss(mse, output, target,
+                                                mask_2d, aggregation=None)
+        assert result_with_mask.eval() == 10/8.0
+        result_with_mask = self.get_masked_loss(mse, output, target,
+                                                mask, aggregation='normalized_sum')
         assert result_with_mask.eval() == 10
         result_with_mask = self.get_masked_loss(mse, output, target,
-                                                mask_2d, mask_normalization='sum')
+                                                mask_2d, aggregation='normalized_sum')
         assert result_with_mask.eval() == 10/4.0
 
 
@@ -90,22 +96,22 @@ class TestObjectives:
 
         # Masked cross entropy sum is 1*4*1 = 4
         result_with_mask = self.get_masked_loss(binary_crossentropy, output, target,
-                                                mask, mask_normalization='none')
+                                                mask, aggregation='sum')
         assert result_with_mask.eval() == 4
         result_with_mask = self.get_masked_loss(binary_crossentropy, output, target,
-                                                mask_2d, mask_normalization='none')
+                                                mask_2d, aggregation='sum')
         assert result_with_mask.eval() == 4
         result_with_mask = self.get_masked_loss(binary_crossentropy, output, target,
-                                                mask, mask_normalization='mean')
+                                                mask, aggregation='mean')
         assert result_with_mask.eval() == 1/2.0
         result_with_mask = self.get_masked_loss(binary_crossentropy, output, target,
-                                                mask_2d, mask_normalization='mean')
+                                                mask_2d, aggregation='mean')
         assert result_with_mask.eval() == 1/2.0
         result_with_mask = self.get_masked_loss(binary_crossentropy, output, target,
-                                                mask, mask_normalization='sum')
+                                                mask, aggregation='normalized_sum')
         assert result_with_mask.eval() == 4
         result_with_mask = self.get_masked_loss(binary_crossentropy, output, target,
-                                                mask_2d, mask_normalization='sum')
+                                                mask_2d, aggregation='normalized_sum')
         assert result_with_mask.eval() == 1
 
 
@@ -146,19 +152,19 @@ class TestObjectives:
         # Masked NLL sum is 2 + 3 = 5
         result_with_mask = self.get_masked_loss(categorical_crossentropy,
                                                 output, target_1hot,
-                                                mask_1hot, mask_normalization='none')
+                                                mask_1hot, aggregation='sum')
         assert result_with_mask.eval() == 5
 
         # Masked NLL sum is 2 + 3 = 5
         result_with_mask = self.get_masked_loss(categorical_crossentropy,
                                                 output, target_2d,
-                                                mask_1hot, mask_normalization='mean')
+                                                mask_1hot, aggregation='mean')
         assert abs(result_with_mask.eval() - 5.0/3.0) < 1.0e-9
 
         # Masked NLL sum is 2 + 3 = 5
         result_with_mask = self.get_masked_loss(categorical_crossentropy,
                                                 output, target_2d,
-                                                mask_1hot, mask_normalization='sum')
+                                                mask_1hot, aggregation='normalized_sum')
         assert result_with_mask.eval() == 5.0/2.0
 
 

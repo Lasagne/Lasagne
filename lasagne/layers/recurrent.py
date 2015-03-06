@@ -228,23 +228,6 @@ class RecurrentLayer(CustomRecurrentLayer):
             gradient_steps=gradient_steps)
 
 
-class ReshapeLayer(Layer):
-    '''ReshapeLayers exist because RecurrentLayers expects a shape of
-    (n_batch, n_time_steps, n_features) but the DenseLayer will flatten
-    that shape to (n_batch, n_time_steps*n_features) by default which is wrong.
-    So, you need to manually reshape before and after using a DenseLayer.
-    '''
-    def __init__(self, input_layer, shape):
-        super(ReshapeLayer, self).__init__(input_layer)
-        self.shape = shape
-
-    def get_output_shape_for(self, input_shape):
-        return self.shape
-
-    def get_output_for(self, input, *args, **kwargs):
-        return input.reshape(self.shape)
-
-
 class LSTMLayer(Layer):
     '''
     A long short-term memory (LSTM) layer.  Includes "peephole connections" and
@@ -402,11 +385,11 @@ class LSTMLayer(Layer):
             b_ingate, (num_units), name="b_ingate")
 
         self.W_in_to_forgetgate = self.create_param(
-            W_in_to_forgetgate, (num_inputs, num_units), 
+            W_in_to_forgetgate, (num_inputs, num_units),
             name="W_in_to_forgetgate")
 
         self.W_hid_to_forgetgate = self.create_param(
-            W_hid_to_forgetgate, (num_units, num_units), 
+            W_hid_to_forgetgate, (num_units, num_units),
             name="W_hid_to_forgetgate")
 
         self.b_forgetgate = self.create_param(

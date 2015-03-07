@@ -12,15 +12,39 @@ def conv2d_test_sets():
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
-    input = np.random.random((3, 1, 16, 16))
-    kernel = np.random.random((16, 1, 3, 3))
-    output = conv2d(input, kernel).eval()
-    yield _convert(input, kernel, output, {})
+    for border_mode in ['valid', 'full', 'same']:
+        conv_mode = 'full' if border_mode == 'same' else border_mode
 
-    input = np.random.random((3, 3, 16, 16))
-    kernel = np.random.random((16, 3, 3, 3))
-    output = conv2d(input, kernel).eval()
-    yield _convert(input, kernel, output, {})
+        for stride in [1, 2, 3]:
+            input = np.random.random((3, 1, 16, 16))
+            kernel = np.random.random((16, 1, 3, 3))
+            output = conv2d(input, kernel,
+                            border_mode=conv_mode,
+                            subsample=(stride, stride),
+                            ).eval()
+            if border_mode == 'same':
+                shift_x = (kernel.shape[2] - 1) // 2
+                shift_y = (kernel.shape[3] - 1) // 2
+                output = output[:, :, shift_x:input.shape[2] + shift_x,
+                                shift_y:input.shape[3] + shift_y]
+            yield _convert(input, kernel, output, {'border_mode': border_mode,
+                                                   'strides': (stride, stride)
+                                                   })
+
+            input = np.random.random((3, 3, 16, 16))
+            kernel = np.random.random((16, 3, 3, 3))
+            output = conv2d(input, kernel,
+                            border_mode=conv_mode,
+                            subsample=(stride, stride),
+                            ).eval()
+            if border_mode == 'same':
+                shift_x = (kernel.shape[2] - 1) // 2
+                shift_y = (kernel.shape[3] - 1) // 2
+                output = output[:, :, shift_x:input.shape[2] + shift_x,
+                                shift_y:input.shape[3] + shift_y]
+            yield _convert(input, kernel, output, {'border_mode': border_mode,
+                                                   'strides': (stride, stride)
+                                                   })
 
 
 @pytest.fixture
@@ -80,4 +104,5 @@ class TestConv2DLayerImplementations:
             )
         actual = layer.get_output(input).eval()
         assert actual.shape == output.shape
+        assert actual.shape == layer.get_output_shape()
         assert np.allclose(actual, output)

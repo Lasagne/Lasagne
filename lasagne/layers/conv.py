@@ -13,6 +13,24 @@ __all__ = [
 ]
 
 
+def conv_output_length(input_length, filter_length,
+                       stride, border_mode):
+    if border_mode == 'valid':
+        output_length = input_length - filter_length + 1
+    elif border_mode == 'full':
+        output_length = input_length + filter_length - 1
+    elif border_mode == 'same':
+        output_length = input_length
+    else:
+        raise RuntimeError('Invalid border mode: {0}'.format(border_mode))
+
+    # This is the integer arithmetic equivalent to
+    # np.ceil(output_length / stride)
+    output_length = (output_length + stride - 1) // stride
+
+    return output_length
+
+
 class Conv1DLayer(Layer):
     def __init__(self, incoming, num_filters, filter_length, stride=1,
                  border_mode="valid", untie_biases=False, W=init.Uniform(),
@@ -52,16 +70,10 @@ class Conv1DLayer(Layer):
         return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
-        if self.border_mode == 'valid':
-            output_length = ((input_shape[2] - self.filter_length) //
-                             self.stride + 1)
-        elif self.border_mode == 'full':
-            output_length = ((input_shape[2] + self.filter_length) //
-                             self.stride - 1)
-        elif self.border_mode == 'same':
-            output_length = input_shape[2] // self.stride
-        else:
-            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+        output_length = conv_output_length(input_shape[2],
+                                           self.filter_length,
+                                           self.stride,
+                                           self.border_mode)
 
         return (input_shape[0], self.num_filters, output_length)
 
@@ -138,21 +150,15 @@ class Conv2DLayer(Layer):
         return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
-        if self.border_mode == 'valid':
-            output_rows = ((input_shape[2] - self.filter_size[0]) //
-                           self.strides[0] + 1)
-            output_columns = ((input_shape[3] - self.filter_size[1]) //
-                              self.strides[1] + 1)
-        elif self.border_mode == 'full':
-            output_rows = ((input_shape[2] + self.filter_size[0] +
-                            self.strides[0] - 2) // self.strides[0])
-            output_columns = ((input_shape[3] + self.filter_size[1] +
-                               self.strides[1] - 2) // self.strides[1])
-        elif self.border_mode == 'same':
-            output_rows = input_shape[2] // self.strides[0]
-            output_columns = input_shape[3] // self.strides[1]
-        else:
-            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+        output_rows = conv_output_length(input_shape[2],
+                                         self.filter_size[0],
+                                         self.strides[0],
+                                         self.border_mode)
+
+        output_columns = conv_output_length(input_shape[3],
+                                            self.filter_size[1],
+                                            self.strides[1],
+                                            self.border_mode)
 
         return (input_shape[0], self.num_filters, output_rows, output_columns)
 

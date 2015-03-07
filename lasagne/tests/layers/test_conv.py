@@ -20,13 +20,13 @@ def conv2d_test_sets():
             kernel = np.random.random((16, 1, 3, 3))
             output = conv2d(input, kernel,
                             border_mode=conv_mode,
-                            subsample=(stride, stride),
                             ).eval()
             if border_mode == 'same':
                 shift_x = (kernel.shape[2] - 1) // 2
                 shift_y = (kernel.shape[3] - 1) // 2
                 output = output[:, :, shift_x:input.shape[2] + shift_x,
                                 shift_y:input.shape[3] + shift_y]
+            output = output[:, :, ::stride, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
                                                    'strides': (stride, stride)
                                                    })
@@ -35,13 +35,13 @@ def conv2d_test_sets():
             kernel = np.random.random((16, 3, 3, 3))
             output = conv2d(input, kernel,
                             border_mode=conv_mode,
-                            subsample=(stride, stride),
                             ).eval()
             if border_mode == 'same':
                 shift_x = (kernel.shape[2] - 1) // 2
                 shift_y = (kernel.shape[3] - 1) // 2
                 output = output[:, :, shift_x:input.shape[2] + shift_x,
                                 shift_y:input.shape[3] + shift_y]
+            output = output[:, :, ::stride, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
                                                    'strides': (stride, stride)
                                                    })

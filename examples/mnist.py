@@ -110,7 +110,8 @@ def create_iter_functions(dataset, output_layer,
         loss_function=lasagne.objectives.categorical_crossentropy)
 
     loss_train = objective.get_loss(X_batch, target=y_batch)
-    loss_eval = objective.get_loss(X_batch, target=y_batch,deterministic=True)
+    loss_eval = objective.get_loss(X_batch, target=y_batch,
+                                   deterministic=True)
 
     pred = T.argmax(
         output_layer.get_output(X_batch, deterministic=True), axis=1)

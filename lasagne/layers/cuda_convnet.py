@@ -166,11 +166,15 @@ class Conv2DCCLayer(CCLayer):
         if self.stride != 1:
             # cuda-convnet calculates a non-standard strided output shape,
             # so we need to truncate the output in this case
-            true_size = conv_output_length(input.shape[1],
+            true_rows = conv_output_length(input.shape[1],
                                            self.filter_size,
                                            self.stride,
                                            'pad', self.pad)
-            conved = conved[:, :true_size, :true_size, :]
+            true_columns = conv_output_length(input.shape[2],
+                                              self.filter_size,
+                                              self.stride,
+                                              'pad', self.pad)
+            conved = conved[:, :true_rows, :true_columns, :]
 
         if self.b is not None:
             if self.untie_biases:

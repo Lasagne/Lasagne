@@ -16,7 +16,7 @@ def conv2d_test_sets():
         conv_mode = 'full' if border_mode == 'same' else border_mode
 
         for stride in [1, 2, 3]:
-            input = np.random.random((3, 1, 16, 16))
+            input = np.random.random((3, 1, 16, 23))
             kernel = np.random.random((16, 1, 3, 3))
             output = conv2d(input, kernel,
                             border_mode=conv_mode,
@@ -31,7 +31,7 @@ def conv2d_test_sets():
                                                    'strides': (stride, stride)
                                                    })
 
-            input = np.random.random((3, 3, 16, 16))
+            input = np.random.random((3, 3, 16, 23))
             kernel = np.random.random((16, 3, 3, 3))
             output = conv2d(input, kernel,
                             border_mode=conv_mode,

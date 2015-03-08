@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 Copyright (c) 2011--2014, Université de Montréal
 All rights reserved.

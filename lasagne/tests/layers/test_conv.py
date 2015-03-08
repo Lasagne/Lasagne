@@ -95,14 +95,17 @@ class TestConv2DLayerImplementations:
                       input, kernel, output, kwargs, extra_kwargs):
         kwargs.update(extra_kwargs)
         input_layer = DummyInputLayer(input.shape.eval())
-        layer = Conv2DImpl(
-            input_layer,
-            num_filters=kernel.shape[0],
-            filter_size=kernel.shape[2:],
-            W=kernel,
-            **kwargs
-            )
-        actual = layer.get_output(input).eval()
-        assert actual.shape == output.shape
-        assert actual.shape == layer.get_output_shape()
-        assert np.allclose(actual, output)
+        try:
+            layer = Conv2DImpl(
+                input_layer,
+                num_filters=kernel.shape[0],
+                filter_size=kernel.shape[2:],
+                W=kernel,
+                **kwargs
+                )
+            actual = layer.get_output(input).eval()
+            assert actual.shape == output.shape
+            assert actual.shape == layer.get_output_shape()
+            assert np.allclose(actual, output)
+        except NotImplementedError:
+            pass

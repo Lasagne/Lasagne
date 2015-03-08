@@ -93,8 +93,17 @@ class Conv1DLayer(Layer):
                                       filter_shape=filter_shape,
                                       border_mode=self.border_mode)
         elif self.border_mode == 'same':
-            raise NotImplementedError("The border mode 'same' is not supported"
-                                      "by this layer yet.")
+            if self.stride != 1:
+                raise NotImplementedError("Strided convolution with "
+                                          "border_mode 'same' is not "
+                                          "supported by this layer yet.")
+
+            conved = self.convolution(input, self.W, subsample=(self.stride,),
+                                      image_shape=input_shape,
+                                      filter_shape=filter_shape,
+                                      border_mode='full')
+            shift = (self.filter_length - 1) // 2
+            conved = conved[:, :, shift:input_shape[2] + shift]
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
@@ -174,8 +183,19 @@ class Conv2DLayer(Layer):
                                       filter_shape=filter_shape,
                                       border_mode=self.border_mode)
         elif self.border_mode == 'same':
-            raise NotImplementedError("The border mode 'same' is not supported"
-                                      "by this layer yet.")
+            if self.strides != (1, 1):
+                raise NotImplementedError("Strided convolution with "
+                                          "border_mode 'same' is not "
+                                          "supported by this layer yet.")
+
+            conved = self.convolution(input, self.W, subsample=self.strides,
+                                      image_shape=input_shape,
+                                      filter_shape=filter_shape,
+                                      border_mode='full')
+            shift_x = (self.filter_size[0] - 1) // 2
+            shift_y = (self.filter_size[1] - 1) // 2
+            conved = conved[:, :, shift_x:input_shape[2] + shift_x,
+                            shift_y:input_shape[3] + shift_y]
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 

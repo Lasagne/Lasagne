@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
+
 This file contains code from pylearn2, which is convered by the following
 license:
 
@@ -19,8 +20,8 @@ modification, are permitted provided that the following conditions are met:
    and/or other materials provided with the distribution.
 
 3. Neither the name of the copyright holder nor the names of its contributors
-   may be used to endorse or promote products derived from this software without
-   specific prior written permission.
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -48,6 +49,7 @@ from .base import Layer
 __all__ = [
     "LocalResponseNormalization2DLayer",
 ]
+
 
 class LocalResponseNormalization2DLayer(Layer):
     """
@@ -79,7 +81,8 @@ class LocalResponseNormalization2DLayer(Layer):
             - beta: see equation above
             - n: number of adjacent channels to normalize over.
         """
-        super(LocalResponseNormalization2DLayer, self).__init__(incoming, **kwargs)
+        super(LocalResponseNormalization2DLayer, self).__init__(incoming,
+                                                                **kwargs)
         self.alpha = alpha
         self.k = k
         self.beta = beta
@@ -98,9 +101,10 @@ class LocalResponseNormalization2DLayer(Layer):
         input_sqr = T.sqr(input)
         b, ch, r, c = input_shape
         extra_channels = T.alloc(0., b, ch + 2*half_n, r, c)
-        input_sqr = T.set_subtensor(extra_channels[:,half_n:half_n+ch,:,:], input_sqr)
+        input_sqr = T.set_subtensor(extra_channels[:, half_n:half_n+ch, :, :],
+                                    input_sqr)
         scale = self.k
         for i in range(self.n):
-            scale += self.alpha * input_sqr[:,i:i+ch,:,:]
+            scale += self.alpha * input_sqr[:, i:i+ch, :, :]
         scale = scale ** self.beta
         return input / scale

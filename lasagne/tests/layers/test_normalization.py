@@ -42,6 +42,7 @@ import theano
 
 import lasagne
 
+
 def ground_truth_normalizer(c01b, k, n, alpha, beta):
     out = np.zeros(c01b.shape)
 

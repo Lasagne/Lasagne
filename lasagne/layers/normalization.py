@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 
 """
+This file contains code from pylearn2, which is convered by the following
+license:
+
+
 Copyright (c) 2011--2014, Université de Montréal
 All rights reserved.
 

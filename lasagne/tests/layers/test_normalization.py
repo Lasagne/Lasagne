@@ -36,15 +36,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 
-from mock import Mock
 import numpy as np
 import pytest
-import importlib
 import theano
 
 import lasagne
-from lasagne.utils import floatX
-
 
 def ground_truth_normalizer(c01b, k, n, alpha, beta):
     out = np.zeros(c01b.shape)

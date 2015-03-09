@@ -178,7 +178,7 @@ class TestObjectives:
 
         input_layer = mock.Mock()
         loss_function = mock.Mock()
-        input, target, arg1, kwarg1 = (object(),) * 4
+        input, target, arg1, kwarg1 = object(), object(), object(), object()
         objective = Objective(input_layer, loss_function)
         result = objective.get_loss(input, target, 'mean', arg1,
                                     kwarg1=kwarg1)

@@ -84,7 +84,6 @@ class TestLocalResponseNormalization2DLayer:
 
     @pytest.fixture
     def input_data(self, input_layer, rng):
-        print input_layer.shape
         return rng.randn(*input_layer.shape).astype(theano.config.floatX)
 
     @pytest.fixture

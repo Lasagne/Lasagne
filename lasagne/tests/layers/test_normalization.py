@@ -46,9 +46,9 @@ import lasagne
 def ground_truth_normalizer(c01b, k, n, alpha, beta):
     out = np.zeros(c01b.shape)
 
-    for r in xrange(out.shape[1]):
-        for c in xrange(out.shape[2]):
-            for x in xrange(out.shape[3]):
+    for r in range(out.shape[1]):
+        for c in range(out.shape[2]):
+            for x in range(out.shape[3]):
                 out[:, r, c, x] = ground_truth_normalize_row(
                         row=c01b[:, r, c, x],
                         k=k, n=n, alpha=alpha, beta=beta)
@@ -58,10 +58,10 @@ def ground_truth_normalizer(c01b, k, n, alpha, beta):
 def ground_truth_normalize_row(row, k, n, alpha, beta):
     assert row.ndim == 1
     out = np.zeros(row.shape)
-    for i in xrange(row.shape[0]):
+    for i in range(row.shape[0]):
         s = k
         tot = 0
-        for j in xrange(max(0, i-n//2), min(row.shape[0], i+n//2+1)):
+        for j in range(max(0, i-n//2), min(row.shape[0], i+n//2+1)):
             tot += 1
             sq = row[j] ** 2.
             assert sq > 0.

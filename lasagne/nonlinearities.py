@@ -23,7 +23,7 @@ def rectify(x):
 # leaky rectify
 # Maas et al: Rectifier Nonlinearities Improve Neural Network Acoustic Models
 # http://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf
-class leaky_rectify(object):
+class LeakyRectify(object):
 
     def __init__(self, leakiness=0.01):
         self.leakiness = leakiness
@@ -34,6 +34,9 @@ class leaky_rectify(object):
             return T.maximum(self.leakiness * x, x)
         else:
             return rectify(x)
+
+
+leaky_rectify = LeakyRectify()  # shortcut with default leakiness
 
 
 # linear

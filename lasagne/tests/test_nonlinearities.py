@@ -7,8 +7,8 @@ def test_rectify():
 
 
 def test_leaky_rectify():
-    from lasagne.nonlinearities import leaky_rectify
-    result = leaky_rectify(0.1)(np.array([-1, 0, 1, 2])).eval()
+    from lasagne.nonlinearities import LeakyRectify
+    result = LeakyRectify(0.1)(np.array([-1, 0, 1, 2])).eval()
     assert np.allclose(result, [-.1, 0, 1, 2])
 
 

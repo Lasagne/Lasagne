@@ -113,7 +113,7 @@ class CustomRecurrentLayer(Layer):
                 Theano variable denoting whether each time step in each
                 sequence in the batch is part of the sequence or not.  This is
                 needed when scanning backwards.  If all sequences are of the
-                same length, it should be all 1s.
+                same length, it should be all 1s.  Optional.
 
         :returns:
             - layer_output : theano.TensorType
@@ -123,16 +123,12 @@ class CustomRecurrentLayer(Layer):
             input = input.reshape((input.shape[0], input.shape[1],
                                    T.prod(input.shape[2:])))
 
-        if self.backwards:
-            assert mask is not None, ("Mask must be given to get_output_for"
-                                      " when backwards is true")
-
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
 
-        if self.backwards:
+        if self.backwards and mask is not None:
             mask = mask.dimshuffle(1, 0, 'x')
 
         # Create single recurrent computation step function
@@ -149,7 +145,7 @@ class CustomRecurrentLayer(Layer):
                    + hid_previous*(1 - mask))
             return [hid]
 
-        if self.backwards:
+        if self.backwards and mask is not None:
             sequences = [input, mask]
             step_fun = step_back
         else:

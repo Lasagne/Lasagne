@@ -2,7 +2,7 @@
 
 """
 
-This file contains code from pylearn2, which is convered by the following
+This file contains code from pylearn2, which is covered by the following
 license:
 
 

@@ -13,11 +13,12 @@ from theano.tensor import tanh
 
 
 # rectify
-# The following is faster than lambda x: T.maximum(0, x)
-# Thanks to @SnippyHolloW for pointing this out.
-# See: https://github.com/SnippyHolloW/abnet/blob/807aeb9/layers.py#L15
 def rectify(x):
-    return (x + abs(x)) / 2.0
+    # The following is faster than T.maximum(0, x),
+    # and it works with nonsymbolic inputs as well.
+    # Thanks to @SnipyHollow for pointing this out. Also see:
+    # http://github.com/benanne/Lasagne/pull/163#issuecomment-81765117
+    return 0.5 * (x + abs(x))
 
 
 # leaky rectify
@@ -30,8 +31,12 @@ class LeakyRectify(object):
 
     def __call__(self, x):
         if self.leakiness:
-            import theano.tensor as T
-            return T.maximum(self.leakiness * x, x)
+            # The following is faster than T.maximum(leakiness * x, x),
+            # and it works with nonsymbolic inputs as well. Also see:
+            # http://github.com/benanne/Lasagne/pull/163#issuecomment-81765117
+            f1 = 0.5 * (1 + self.leakiness)
+            f2 = 0.5 * (1 - self.leakiness)
+            return f1 * x + f2 * abs(x)
         else:
             return rectify(x)
 

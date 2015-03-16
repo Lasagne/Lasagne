@@ -94,7 +94,8 @@ class TestConv2DLayerImplementations:
     def test_defaults(self, Conv2DImpl, DummyInputLayer,
                       input, kernel, output, kwargs, extra_kwargs):
         kwargs.update(extra_kwargs)
-        input_layer = DummyInputLayer(input.shape.eval())
+        b, c, h, w = input.shape.eval()
+        input_layer = DummyInputLayer((b, c, h, w))
         try:
             layer = Conv2DImpl(
                 input_layer,
@@ -107,5 +108,32 @@ class TestConv2DLayerImplementations:
             assert actual.shape == output.shape
             assert actual.shape == layer.get_output_shape()
             assert np.allclose(actual, output)
+
+        except NotImplementedError:
+            pass
+
+    @pytest.mark.parametrize(
+        "input, kernel, output, kwargs", list(conv2d_test_sets()))
+    def test_with_nones(self, Conv2DImpl, DummyInputLayer,
+                        input, kernel, output, kwargs):
+        b, c, h, w = input.shape.eval()
+        input_layer = DummyInputLayer((None, c, None, None))
+        try:
+            layer = Conv2DImpl(
+                input_layer,
+                num_filters=kernel.shape[0],
+                filter_size=kernel.shape[2:],
+                W=kernel,
+                **kwargs
+                )
+            actual = layer.get_output(input).eval()
+
+            assert layer.get_output_shape() == (None,
+                                                kernel.shape[0],
+                                                None,
+                                                None)
+            assert actual.shape == output.shape
+            assert np.allclose(actual, output)
+
         except NotImplementedError:
             pass

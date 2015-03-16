@@ -6,6 +6,7 @@ from .. import nonlinearities
 
 from .base import Layer
 
+from .conv import conv_output_length
 
 if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
     raise ImportError("dnn not available")
@@ -119,11 +120,17 @@ class Conv2DDNNLayer(DNNLayer):
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]
-        input_rows, input_columns = input_shape[2:4]
-        output_rows = ((input_rows + 2*self.pad[0] - self.filter_size[0]) //
-                       self.strides[0] + 1)
-        output_columns = (input_columns + 2*self.pad[1] -
-                          self.filter_size[1]) // self.strides[1] + 1
+
+        output_rows = conv_output_length(input_shape[2],
+                                         self.filter_size[0],
+                                         self.strides[0],
+                                         'pad', self.pad[0])
+
+        output_columns = conv_output_length(input_shape[3],
+                                            self.filter_size[1],
+                                            self.strides[1],
+                                            'pad', self.pad[1])
+
         return (batch_size, self.num_filters, output_rows, output_columns)
 
     def get_output_for(self, input, *args, **kwargs):

@@ -14,6 +14,28 @@ __all__ = [
 ]
 
 
+def pool_output_length(input_length, pool_length):
+    '''Compute the output length of a pooling operator.
+
+    Parameters
+    ----------
+    input_length 
+    pool_length
+
+    Returns
+    -------
+    output_length
+        * None if either input is None
+        * `input_length / pool_length` otherwise
+    '''
+
+    if input_length is None or pool_length is None:
+        return None
+
+    # Should this just be "input_length // pool_length" ?
+    return int(np.floor(float(input_length) / pool_length))
+
+
 class MaxPool2DLayer(Layer):
     def __init__(self, incoming, ds, ignore_border=False, **kwargs):
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
@@ -24,15 +46,11 @@ class MaxPool2DLayer(Layer):
         output_shape = list(input_shape)  # copy / convert to mutable list
 
         if self.ignore_border:
-            output_shape[2] = int(np.floor(float(output_shape[2]) /
-                                           self.ds[0]))
-            output_shape[3] = int(np.floor(float(output_shape[3]) /
-                                           self.ds[1]))
+            output_shape[2] = pool_output_length(input_shape[2], self.ds[0])
+            output_shape[3] = pool_output_length(input_shape[3], self.ds[1])
         else:
-            output_shape[2] = int(np.ceil(float(output_shape[2]) /
-                                          self.ds[0]))
-            output_shape[3] = int(np.ceil(float(output_shape[3]) /
-                                          self.ds[1]))
+            output_shape[2] = pool_output_length(input_shape[2], self.ds[0])
+            output_shape[3] = pool_output_length(input_shape[3], self.ds[1])
 
         return tuple(output_shape)
 
@@ -71,7 +89,8 @@ class FeaturePoolLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # make a mutable copy
-        output_shape[self.axis] = output_shape[self.axis] // self.ds
+        output_shape[self.axis] = pool_output_length(input_shape[self.axis],
+                                                     self.ds)
         return tuple(output_shape)
 
     def get_output_for(self, input, *args, **kwargs):

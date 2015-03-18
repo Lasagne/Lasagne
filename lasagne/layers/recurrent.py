@@ -111,9 +111,12 @@ class CustomRecurrentLayer(Layer):
                 Symbolic input variable
             - mask : theano.TensorType
                 Theano variable denoting whether each time step in each
-                sequence in the batch is part of the sequence or not.  This is
-                needed when scanning backwards.  If all sequences are of the
-                same length, it should be all 1s.  Optional.
+                sequence in the batch is part of the sequence or not.  If None,
+                then it assumed that all sequences are of the same length.  If
+                not all sequences are of the same length, then it must be
+                supplied as a matrix of shape (n_batch, n_time_steps) where
+                `mask[i, j] = 1` when `j <= (length of sequence i)` and
+                `mask[i, j] = 0` when `j > (length of sequence i)`.
 
         :returns:
             - layer_output : theano.TensorType
@@ -128,16 +131,13 @@ class CustomRecurrentLayer(Layer):
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
 
-        if self.backwards and mask is not None:
-            mask = mask.dimshuffle(1, 0, 'x')
-
         # Create single recurrent computation step function
         def step(layer_input, hid_previous):
             return self.nonlinearity(
                 self.input_to_hidden.get_output(layer_input) +
                 self.hidden_to_hidden.get_output(hid_previous))
 
-        def step_back(layer_input, mask, hid_previous):
+        def step_masked(layer_input, mask, hid_previous):
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
             # until the end of the sequence is found.
@@ -146,8 +146,9 @@ class CustomRecurrentLayer(Layer):
             return [hid]
 
         if self.backwards and mask is not None:
+            mask = mask.dimshuffle(1, 0, 'x')
             sequences = [input, mask]
-            step_fun = step_back
+            step_fun = step_masked
         else:
             sequences = input
             step_fun = step

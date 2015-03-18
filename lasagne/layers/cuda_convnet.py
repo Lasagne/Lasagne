@@ -7,9 +7,10 @@ from .. import nonlinearities
 
 from .base import Layer
 
+from .conv import conv_output_length
+
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
-
 
 __all__ = [
     "CCLayer",
@@ -133,10 +134,15 @@ class Conv2DCCLayer(CCLayer):
             batch_size = input_shape[3]
             input_rows, input_columns = input_shape[1:3]
 
-        output_rows = ((input_rows + 2*self.pad - self.filter_size) //
-                       self.stride + 1)
-        output_columns = ((input_columns + 2*self.pad - self.filter_size) //
-                          self.stride + 1)
+        output_rows = conv_output_length(input_shape[2],
+                                         self.filter_size,
+                                         self.stride,
+                                         'pad', self.pad)
+
+        output_columns = conv_output_length(input_shape[3],
+                                            self.filter_size,
+                                            self.stride,
+                                            'pad', self.pad)
 
         if self.dimshuffle:
             return (batch_size, self.num_filters, output_rows, output_columns)
@@ -156,6 +162,19 @@ class Conv2DCCLayer(CCLayer):
         contiguous_filters = gpu_contiguous(filters)
         contiguous_input = gpu_contiguous(input)
         conved = self.filter_acts_op(contiguous_input, contiguous_filters)
+
+        if self.stride != 1:
+            # cuda-convnet calculates a non-standard strided output shape,
+            # so we need to truncate the output in this case
+            true_rows = conv_output_length(input.shape[1],
+                                           self.filter_size,
+                                           self.stride,
+                                           'pad', self.pad)
+            true_columns = conv_output_length(input.shape[2],
+                                              self.filter_size,
+                                              self.stride,
+                                              'pad', self.pad)
+            conved = conved[:, :true_rows, :true_columns, :]
 
         if self.b is not None:
             if self.untie_biases:

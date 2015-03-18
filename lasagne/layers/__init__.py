@@ -8,3 +8,4 @@ from .pool import *
 from .shape import *
 from .merge import *
 from .recurrent import *
+from .normalization import *

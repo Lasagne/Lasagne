@@ -81,7 +81,7 @@ class Conv1DLayer(Layer):
 
         return (input_shape[0], self.num_filters, output_length)
 
-    def get_output_for(self, input, input_shape=None, *args, **kwargs):
+    def get_output_for(self, input, input_shape=None, **kwargs):
         # the optional input_shape argument is for when get_output_for is
         # called directly with a different shape than self.input_shape.
         if input_shape is None:
@@ -171,7 +171,7 @@ class Conv2DLayer(Layer):
 
         return (input_shape[0], self.num_filters, output_rows, output_columns)
 
-    def get_output_for(self, input, input_shape=None, *args, **kwargs):
+    def get_output_for(self, input, input_shape=None, **kwargs):
         # the optional input_shape argument is for when get_output_for is
         # called directly with a different shape than self.input_shape.
         if input_shape is None:

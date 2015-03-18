@@ -56,7 +56,7 @@ class InputLayer(Layer):
     def get_output_shape(self):
         return self.shape
 
-    def get_output(self, input=None, *args, **kwargs):
+    def get_output(self, input=None, **kwargs):
         if isinstance(input, dict):
             input = input.get(self, None)
         if input is None:

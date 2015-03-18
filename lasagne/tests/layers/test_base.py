@@ -26,15 +26,15 @@ class TestLayer:
         layer.input_layer.get_output.assert_called_with(None)
 
     def test_get_output_passes_on_arguments_to_input_layer(self, layer):
-        input, arg, kwarg = object(), object(), object()
+        input, kwarg = object(), object()
         layer.get_output_for = Mock()
 
-        output = layer.get_output(input, arg, kwarg=kwarg)
+        output = layer.get_output(input, kwarg=kwarg)
         assert output is layer.get_output_for.return_value
         layer.get_output_for.assert_called_with(
-            layer.input_layer.get_output.return_value, arg, kwarg=kwarg)
+            layer.input_layer.get_output.return_value, kwarg=kwarg)
         layer.input_layer.get_output.assert_called_with(
-            input, arg, kwarg=kwarg)
+            input, kwarg=kwarg)
 
     def test_get_output_input_is_a_mapping(self, layer):
         input = {layer: theano.tensor.matrix()}
@@ -140,19 +140,19 @@ class TestMultipleInputsLayer:
         layer.input_layers[1].get_output.assert_called_with(None)
 
     def test_get_output_passes_on_arguments_to_input_layer(self, layer):
-        input, arg, kwarg = object(), object(), object()
+        input, kwarg = object(), object()
         layer.get_output_for = Mock()
 
-        output = layer.get_output(input, arg, kwarg=kwarg)
+        output = layer.get_output(input, kwarg=kwarg)
         assert output is layer.get_output_for.return_value
         layer.get_output_for.assert_called_with([
             layer.input_layers[0].get_output.return_value,
             layer.input_layers[1].get_output.return_value,
-            ], arg, kwarg=kwarg)
+            ], kwarg=kwarg)
         layer.input_layers[0].get_output.assert_called_with(
-            input, arg, kwarg=kwarg)
+            input, kwarg=kwarg)
         layer.input_layers[1].get_output.assert_called_with(
-            input, arg, kwarg=kwarg)
+            input, kwarg=kwarg)
 
     def test_get_output_input_is_a_mapping(self, layer):
         input = {layer: theano.tensor.matrix()}

@@ -20,7 +20,7 @@ class DropoutLayer(Layer):
         self.p = p
         self.rescale = rescale
 
-    def get_output_for(self, input, deterministic=False, *args, **kwargs):
+    def get_output_for(self, input, deterministic=False, **kwargs):
         if deterministic or self.p == 0:
             return input
         else:
@@ -44,7 +44,7 @@ class GaussianNoiseLayer(Layer):
         super(GaussianNoiseLayer, self).__init__(incoming, **kwargs)
         self.sigma = sigma
 
-    def get_output_for(self, input, deterministic=False, *args, **kwargs):
+    def get_output_for(self, input, deterministic=False, **kwargs):
         if deterministic or self.sigma == 0:
             return input
         else:

@@ -14,13 +14,19 @@ __all__ = [
 ]
 
 
-def pool_output_length(input_length, pool_length):
-    '''Compute the output length of a pooling operator.
+def pool_output_length(input_length, pool_length, ceil=False):
+    '''Compute the output length of a pooling operator
+    along a particular dimension.
 
     Parameters
     ----------
-    input_length 
+    input_length
     pool_length
+        Shape of the input and pooling operator in the chosen dimension
+
+    ceil : bool
+        If True, size is rounded up.
+        If False (default), size is rounded down.
 
     Returns
     -------
@@ -32,8 +38,13 @@ def pool_output_length(input_length, pool_length):
     if input_length is None or pool_length is None:
         return None
 
+    if ceil:
+        rounder = np.ceil
+    else:
+        rounder = np.floor
+
     # Should this just be "input_length // pool_length" ?
-    return int(np.floor(float(input_length) / pool_length))
+    return int(rounder(float(input_length) / pool_length))
 
 
 class MaxPool2DLayer(Layer):
@@ -49,8 +60,10 @@ class MaxPool2DLayer(Layer):
             output_shape[2] = pool_output_length(input_shape[2], self.ds[0])
             output_shape[3] = pool_output_length(input_shape[3], self.ds[1])
         else:
-            output_shape[2] = pool_output_length(input_shape[2], self.ds[0])
-            output_shape[3] = pool_output_length(input_shape[3], self.ds[1])
+            output_shape[2] = pool_output_length(input_shape[2], self.ds[0],
+                                                 ceil=True)
+            output_shape[3] = pool_output_length(input_shape[3], self.ds[1],
+                                                 ceil=True)
 
         return tuple(output_shape)
 

@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-def pool_output_length(input_length, pool_length, ceil=False):
+def pool_output_length(input_length, pool_length, ignore_border=True):
     '''Compute the output length of a pooling operator
     along a particular dimension.
 
@@ -24,9 +24,9 @@ def pool_output_length(input_length, pool_length, ceil=False):
     pool_length
         Shape of the input and pooling operator in the chosen dimension
 
-    ceil : bool
-        If True, size is rounded up.
-        If False (default), size is rounded down.
+    ignore_border:
+        if True, the output length is rounded down.
+        if False, it is rounded up
 
     Returns
     -------
@@ -38,13 +38,12 @@ def pool_output_length(input_length, pool_length, ceil=False):
     if input_length is None or pool_length is None:
         return None
 
-    if ceil:
-        rounder = np.ceil
-    else:
-        rounder = np.floor
+    if ignore_border:
+        # Round shape down when we ignore the border
+        return input_length // pool_length
 
-    # Should this just be "input_length // pool_length" ?
-    return int(rounder(float(input_length) / pool_length))
+    # Otherwise, round the shape up
+    return int(np.ceil(float(input_length) / pool_length))
 
 
 class MaxPool2DLayer(Layer):
@@ -56,14 +55,13 @@ class MaxPool2DLayer(Layer):
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
 
-        if self.ignore_border:
-            output_shape[2] = pool_output_length(input_shape[2], self.ds[0])
-            output_shape[3] = pool_output_length(input_shape[3], self.ds[1])
-        else:
-            output_shape[2] = pool_output_length(input_shape[2], self.ds[0],
-                                                 ceil=True)
-            output_shape[3] = pool_output_length(input_shape[3], self.ds[1],
-                                                 ceil=True)
+        output_shape[2] = pool_output_length(input_shape[2],
+                                             self.ds[0],
+                                             ignore_border=self.ignore_border)
+
+        output_shape[3] = pool_output_length(input_shape[3],
+                                             self.ds[1],
+                                             ignore_border=self.ignore_border)
 
         return tuple(output_shape)
 

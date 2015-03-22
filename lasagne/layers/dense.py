@@ -77,7 +77,7 @@ class DenseLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         if input.ndim > 2:
             # if the input has more than two dimensions, flatten it into a
             # batch of feature vectors.
@@ -131,7 +131,7 @@ class NINLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units) + input_shape[2:]
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         # cf * bc01... = fb01...
         out_r = T.tensordot(self.W, input, axes=[[0], [1]])
         # input dims to broadcast over

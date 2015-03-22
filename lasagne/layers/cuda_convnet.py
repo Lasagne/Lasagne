@@ -149,7 +149,7 @@ class Conv2DCCLayer(CCLayer):
         else:
             return (self.num_filters, output_rows, output_columns, batch_size)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         if self.dimshuffle:
             filters = self.W.dimshuffle(1, 2, 3, 0)  # bc01 to c01b
             input = input.dimshuffle(1, 2, 3, 0)  # bc01 to c01b
@@ -243,7 +243,7 @@ class MaxPool2DCCLayer(CCLayer):
             return (num_input_channels, output_rows, output_columns,
                     batch_size)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         if self.dimshuffle:
             input = input.dimshuffle(1, 2, 3, 0)  # bc01 to c01b
 
@@ -271,7 +271,7 @@ class ShuffleBC01ToC01BLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[1], input_shape[2], input_shape[3], input_shape[0])
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return input.dimshuffle(1, 2, 3, 0)
 
 bc01_to_c01b = ShuffleBC01ToC01BLayer  # shortcut
@@ -286,7 +286,7 @@ class ShuffleC01BToBC01Layer(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[3], input_shape[0], input_shape[1], input_shape[2])
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return input.dimshuffle(3, 0, 1, 2)
 
 c01b_to_bc01 = ShuffleC01BToBC01Layer  # shortcut
@@ -332,7 +332,7 @@ class NINLayer_c01b(Layer):
     def get_output_shape_for(self, input_shape):
         return (self.num_units,) + input_shape[1:]
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         # fc * c01b... = f01b...
         out = T.tensordot(self.W, input, axes=[[1], [0]])
 

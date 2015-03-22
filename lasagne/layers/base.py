@@ -91,7 +91,7 @@ class Layer(object):
         """
         return self.get_output_shape_for(self.input_shape)
 
-    def get_output(self, input=None, *args, **kwargs):
+    def get_output(self, input=None, **kwargs):
         """
         Computes the output of the network at this layer. Optionally, you can
         define an input to propagate through the network instead of using the
@@ -125,8 +125,8 @@ class Layer(object):
                                "there isn't anything to get its input from. "
                                "Did you mean get_output_for()?")
         else:  # in all other cases, just pass the input on to the next layer.
-            layer_input = self.input_layer.get_output(input, *args, **kwargs)
-            return self.get_output_for(layer_input, *args, **kwargs)
+            layer_input = self.input_layer.get_output(input, **kwargs)
+            return self.get_output_for(layer_input, **kwargs)
 
     def get_output_shape_for(self, input_shape):
         """
@@ -153,7 +153,7 @@ class Layer(object):
         """
         return input_shape
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         """
         Propagates the given input through this layer (and only this layer).
 
@@ -272,7 +272,7 @@ class MultipleInputsLayer(Layer):
     def get_output_shape(self):
         return self.get_output_shape_for(self.input_shapes)
 
-    def get_output(self, input=None, *args, **kwargs):
+    def get_output(self, input=None, **kwargs):
         if isinstance(input, dict) and (self in input):
             # this layer is mapped to an expression or numpy array
             return utils.as_theano_expression(input[self])
@@ -282,9 +282,9 @@ class MultipleInputsLayer(Layer):
                                "Did you mean get_output_for()?")
         # In all other cases, just pass the network input on to the next layers
         else:
-            layer_inputs = [input_layer.get_output(input, *args, **kwargs) for
+            layer_inputs = [input_layer.get_output(input, **kwargs) for
                             input_layer in self.input_layers]
-            return self.get_output_for(layer_inputs, *args, **kwargs)
+            return self.get_output_for(layer_inputs, **kwargs)
 
     def get_output_shape_for(self, input_shapes):
         """
@@ -310,7 +310,7 @@ class MultipleInputsLayer(Layer):
         """
         raise NotImplementedError
 
-    def get_output_for(self, inputs, *args, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         """
         Propagates the given inputs through this layer (and only this layer).
 

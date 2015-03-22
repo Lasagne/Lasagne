@@ -21,7 +21,7 @@ class ConcatLayer(MultipleInputsLayer):
         output_shape[self.axis] = sum(sizes)
         return tuple(output_shape)
 
-    def get_output_for(self, inputs, *args, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         return T.concatenate(inputs, axis=self.axis)
 
 concat = ConcatLayer  # shortcut
@@ -66,7 +66,7 @@ class ElemwiseSumLayer(MultipleInputsLayer):
             raise ValueError("Mismatch: not all input shapes are the same")
         return input_shapes[0]
 
-    def get_output_for(self, inputs, *args, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         output = None
         for coeff, input in zip(self.coeffs, inputs):
             if coeff != 1:

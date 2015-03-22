@@ -108,7 +108,7 @@ class Conv2DMMLayer(MMLayer):
 
         return (batch_size, self.num_filters, output_rows, output_columns)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         filters = self.W
         if self.flip_filters:
             filters = filters[:, :, ::-1, ::-1]  # flip top-down, left-right

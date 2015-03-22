@@ -178,15 +178,14 @@ class TestObjectives:
 
         input_layer = mock.Mock()
         loss_function = mock.Mock()
-        input, target, arg1, kwarg1 = object(), object(), object(), object()
+        input, target, kwarg1 = object(), object(), object()
         objective = Objective(input_layer, loss_function)
-        result = objective.get_loss(input, target, 'mean', arg1,
-                                    kwarg1=kwarg1)
+        result = objective.get_loss(input, target, 'mean', kwarg1=kwarg1)
 
         # We expect that the input layer's `get_output` was called with
         # the `input` argument we provided, plus the extra positional and
         # keyword arguments.
-        input_layer.get_output.assert_called_with(input, arg1, kwarg1=kwarg1)
+        input_layer.get_output.assert_called_with(input, kwarg1=kwarg1)
         network_output = input_layer.get_output.return_value
 
         # The `network_output` and `target` are fed into the loss

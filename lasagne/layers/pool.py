@@ -36,7 +36,7 @@ class MaxPool2DLayer(Layer):
 
         return tuple(output_shape)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return downsample.max_pool_2d(input, self.ds, self.ignore_border)
 
 
@@ -74,7 +74,7 @@ class FeaturePoolLayer(Layer):
         output_shape[self.axis] = output_shape[self.axis] // self.ds
         return tuple(output_shape)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         num_feature_maps = input.shape[self.axis]
         num_feature_maps_out = num_feature_maps // self.ds
 
@@ -113,7 +113,7 @@ class FeatureWTALayer(Layer):
                                "multiple of the group size (ds=%d)" %
                                (num_feature_maps, self.ds))
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         num_feature_maps = input.shape[self.axis]
         num_pools = num_feature_maps // self.ds
 
@@ -151,5 +151,5 @@ class GlobalPoolLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return input_shape[:2]
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return self.pool_function(input.flatten(3), axis=2)

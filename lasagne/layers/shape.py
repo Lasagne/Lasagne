@@ -21,7 +21,7 @@ class FlattenLayer(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], int(np.prod(input_shape[1:])))
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return input.flatten(2)
 
 flatten = FlattenLayer  # shortcut
@@ -80,7 +80,7 @@ class ReshapeLayer(Layer):
             raise ValueError("`shape` cannot contain multiple -1")
         self.shape = shape
 
-    def get_output_shape_for(self, input_shape, *args, **kwargs):
+    def get_output_shape_for(self, input_shape, **kwargs):
         # Initialize output shape from shape specification
         output_shape = list(self.shape)
         # First, replace all `[i]` with the corresponding input dimension, and
@@ -127,7 +127,7 @@ class ReshapeLayer(Layer):
                              (input_shape, self.shape))
         return tuple(output_shape)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         # Replace all `[i]` with the corresponding input dimension
         output_shape = list(self.shape)
         for dim, o in enumerate(output_shape):
@@ -226,7 +226,7 @@ class DimshuffleLayer(Layer):
 
         return tuple(output_shape)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return input.dimshuffle(self.pattern)
 
 dimshuffle = DimshuffleLayer  # shortcut
@@ -249,7 +249,7 @@ class PadLayer(Layer):
 
         return output_shape
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return padding.pad(input, self.width, self.val, self.batch_ndim)
 
 pad = PadLayer  # shortcut

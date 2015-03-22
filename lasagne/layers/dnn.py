@@ -36,7 +36,7 @@ class Pool2DDNNLayer(DNNLayer):
         output_shape[3] = (output_shape[3] - self.ds[1]) // self.strides[1] + 1
         return tuple(output_shape)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         return dnn.dnn_pool(input, self.ds, self.strides, self.mode)
 
 
@@ -133,7 +133,7 @@ class Conv2DDNNLayer(DNNLayer):
 
         return (batch_size, self.num_filters, output_rows, output_columns)
 
-    def get_output_for(self, input, *args, **kwargs):
+    def get_output_for(self, input, **kwargs):
         # by default we assume 'cross', consistent with corrmm.
         conv_mode = 'conv' if self.flip_filters else 'cross'
         # if 'border_mode' is one of 'valid' or 'full' use that.

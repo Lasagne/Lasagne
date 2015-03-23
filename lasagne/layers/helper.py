@@ -1,3 +1,5 @@
+from collections import deque
+
 import numpy as np
 
 from .. import utils
@@ -5,6 +7,7 @@ from .. import utils
 
 __all__ = [
     "get_all_layers",
+    "get_all_layers_old",
     "get_all_params",
     "get_all_bias_params",
     "get_all_non_bias_params",
@@ -18,22 +21,24 @@ def get_all_layers(layer):
     """
     This function gathers all layers below one or more given :class:`Layer`
     instances, including the given layer(s). Its main use is to collect all
-    layers of a network just given the output layer(s).
+    layers of a network just given the output layer(s). The layers are
+    guaranteed to be returned in a topological order: a layer in the result
+    list is always preceded by all layers its input depends on.
 
     :usage:
         >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> all_layers = get_all_layers(l1)
-        >>> all_layers == [l1, l_in]
+        >>> get_all_layers(l1) == [l_in, l1]
         True
         >>> l2 = DenseLayer(l_in, num_units=10)
-        >>> all_layers = get_all_layers([l2, l1])
-        >>> all_layers == [l2, l1, l_in]
+        >>> get_all_layers([l2, l1]) == [l_in, l2, l1]
+        True
+        >>> get_all_layers([l1, l2]) == [l_in, l1, l2]
         True
 
     :parameters:
-        - layer : Layer
+        - layer : Layer or list
             the :class:`Layer` instance for which to gather all layers feeding
             into it, or a list of :class:`Layer` instances.
 
@@ -41,7 +46,60 @@ def get_all_layers(layer):
         - layers : list
             a list of :class:`Layer` instances feeding into the given
             instance(s) either directly or indirectly, and the given
-            instance(s) themselves.
+            instance(s) themselves, in topological order.
+    """
+    import warnings
+    warnings.warn("get_all_layers() has been changed to return layers in "
+                  "topological order. The former implementation is still "
+                  "available as get_all_layers_old(), but will be removed "
+                  "before the first release of Lasagne. To ignore this "
+                  "warning, use `warnings.filterwarnings('ignore', "
+                  "'.*topo.*')`.")
+
+    # We perform a depth-first search. We add a layer to the result list only
+    # after adding all its incoming layers (if any) or when detecting a cycle.
+    # We use a LIFO stack to avoid ever running into recursion depth limits.
+    try:
+        queue = deque(layer)
+    except TypeError:
+        queue = deque([layer])
+    seen = set()
+    done = set()
+    result = []
+
+    while queue:
+        # Peek at the leftmost node in the queue.
+        layer = queue[0]
+        if layer is None:
+            # Some node had an input_layer set to `None`. Just ignore it.
+            queue.popleft()
+        elif layer not in seen:
+            # We haven't seen this node yet: Mark it and queue all incomings
+            # to be processed first. If there are no incomings, the node will
+            # be appended to the result list in the next iteration.
+            seen.add(layer)
+            if hasattr(layer, 'input_layers'):
+                queue.extendleft(reversed(layer.input_layers))
+            elif hasattr(layer, 'input_layer'):
+                queue.appendleft(layer.input_layer)
+        else:
+            # We've been here before: Either we've finished all its incomings,
+            # or we've detected a cycle. In both cases, we remove the layer
+            # from the queue and append it to the result list.
+            queue.popleft()
+            if layer not in done:
+                result.append(layer)
+                done.add(layer)
+
+    return result
+
+
+def get_all_layers_old(layer):
+    """
+    Earlier implementation of `get_all_layers()` that does a breadth-first
+    search. Kept here to ease converting old models that rely on the order
+    of get_all_layers() or get_all_params(). Will be removed before the
+    first release of Lasagne.
     """
     if isinstance(layer, (list, tuple)):
         layers = list(layer)
@@ -84,7 +142,7 @@ def get_all_params(layer):
         True
 
     :parameters:
-        - layer : Layer
+        - layer : Layer or list
             the :class:`Layer` instance for which to gather all parameters,
             or a list of :class:`Layer` instances.
 
@@ -115,7 +173,7 @@ def get_all_bias_params(layer):
         True
 
     :parameters:
-        - layer : Layer
+        - layer : Layer or list
             the :class:`Layer` instance for which to gather all bias
             parameters, or a list of :class:`Layer` instances.
 
@@ -147,7 +205,7 @@ def get_all_non_bias_params(layer):
         True
 
     :parameters:
-        - layer : Layer
+        - layer : Layer or list
             the :class:`Layer` instance for which to gather all non-bias
             parameters, or a list of :class:`Layer` instances.
 
@@ -183,7 +241,7 @@ def count_params(layer):
         True
 
     :parameters:
-        - layer : Layer
+        - layer : Layer or list
             the :class:`Layer` instance for which to count the parameters,
             or a list of :class:`Layer` instances.
     :returns:
@@ -216,7 +274,7 @@ def get_all_param_values(layer):
         True
 
     :parameters:
-        - layer : Layer
+        - layer : Layer or list
             the :class:`Layer` instance for which to gather all parameter
             values, or a list of :class:`Layer` instances.
 
@@ -248,7 +306,7 @@ def set_all_param_values(layer, values):
         >>> # the parameter values are restored.
 
     :parameters:
-        - layer : Layer
+        - layer : Layer or list
             the :class:`Layer` instance for which to set all parameter
             values, or a list of :class:`Layer` instances.
         - values : list of numpy.array

@@ -252,7 +252,12 @@ def set_all_param_values(layer, values):
             the :class:`Layer` instance for which to set all parameter
             values, or a list of :class:`Layer` instances.
         - values : list of numpy.array
+            a list of numpy arrays representing the parameter values,
+            must match the number of parameters
     """
     params = get_all_params(layer)
+    if len(params) != len(values):
+        raise ValueError("mismatch: got %d values to set %d parameters" %
+                         (len(values), len(params)))
     for p, v in zip(params, values):
         p.set_value(v)

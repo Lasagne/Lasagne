@@ -66,20 +66,6 @@ def unique(l):
     return new_list
 
 
-def concatenate(tensor_list, axis=0):
-    """
-    This function was used to work around a deficiency in Theano's
-    `theano.tensor.concatenate` (the inverse operation, splitting, was not
-    available on GPU). As of 2015-02-25, this deficiency has been removed,
-    so this workaround is not needed any longer and will be removed for
-    Lasagne's first release. Use `theano.tensor.concatenate` instead.
-    """
-    import warnings
-    warnings.warn("lasagne.utils.concatenate will be removed.\n"
-                  "Use theano.tensor.concatenate instead.")
-    return T.concatenate(tensor_list, axis)
-
-
 def compute_norms(array, norm_axes=None):
     """
     Compute incoming weight vector norms.

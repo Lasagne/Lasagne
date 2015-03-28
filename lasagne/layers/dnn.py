@@ -48,7 +48,7 @@ class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
 
 class Conv2DDNNLayer(DNNLayer):
     def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
-                 border_mode=None, untie_biases=False, W=init.Uniform(),
+                 border_mode=None, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  pad=None, flip_filters=False, **kwargs):
         super(Conv2DDNNLayer, self).__init__(incoming, **kwargs)

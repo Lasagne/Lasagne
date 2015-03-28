@@ -40,7 +40,7 @@ class CCLayer(Layer):
 
 class Conv2DCCLayer(CCLayer):
     def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
-                 border_mode=None, untie_biases=False, W=init.Uniform(),
+                 border_mode=None, untie_biases=False, W=None,
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  pad=None, dimshuffle=True, flip_filters=False, partial_sum=1,
                  **kwargs):
@@ -92,6 +92,12 @@ class Conv2DCCLayer(CCLayer):
                                    "Conv2DCCLayer: %s" % border_mode)
         else:
             self.pad = pad
+
+        if W is None:
+            if dimshuffle:
+                W = init.GlorotUniform()
+            else:
+                W = init.GlorotUniform_c01b()
 
         self.W = self.create_param(W, self.get_W_shape())
         if b is None:
@@ -301,7 +307,7 @@ class NINLayer_c01b(Layer):
     and reshapes required and might be faster as a result.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
-                 W=init.Uniform(), b=init.Constant(0.),
+                 W=init.GlorotUniform_c01b(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, **kwargs):
         super(NINLayer_c01b, self).__init__(incoming, **kwargs)
         if nonlinearity is None:

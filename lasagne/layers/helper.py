@@ -8,6 +8,7 @@ from .. import utils
 __all__ = [
     "get_all_layers",
     "get_all_layers_old",
+    "get_output",
     "get_all_params",
     "get_all_bias_params",
     "get_all_non_bias_params",
@@ -124,6 +125,79 @@ def get_all_layers_old(layer):
         layers.extend(children)
 
     return layers
+
+
+def get_output(layer_or_layers, inputs=None, **kwargs):
+    """
+    Computes the output of the network at one or more given layers.
+    Optionally, you can define the input(s) to propagate through the network
+    instead of using the input variable(s) associated with the network's
+    input layer(s).
+
+    :parameters:
+        - layer_or_layers : Layer or list
+            the :class:`Layer` instance for which to compute the output
+            expressions, or a list of :class:`Layer` instances.
+        - inputs : None, Theano expression, numpy array, or dict
+            If None, uses the input variables associated with the
+            :class:`InputLayer` instances.
+            If a Theano expression, this defines the input for a single
+            :class:`InputLayer` instance. Will throw a ValueError if there
+            are multiple :class:`InputLayer` instances.
+            If a numpy array, this will be wrapped as a Theano constant
+            and used just like a Theano expression.
+            If a dictionary, any :class:`Layer` instance (including the
+            input layers) can be mapped to a Theano expression or numpy
+            array to use instead of its regular output.
+
+    :returns:
+        - output : Theano expression or list
+            the output of the given layer(s) for the given network input
+
+    :note:
+        Depending on your network architecture, `get_output([l1, l2])` may
+        be crucially different from `[get_output(l1), get_output(l2)]`. Only
+        the former ensures that the output expressions depend on the same
+        intermediate expressions. For example, when `l1` and `l2` depend on
+        a common dropout layer, the former will use the same dropout mask for
+        both, while the latter will use two different dropout masks.
+    """
+    from .input import InputLayer
+    from .base import MultipleInputsLayer
+    # obtain topological ordering of all layers the output layer(s) depend on
+    all_layers = get_all_layers(layer_or_layers)
+    # initialize layer-to-expression mapping from given input(s)
+    if isinstance(inputs, dict):
+        all_outputs = dict((layer, utils.as_theano_expression(expr))
+                           for layer, expr in inputs.items())
+    elif inputs is not None:
+        inputs = utils.as_theano_expression(inputs)
+        all_outputs = dict((layer, inputs)
+                           for layer in all_layers
+                           if isinstance(layer, InputLayer))
+        if len(all_outputs) > 1:
+            raise ValueError("get_output() was called with a single input "
+                             "expression on a network with multiple input "
+                             "layers. Please call it with a dictionary of "
+                             "input expressions instead.")
+    else:
+        all_outputs = dict((layer, layer.input_var)
+                           for layer in all_layers
+                           if isinstance(layer, InputLayer))
+    # update layer-to-expression mapping by propagating the inputs
+    for layer in all_layers:
+        if layer not in all_outputs:
+            if isinstance(layer, MultipleInputsLayer):
+                layer_inputs = [all_outputs[input_layer]
+                                for input_layer in layer.input_layers]
+            else:
+                layer_inputs = all_outputs[layer.input_layer]
+            all_outputs[layer] = layer.get_output_for(layer_inputs, **kwargs)
+    # return the output(s) of the requested layer(s) only
+    try:
+        return [all_outputs[layer] for layer in layer_or_layers]
+    except TypeError:
+        return all_outputs[layer_or_layers]
 
 
 def get_all_params(layer):

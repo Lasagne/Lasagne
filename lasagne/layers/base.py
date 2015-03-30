@@ -93,40 +93,14 @@ class Layer(object):
 
     def get_output(self, input=None, **kwargs):
         """
-        Computes the output of the network at this layer. Optionally, you can
-        define an input to propagate through the network instead of using the
-        input variables associated with the network's input layers.
-
-        :parameters:
-            - input : None, Theano expression, numpy array, or dict
-                If None, uses the inputs of the :class:`InputLayer` instances.
-                If a Theano expression, this will replace the inputs of all
-                :class:`InputLayer` instances (useful if your network has a
-                single input layer).
-                If a numpy array, this will be wrapped as a Theano constant
-                and used just like a Theano expression.
-                If a dictionary, any :class:`Layer` instance (including the
-                input layers) can be mapped to a Theano expression or numpy
-                array to use instead of its regular output.
-
-        :returns:
-            - output : Theano expression
-                the output of this layer given the input to the network
-
-        :note:
-            When implementing a new :class:`Layer` class, you will usually
-            keep this unchanged and just override `get_output_for()`.
+        Deprecated. Use `lasagne.layers.get_output(layer, input, **kwargs)`.
         """
-        if isinstance(input, dict) and (self in input):
-            # this layer is mapped to an expression or numpy array
-            return utils.as_theano_expression(input[self])
-        elif self.input_layer is None:
-            raise RuntimeError("get_output() called on a free-floating layer; "
-                               "there isn't anything to get its input from. "
-                               "Did you mean get_output_for()?")
-        else:  # in all other cases, just pass the input on to the next layer.
-            layer_input = self.input_layer.get_output(input, **kwargs)
-            return self.get_output_for(layer_input, **kwargs)
+        import warnings
+        warnings.warn("layer.get_output(...) is deprecated and will be "
+                      "removed for the first release of Lasagne. Please use "
+                      "lasagne.layers.get_output(layer, ...) instead.")
+        from .helper import get_output
+        return get_output(self, input, **kwargs)
 
     def get_output_shape_for(self, input_shape):
         """
@@ -271,20 +245,6 @@ class MultipleInputsLayer(Layer):
 
     def get_output_shape(self):
         return self.get_output_shape_for(self.input_shapes)
-
-    def get_output(self, input=None, **kwargs):
-        if isinstance(input, dict) and (self in input):
-            # this layer is mapped to an expression or numpy array
-            return utils.as_theano_expression(input[self])
-        elif any(input_layer is None for input_layer in self.input_layers):
-            raise RuntimeError("get_output() called on a free-floating layer; "
-                               "there isn't anything to get its inputs from. "
-                               "Did you mean get_output_for()?")
-        # In all other cases, just pass the network input on to the next layers
-        else:
-            layer_inputs = [input_layer.get_output(input, **kwargs) for
-                            input_layer in self.input_layers]
-            return self.get_output_for(layer_inputs, **kwargs)
 
     def get_output_shape_for(self, input_shapes):
         """

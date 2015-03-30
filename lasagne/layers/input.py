@@ -55,10 +55,3 @@ class InputLayer(Layer):
 
     def get_output_shape(self):
         return self.shape
-
-    def get_output(self, input=None, **kwargs):
-        if isinstance(input, dict):
-            input = input.get(self, None)
-        if input is None:
-            input = self.input_var
-        return utils.as_theano_expression(input)

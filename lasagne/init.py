@@ -2,8 +2,6 @@
 Functions to create initializers for parameter variables
 """
 
-from numbers import Number
-
 import numpy as np
 
 from .utils import floatX
@@ -38,11 +36,13 @@ class Uniform(Initializer):
         if std is not None:
             a = mean - np.sqrt(3) * std
             b = mean + np.sqrt(3) * std
-            self.range = (a, b)
-        elif isinstance(range, Number):
-            self.range = (-range, range)
         else:
-            self.range = range
+            try:
+                a, b = range  # range is a tuple
+            except TypeError:
+                a, b = -range, range  # range is a number
+
+        self.range = (a, b)
 
     def sample(self, shape):
         return floatX(np.random.uniform(

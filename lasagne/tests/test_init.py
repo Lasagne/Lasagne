@@ -23,8 +23,8 @@ def test_uniform_range_as_number():
 
     sample = Uniform(1.0).sample((300, 400))
     assert sample.shape == (300, 400)
-    assert -1.1 < sample.min() < -0.9
-    assert 0.9 < sample.max() < 1.1
+    assert -1.0 <= sample.min() < -0.9
+    assert 0.9 < sample.max() <= 1.0
 
 
 def test_uniform_range_as_range():
@@ -32,8 +32,8 @@ def test_uniform_range_as_range():
 
     sample = Uniform((0.0, 1.0)).sample((300, 400))
     assert sample.shape == (300, 400)
-    assert -0.1 < sample.min() < 0.1
-    assert 0.9 < sample.max() < 1.1
+    assert 0.0 <= sample.min() < 0.1
+    assert 0.9 < sample.max() <= 1.0
 
 
 def test_uniform_mean_std():
@@ -92,32 +92,32 @@ def test_glorot_uniform():
     from lasagne.init import GlorotUniform
 
     sample = GlorotUniform().sample((150, 450))
-    assert -0.11 < sample.min() < -0.09
-    assert 0.09 < sample.max() < 0.11
+    assert -0.1 <= sample.min() < -0.09
+    assert 0.09 < sample.max() <= 0.1
 
 
 def test_glorot_uniform_receptive_field():
     from lasagne.init import GlorotUniform
 
     sample = GlorotUniform().sample((150, 150, 2))
-    assert -0.11 < sample.min() < -0.09
-    assert 0.09 < sample.max() < 0.11
+    assert -0.10 <= sample.min() < -0.09
+    assert 0.09 < sample.max() <= 0.10
 
 
 def test_glorot_uniform_gain():
     from lasagne.init import GlorotUniform
 
     sample = GlorotUniform(gain=10.0).sample((150, 450))
-    assert -1.1 < sample.min() < -0.9
-    assert 0.9 < sample.max() < 1.1
+    assert -1.0 <= sample.min() < -0.9
+    assert 0.9 < sample.max() <= 1.0
 
 
 def test_glorot_uniform_c01b():
     from lasagne.init import GlorotUniform_c01b
 
     sample = GlorotUniform_c01b().sample((75, 2, 2, 75))
-    assert -0.11 < sample.min() < -0.09
-    assert 0.09 < sample.max() < 0.11
+    assert -0.1 <= sample.min() < -0.09
+    assert 0.09 < sample.max() <= 0.1
 
 
 def test_glorot_uniform_c01b_4d_only():
@@ -143,9 +143,8 @@ def test_constant():
 def test_sparse():
     from lasagne.init import Sparse
 
-    sample = Sparse(sparsity=0.5).sample((10, 20))
-    assert (sample == 0.0).sum() == (sample != 0.0).sum()
-    assert (sample == 0.0).sum() == (10 * 20) / 2
+    sample = Sparse(sparsity=0.1).sample((10, 20))
+    assert (sample != 0.0).sum() == (10 * 20) * 0.1
 
 
 def test_orthogonal():

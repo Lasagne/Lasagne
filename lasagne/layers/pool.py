@@ -7,6 +7,7 @@ from theano.tensor.signal import downsample
 
 
 __all__ = [
+    "MaxPool1DLayer",
     "MaxPool2DLayer",
     "FeaturePoolLayer",
     "FeatureWTALayer",
@@ -46,6 +47,28 @@ def pool_output_length(input_length, pool_length, ignore_border=True):
     return int(np.ceil(float(input_length) / pool_length))
 
 
+class MaxPool1DLayer(Layer):
+    def __init__(self, incoming, ds, ignore_border=False, **kwargs):
+        super(MaxPool1DLayer, self).__init__(incoming, **kwargs)
+        self.ds = ds  # an integer
+        self.ignore_border = ignore_border
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)  # copy / convert to mutable list
+
+        output_shape[2] = pool_output_length(input_shape[2],
+                                             self.ds,
+                                             ignore_border=self.ignore_border)
+
+        return tuple(output_shape)
+
+    def get_output_for(self, input, **kwargs):
+        input_4d = T.shape_padright(input, 1)
+        pooled = downsample.max_pool_2d(input_4d, (self.ds, 1),
+                                        self.ignore_border)
+        return pooled[:, :, :, 0]
+
+
 class MaxPool2DLayer(Layer):
     def __init__(self, incoming, ds, ignore_border=False, **kwargs):
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
@@ -69,8 +92,7 @@ class MaxPool2DLayer(Layer):
         return downsample.max_pool_2d(input, self.ds, self.ignore_border)
 
 
-# TODO: add reshape-based implementation to MaxPool2DLayer
-# TODO: add MaxPool1DLayer
+# TODO: add reshape-based implementation to MaxPool*DLayer
 # TODO: add MaxPool3DLayer
 
 

@@ -18,6 +18,31 @@ def test_normal():
     assert 0.009 < sample.std() < 0.011
 
 
+def test_uniform_range_as_number():
+    from lasagne.init import Uniform
+
+    sample = Uniform(1.0).sample((300, 400))
+    assert sample.shape == (300, 400)
+    assert -1.1 < sample.min() < -0.9
+    assert 0.9 < sample.max() < 1.1
+
+
+def test_uniform_range_as_range():
+    from lasagne.init import Uniform
+
+    sample = Uniform((0.0, 1.0)).sample((300, 400))
+    assert sample.shape == (300, 400)
+    assert -0.1 < sample.min() < 0.1
+    assert 0.9 < sample.max() < 1.1
+
+
+def test_uniform_mean_std():
+    from lasagne.init import Uniform
+    sample = Uniform(std=1.0, mean=5.0).sample((300, 400))
+    assert 4.9 < sample.mean() < 5.1
+    assert 0.9 < sample.std() < 1.1
+
+
 def test_glorot_normal():
     from lasagne.init import GlorotNormal
 
@@ -61,24 +86,6 @@ def test_glorot_normal_c01b_4d_only():
 
     with pytest.raises(RuntimeError):
         GlorotNormal_c01b().sample((100, 100, 100))
-
-
-def test_uniform_range_as_number():
-    from lasagne.init import Uniform
-
-    sample = Uniform(1.0).sample((300, 400))
-    assert sample.shape == (300, 400)
-    assert -1.1 < sample.min() < -0.9
-    assert 0.9 < sample.max() < 1.1
-
-
-def test_uniform_range_as_range():
-    from lasagne.init import Uniform
-
-    sample = Uniform((0.0, 1.0)).sample((300, 400))
-    assert sample.shape == (300, 400)
-    assert -0.1 < sample.min() < 0.1
-    assert 0.9 < sample.max() < 1.1
 
 
 def test_glorot_uniform():

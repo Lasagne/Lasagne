@@ -18,46 +18,16 @@ class Initializer(object):
 
 
 class Normal(Initializer):
-    def __init__(self, std=0.01, avg=0.0):
+    def __init__(self, std=0.01, mean=0.0):
         self.std = std
-        self.avg = avg
+        self.mean = mean
 
     def sample(self, shape):
-        return floatX(np.random.normal(self.avg, self.std, size=shape))
-
-
-class GlorotNormal(Normal):
-    def __init__(self, gain=1.0):
-        if gain == 'relu':
-            gain = np.sqrt(2)
-
-        self.gain = gain
-
-    def sample(self, shape):
-        # This code makes some assumptions about the meanings of
-        # the different dimensions, which hold for
-        # layers.DenseLayer and layers.Conv*DLayer, but not
-        # necessarily for other layer types.
-        n1, n2 = shape[:2]
-        receptive_field_size = np.prod(shape[2:])
-        std = self.gain * np.sqrt(2.0 / ((n1 + n2) * receptive_field_size))
-        return floatX(np.random.normal(0.0, std, size=shape))
-
-
-class GlorotNormal_c01b(GlorotNormal):
-    def sample(self, shape):
-        if len(shape) != 4:
-            raise RuntimeError(
-                "This initializer only works with shapes of length 4")
-
-        n1, n2 = shape[0], shape[3]
-        receptive_field_size = shape[1] * shape[2]
-        std = self.gain * np.sqrt(2.0 / ((n1 + n2) * receptive_field_size))
-        return floatX(np.random.normal(0.0, std, size=shape))
+        return floatX(np.random.normal(self.mean, self.std, size=shape))
 
 
 class Uniform(Initializer):
-    def __init__(self, range=0.01):
+    def __init__(self, range=0.01, std=None, mean=0.0):
         import warnings
         warnings.warn("The uniform initializer no longer uses Glorot et al.'s "
                       "approach to determine the bounds, but defaults to the "
@@ -65,7 +35,11 @@ class Uniform(Initializer):
                       "GlorotUniform initializer to get the old behavior. "
                       "GlorotUniform is now the default for all layers.")
 
-        if isinstance(range, Number):
+        if std is not None:
+            a = mean - np.sqrt(3) * std
+            b = mean + np.sqrt(3) * std
+            self.range = (a, b)
+        elif isinstance(range, Number):
             self.range = (-range, range)
         else:
             self.range = range
@@ -75,25 +49,32 @@ class Uniform(Initializer):
             low=self.range[0], high=self.range[1], size=shape))
 
 
-class GlorotUniform(Uniform):
-    def __init__(self, gain=1.0):
+class Glorot(Initializer):
+    def __init__(self, initializer=Normal, gain=1.0):
         if gain == 'relu':
             gain = np.sqrt(2)
 
+        self.initializer = initializer
         self.gain = gain
 
     def sample(self, shape):
-        # This code makes some assumptions about the meanings of
-        # the different dimensions, which hold for
-        # layers.DenseLayer and layers.Conv*DLayer, but not
-        # necessarily for other layer types.
         n1, n2 = shape[:2]
         receptive_field_size = np.prod(shape[2:])
-        m = self.gain * np.sqrt(6.0 / ((n1 + n2) * receptive_field_size))
-        return floatX(np.random.uniform(low=-m, high=m, size=shape))
+        std = self.gain * np.sqrt(2.0 / ((n1 + n2) * receptive_field_size))
+        return self.initializer(std=std).sample(shape)
 
 
-class GlorotUniform_c01b(GlorotUniform):
+class GlorotNormal(Glorot):
+    def __init__(self, gain=1.0):
+        super(GlorotNormal, self).__init__(Normal, gain)
+
+
+class GlorotUniform(Glorot):
+    def __init__(self, gain=1.0):
+        super(GlorotUniform, self).__init__(Uniform, gain)
+
+
+class Glorot_c01b(Glorot):
     def sample(self, shape):
         if len(shape) != 4:
             raise RuntimeError(
@@ -101,8 +82,18 @@ class GlorotUniform_c01b(GlorotUniform):
 
         n1, n2 = shape[0], shape[3]
         receptive_field_size = shape[1] * shape[2]
-        m = self.gain * np.sqrt(6.0 / ((n1 + n2) * receptive_field_size))
-        return floatX(np.random.uniform(low=-m, high=m, size=shape))
+        std = self.gain * np.sqrt(2.0 / ((n1 + n2) * receptive_field_size))
+        return self.initializer(std=std).sample(shape)
+
+
+class GlorotNormal_c01b(Glorot_c01b):
+    def __init__(self, gain=1.0):
+        super(GlorotNormal_c01b, self).__init__(Normal, gain)
+
+
+class GlorotUniform_c01b(Glorot_c01b):
+    def __init__(self, gain=1.0):
+        super(GlorotUniform_c01b, self).__init__(Uniform, gain)
 
 
 class Constant(Initializer):

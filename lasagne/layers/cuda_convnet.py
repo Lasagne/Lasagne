@@ -134,12 +134,12 @@ class Conv2DCCLayer(CCLayer):
             batch_size = input_shape[3]
             input_rows, input_columns = input_shape[1:3]
 
-        output_rows = conv_output_length(input_shape[2],
+        output_rows = conv_output_length(input_rows,
                                          self.filter_size,
                                          self.stride,
                                          'pad', self.pad)
 
-        output_columns = conv_output_length(input_shape[3],
+        output_columns = conv_output_length(input_columns,
                                             self.filter_size,
                                             self.stride,
                                             'pad', self.pad)

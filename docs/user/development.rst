@@ -1,7 +1,7 @@
 Development
 ===========
 
-The ``Lasagne`` project is developed by Sander Dieleman and contributers via
+The ``Lasagne`` project is developed by Sander Dieleman and contributors via
 GitHub. The development began in September 2014.
 
 It is developed on GitHub: https://github.com/benanne/Lasagne

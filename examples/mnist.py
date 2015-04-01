@@ -126,23 +126,20 @@ def create_iter_functions(dataset, output_layer,
     objective = lasagne.objectives.Objective(output_layer,
         loss_function=lasagne.objectives.categorical_crossentropy)
 
-    loss = {'train': objective.get_loss(X_batch, target=y_batch),
-            'eval': objective.get_loss(X_batch,
-                                       target=y_batch,
-                                       deterministic=True)
-           }
+    loss_train = objective.get_loss(X_batch, target=y_batch)
+    loss_eval = objective.get_loss(X_batch, target=y_batch,
+                                   deterministic=True)
 
     pred = T.argmax(
         output_layer.get_output(X_batch, deterministic=True), axis=1)
     accuracy = T.mean(T.eq(pred, y_batch), dtype=theano.config.floatX)
 
     all_params = lasagne.layers.get_all_params(output_layer)
-    updates = lasagne.updates.nesterov_momentum(loss['train'],
-                                                all_params,
-                                                learning_rate,
-                                                momentum)
+    updates = lasagne.updates.nesterov_momentum(
+        loss_train, all_params, learning_rate, momentum)
+
     iter_train = theano.function(
-        [batch_index], loss['train'],
+        [batch_index], loss_train,
         updates=updates,
         givens={
             X_batch: dataset['X_train'][batch_slice],
@@ -151,7 +148,7 @@ def create_iter_functions(dataset, output_layer,
     )
 
     iter_valid = theano.function(
-        [batch_index], [loss['eval'], accuracy],
+        [batch_index], [loss_eval, accuracy],
         givens={
             X_batch: dataset['X_valid'][batch_slice],
             y_batch: dataset['y_valid'][batch_slice],
@@ -159,7 +156,7 @@ def create_iter_functions(dataset, output_layer,
     )
 
     iter_test = theano.function(
-        [batch_index], [loss['eval'], accuracy],
+        [batch_index], [loss_eval, accuracy],
         givens={
             X_batch: dataset['X_test'][batch_slice],
             y_batch: dataset['y_test'][batch_slice],

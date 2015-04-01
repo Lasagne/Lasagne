@@ -49,7 +49,8 @@ Code coverage can be tested with
 
     $ py.test
 
-Testing takes over 5 minutes.
+Testing will take over 5 minutes for the first run, but less than a minute for
+subsequent runs when Theano can reuse compiled code.
 
 
 Theano

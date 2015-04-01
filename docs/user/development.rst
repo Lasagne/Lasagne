@@ -53,14 +53,6 @@ Testing will take over 5 minutes for the first run, but less than a minute for
 subsequent runs when Theano can reuse compiled code.
 
 
-Theano
-------
-
-Lasagne makes use of Theano. For this reason, you should read Colin Craffels
-[Theano Tutorial](http://nbviewer.ipython.org/github/craffel/theano-tutorial/blob/master/Theano%20Tutorial.ipynb)
-if you haven't worked with Theano before.
-
-
 Documentation
 -------------
 

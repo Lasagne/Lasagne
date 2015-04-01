@@ -54,7 +54,7 @@ def build_model(input_width, input_height, output_dim,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=lasagne.nonlinearities.rectify,
-        W=lasagne.init.Uniform(),
+        W=lasagne.init.GlorotUniform(),
         )
     l_pool1 = lasagne.layers.MaxPool2DLayer(l_conv1, ds=(2, 2))
 
@@ -63,7 +63,7 @@ def build_model(input_width, input_height, output_dim,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=lasagne.nonlinearities.rectify,
-        W=lasagne.init.Uniform(),
+        W=lasagne.init.GlorotUniform(),
         )
     l_pool2 = lasagne.layers.MaxPool2DLayer(l_conv2, ds=(2, 2))
 
@@ -71,7 +71,7 @@ def build_model(input_width, input_height, output_dim,
         l_pool2,
         num_units=256,
         nonlinearity=lasagne.nonlinearities.rectify,
-        W=lasagne.init.Uniform(),
+        W=lasagne.init.GlorotUniform(),
         )
 
     l_hidden1_dropout = lasagne.layers.DropoutLayer(l_hidden1, p=0.5)
@@ -87,7 +87,7 @@ def build_model(input_width, input_height, output_dim,
         l_hidden1_dropout,
         num_units=output_dim,
         nonlinearity=lasagne.nonlinearities.softmax,
-        W=lasagne.init.Uniform(),
+        W=lasagne.init.GlorotUniform(),
         )
 
     return l_out

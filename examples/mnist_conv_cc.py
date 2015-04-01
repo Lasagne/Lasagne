@@ -59,7 +59,6 @@ def build_model(input_width, input_height, output_dim,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=lasagne.nonlinearities.rectify,
-        W=lasagne.init.Uniform(),
         dimshuffle=dimshuffle,
     )
     l_pool1 = cuda_convnet.MaxPool2DCCLayer(
@@ -73,7 +72,6 @@ def build_model(input_width, input_height, output_dim,
         num_filters=32,
         filter_size=(5, 5),
         nonlinearity=lasagne.nonlinearities.rectify,
-        W=lasagne.init.Uniform(),
         dimshuffle=dimshuffle,
     )
     l_pool2 = cuda_convnet.MaxPool2DCCLayer(
@@ -89,7 +87,6 @@ def build_model(input_width, input_height, output_dim,
         l_pool2,
         num_units=256,
         nonlinearity=lasagne.nonlinearities.rectify,
-        W=lasagne.init.Uniform(),
     )
 
     l_hidden1_dropout = lasagne.layers.DropoutLayer(l_hidden1, p=0.5)
@@ -105,7 +102,6 @@ def build_model(input_width, input_height, output_dim,
         l_hidden1_dropout,
         num_units=output_dim,
         nonlinearity=lasagne.nonlinearities.softmax,
-        W=lasagne.init.Uniform(),
     )
 
     return l_out

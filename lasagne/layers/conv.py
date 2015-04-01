@@ -37,8 +37,9 @@ def conv_output_length(input_length, filter_length,
 
 class Conv1DLayer(Layer):
     def __init__(self, incoming, num_filters, filter_length, stride=1,
-                 border_mode="valid", untie_biases=False, W=init.Uniform(),
-                 b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 border_mode="valid", untie_biases=False,
+                 W=init.GlorotUniform(), b=init.Constant(0.),
+                 nonlinearity=nonlinearities.rectify,
                  convolution=conv.conv1d_mc0, **kwargs):
         super(Conv1DLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
@@ -121,8 +122,9 @@ class Conv1DLayer(Layer):
 
 class Conv2DLayer(Layer):
     def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
-                 border_mode="valid", untie_biases=False, W=init.Uniform(),
-                 b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
+                 border_mode="valid", untie_biases=False,
+                 W=init.GlorotUniform(), b=init.Constant(0.),
+                 nonlinearity=nonlinearities.rectify,
                  convolution=T.nnet.conv2d, **kwargs):
         super(Conv2DLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:

@@ -51,7 +51,7 @@ class DenseLayer(Layer):
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
     """
-    def __init__(self, incoming, num_units, W=init.Uniform(),
+    def __init__(self, incoming, num_units, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  **kwargs):
         super(DenseLayer, self).__init__(incoming, **kwargs)
@@ -98,7 +98,7 @@ class NINLayer(Layer):
     so NINLayer can be used to implement 1D, 2D, 3D, ... convolutions.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
-                 W=init.Uniform(), b=init.Constant(0.),
+                 W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, **kwargs):
         super(NINLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:

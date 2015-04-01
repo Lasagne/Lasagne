@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+"""Example which shows with the MNIST dataset how Lasagne can be used."""
+
 from __future__ import print_function
 
 import gzip
@@ -35,8 +39,9 @@ MOMENTUM = 0.9
 
 
 def _load_data(url=DATA_URL, filename=DATA_FILENAME):
+    """Load data from `url` and store the result in `filename`."""
     if not os.path.exists(filename):
-        print("Downloading MNIST")
+        print("Downloading MNIST dataset")
         urlretrieve(url, filename)
 
     with gzip.open(filename, 'rb') as f:
@@ -44,6 +49,7 @@ def _load_data(url=DATA_URL, filename=DATA_FILENAME):
 
 
 def load_data():
+    """Get data with labels, split into training, validation and test set."""
     data = _load_data()
     X_train, y_train = data[0]
     X_valid, y_valid = data[1]
@@ -66,7 +72,11 @@ def load_data():
 
 def build_model(input_dim, output_dim,
                 batch_size=BATCH_SIZE, num_hidden_units=NUM_HIDDEN_UNITS):
-
+    """Create a symbolic representation of a neural network with
+    `intput_dim` input nodes, `output_dim` output nodes, a training function
+    with a mini-batch size of `batch_size` and `num_hidden_units` per hidden
+    layer.
+    """
     l_in = lasagne.layers.InputLayer(
         shape=(batch_size, input_dim),
     )
@@ -100,29 +110,35 @@ def create_iter_functions(dataset, output_layer,
                           X_tensor_type=T.matrix,
                           batch_size=BATCH_SIZE,
                           learning_rate=LEARNING_RATE, momentum=MOMENTUM):
+    """Create functions for training, validation and testing to iterate one
+       epoch.
+    """
     batch_index = T.iscalar('batch_index')
     X_batch = X_tensor_type('x')
     y_batch = T.ivector('y')
-    batch_slice = slice(
-        batch_index * batch_size, (batch_index + 1) * batch_size)
+    batch_slice = slice(batch_index * batch_size,
+                        (batch_index + 1) * batch_size)
 
     objective = lasagne.objectives.Objective(output_layer,
         loss_function=lasagne.objectives.categorical_crossentropy)
 
-    loss_train = objective.get_loss(X_batch, target=y_batch)
-    loss_eval = objective.get_loss(X_batch, target=y_batch,
-                                   deterministic=True)
+    loss = {'train': objective.get_loss(X_batch, target=y_batch),
+            'eval': objective.get_loss(X_batch,
+                                       target=y_batch,
+                                       deterministic=True)
+           }
 
     pred = T.argmax(
         output_layer.get_output(X_batch, deterministic=True), axis=1)
     accuracy = T.mean(T.eq(pred, y_batch), dtype=theano.config.floatX)
 
     all_params = lasagne.layers.get_all_params(output_layer)
-    updates = lasagne.updates.nesterov_momentum(
-        loss_train, all_params, learning_rate, momentum)
-
+    updates = lasagne.updates.nesterov_momentum(loss['train'],
+                                                all_params,
+                                                learning_rate,
+                                                momentum)
     iter_train = theano.function(
-        [batch_index], loss_train,
+        [batch_index], loss['train'],
         updates=updates,
         givens={
             X_batch: dataset['X_train'][batch_slice],
@@ -131,7 +147,7 @@ def create_iter_functions(dataset, output_layer,
     )
 
     iter_valid = theano.function(
-        [batch_index], [loss_eval, accuracy],
+        [batch_index], [loss['eval'], accuracy],
         givens={
             X_batch: dataset['X_valid'][batch_slice],
             y_batch: dataset['y_valid'][batch_slice],
@@ -139,7 +155,7 @@ def create_iter_functions(dataset, output_layer,
     )
 
     iter_test = theano.function(
-        [batch_index], [loss_eval, accuracy],
+        [batch_index], [loss['eval'], accuracy],
         givens={
             X_batch: dataset['X_test'][batch_slice],
             y_batch: dataset['y_test'][batch_slice],
@@ -154,6 +170,9 @@ def create_iter_functions(dataset, output_layer,
 
 
 def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
+    """Train the model with `dataset` with mini-batch training. Each
+       mini-batch has `batch_size` recordings.
+    """
     num_batches_train = dataset['num_examples_train'] // batch_size
     num_batches_valid = dataset['num_examples_valid'] // batch_size
 
@@ -165,15 +184,14 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
 
         avg_train_loss = np.mean(batch_train_losses)
 
-        batch_valid_losses = []
-        batch_valid_accuracies = []
+        batch_valid = {'losses': [], 'accuracies': []}
         for b in range(num_batches_valid):
             batch_valid_loss, batch_valid_accuracy = iter_funcs['valid'](b)
-            batch_valid_losses.append(batch_valid_loss)
-            batch_valid_accuracies.append(batch_valid_accuracy)
+            batch_valid['losses'].append(batch_valid_loss)
+            batch_valid['accuracies'].append(batch_valid_accuracy)
 
-        avg_valid_loss = np.mean(batch_valid_losses)
-        avg_valid_accuracy = np.mean(batch_valid_accuracies)
+        avg_valid_loss = np.mean(batch_valid['losses'])
+        avg_valid_accuracy = np.mean(batch_valid['accuracies'])
 
         yield {
             'number': epoch,

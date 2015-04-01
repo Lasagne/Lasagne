@@ -4,6 +4,12 @@
 Tutorial
 ========
 
+The following document will give a high-level overview of how to classify the
+MNIST dataset with Lasagne. If you want to get detailed information how
+neural networks work and how it is done with Theano (which is used by Lasagne),
+then you should read the `Deeplearning Tutorial`_.
+
+
 Run the MNIST example
 =====================
 
@@ -68,3 +74,5 @@ with mini-batch gradient descent.
 
 A detailed explanation of how the training of feed forward neural networks
 works can be found in "Machine Learning" by  Tom Mitchell.
+
+.. _Deeplearning Tutorial: http://deeplearning.net/tutorial/

@@ -185,14 +185,15 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
 
         avg_train_loss = np.mean(batch_train_losses)
 
-        batch_valid = {'losses': [], 'accuracies': []}
+        batch_valid_losses = []
+        batch_valid_accuracies = []
         for b in range(num_batches_valid):
             batch_valid_loss, batch_valid_accuracy = iter_funcs['valid'](b)
-            batch_valid['losses'].append(batch_valid_loss)
-            batch_valid['accuracies'].append(batch_valid_accuracy)
+            batch_valid_losses.append(batch_valid_loss)
+            batch_valid_accuracies.append(batch_valid_accuracy)
 
-        avg_valid_loss = np.mean(batch_valid['losses'])
-        avg_valid_accuracy = np.mean(batch_valid['accuracies'])
+        avg_valid_loss = np.mean(batch_valid_losses)
+        avg_valid_accuracy = np.mean(batch_valid_accuracies)
 
         yield {
             'number': epoch,

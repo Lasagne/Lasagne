@@ -96,6 +96,57 @@ class GlorotUniform_c01b(Glorot_c01b):
         super(GlorotUniform_c01b, self).__init__(Uniform, gain)
 
 
+class He(Initializer):
+    def __init__(self, initializer=Normal, gain=1.0):
+        if gain == 'relu':
+            gain = np.sqrt(2)
+
+        self.initializer = initializer
+        self.gain = gain
+
+    def sample(self, shape):
+        if len(shape) == 2:
+            fan_in = shape[0]
+        elif len(shape) > 2:
+            fan_in = np.prod(shape[1:])
+        else:
+            raise RuntimeError(
+                "This initializer only works with shapes of length >= 2")
+        std = self.gain * np.sqrt(1.0 / fan_in)
+        return self.initializer(std=std).sample(shape)
+
+
+class HeNormal(He):
+    def __init__(self, gain=1.0):
+        super(HeNormal, self).__init__(Normal, gain)
+
+
+class HeUniform(He):
+    def __init__(self, gain=1.0):
+        super(HeUniform, self).__init__(Uniform, gain)
+
+
+class He_c01b(He):
+    def sample(self, shape):
+        if len(shape) != 4:
+            raise RuntimeError(
+                "This initializer only works with shapes of length 4")
+
+        fan_in = np.prod(shape[:3])
+        std = self.gain * np.sqrt(1.0 / fan_in)
+        return self.initializer(std=std).sample(shape)
+
+
+class HeNormal_c01b(He_c01b):
+    def __init__(self, gain=1.0):
+        super(HeNormal_c01b, self).__init__(Normal, gain)
+
+
+class HeUniform_c01b(He_c01b):
+    def __init__(self, gain=1.0):
+        super(HeUniform_c01b, self).__init__(Uniform, gain)
+
+
 class Constant(Initializer):
     def __init__(self, val=0.0):
         self.val = val

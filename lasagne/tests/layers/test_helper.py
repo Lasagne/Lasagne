@@ -24,6 +24,7 @@ class TestGetAllLayers:
                 else:
                     expected = []
                 assert get_all_layers(query) == expected
+        assert get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
 
     def test_merge(self):
         from lasagne.layers import (InputLayer, DenseLayer, ElemwiseSumLayer,
@@ -40,6 +41,9 @@ class TestGetAllLayers:
         assert get_all_layers([l4, l6]) == [l4, l1, l2, l3, l5, l6]
         assert get_all_layers([l5, l6]) == [l4, l5, l1, l2, l3, l6]
         assert get_all_layers([l4, l2, l5, l6]) == [l4, l1, l2, l5, l3, l6]
+        assert get_all_layers(l6, treat_as_input=[l2]) == [l2, l3, l4, l5, l6]
+        assert get_all_layers(l6, treat_as_input=[l3, l5]) == [l3, l5, l6]
+        assert get_all_layers([l6, l2], treat_as_input=[l6]) == [l6, l1, l2]
 
     def test_split(self):
         from lasagne.layers import InputLayer, DenseLayer, get_all_layers
@@ -53,6 +57,9 @@ class TestGetAllLayers:
         assert get_all_layers(l4) == [l1, l4]
         assert get_all_layers([l3, l4]) == [l1, l2, l3, l4]
         assert get_all_layers([l4, l3]) == [l1, l4, l2, l3]
+        assert get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
+        assert get_all_layers([l3, l4], treat_as_input=[l2]) == [l2, l3,
+                                                                 l1, l4]
 
     def test_bridge(self):
         from lasagne.layers import (InputLayer, DenseLayer, ElemwiseSumLayer,
@@ -65,3 +72,5 @@ class TestGetAllLayers:
         l4 = ElemwiseSumLayer([l2, l3])
         l5 = DenseLayer(l4, 40)
         assert get_all_layers(l5) == [l1, l2, l3, l4, l5]
+        assert get_all_layers(l5, treat_as_input=[l4]) == [l4, l5]
+        assert get_all_layers(l5, treat_as_input=[l3]) == [l1, l2, l3, l4, l5]

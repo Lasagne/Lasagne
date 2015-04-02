@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 
-def get_all_layers(layer):
+def get_all_layers(layer, treat_as_input=None):
     """
     This function gathers all layers below one or more given :class:`Layer`
     instances, including the given layer(s). Its main use is to collect all
@@ -37,11 +37,21 @@ def get_all_layers(layer):
         True
         >>> get_all_layers([l1, l2]) == [l_in, l1, l2]
         True
+        >>> l3 = DenseLayer(l2, num_units=20)
+        >>> get_all_layers(l3) == [l_in, l2, l3]
+        True
+        >>> get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
+        True
 
     :parameters:
         - layer : Layer or list
             the :class:`Layer` instance for which to gather all layers feeding
             into it, or a list of :class:`Layer` instances.
+        - treat_as_input : None or iterable
+            an iterable of :class:`Layer` instances to treat as input layers
+            with no layers feeding into them. They will show up in the result
+            list, but their incoming layers will not be collected (unless they
+            are required for other layers as well).
 
     :returns:
         - layers : list
@@ -67,6 +77,11 @@ def get_all_layers(layer):
     seen = set()
     done = set()
     result = []
+
+    # If treat_as_input is given, we pretend we've already collected all their
+    # incoming layers.
+    if treat_as_input is not None:
+        seen.update(treat_as_input)
 
     while queue:
         # Peek at the leftmost node in the queue.
@@ -165,7 +180,8 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     from .input import InputLayer
     from .base import MultipleInputsLayer
     # obtain topological ordering of all layers the output layer(s) depend on
-    all_layers = get_all_layers(layer_or_layers)
+    treat_as_input = inputs.keys() if isinstance(inputs, dict) else None
+    all_layers = get_all_layers(layer_or_layers, treat_as_input)
     # initialize layer-to-expression mapping from all input layers
     all_outputs = dict((layer, layer.input_var)
                        for layer in all_layers

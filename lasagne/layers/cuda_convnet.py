@@ -97,7 +97,7 @@ class Conv2DCCLayer(CCLayer):
             if dimshuffle:
                 W = init.GlorotUniform()
             else:
-                W = init.GlorotUniform_c01b()
+                W = init.GlorotUniform(c01b=True)
 
         self.W = self.create_param(W, self.get_W_shape())
         if b is None:
@@ -307,7 +307,7 @@ class NINLayer_c01b(Layer):
     and reshapes required and might be faster as a result.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
-                 W=init.GlorotUniform_c01b(), b=init.Constant(0.),
+                 W=init.GlorotUniform(c01b=True), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, **kwargs):
         super(NINLayer_c01b, self).__init__(incoming, **kwargs)
         if nonlinearity is None:

@@ -187,11 +187,19 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     # update layer-to-expression mapping by propagating the inputs
     for layer in all_layers:
         if layer not in all_outputs:
-            if isinstance(layer, MultipleInputsLayer):
-                layer_inputs = [all_outputs[input_layer]
-                                for input_layer in layer.input_layers]
-            else:
-                layer_inputs = all_outputs[layer.input_layer]
+            try:
+                if isinstance(layer, MultipleInputsLayer):
+                    layer_inputs = [all_outputs[input_layer]
+                                    for input_layer in layer.input_layers]
+                else:
+                    layer_inputs = all_outputs[layer.input_layer]
+            except KeyError:
+                # one of the input_layer attributes must have been `None`
+                raise ValueError("get_output() was called without giving an "
+                                 "input expression for the free-floating "
+                                 "layer %r. Please call it with a dictionary "
+                                 "mapping this layer to an input expression."
+                                 % layer)
             all_outputs[layer] = layer.get_output_for(layer_inputs, **kwargs)
     # return the output(s) of the requested layer(s) only
     try:

@@ -166,24 +166,22 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     from .base import MultipleInputsLayer
     # obtain topological ordering of all layers the output layer(s) depend on
     all_layers = get_all_layers(layer_or_layers)
-    # initialize layer-to-expression mapping from given input(s)
+    # initialize layer-to-expression mapping from all input layers
+    all_outputs = dict((layer, layer.input_var)
+                       for layer in all_layers
+                       if isinstance(layer, InputLayer))
+    # update layer-to-expression mapping from given input(s), if any
     if isinstance(inputs, dict):
-        all_outputs = dict((layer, utils.as_theano_expression(expr))
+        all_outputs.update((layer, utils.as_theano_expression(expr))
                            for layer, expr in inputs.items())
     elif inputs is not None:
-        inputs = utils.as_theano_expression(inputs)
-        all_outputs = dict((layer, inputs)
-                           for layer in all_layers
-                           if isinstance(layer, InputLayer))
         if len(all_outputs) > 1:
             raise ValueError("get_output() was called with a single input "
                              "expression on a network with multiple input "
                              "layers. Please call it with a dictionary of "
                              "input expressions instead.")
-    else:
-        all_outputs = dict((layer, layer.input_var)
-                           for layer in all_layers
-                           if isinstance(layer, InputLayer))
+        for input_layer in all_outputs:
+            all_outputs[input_layer] = utils.as_theano_expression(inputs)
     # update layer-to-expression mapping by propagating the inputs
     for layer in all_layers:
         if layer not in all_outputs:

@@ -5,9 +5,13 @@ Tutorial
 ========
 
 The following document will give a high-level overview of how to classify the
-MNIST dataset with Lasagne. If you want to get detailed information how
-neural networks work and how it is done with Theano (which is used by Lasagne),
-then you should read the `Deeplearning Tutorial`_.
+MNIST dataset with Lasagne. If you want to get detailed information how neural
+networks work and how it is done with Theano (which is used by Lasagne), then
+you should read the `Deeplearning Tutorial`_, possibly along with an online
+course for more theoretical background (`Neural Networks and Deep Learning`_ by
+Michael Nielsen, `Convolutional Neural Networks for Visual Recognition`_ by
+Andrej Karpathy et al.) or a standard text book such as "Machine Learning" by
+Tom Mitchell.
 
 
 Run the MNIST example
@@ -72,7 +76,6 @@ necessary number of output neurons (= number of classes, 10 in case of MNIST).
 Then it automatically trains and evaluates the feed forward neural network
 with mini-batch gradient descent.
 
-A detailed explanation of how the training of feed forward neural networks
-works can be found in "Machine Learning" by  Tom Mitchell.
-
+.. _Neural Networks and Deep Learning: http://neuralnetworksanddeeplearning.com/
 .. _Deeplearning Tutorial: http://deeplearning.net/tutorial/
+.. _Convolutional Neural Networks for Visual Recognition: http://cs231n.github.io/

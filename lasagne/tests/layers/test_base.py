@@ -16,41 +16,6 @@ class TestLayer:
     def test_get_output_shape(self, layer):
         assert layer.get_output_shape() == layer.input_layer.get_output_shape()
 
-    def test_get_output_without_arguments(self, layer):
-        layer.get_output_for = Mock()
-
-        output = layer.get_output()
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with(
-            layer.input_layer.get_output.return_value)
-        layer.input_layer.get_output.assert_called_with(None)
-
-    def test_get_output_passes_on_arguments_to_input_layer(self, layer):
-        input, kwarg = object(), object()
-        layer.get_output_for = Mock()
-
-        output = layer.get_output(input, kwarg=kwarg)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with(
-            layer.input_layer.get_output.return_value, kwarg=kwarg)
-        layer.input_layer.get_output.assert_called_with(
-            input, kwarg=kwarg)
-
-    def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: theano.tensor.matrix()}
-        assert layer.get_output(input) is input[layer]
-
-    def test_get_output_input_is_a_mapping_no_key(self, layer):
-        layer.get_output_for = Mock()
-
-        output = layer.get_output({})
-        assert output is layer.get_output_for.return_value
-
-    def test_get_output_input_is_a_mapping_to_array(self, layer):
-        input = {layer: [[1, 2, 3]]}
-        output = layer.get_output(input)
-        assert numpy.all(output.eval() == input[layer])
-
     @pytest.fixture
     def layer_from_shape(self):
         from lasagne.layers.base import Layer
@@ -61,20 +26,6 @@ class TestLayer:
         assert layer.input_layer is None
         assert layer.input_shape == (None, 20)
         assert layer.get_output_shape() == (None, 20)
-
-    def test_layer_from_shape_invalid_get_output(self, layer_from_shape):
-        layer = layer_from_shape
-        with pytest.raises(RuntimeError):
-            layer.get_output()
-        with pytest.raises(RuntimeError):
-            layer.get_output(Mock())
-        with pytest.raises(RuntimeError):
-            layer.get_output({Mock(): Mock()})
-
-    def test_layer_from_shape_valid_get_output(self, layer_from_shape):
-        layer = layer_from_shape
-        input = {layer: theano.tensor.matrix()}
-        assert layer.get_output(input) is input[layer]
 
     def test_create_param_numpy_bad_shape_raises_error(self, layer):
         param = numpy.array([[1, 2, 3], [4, 5, 6]])
@@ -127,52 +78,11 @@ class TestMultipleInputsLayer:
             layer.input_layers[1].get_output_shape.return_value,
             ])
 
-    def test_get_output_without_arguments(self, layer):
-        layer.get_output_for = Mock()
-
-        output = layer.get_output()
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with([
-            layer.input_layers[0].get_output.return_value,
-            layer.input_layers[1].get_output.return_value,
-            ])
-        layer.input_layers[0].get_output.assert_called_with(None)
-        layer.input_layers[1].get_output.assert_called_with(None)
-
-    def test_get_output_passes_on_arguments_to_input_layer(self, layer):
-        input, kwarg = object(), object()
-        layer.get_output_for = Mock()
-
-        output = layer.get_output(input, kwarg=kwarg)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with([
-            layer.input_layers[0].get_output.return_value,
-            layer.input_layers[1].get_output.return_value,
-            ], kwarg=kwarg)
-        layer.input_layers[0].get_output.assert_called_with(
-            input, kwarg=kwarg)
-        layer.input_layers[1].get_output.assert_called_with(
-            input, kwarg=kwarg)
-
-    def test_get_output_input_is_a_mapping(self, layer):
-        input = {layer: theano.tensor.matrix()}
-        assert layer.get_output(input) is input[layer]
-
-    def test_get_output_input_is_a_mapping_no_key(self, layer):
-        layer.get_output_for = Mock()
-
-        output = layer.get_output({})
-        assert output is layer.get_output_for.return_value
-
-    def test_get_output_input_is_a_mapping_to_array(self, layer):
-        input = {layer: [[1, 2, 3]]}
-        output = layer.get_output(input)
-        assert numpy.all(output.eval() == input[layer])
-
     @pytest.fixture
     def layer_from_shape(self):
+        from lasagne.layers.input import InputLayer
         from lasagne.layers.base import MultipleInputsLayer
-        return MultipleInputsLayer([(None, 20), Mock()])
+        return MultipleInputsLayer([(None, 20), Mock(InputLayer((None,)))])
 
     def test_layer_from_shape(self, layer_from_shape):
         layer = layer_from_shape
@@ -188,17 +98,3 @@ class TestMultipleInputsLayer:
             layer.input_shapes[0],
             layer.input_layers[1].get_output_shape.return_value,
             ])
-
-    def test_layer_from_shape_invalid_get_output(self, layer_from_shape):
-        layer = layer_from_shape
-        with pytest.raises(RuntimeError):
-            layer.get_output()
-        with pytest.raises(RuntimeError):
-            layer.get_output(Mock())
-        with pytest.raises(RuntimeError):
-            layer.get_output({layer.input_layers[1]: Mock()})
-
-    def test_layer_from_shape_valid_get_output(self, layer_from_shape):
-        layer = layer_from_shape
-        input = {layer: theano.tensor.matrix()}
-        assert layer.get_output(input) is input[layer]

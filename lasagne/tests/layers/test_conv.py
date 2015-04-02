@@ -71,11 +71,9 @@ def conv1d_test_sets():
 
 @pytest.fixture
 def DummyInputLayer():
-    def factory(get_output_shape):
-        return Mock(
-            get_output_shape=lambda: get_output_shape,
-            get_output=lambda input: input,
-        )
+    def factory(shape):
+        from lasagne.layers.input import InputLayer
+        return InputLayer(shape)
     return factory
 
 
@@ -158,7 +156,7 @@ class TestConv2DLayerImplementations:
                 W=kernel,
                 **kwargs
             )
-            actual = layer.get_output(input).eval()
+            actual = layer.get_output_for(input).eval()
             assert actual.shape == output.shape
             assert actual.shape == layer.get_output_shape()
             assert np.allclose(actual, output)
@@ -180,7 +178,7 @@ class TestConv2DLayerImplementations:
                 W=kernel,
                 **kwargs
             )
-            actual = layer.get_output(input).eval()
+            actual = layer.get_output_for(input).eval()
 
             assert layer.get_output_shape() == (None,
                                                 kernel.shape[0],

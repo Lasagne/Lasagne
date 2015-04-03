@@ -62,7 +62,7 @@ class Glorot(Initializer):
         if self.c01b:
             if len(shape) != 4:
                 raise RuntimeError(
-                    "If c01b is True, only shapes of lenght 4 are accepted")
+                    "If c01b is True, only shapes of length 4 are accepted")
 
             n1, n2 = shape[0], shape[3]
             receptive_field_size = shape[1] * shape[2]
@@ -97,7 +97,7 @@ class He(Initializer):
         if self.c01b:
             if len(shape) != 4:
                 raise RuntimeError(
-                    "If c01b is True, only shapes of lenght 4 are accepted")
+                    "If c01b is True, only shapes of length 4 are accepted")
 
             fan_in = np.prod(shape[:3])
         else:

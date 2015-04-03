@@ -1,3 +1,6 @@
+.. image:: http://img.shields.io/badge/docs-latest-brightgreen.svg
+    :target: http://lasagne.readthedocs.org/en/latest/
+
 Lasagne
 =======
 

@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+"""Example which shows with the MNIST dataset how Lasagne can be used."""
+
 from __future__ import print_function
 
 import gzip
@@ -35,8 +39,9 @@ MOMENTUM = 0.9
 
 
 def _load_data(url=DATA_URL, filename=DATA_FILENAME):
+    """Load data from `url` and store the result in `filename`."""
     if not os.path.exists(filename):
-        print("Downloading MNIST")
+        print("Downloading MNIST dataset")
         urlretrieve(url, filename)
 
     with gzip.open(filename, 'rb') as f:
@@ -44,6 +49,7 @@ def _load_data(url=DATA_URL, filename=DATA_FILENAME):
 
 
 def load_data():
+    """Get data with labels, split into training, validation and test set."""
     data = _load_data()
     X_train, y_train = data[0]
     X_valid, y_valid = data[1]
@@ -66,7 +72,15 @@ def load_data():
 
 def build_model(input_dim, output_dim,
                 batch_size=BATCH_SIZE, num_hidden_units=NUM_HIDDEN_UNITS):
+    """Create a symbolic representation of a neural network with `intput_dim`
+    input nodes, `output_dim` output nodes and `num_hidden_units` per hidden
+    layer.
 
+    The training function of this model must have a mini-batch size of
+    `batch_size`.
+
+    A theano expression which represents such a network is returned.
+    """
     l_in = lasagne.layers.InputLayer(
         shape=(batch_size, input_dim),
     )
@@ -100,11 +114,14 @@ def create_iter_functions(dataset, output_layer,
                           X_tensor_type=T.matrix,
                           batch_size=BATCH_SIZE,
                           learning_rate=LEARNING_RATE, momentum=MOMENTUM):
+    """Create functions for training, validation and testing to iterate one
+       epoch.
+    """
     batch_index = T.iscalar('batch_index')
     X_batch = X_tensor_type('x')
     y_batch = T.ivector('y')
-    batch_slice = slice(
-        batch_index * batch_size, (batch_index + 1) * batch_size)
+    batch_slice = slice(batch_index * batch_size,
+                        (batch_index + 1) * batch_size)
 
     objective = lasagne.objectives.Objective(output_layer,
         loss_function=lasagne.objectives.categorical_crossentropy)
@@ -154,6 +171,9 @@ def create_iter_functions(dataset, output_layer,
 
 
 def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
+    """Train the model with `dataset` with mini-batch training. Each
+       mini-batch has `batch_size` recordings.
+    """
     num_batches_train = dataset['num_examples_train'] // batch_size
     num_batches_valid = dataset['num_examples_valid'] // batch_size
 

@@ -32,6 +32,7 @@ def rectify(x):
     # http://github.com/benanne/Lasagne/pull/163#issuecomment-81765117
     return 0.5 * (x + abs(x))
 
+
 # leaky rectify
 class LeakyRectify(object):
     """Implementation of a leaky rectifier.

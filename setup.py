@@ -35,8 +35,13 @@ setup(
     long_description="\n\n".join([README, CHANGES]),
     classifiers=[
         "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
         ],
     keywords="",
     author="Sander Dieleman",

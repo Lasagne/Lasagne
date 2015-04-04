@@ -68,24 +68,24 @@ def test_glorot_normal_gain():
 
 
 def test_glorot_normal_c01b():
-    from lasagne.init import GlorotNormal_c01b
+    from lasagne.init import GlorotNormal
 
-    sample = GlorotNormal_c01b().sample((25, 2, 2, 25))
+    sample = GlorotNormal(c01b=True).sample((25, 2, 2, 25))
     assert -0.01 < sample.mean() < 0.01
     assert 0.09 < sample.std() < 0.11
 
 
 def test_glorot_normal_c01b_4d_only():
-    from lasagne.init import GlorotNormal_c01b
+    from lasagne.init import GlorotNormal
 
     with pytest.raises(RuntimeError):
-        GlorotNormal_c01b().sample((100,))
+        GlorotNormal(c01b=True).sample((100,))
 
     with pytest.raises(RuntimeError):
-        GlorotNormal_c01b().sample((100, 100))
+        GlorotNormal(c01b=True).sample((100, 100))
 
     with pytest.raises(RuntimeError):
-        GlorotNormal_c01b().sample((100, 100, 100))
+        GlorotNormal(c01b=True).sample((100, 100, 100))
 
 
 def test_glorot_uniform():
@@ -113,24 +113,114 @@ def test_glorot_uniform_gain():
 
 
 def test_glorot_uniform_c01b():
-    from lasagne.init import GlorotUniform_c01b
+    from lasagne.init import GlorotUniform
 
-    sample = GlorotUniform_c01b().sample((75, 2, 2, 75))
+    sample = GlorotUniform(c01b=True).sample((75, 2, 2, 75))
     assert -0.1 <= sample.min() < -0.09
     assert 0.09 < sample.max() <= 0.1
 
 
 def test_glorot_uniform_c01b_4d_only():
-    from lasagne.init import GlorotUniform_c01b
+    from lasagne.init import GlorotUniform
 
     with pytest.raises(RuntimeError):
-        GlorotUniform_c01b().sample((100,))
+        GlorotUniform(c01b=True).sample((100,))
 
     with pytest.raises(RuntimeError):
-        GlorotUniform_c01b().sample((100, 100))
+        GlorotUniform(c01b=True).sample((100, 100))
 
     with pytest.raises(RuntimeError):
-        GlorotUniform_c01b().sample((100, 100, 100))
+        GlorotUniform(c01b=True).sample((100, 100, 100))
+
+
+def test_he_normal():
+    from lasagne.init import HeNormal
+
+    sample = HeNormal().sample((100, 100))
+    assert -0.01 < sample.mean() < 0.01
+    assert 0.09 < sample.std() < 0.11
+
+
+def test_he_normal_receptive_field():
+    from lasagne.init import HeNormal
+
+    sample = HeNormal().sample((50, 50, 2))
+    assert -0.01 < sample.mean() < 0.01
+    assert 0.09 < sample.std() < 0.11
+
+
+def test_he_normal_gain():
+    from lasagne.init import HeNormal
+
+    sample = HeNormal(gain=10.0).sample((100, 100))
+    assert -0.1 < sample.mean() < 0.1
+    assert 0.9 < sample.std() < 1.1
+
+
+def test_he_normal_c01b():
+    from lasagne.init import HeNormal
+
+    sample = HeNormal(c01b=True).sample((25, 2, 2, 25))
+    assert -0.01 < sample.mean() < 0.01
+    assert 0.09 < sample.std() < 0.11
+
+
+def test_he_normal_c01b_4d_only():
+    from lasagne.init import HeNormal
+
+    with pytest.raises(RuntimeError):
+        HeNormal(c01b=True).sample((100,))
+
+    with pytest.raises(RuntimeError):
+        HeNormal(c01b=True).sample((100, 100))
+
+    with pytest.raises(RuntimeError):
+        HeNormal(c01b=True).sample((100, 100, 100))
+
+
+def test_he_uniform():
+    from lasagne.init import HeUniform
+
+    sample = HeUniform().sample((300, 200))
+    assert -0.1 <= sample.min() < -0.09
+    assert 0.09 < sample.max() <= 0.1
+
+
+def test_he_uniform_receptive_field():
+    from lasagne.init import HeUniform
+
+    sample = HeUniform().sample((150, 150, 2))
+    assert -0.10 <= sample.min() < -0.09
+    assert 0.09 < sample.max() <= 0.10
+
+
+def test_he_uniform_gain():
+    from lasagne.init import HeUniform
+
+    sample = HeUniform(gain=10.0).sample((300, 200))
+    assert -1.0 <= sample.min() < -0.9
+    assert 0.9 < sample.max() <= 1.0
+
+
+def test_he_uniform_c01b():
+    from lasagne.init import HeUniform
+
+    sample = HeUniform(c01b=True).sample((75, 2, 2, 75))
+    assert -0.1 <= sample.min() < -0.09
+    assert 0.09 < sample.max() <= 0.1
+
+
+def test_he_uniform_c01b_4d_only():
+    from lasagne.init import HeUniform
+
+    with pytest.raises(RuntimeError):
+        HeUniform(c01b=True).sample((100,))
+
+    with pytest.raises(RuntimeError):
+        HeUniform(c01b=True).sample((100, 100))
+
+    with pytest.raises(RuntimeError):
+        HeUniform(c01b=True).sample((100, 100, 100))
 
 
 def test_constant():

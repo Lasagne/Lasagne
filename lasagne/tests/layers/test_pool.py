@@ -1,25 +1,35 @@
 from mock import Mock
-import numpy
+import numpy as np
 import pytest
 import theano
 
 
-def max_pool_1d(data, ds):
-    data_truncated = data[:, :, :(data.shape[2] // ds) * ds]
-    data_pooled = data_truncated.reshape((-1, ds)).max(axis=1)
-    return data_pooled.reshape(data.shape[:2] + (data.shape[2] // ds,))
+def max_pool_1d(data, ds, stride=None, pad=0):
+    stride = ds if stride is None else stride
+
+    data = np.pad(data, pad, mode='constant')
+
+    data_shifted = np.zeros((ds,) + data.shape)
+    data_shifted = data_shifted[..., :data.shape[-1] - ds + 1]
+    for i in range(ds):
+        data_shifted[i] = data[..., i:i + data.shape[-1] - ds + 1]
+
+    data_pooled = data_shifted.max(axis=0)
+
+    if stride:
+        data_pooled = data_pooled[..., ::stride]
+
+    return data_pooled
 
 
 def max_pool_2d(data, ds):
-    data_truncated = data[:, :, :(data.shape[2] // ds[0]) * ds[0],
-                          :(data.shape[3] // ds[1]) * ds[1]]
-    data_reshaped = data_truncated.reshape((-1, data.shape[2] // ds[0], ds[0],
-                                            data.shape[3] // ds[1], ds[1]))
+    data_pooled = max_pool_1d(data, ds[1])
 
-    data_pooled = data_reshaped.max(axis=4).max(axis=2)
+    data_pooled = np.swapaxes(data_pooled, -1, -2)
+    data_pooled = max_pool_1d(data_pooled, ds[0])
+    data_pooled = np.swapaxes(data_pooled, -1, -2)
 
-    return data_pooled.reshape(data.shape[:2] + (data.shape[2] // ds[0],
-                                                 data.shape[3] // ds[1]))
+    return data_pooled
 
 
 class TestMaxPool1DLayer:
@@ -38,14 +48,14 @@ class TestMaxPool1DLayer:
         return MaxPool1DLayer(input_layer, ds=2, ignore_border=True)
 
     def test_get_output_for(self, layer_ignoreborder):
-        input = numpy.random.randn(32, 64, 128)
+        input = np.random.randn(32, 64, 128)
         input_theano = theano.shared(input)
         result = layer_ignoreborder.get_output_for(input_theano)
         result_eval = result.eval()
-        assert numpy.all(result_eval == max_pool_1d(input, 2))
+        assert np.allclose(result_eval, max_pool_1d(input, 2))
 
     def test_get_output_for_shape(self, layer):
-        input = theano.shared(numpy.ones((32, 64, 128)))
+        input = theano.shared(np.ones((32, 64, 128)))
         result = layer.get_output_for(input)
         result_eval = result.eval()
         assert result_eval.shape == (32, 64, 64)
@@ -71,14 +81,14 @@ class TestMaxPool2DLayer:
         return MaxPool2DLayer(input_layer, ds=(2, 2), ignore_border=True)
 
     def test_get_output_for(self, layer_ignoreborder):
-        input = numpy.random.randn(32, 64, 24, 24)
+        input = np.random.randn(32, 64, 24, 24)
         input_theano = theano.shared(input)
         result = layer_ignoreborder.get_output_for(input_theano)
         result_eval = result.eval()
-        assert numpy.all(result_eval == max_pool_2d(input, (2, 2)))
+        assert np.all(result_eval == max_pool_2d(input, (2, 2)))
 
     def test_get_output_for_shape(self, layer):
-        input = theano.shared(numpy.ones((32, 64, 24, 24)))
+        input = theano.shared(np.ones((32, 64, 24, 24)))
         result = layer.get_output_for(input)
         result_eval = result.eval()
         assert result_eval.shape == (32, 64, 12, 12)

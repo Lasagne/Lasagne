@@ -210,6 +210,8 @@ class TestGetOutput_Layer:
     def test_get_output_input_is_a_mapping_for_input_layer(self, layers,
                                                            get_output):
         l1, l2, l3 = layers
+        p = PropertyMock()
+        type(l1).input_var = p
         input_expr, kwarg = theano.tensor.matrix(), object()
         inputs = {l1: input_expr}
         output = get_output(l3, inputs, kwarg=kwarg)
@@ -221,8 +223,8 @@ class TestGetOutput_Layer:
             l2.get_output_for.return_value, kwarg=kwarg)
         l2.get_output_for.assert_called_with(
             input_expr, kwarg=kwarg)
-        # l1.input_var was accessed in the beginning of get_output(),
-        # so here we cannot assert it was not.
+        # l1.input_var should not have been accessed
+        assert p.call_count == 0
 
     @pytest.fixture
     def layer_from_shape(self):
@@ -369,6 +371,8 @@ class TestGetOutput_MultipleInputsLayer:
     def test_get_output_input_is_a_mapping_for_input_layer(self, layers,
                                                            get_output):
         l1, l2, l3 = layers
+        p = PropertyMock()
+        type(l1[0]).input_var = p
         input_expr, kwarg = theano.tensor.matrix(), object()
         inputs = {l1[0]: input_expr}
         output = get_output(l3, inputs, kwarg=kwarg)
@@ -386,8 +390,8 @@ class TestGetOutput_MultipleInputsLayer:
             input_expr, kwarg=kwarg)
         l2[1].get_output_for.assert_called_with(
             l1[1].input_var, kwarg=kwarg)
-        # l1[0].input_var was accessed in the beginning of get_output(),
-        # so here we cannot assert it was not.
+        # l1[0].input_var should not have been accessed
+        assert p.call_count == 0
 
     @pytest.fixture
     def layer_from_shape(self):

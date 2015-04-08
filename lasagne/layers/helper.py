@@ -180,12 +180,13 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     from .input import InputLayer
     from .base import MultipleInputsLayer
     # obtain topological ordering of all layers the output layer(s) depend on
-    treat_as_input = inputs.keys() if isinstance(inputs, dict) else None
+    treat_as_input = inputs.keys() if isinstance(inputs, dict) else []
     all_layers = get_all_layers(layer_or_layers, treat_as_input)
     # initialize layer-to-expression mapping from all input layers
     all_outputs = dict((layer, layer.input_var)
                        for layer in all_layers
-                       if isinstance(layer, InputLayer))
+                       if isinstance(layer, InputLayer) and
+                       layer not in treat_as_input)
     # update layer-to-expression mapping from given input(s), if any
     if isinstance(inputs, dict):
         all_outputs.update((layer, utils.as_theano_expression(expr))

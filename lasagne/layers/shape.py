@@ -57,17 +57,18 @@ class ReshapeLayer(Layer):
     Usage
     ----------
     >>> from lasagne.layers import InputLayer, ReshapeLayer
+    >>> from lasagne.layers import get_output_shape
     >>> l_in = InputLayer((32, 100, 20))
     >>> l1 = ReshapeLayer(l_in, ((32, 50, 40)))
-    >>> l1.get_output_shape()
+    >>> get_output_shape(l1)
     (32, 50, 40)
     >>> l_in = InputLayer((None, 100, 20))
     >>> l2 = ReshapeLayer(l_in, ([0], 50, 40))
-    >>> l2.get_output_shape()
+    >>> get_output_shape(l2)
     (None, 50, 40)
     >>> l_in = InputLayer((None, 100, 20))
     >>> l3 = ReshapeLayer(l_in, (-1, [1], [0], 1))
-    >>> l3.get_output_shape()
+    >>> get_output_shape(l3)
     (20, 100, None, 1)
 
     Note
@@ -183,12 +184,13 @@ class DimshuffleLayer(Layer):
     Usage
     -----------
     >>> from lasagne.layers import InputLayer, DimshuffleLayer
+    >>> from lasagne.layers import get_output_shape
     >>> l_in = InputLayer((2, 3, 5, 7))
     >>> l1 = DimshuffleLayer(l_in, (3, 2, 1, 'x', 0))
-    >>> l1.get_output_shape()
+    >>> get_output_shape(l1)
     (7, 5, 3, 1, 2)
     >>> l2 = DimshuffleLayer(l1, (4, 2, 1, 0))
-    >>> l2.get_output_shape()
+    >>> get_output_shape(l2)
     (2, 3, 5, 7)
 
     See Also

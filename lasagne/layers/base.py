@@ -36,7 +36,8 @@ class Layer(object):
             self.input_shape = incoming
             self.input_layer = None
         else:
-            self.input_shape = incoming.get_output_shape()
+            from .helper import get_output_shape
+            self.input_shape = get_output_shape(incoming)
             self.input_layer = incoming
         self.name = name
 
@@ -77,19 +78,14 @@ class Layer(object):
 
     def get_output_shape(self):
         """
-        Computes the output shape of the network at this layer.
-
-        :returns:
-            - output shape: tuple
-                a tuple that represents the output shape of this layer. The
-                tuple has as many elements as there are output dimensions, and
-                the elements of the tuple are either integers or `None`.
-
-        :note:
-            When implementing a new :class:`Layer` class, you will usually
-            keep this unchanged and just override `get_output_shape_for()`.
+        Deprecated. Use `lasagne.layers.get_output_shape(layer)`.
         """
-        return self.get_output_shape_for(self.input_shape)
+        import warnings
+        warnings.warn("layer.get_output_shape() is deprecated and will be "
+                      "removed for the first release of Lasagne. Please use "
+                      "lasagne.layers.get_output_shape(layer) instead.")
+        from .helper import get_output_shape
+        return get_output_shape(self)
 
     def get_output(self, input=None, **kwargs):
         """
@@ -235,16 +231,14 @@ class MultipleInputsLayer(Layer):
             - name : a string or None
                 an optional name to attach to this layer
         """
+        from .helper import get_output_shape
         self.input_shapes = [incoming if isinstance(incoming, tuple)
-                             else incoming.get_output_shape()
+                             else get_output_shape(incoming)
                              for incoming in incomings]
         self.input_layers = [None if isinstance(incoming, tuple)
                              else incoming
                              for incoming in incomings]
         self.name = name
-
-    def get_output_shape(self):
-        return self.get_output_shape_for(self.input_shapes)
 
     def get_output_shape_for(self, input_shapes):
         """

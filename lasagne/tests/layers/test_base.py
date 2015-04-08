@@ -11,10 +11,12 @@ class TestLayer:
         return Layer(Mock())
 
     def test_input_shape(self, layer):
-        assert layer.input_shape == layer.input_layer.get_output_shape()
+        from lasagne.layers.helper import get_output_shape
+        assert layer.input_shape == get_output_shape(layer.input_layer)
 
-    def test_get_output_shape(self, layer):
-        assert layer.get_output_shape() == layer.input_layer.get_output_shape()
+    def test_get_output_shape_for(self, layer):
+        shape = Mock()
+        assert layer.get_output_shape_for(shape) == shape
 
     @pytest.fixture
     def layer_from_shape(self):
@@ -25,7 +27,6 @@ class TestLayer:
         layer = layer_from_shape
         assert layer.input_layer is None
         assert layer.input_shape == (None, 20)
-        assert layer.get_output_shape() == (None, 20)
 
     def test_create_param_numpy_bad_shape_raises_error(self, layer):
         param = numpy.array([[1, 2, 3], [4, 5, 6]])
@@ -69,14 +70,9 @@ class TestMultipleInputsLayer:
         from lasagne.layers.base import MultipleInputsLayer
         return MultipleInputsLayer([Mock(), Mock()])
 
-    def test_get_output_shape(self, layer):
-        layer.get_output_shape_for = Mock()
-        result = layer.get_output_shape()
-        assert result is layer.get_output_shape_for.return_value
-        layer.get_output_shape_for.assert_called_with([
-            layer.input_layers[0].get_output_shape.return_value,
-            layer.input_layers[1].get_output_shape.return_value,
-            ])
+    def test_input_shapes(self, layer):
+        from lasagne.layers.helper import get_output_shape
+        assert layer.input_shapes == get_output_shape(layer.input_layers)
 
     @pytest.fixture
     def layer_from_shape(self):
@@ -88,13 +84,5 @@ class TestMultipleInputsLayer:
         layer = layer_from_shape
         assert layer.input_layers[0] is None
         assert layer.input_shapes[0] == (None, 20)
-        shape1 = layer.input_layers[1].get_output_shape()
         assert layer.input_layers[1] is not None
-        assert layer.input_shapes[1] == shape1
-        layer.get_output_shape_for = Mock()
-        result = layer.get_output_shape()
-        assert result is layer.get_output_shape_for.return_value
-        layer.get_output_shape_for.assert_called_with([
-            layer.input_shapes[0],
-            layer.input_layers[1].get_output_shape.return_value,
-            ])
+        assert (layer.input_shapes[1] == layer.input_layers[1].shape)

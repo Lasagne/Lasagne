@@ -52,6 +52,3 @@ class InputLayer(Layer):
                                  "%d" % (ndim, input_var.ndim))
         self.input_var = input_var
         self.name = name
-
-    def get_output_shape(self):
-        return self.shape

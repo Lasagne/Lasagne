@@ -9,6 +9,7 @@ __all__ = [
     "get_all_layers",
     "get_all_layers_old",
     "get_output",
+    "get_output_shape",
     "get_all_params",
     "get_all_bias_params",
     "get_all_non_bias_params",
@@ -221,6 +222,36 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
         return [all_outputs[layer] for layer in layer_or_layers]
     except TypeError:
         return all_outputs[layer_or_layers]
+
+
+def get_output_shape(layer_or_layers):
+    """
+    Computes the output shape of the network at one or more given layers.
+
+    :parameters:
+        - layer_or_layers : Layer or list
+            the :class:`Layer` instance for which to compute the output
+            shapes, or a list of :class:`Layer` instances.
+
+    :returns:
+        - output : tuple or list
+            the output shape of the given layer(s) for the given network input
+    """
+    from .input import InputLayer
+    from .base import MultipleInputsLayer
+
+    def default_shape(layer):
+        if isinstance(layer, InputLayer):
+            return layer.shape
+        elif isinstance(layer, MultipleInputsLayer):
+            return layer.get_output_shape_for(layer.input_shapes)
+        else:
+            return layer.get_output_shape_for(layer.input_shape)
+
+    try:
+        return [default_shape(layer) for layer in layer_or_layers]
+    except TypeError:
+        return default_shape(layer_or_layers)
 
 
 def get_all_params(layer):

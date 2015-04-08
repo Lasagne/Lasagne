@@ -12,8 +12,8 @@ class TestInputLayer:
     def test_input_var(self, layer):
         assert layer.input_var.ndim == 2
 
-    def test_get_output_shape(self, layer):
-        assert layer.get_output_shape() == (3, 2)
+    def test_shape(self, layer):
+        assert layer.shape == (3, 2)
 
     def test_input_var_name(self, layer):
         assert layer.input_var.name == "input"

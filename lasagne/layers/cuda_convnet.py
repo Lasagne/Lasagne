@@ -107,7 +107,7 @@ class Conv2DCCLayer(CCLayer):
         if b is None:
             self.b = None
         elif self.untie_biases:
-            output_shape = self.get_output_shape()
+            output_shape = self.get_output_shape_for(self.input_shape)
             if self.dimshuffle:
                 self.b = self.create_param(b, (num_filters, output_shape[2],
                                                output_shape[3]))
@@ -345,7 +345,7 @@ class NINLayer_c01b(Layer):
         if b is None:
             self.b = None
         elif self.untie_biases:
-            output_shape = self.get_output_shape()
+            output_shape = self.get_output_shape_for(self.input_shape)
             self.b = self.create_param(b, (num_units,) + output_shape[1:-1])
         else:
             self.b = self.create_param(b, (num_units,))

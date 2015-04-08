@@ -248,7 +248,7 @@ class Conv2DDNNLayer(DNNLayer):
         if b is None:
             self.b = None
         elif self.untie_biases:
-            output_shape = self.get_output_shape()
+            output_shape = self.get_output_shape_for(self.input_shape)
             self.b = self.create_param(b, (num_filters, output_shape[2],
                                            output_shape[3]), name="b")
         else:

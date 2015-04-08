@@ -12,6 +12,7 @@ class TestGetAllLayers:
         l1 = InputLayer((10, 20))
         l2 = DenseLayer(l1, 30)
         l3 = DenseLayer(l2, 40)
+        # try all possible combinations and orders for a query
         for count in (0, 1, 2, 3):
             for query in permutations([l1, l2, l3], count):
                 if l3 in query:
@@ -23,6 +24,7 @@ class TestGetAllLayers:
                 else:
                     expected = []
                 assert get_all_layers(query) == expected
+        # treat_as_input=[l2] should block l1 from appearing
         assert get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
 
     def test_merge(self):
@@ -36,10 +38,12 @@ class TestGetAllLayers:
         l4 = InputLayer((10, 30))
         l5 = DenseLayer(l4, 40)
         l6 = ElemwiseSumLayer([l3, l5])
+        # try various combinations and orders for a query
         assert get_all_layers(l6) == [l1, l2, l3, l4, l5, l6]
         assert get_all_layers([l4, l6]) == [l4, l1, l2, l3, l5, l6]
         assert get_all_layers([l5, l6]) == [l4, l5, l1, l2, l3, l6]
         assert get_all_layers([l4, l2, l5, l6]) == [l4, l1, l2, l5, l3, l6]
+        # check that treat_as_input correctly blocks the search
         assert get_all_layers(l6, treat_as_input=[l2]) == [l2, l3, l4, l5, l6]
         assert get_all_layers(l6, treat_as_input=[l3, l5]) == [l3, l5, l6]
         assert get_all_layers([l6, l2], treat_as_input=[l6]) == [l6, l1, l2]
@@ -52,10 +56,12 @@ class TestGetAllLayers:
         l2 = DenseLayer(l1, 30)
         l3 = DenseLayer(l2, 40)
         l4 = DenseLayer(l1, 50)
+        # try various combinations and orders for a query
         assert get_all_layers(l3) == [l1, l2, l3]
         assert get_all_layers(l4) == [l1, l4]
         assert get_all_layers([l3, l4]) == [l1, l2, l3, l4]
         assert get_all_layers([l4, l3]) == [l1, l4, l2, l3]
+        # check that treat_as_input correctly blocks the search
         assert get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
         assert get_all_layers([l3, l4], treat_as_input=[l2]) == [l2, l3,
                                                                  l1, l4]
@@ -70,7 +76,9 @@ class TestGetAllLayers:
         l3 = DenseLayer(l2, 30)
         l4 = ElemwiseSumLayer([l2, l3])
         l5 = DenseLayer(l4, 40)
+        # check for correct topological order
         assert get_all_layers(l5) == [l1, l2, l3, l4, l5]
+        # check that treat_as_input=[l4] blocks the search and =[l3] does not
         assert get_all_layers(l5, treat_as_input=[l4]) == [l4, l5]
         assert get_all_layers(l5, treat_as_input=[l3]) == [l1, l2, l3, l4, l5]
 
@@ -110,82 +118,111 @@ class TestGetOutput_Layer:
         return get_output
 
     @pytest.fixture
-    def layer(self):
+    def layers(self):
         from lasagne.layers.base import Layer
         from lasagne.layers.input import InputLayer
         # create a mock that has the same attributes as an InputLayer instance
-        input_layer = Mock(InputLayer((None,)))
+        l1 = Mock(InputLayer((None,)))
         # create a mock that has the same attributes as a Layer instance
-        layer1 = Mock(Layer(input_layer))
+        l2 = Mock(Layer(l1))
         # link it to the InputLayer mock
-        layer1.input_layer = input_layer
+        l2.input_layer = l1
         # create another mock that has the same attributes as a Layer instance
-        layer2 = Mock(Layer(layer1))
-        # link it to the first mock, to get an "input -> layer -> layer" chain
-        layer2.input_layer = layer1
-        return layer2
+        l3 = Mock(Layer(l2))
+        # link it to the first mock, to get an "l1 --> l2 --> l3" chain
+        l3.input_layer = l2
+        return l1, l2, l3
 
-    def test_get_output_without_arguments(self, layer, get_output):
-        output = get_output(layer)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with(
-            layer.input_layer.get_output_for.return_value)
-        layer.input_layer.get_output_for.assert_called_with(
-            layer.input_layer.input_layer.input_var)
+    def test_get_output_without_arguments(self, layers, get_output):
+        l1, l2, l3 = layers
+        output = get_output(l3)
+        # expected: l3.get_output_for(l2.get_output_for(l1.input_var))
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with(
+            l2.get_output_for.return_value)
+        l2.get_output_for.assert_called_with(
+            l1.input_var)
 
-    def test_get_output_with_single_argument(self, layer, get_output):
+    def test_get_output_with_single_argument(self, layers, get_output):
+        l1, l2, l3 = layers
         inputs, kwarg = theano.tensor.matrix(), object()
-        output = get_output(layer, inputs, kwarg=kwarg)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with(
-            layer.input_layer.get_output_for.return_value, kwarg=kwarg)
-        layer.input_layer.get_output_for.assert_called_with(
+        output = get_output(l3, inputs, kwarg=kwarg)
+        # expected: l3.get_output_for(l2.get_output_for(inputs, kwarg=kwarg),
+        #                             kwarg=kwarg)
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with(
+            l2.get_output_for.return_value, kwarg=kwarg)
+        l2.get_output_for.assert_called_with(
             inputs, kwarg=kwarg)
 
-    def test_get_output_input_is_a_mapping(self, layer, get_output):
+    def test_get_output_input_is_a_mapping(self, layers, get_output):
+        l1, l2, l3 = layers
         p = PropertyMock()
-        type(layer.input_layer.input_layer).input_var = p
-        inputs = {layer: theano.tensor.matrix()}
-        assert get_output(layer, inputs) is inputs[layer]
-        assert layer.get_output_for.call_count == 0
-        assert layer.input_layer.get_output_for.call_count == 0
+        type(l1).input_var = p
+        inputs = {l3: theano.tensor.matrix()}
+        # expected: inputs[l3]
+        assert get_output(l3, inputs) is inputs[l3]
+        # l3.get_output_for, l2.get_output_for should not have been called
+        assert l3.get_output_for.call_count == 0
+        assert l2.get_output_for.call_count == 0
+        # l1.input_var should not have been accessed
         assert p.call_count == 0
 
-    def test_get_output_input_is_a_mapping_no_key(self, layer, get_output):
-        output = get_output(layer, {})
-        assert output is layer.get_output_for.return_value
+    def test_get_output_input_is_a_mapping_no_key(self, layers, get_output):
+        l1, l2, l3 = layers
+        output = get_output(l3, {})
+        # expected: l3.get_output_for(l2.get_output_for(l1.input_var))
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with(
+            l2.get_output_for.return_value)
+        l2.get_output_for.assert_called_with(
+            l1.input_var)
 
-    def test_get_output_input_is_a_mapping_to_array(self, layer, get_output):
+    def test_get_output_input_is_a_mapping_to_array(self, layers, get_output):
+        l1, l2, l3 = layers
         p = PropertyMock()
-        type(layer.input_layer.input_layer).input_var = p
-        inputs = {layer: [[1, 2, 3]]}
-        output = get_output(layer, inputs)
-        assert numpy.all(output.eval() == inputs[layer])
-        assert layer.get_output_for.call_count == 0
-        assert layer.input_layer.get_output_for.call_count == 0
+        type(l1).input_var = p
+        inputs = {l3: [[1, 2, 3]]}
+        output = get_output(l3, inputs)
+        # expected: inputs[l3]
+        assert numpy.all(output.eval() == inputs[l3])
+        # l3.get_output_for, l2.get_output_for should not have been called
+        assert l3.get_output_for.call_count == 0
+        assert l2.get_output_for.call_count == 0
+        # l1.input_var should not have been accessed
         assert p.call_count == 0
 
-    def test_get_output_input_is_a_mapping_for_layer(self, layer, get_output):
+    def test_get_output_input_is_a_mapping_for_layer(self, layers, get_output):
+        l1, l2, l3 = layers
         p = PropertyMock()
-        type(layer.input_layer.input_layer).input_var = p
+        type(l1).input_var = p
         input_expr, kwarg = theano.tensor.matrix(), object()
-        inputs = {layer.input_layer: input_expr}
-        output = get_output(layer, inputs, kwarg=kwarg)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with(input_expr, kwarg=kwarg)
-        assert layer.input_layer.get_output_for.call_count == 0
+        inputs = {l2: input_expr}
+        output = get_output(l3, inputs, kwarg=kwarg)
+        # expected: l3.get_output_for(input_expr, kwarg=kwarg)
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with(input_expr, kwarg=kwarg)
+        # l2.get_output_for should not have been called
+        assert l2.get_output_for.call_count == 0
+        # l1.input_var should not have been accessed
         assert p.call_count == 0
 
-    def test_get_output_input_is_a_mapping_for_input_layer(self, layer,
+    def test_get_output_input_is_a_mapping_for_input_layer(self, layers,
                                                            get_output):
+        l1, l2, l3 = layers
         input_expr, kwarg = theano.tensor.matrix(), object()
-        inputs = {layer.input_layer.input_layer: input_expr}
-        output = get_output(layer, inputs, kwarg=kwarg)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with(
-            layer.input_layer.get_output_for.return_value, kwarg=kwarg)
-        layer.input_layer.get_output_for.assert_called_with(
+        inputs = {l1: input_expr}
+        output = get_output(l3, inputs, kwarg=kwarg)
+        # expected: l3.get_output_for(l2.get_output_for(input_expr,
+        #                                               kwarg=kwarg),
+        #                             kwarg=kwarg)
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with(
+            l2.get_output_for.return_value, kwarg=kwarg)
+        l2.get_output_for.assert_called_with(
             input_expr, kwarg=kwarg)
+        # l1.input_var was accessed in the beginning of get_output(),
+        # so here we cannot assert it was not.
 
     @pytest.fixture
     def layer_from_shape(self):
@@ -220,96 +257,137 @@ class TestGetOutput_MultipleInputsLayer:
         return get_output
 
     @pytest.fixture
-    def layer(self):
+    def layers(self):
         from lasagne.layers.base import Layer, MultipleInputsLayer
         from lasagne.layers.input import InputLayer
         # create two mocks of the same attributes as an InputLayer instance
-        input_layers = [Mock(InputLayer((None,))), Mock(InputLayer((None,)))]
+        l1 = [Mock(InputLayer((None,))), Mock(InputLayer((None,)))]
         # create two mocks of the same attributes as a Layer instance
-        layers = [Mock(Layer(input_layers[0])), Mock(Layer(input_layers[1]))]
+        l2 = [Mock(Layer(l1[0])), Mock(Layer(l1[1]))]
         # link them to the InputLayer mocks
-        layers[0].input_layer = input_layers[0]
-        layers[1].input_layer = input_layers[1]
+        l2[0].input_layer = l1[0]
+        l2[1].input_layer = l1[1]
         # create a mock that has the same attributes as a MultipleInputsLayer
-        layer = Mock(MultipleInputsLayer(input_layers))
-        # link it to the two "input -> layer" mocks
-        layer.input_layers = layers
-        return layer
+        l3 = Mock(MultipleInputsLayer(l2))
+        # link it to the two layer mocks, to get the following network:
+        # l1[0] --> l2[0] --> l3
+        # l1[1] --> l2[1] ----^
+        l3.input_layers = l2
+        return l1, l2, l3
 
-    def test_get_output_without_arguments(self, layer, get_output):
-        output = get_output(layer)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with([
-            layer.input_layers[0].get_output_for.return_value,
-            layer.input_layers[1].get_output_for.return_value,
+    def test_get_output_without_arguments(self, layers, get_output):
+        l1, l2, l3 = layers
+        output = get_output(l3)
+        # expected: l3.get_output_for([l2[0].get_output_for(l1[0].input_var),
+        #                              l2[1].get_output_for(l1[1].input_var)])
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with([
+            l2[0].get_output_for.return_value,
+            l2[1].get_output_for.return_value,
             ])
-        layer.input_layers[0].get_output_for.assert_called_with(
-            layer.input_layers[0].input_layer.input_var)
-        layer.input_layers[1].get_output_for.assert_called_with(
-            layer.input_layers[1].input_layer.input_var)
+        l2[0].get_output_for.assert_called_with(
+            l1[0].input_var)
+        l2[1].get_output_for.assert_called_with(
+            l1[1].input_var)
 
-    def test_get_output_with_single_argument_fails(self, layer, get_output):
+    def test_get_output_with_single_argument_fails(self, layers, get_output):
+        l1, l2, l3 = layers
         inputs, kwarg = theano.tensor.matrix(), object()
+        # expected to fail: only gave one expression for two input layers
         with pytest.raises(ValueError):
-            output = get_output(layer, inputs, kwarg=kwarg)
+            output = get_output(l3, inputs, kwarg=kwarg)
 
-    def test_get_output_input_is_a_mapping(self, layer, get_output):
+    def test_get_output_input_is_a_mapping(self, layers, get_output):
+        l1, l2, l3 = layers
         p = PropertyMock()
-        type(layer.input_layers[0].input_layer).input_var = p
-        type(layer.input_layers[1].input_layer).input_var = p
-        inputs = {layer: theano.tensor.matrix()}
-        assert get_output(layer, inputs) is inputs[layer]
-        assert layer.get_output_for.call_count == 0
-        assert layer.input_layers[0].get_output_for.call_count == 0
-        assert layer.input_layers[1].get_output_for.call_count == 0
+        type(l1[0]).input_var = p
+        type(l1[1]).input_var = p
+        inputs = {l3: theano.tensor.matrix()}
+        # expected: inputs[l3]
+        assert get_output(l3, inputs) is inputs[l3]
+        # l3.get_output_for, l2[*].get_output_for should not have been called
+        assert l3.get_output_for.call_count == 0
+        assert l2[0].get_output_for.call_count == 0
+        assert l2[1].get_output_for.call_count == 0
+        # l1[*].input_var should not have been accessed
         assert p.call_count == 0
 
-    def test_get_output_input_is_a_mapping_no_key(self, layer, get_output):
-        output = get_output(layer, {})
-        assert output is layer.get_output_for.return_value
+    def test_get_output_input_is_a_mapping_no_key(self, layers, get_output):
+        l1, l2, l3 = layers
+        output = get_output(l3, {})
+        # expected: l3.get_output_for([l2[0].get_output_for(l1[0].input_var),
+        #                              l2[1].get_output_for(l1[1].input_var)])
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with([
+            l2[0].get_output_for.return_value,
+            l2[1].get_output_for.return_value,
+            ])
+        l2[0].get_output_for.assert_called_with(
+            l1[0].input_var)
+        l2[1].get_output_for.assert_called_with(
+            l1[1].input_var)
 
-    def test_get_output_input_is_a_mapping_to_array(self, layer, get_output):
+    def test_get_output_input_is_a_mapping_to_array(self, layers, get_output):
+        l1, l2, l3 = layers
         p = PropertyMock()
-        type(layer.input_layers[0].input_layer).input_var = p
-        type(layer.input_layers[1].input_layer).input_var = p
-        inputs = {layer: [[1, 2, 3]]}
-        output = get_output(layer, inputs)
-        assert numpy.all(output.eval() == inputs[layer])
-        assert layer.get_output_for.call_count == 0
-        assert layer.input_layers[0].get_output_for.call_count == 0
-        assert layer.input_layers[1].get_output_for.call_count == 0
+        type(l1[0]).input_var = p
+        type(l1[1]).input_var = p
+        inputs = {l3: [[1, 2, 3]]}
+        output = get_output(l3, inputs)
+        # expected: inputs[l3]
+        assert numpy.all(output.eval() == inputs[l3])
+        # l3.get_output_for, l2[*].get_output_for should not have been called
+        assert l3.get_output_for.call_count == 0
+        assert l2[0].get_output_for.call_count == 0
+        assert l2[1].get_output_for.call_count == 0
+        # l1[*].input_var should not have been accessed
         assert p.call_count == 0
 
-    def test_get_output_input_is_a_mapping_for_layer(self, layer, get_output):
+    def test_get_output_input_is_a_mapping_for_layer(self, layers, get_output):
+        l1, l2, l3 = layers
         p = PropertyMock()
-        type(layer.input_layers[0].input_layer).input_var = p
+        type(l1[0]).input_var = p
         input_expr, kwarg = theano.tensor.matrix(), object()
-        inputs = {layer.input_layers[0]: input_expr}
-        output = get_output(layer, inputs, kwarg=kwarg)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with([
+        inputs = {l2[0]: input_expr}
+        output = get_output(l3, inputs, kwarg=kwarg)
+        # expected: l3.get_output_for([input_expr,
+        #                              l2[1].get_output_for(l1[1].input_var,
+        #                                                   kwarg=kwarg)],
+        #                              kwarg=kwarg)
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with([
             input_expr,
-            layer.input_layers[1].get_output_for.return_value,
+            l2[1].get_output_for.return_value,
             ], kwarg=kwarg)
-        assert layer.input_layers[0].get_output_for.call_count == 0
-        layer.input_layers[1].get_output_for.assert_called_with(
-            layer.input_layers[1].input_layer.input_var, kwarg=kwarg)
+        l2[1].get_output_for.assert_called_with(
+            l1[1].input_var, kwarg=kwarg)
+        # l2[0].get_output_for should not have been called
+        assert l2[0].get_output_for.call_count == 0
+        # l1[0].input_var should not have been accessed
         assert p.call_count == 0
 
-    def test_get_output_input_is_a_mapping_for_input_layer(self, layer,
+    def test_get_output_input_is_a_mapping_for_input_layer(self, layers,
                                                            get_output):
+        l1, l2, l3 = layers
         input_expr, kwarg = theano.tensor.matrix(), object()
-        inputs = {layer.input_layers[0].input_layer: input_expr}
-        output = get_output(layer, inputs, kwarg=kwarg)
-        assert output is layer.get_output_for.return_value
-        layer.get_output_for.assert_called_with([
-            layer.input_layers[0].get_output_for.return_value,
-            layer.input_layers[1].get_output_for.return_value,
+        inputs = {l1[0]: input_expr}
+        output = get_output(l3, inputs, kwarg=kwarg)
+        # expected: l3.get_output_for([l2[0].get_output_for(input_expr,
+        #                                                   kwarg=kwarg),
+        #                              l2[1].get_output_for(l1[1].input_var,
+        #                                                   kwarg=kwarg)],
+        #                              kwarg=kwarg)
+        assert output is l3.get_output_for.return_value
+        l3.get_output_for.assert_called_with([
+            l2[0].get_output_for.return_value,
+            l2[1].get_output_for.return_value,
             ], kwarg=kwarg)
-        layer.input_layers[0].get_output_for.assert_called_with(
+        l2[0].get_output_for.assert_called_with(
             input_expr, kwarg=kwarg)
-        layer.input_layers[1].get_output_for.assert_called_with(
-            layer.input_layers[1].input_layer.input_var, kwarg=kwarg)
+        l2[1].get_output_for.assert_called_with(
+            l1[1].input_var, kwarg=kwarg)
+        # l1[0].input_var was accessed in the beginning of get_output(),
+        # so here we cannot assert it was not.
 
     @pytest.fixture
     def layer_from_shape(self):

@@ -1,4 +1,3 @@
-import numpy as np
 import theano.tensor as T
 
 from .base import Layer
@@ -15,81 +14,119 @@ __all__ = [
 ]
 
 
-def pool_output_length(input_length, pool_length, ignore_border=True):
+def pool_output_length(input_length, ds, stride, ignore_border=True, pad=0):
     '''Compute the output length of a pooling operator
-    along a particular dimension.
+    along a single dimension.
 
     Parameters
     ----------
     input_length
-    pool_length
-        Shape of the input and pooling operator in the chosen dimension
+    ds
+    stride
+    pad
+        Length of the input and parameters of the pooling operator.
 
     ignore_border:
         if True, the output length is rounded down.
-        if False, it is rounded up
+        if False, it is rounded up.
+        must be True if pad is nonzero.
 
     Returns
     -------
     output_length
         * None if either input is None
-        * `input_length / pool_length` otherwise
+        * Computed length of the pooling operator otherwise
     '''
 
-    if input_length is None or pool_length is None:
+    if input_length is None or ds is None:
         return None
 
     if ignore_border:
-        # Round shape down when we ignore the border
-        return input_length // pool_length
+        output_length = input_length + 2 * pad - ds + 1
+        output_length = (output_length + stride - 1) // stride
 
-    # Otherwise, round the shape up
-    return int(np.ceil(float(input_length) / pool_length))
+    # output length calculation taken from:
+    # https://github.com/Theano/Theano/blob/master/theano/tensor/signal/downsample.py
+    else:
+        if stride >= ds:
+            output_length = (input_length + stride - 1) // stride
+        else:
+            output_length = max(
+                0, (input_length - ds + stride - 1) // stride) + 1
+
+    return output_length
 
 
 class MaxPool1DLayer(Layer):
-    def __init__(self, incoming, ds, ignore_border=False, **kwargs):
+
+    def __init__(self, incoming, ds, stride=None,
+                 ignore_border=False, pad=0, **kwargs):
         super(MaxPool1DLayer, self).__init__(incoming, **kwargs)
         self.ds = ds  # an integer
+        self.stride = ds if stride is None else stride
+        self.pad = pad
         self.ignore_border = ignore_border
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
 
         output_shape[2] = pool_output_length(input_shape[2],
-                                             self.ds,
-                                             ignore_border=self.ignore_border)
+                                             ds=self.ds,
+                                             stride=self.stride,
+                                             ignore_border=self.ignore_border,
+                                             pad=self.pad,
+                                             )
 
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
         input_4d = T.shape_padright(input, 1)
-        pooled = downsample.max_pool_2d(input_4d, (self.ds, 1),
-                                        self.ignore_border)
+        pooled = downsample.max_pool_2d(input_4d,
+                                        ds=(self.ds, 1),
+                                        st=(self.stride, 1),
+                                        ignore_border=self.ignore_border,
+                                        padding=(self.pad, 0),
+                                        )
         return pooled[:, :, :, 0]
 
 
 class MaxPool2DLayer(Layer):
-    def __init__(self, incoming, ds, ignore_border=False, **kwargs):
+
+    def __init__(self, incoming, ds, stride=None,
+                 ignore_border=False, pad=(0, 0), **kwargs):
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
-        self.ds = ds  # a tuple
+        self.ds = ds
+        self.stride = ds if stride is None else stride
+        self.pad = pad
         self.ignore_border = ignore_border
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
 
         output_shape[2] = pool_output_length(input_shape[2],
-                                             self.ds[0],
-                                             ignore_border=self.ignore_border)
+                                             ds=self.ds[0],
+                                             stride=self.stride[0],
+                                             ignore_border=self.ignore_border,
+                                             pad=self.pad[0],
+                                             )
 
         output_shape[3] = pool_output_length(input_shape[3],
-                                             self.ds[1],
-                                             ignore_border=self.ignore_border)
+                                             ds=self.ds[1],
+                                             stride=self.stride[1],
+                                             ignore_border=self.ignore_border,
+                                             pad=self.pad[1],
+                                             )
 
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
-        return downsample.max_pool_2d(input, self.ds, self.ignore_border)
+        pooled = downsample.max_pool_2d(input,
+                                        ds=self.ds,
+                                        st=self.stride,
+                                        ignore_border=self.ignore_border,
+                                        padding=self.pad,
+                                        )
+        return pooled
 
 
 # TODO: add reshape-based implementation to MaxPool*DLayer

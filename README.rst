@@ -1,8 +1,8 @@
 .. image:: http://img.shields.io/badge/docs-latest-brightgreen.svg
     :target: http://lasagne.readthedocs.org/en/latest/
 
-.. image:: https://travis-ci.org/benanne/Lasagne.svg?branch=master
-    :target: https://travis-ci.org/benanne/Lasagne
+.. image:: https://travis-ci.org/Lasagne/Lasagne.svg?branch=master
+    :target: https://travis-ci.org/Lasagne/Lasagne
 
 Lasagne
 =======

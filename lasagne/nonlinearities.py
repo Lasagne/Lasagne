@@ -12,7 +12,7 @@ def sigmoid(x):
     Parameters
     ----------
     x : float32
-        The activation (the summed, weigthed input of a neuron).
+        The activation (the summed, weighted input of a neuron).
 
     Returns
     -------
@@ -33,7 +33,7 @@ def softmax(x):
     Parameters
     ----------
     x : float32
-        The activation (the summed, weigthed input of a neuron).
+        The activation (the summed, weighted input of a neuron).
 
     Returns
     -------
@@ -50,7 +50,7 @@ def tanh(x):
     Parameters
     ----------
     x : float32
-        The activation (the summed, weigthed input of a neuron).
+        The activation (the summed, weighted input of a neuron).
 
     Returns
     -------
@@ -67,7 +67,7 @@ def rectify(x):
     Parameters
     ----------
     x : float32
-        The activation (the summed, weigthed input of a neuron).
+        The activation (the summed, weighted input of a neuron).
 
     Returns
     -------
@@ -132,7 +132,7 @@ def linear(x):
     Parameters
     ----------
     x : float32
-        The activation (the summed, weigthed input of a neuron).
+        The activation (the summed, weighted input of a neuron).
 
     Returns
     -------

@@ -95,7 +95,7 @@ class LeakyRectify(object):
     Methods
     -------
     __call__(x)
-        Calculate the neurons output by applying this leaky rectifier to the
+        Calculate the neuron's output by applying this leaky rectifier to the
         activation `x`.
 
     References

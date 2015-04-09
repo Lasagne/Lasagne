@@ -88,7 +88,7 @@ def linear(x):
     Returns
     -------
     float32
-        The output of the rectify function applied to the activation.
+        The output of the identity applied to the activation.
     """
     return x
 

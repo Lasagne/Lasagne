@@ -2,14 +2,62 @@
 Non-linear activation functions for artificial neurons.
 """
 
+import theano.tensor.nnet
+
+
 # sigmoid
-from theano.tensor.nnet import sigmoid
+def sigmoid(x):
+    """Sigmoid activation function :math:`\\varphi(x) = \\frac{1}{1 + e^{-x}}`
+
+    Parameters
+    ----------
+    x : float32
+        The activation (the summed, weigthed input of a neuron).
+
+    Returns
+    -------
+    float32 in [0, 1]
+        The output of the sigmoid function applied to the activation.
+    """
+    return theano.tensor.nnet.sigmoid(x)
+
 
 # softmax (row-wise)
-from theano.tensor.nnet import softmax
+def softmax(x):
+    """Softmax activation function
+    :math:`\\varphi(\\mathbf{x})_j =
+    \\frac{e^{\mathbf{x}_j}}{\sum_{k=1}^K e^{\mathbf{x}_k}}`
+    where :math:`K` is the total number of neurons in the layer. This
+    activation function gets applied row-wise.
+
+    Parameters
+    ----------
+    x : float32
+        The activation (the summed, weigthed input of a neuron).
+
+    Returns
+    -------
+    float32 where the sum of the row is 1 and each single value is in [0, 1]
+        The output of the sigmoid function applied to the activation.
+    """
+    return theano.tensor.nnet.softmax(x)
+
 
 # tanh
-from theano.tensor import tanh
+def tanh(x):
+    """Tanh activation function :math:`\\varphi(x) = \\tanh(x)`
+
+    Parameters
+    ----------
+    x : float32
+        The activation (the summed, weigthed input of a neuron).
+
+    Returns
+    -------
+    float32 in [-1, 1]
+        The output of the sigmoid function applied to the activation.
+    """
+    return theano.tensor.tanh(x)
 
 
 # rectify
@@ -35,7 +83,8 @@ def rectify(x):
 
 # leaky rectify
 class LeakyRectify(object):
-    """Implementation of a leaky rectifier.
+    """Implementation of a leaky rectifier
+    :math:`\\varphi(x) = \max(leakiness \cdot x, x)`.
 
     Parameters
     ----------

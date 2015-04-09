@@ -16,7 +16,10 @@
 Detailed description
 --------------------
 
-.. autofunction:: linear
+.. autofunction:: sigmoid
+.. autofunction:: softmax
+.. autofunction:: tanh
 .. autofunction:: rectify
 .. autoclass:: LeakyRectify
    :members:
+.. autofunction:: linear

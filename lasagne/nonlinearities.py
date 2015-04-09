@@ -38,7 +38,7 @@ def softmax(x):
     Returns
     -------
     float32 where the sum of the row is 1 and each single value is in [0, 1]
-        The output of the sigmoid function applied to the activation.
+        The output of the softmax function applied to the activation.
     """
     return theano.tensor.nnet.softmax(x)
 
@@ -55,7 +55,7 @@ def tanh(x):
     Returns
     -------
     float32 in [-1, 1]
-        The output of the sigmoid function applied to the activation.
+        The output of the tanh function applied to the activation.
     """
     return theano.tensor.tanh(x)
 

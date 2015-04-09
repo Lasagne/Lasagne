@@ -1,6 +1,6 @@
 import theano.tensor as T
 
-from .base import MultipleInputsLayer
+from .base import MergeLayer
 
 
 __all__ = [
@@ -10,7 +10,7 @@ __all__ = [
 ]
 
 
-class ConcatLayer(MultipleInputsLayer):
+class ConcatLayer(MergeLayer):
     def __init__(self, incomings, axis=1, **kwargs):
         super(ConcatLayer, self).__init__(incomings, **kwargs)
         self.axis = axis
@@ -27,7 +27,7 @@ class ConcatLayer(MultipleInputsLayer):
 concat = ConcatLayer  # shortcut
 
 
-class ElemwiseSumLayer(MultipleInputsLayer):
+class ElemwiseSumLayer(MergeLayer):
     """
     This layer performs an elementwise sum of its input layers.
     It requires all input layers to have the same output shape.

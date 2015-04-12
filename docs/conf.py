@@ -31,10 +31,15 @@ import sphinx_bootstrap_theme
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'numpydoc'
 ]
+
+# see http://stackoverflow.com/q/12206334/562769
+numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

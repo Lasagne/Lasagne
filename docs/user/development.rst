@@ -62,10 +62,18 @@ On Debian derivates it can be installed with
 .. code:: bash
 
     $ sudo apt-get install python-sphinx
+    $ sudo -H pip install numpydoc
 
 Sphinx makes use of `reStructured Text <http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html>`_
 
+You should also `install pylearn2 <http://deeplearning.net/software/pylearn2/#download-and-installation>`_
+to prevent warnings while generating the documentation.
+
 The documentation can be built with ``make html``.
+
+The documentation is written in numpydoc syntax. Information about numpydoc
+can be found at the `numpydoc repository <https://github.com/numpy/numpydoc>`_,
+especially `A Guide to NumPy/SciPy Documentation <https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt>`_.
 
 
 

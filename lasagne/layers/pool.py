@@ -31,6 +31,7 @@ def pool_output_length(input_length, ds, st, ignore_border=True, pad=0):
         The number of elements to be added to the input on each side.
     ignore_border: bool
         If True, partial pooling regions will be ignored.
+        Must be True if pad != 0.
 
     Returns
     -------
@@ -40,13 +41,12 @@ def pool_output_length(input_length, ds, st, ignore_border=True, pad=0):
 
     Notes
     -----
-    When ignore_border = True, this is given by the number of full
+    When `ignore_border == True`, this is given by the number of full
     pooling regions that fit in the padded input length,
     divided by the stride (rounding down).
 
-    When ignore_border = False, partial pooling regions are also
-    allowed, as long as each pooling region contains at least one element
-    not present in another pooling region.
+    If `ignore_border == False`, a single partial pooling region is
+    appended if at least one input element would be left uncovered otherwise.
     """
     if input_length is None or ds is None:
         return None
@@ -58,6 +58,8 @@ def pool_output_length(input_length, ds, st, ignore_border=True, pad=0):
     # output length calculation taken from:
     # https://github.com/Theano/Theano/blob/master/theano/tensor/signal/downsample.py
     else:
+        assert pad == 0
+
         if st >= ds:
             output_length = (input_length + st - 1) // st
         else:

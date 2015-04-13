@@ -14,76 +14,115 @@ __all__ = [
 ]
 
 
-def pool_output_length(input_length, ds, stride, ignore_border=True, pad=0):
-    '''Compute the output length of a pooling operator
+def pool_output_length(input_length, ds, st, ignore_border=True, pad=0):
+    """
+    Compute the output length of a pooling operator
     along a single dimension.
 
     Parameters
     ----------
-    input_length
-    ds
-    stride
-    pad
-        Length of the input and parameters of the pooling operator.
-
-    ignore_border:
-        if True, the output length is rounded down.
-        if False, it is rounded up.
-        must be True if pad is nonzero.
+    input_length : integer
+        The length of the input in the pooling dimension
+    ds : integer
+        The length of the pooling region
+    st : integer
+        The stride between successive pooling regions
+    pad : integer
+        The number of elements to be added to the input on each side.
+    ignore_border: bool
+        If True, partial pooling regions will be ignored.
 
     Returns
     -------
     output_length
-        * None if either input is None
-        * Computed length of the pooling operator otherwise
-    '''
+        * None if either input is None.
+        * Computed length of the pooling operator otherwise.
 
+    Notes
+    -----
+    When ignore_border = True, this is given by the number of full
+    pooling regions that fit in the padded input length,
+    divided by the stride (rounding down).
+
+    When ignore_border = False, partial pooling regions are also
+    allowed, as long as each pooling region contains at least one element
+    not present in another pooling region.
+    """
     if input_length is None or ds is None:
         return None
 
     if ignore_border:
         output_length = input_length + 2 * pad - ds + 1
-        output_length = (output_length + stride - 1) // stride
+        output_length = (output_length + st - 1) // st
 
     # output length calculation taken from:
     # https://github.com/Theano/Theano/blob/master/theano/tensor/signal/downsample.py
     else:
-        if stride >= ds:
-            output_length = (input_length + stride - 1) // stride
+        if st >= ds:
+            output_length = (input_length + st - 1) // st
         else:
             output_length = max(
-                0, (input_length - ds + stride - 1) // stride) + 1
+                0, (input_length - ds + st - 1) // st) + 1
 
     return output_length
 
 
 class MaxPool1DLayer(Layer):
+    """
+    This layer performs max pooling over the final dimension
+    of a 3D tensor.
+    """
+    def __init__(self, incoming, ds, st=None, pad=0, ignore_border=False,
+                 **kwargs):
+        """
+        Instantiates the layer.
 
-    def __init__(self, incoming, ds, stride=None,
-                 ignore_border=False, pad=0, **kwargs):
+        Parameters
+        ----------
+        incoming : a :class:`Layer` instance or tuple
+            The layer feeding into this layer, or the expected input shape.
+        ds : integer
+            The length of the pooling region
+        st : integer or None
+            The stride between sucessive pooling regions.
+            If None, st = ds.
+        pad : integer
+            The number of elements to be added to the input on each side.
+            Must be less than st.
+        ignore_border : bool
+            If True, partial pooling regions will be ignored.
+            Must be True if pad != 0.
+
+        Notes
+        -----
+        The value used to pad the input is chosen to be less than
+        the minimum of the input, so that the output of each pooling region
+        always corresponds to some element in the unpadded input region.
+        """
         super(MaxPool1DLayer, self).__init__(incoming, **kwargs)
         self.ds = ds  # an integer
-        self.stride = ds if stride is None else stride
+        self.st = ds if st is None else st
         self.pad = pad
         self.ignore_border = ignore_border
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
 
-        output_shape[2] = pool_output_length(input_shape[2],
-                                             ds=self.ds,
-                                             stride=self.stride,
-                                             ignore_border=self.ignore_border,
-                                             pad=self.pad,
-                                             )
+        output_shape[-1] = pool_output_length(input_shape[-1],
+                                              ds=self.ds,
+                                              st=self.st,
+                                              ignore_border=self.ignore_border,
+                                              pad=self.pad,
+                                              )
 
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
         input_4d = T.shape_padright(input, 1)
+
         pooled = downsample.max_pool_2d(input_4d,
                                         ds=(self.ds, 1),
-                                        st=(self.stride, 1),
+                                        st=(self.st, 1),
                                         ignore_border=self.ignore_border,
                                         padding=(self.pad, 0),
                                         )
@@ -91,12 +130,41 @@ class MaxPool1DLayer(Layer):
 
 
 class MaxPool2DLayer(Layer):
-
-    def __init__(self, incoming, ds, stride=None,
+    """
+    This layer performs max pooling over the last two dimensions
+    of a 4D tensor.
+    """
+    def __init__(self, incoming, ds, st=None,
                  ignore_border=False, pad=(0, 0), **kwargs):
+        """
+        Instantiates the layer.
+
+        Parameters
+        ----------
+        incoming : a :class:`Layer` instance or tuple
+            The layer feeding into this layer, or the expected input shape.
+        ds : tuple of integers
+            The length of the pooling region in each dimension
+        st : tuple of integers or None
+            The strides between sucessive pooling regions in each dimension.
+            If None, st = ds.
+        pad : tuple of integers
+            Number of elements to be added on each side of the input
+            in each dimension. Each value must be less than
+            the corresponding stride.
+        ignore_border : bool
+            If True, partial pooling regions will be ignored.
+            Must be True if pad != (0, 0).
+
+        Notes
+        -----
+        The value used to pad the input is chosen to be less than
+        the minimum of the input, so that the output of each pooling region
+        always corresponds to some element in the unpadded input region.
+        """
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
         self.ds = ds
-        self.stride = ds if stride is None else stride
+        self.st = ds if st is None else st
         self.pad = pad
         self.ignore_border = ignore_border
 
@@ -105,14 +173,14 @@ class MaxPool2DLayer(Layer):
 
         output_shape[2] = pool_output_length(input_shape[2],
                                              ds=self.ds[0],
-                                             stride=self.stride[0],
+                                             st=self.st[0],
                                              ignore_border=self.ignore_border,
                                              pad=self.pad[0],
                                              )
 
         output_shape[3] = pool_output_length(input_shape[3],
                                              ds=self.ds[1],
-                                             stride=self.stride[1],
+                                             st=self.st[1],
                                              ignore_border=self.ignore_border,
                                              pad=self.pad[1],
                                              )
@@ -122,7 +190,7 @@ class MaxPool2DLayer(Layer):
     def get_output_for(self, input, **kwargs):
         pooled = downsample.max_pool_2d(input,
                                         ds=self.ds,
-                                        st=self.stride,
+                                        st=self.st,
                                         ignore_border=self.ignore_border,
                                         padding=self.pad,
                                         )
@@ -134,11 +202,13 @@ class MaxPool2DLayer(Layer):
 
 
 class FeaturePoolLayer(Layer):
+
     """
     Pooling across feature maps. This can be used to implement maxout.
     IMPORTANT: this layer requires that the number of feature maps is
     a multiple of the pool size.
     """
+
     def __init__(self, incoming, ds, axis=1, pool_function=T.max, **kwargs):
         """
         ds: the number of feature maps to be pooled together
@@ -179,12 +249,14 @@ class FeaturePoolLayer(Layer):
 
 
 class FeatureWTALayer(Layer):
+
     """
     Perform 'Winner Take All' across feature maps: zero out all but
     the maximal activation value within a group of features.
     IMPORTANT: this layer requires that the number of feature maps is
     a multiple of the pool size.
     """
+
     def __init__(self, incoming, ds, axis=1, **kwargs):
         """
         ds: the number of feature maps per group. This is called 'ds'
@@ -230,9 +302,11 @@ class FeatureWTALayer(Layer):
 
 
 class GlobalPoolLayer(Layer):
+
     """
     Layer that pools globally across all trailing dimensions beyond the 2nd.
     """
+
     def __init__(self, incoming, pool_function=T.mean, **kwargs):
         super(GlobalPoolLayer, self).__init__(incoming, **kwargs)
         self.pool_function = pool_function

@@ -143,12 +143,12 @@ class MaxPool2DLayer(Layer):
         ----------
         incoming : a :class:`Layer` instance or tuple
             The layer feeding into this layer, or the expected input shape.
-        ds : tuple of integers
+        ds : integer or iterable
             The length of the pooling region in each dimension
-        st : tuple of integers or None
+        st : integer, iterable or None
             The strides between sucessive pooling regions in each dimension.
             If None, st = ds.
-        pad : tuple of integers
+        pad : integer or iterable
             Number of elements to be added on each side of the input
             in each dimension. Each value must be less than
             the corresponding stride.
@@ -163,9 +163,34 @@ class MaxPool2DLayer(Layer):
         always corresponds to some element in the unpadded input region.
         """
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
-        self.ds = ds
-        self.st = ds if st is None else st
-        self.pad = pad
+
+        if (isinstance(ds, int)):
+            self.ds = (ds, ds)
+        else:
+            ds = tuple(ds)
+            if len(ds) != 2:
+                raise ValueError('ds must have len == 2')
+            self.ds = ds
+
+        if st is None:
+            self.st = self.ds
+        else:
+            if (isinstance(st, int)):
+                self.st = (st, st)
+            else:
+                st = tuple(st)
+                if len(st) != 2:
+                    raise ValueError('st must have len == 2')
+                self.st = st
+
+        if (isinstance(pad, int)):
+            self.pad = (pad, pad)
+        else:
+            pad = tuple(pad)
+            if len(pad) != 2:
+                raise ValueError('pad must have len == 2')
+            self.pad = pad
+
         self.ignore_border = ignore_border
 
     def get_output_shape_for(self, input_shape):

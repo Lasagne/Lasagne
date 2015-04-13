@@ -2,19 +2,18 @@ from mock import Mock
 import numpy as np
 import pytest
 import theano
-from sets import Set
 
 
 def max_pool_1d(data, ds, st=None):
     st = ds if st is None else st
 
     idx = range(data.shape[-1])
-    used_idx = Set([])
+    used_idx = set([])
     idx_sets = []
 
     i = 0
     while i < data.shape[-1]:
-        idx_set = Set(range(i, i + ds))
+        idx_set = set(range(i, i + ds))
         idx_set = idx_set.intersection(idx)
         if not idx_set.issubset(used_idx):
             idx_sets.append(list(idx_set))
@@ -188,15 +187,15 @@ class TestMaxPool2DLayer:
         input = np.random.randn(8, 16, 17, 13)
         input_layer = self.input_layer(input.shape)
         input_theano = theano.shared(input)
+
         result = self.layer_ignoreborder(
             input_layer,
-            (ds, ds),
-            (st, st),
-            (pad, pad),
+            ds,
+            st,
+            pad,
         ).get_output_for(input_theano)
 
         result_eval = result.eval()
-
         numpy_result = max_pool_2d_ignoreborder(
             input, (ds, ds), (st, st), (pad, pad))
 

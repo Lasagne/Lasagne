@@ -9,4 +9,5 @@ def dummy_input_layer():
     mock = Mock(input_layer)
     mock.shape = input_layer.shape
     mock.input_var = input_layer.input_var
+    mock.output_shape = input_layer.output_shape
     return mock

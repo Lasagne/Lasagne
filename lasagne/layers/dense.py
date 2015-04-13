@@ -175,9 +175,8 @@ class NINLayer(Layer):
         if b is None:
             self.b = None
         elif self.untie_biases:
-            output_shape = self.get_output_shape_for(self.input_shape)
-            self.b = self.create_param(b, (num_units,) + output_shape[2:],
-                                       name="b")
+            self.b = self.create_param(b, (num_units,) +
+                                       self.output_shape[2:], name="b")
         else:
             self.b = self.create_param(b, (num_units,), name="b")
 

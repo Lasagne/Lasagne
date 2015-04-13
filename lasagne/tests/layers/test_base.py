@@ -85,4 +85,4 @@ class TestMultipleInputsLayer:
         assert layer.input_layers[0] is None
         assert layer.input_shapes[0] == (None, 20)
         assert layer.input_layers[1] is not None
-        assert (layer.input_shapes[1] == layer.input_layers[1].shape)
+        assert (layer.input_shapes[1] == layer.input_layers[1].output_shape)

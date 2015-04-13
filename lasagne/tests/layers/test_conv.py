@@ -6,7 +6,6 @@ import theano
 from theano.tensor.nnet import conv2d
 
 from lasagne.utils import floatX
-from lasagne.layers.helper import get_output_shape
 
 
 def conv2d_test_sets():
@@ -159,7 +158,7 @@ class TestConv2DLayerImplementations:
             )
             actual = layer.get_output_for(input).eval()
             assert actual.shape == output.shape
-            assert actual.shape == get_output_shape(layer)
+            assert actual.shape == layer.output_shape
             assert np.allclose(actual, output)
 
         except NotImplementedError:
@@ -181,10 +180,10 @@ class TestConv2DLayerImplementations:
             )
             actual = layer.get_output_for(input).eval()
 
-            assert get_output_shape(layer) == (None,
-                                               kernel.shape[0],
-                                               None,
-                                               None)
+            assert layer.output_shape == (None,
+                                          kernel.shape[0],
+                                          None,
+                                          None)
             assert actual.shape == output.shape
             assert np.allclose(actual, output)
 

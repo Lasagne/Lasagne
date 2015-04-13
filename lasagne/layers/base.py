@@ -36,10 +36,13 @@ class Layer(object):
             self.input_shape = incoming
             self.input_layer = None
         else:
-            from .helper import get_output_shape
-            self.input_shape = get_output_shape(incoming)
+            self.input_shape = incoming.output_shape
             self.input_layer = incoming
         self.name = name
+
+    @property
+    def output_shape(self):
+        return self.get_output_shape_for(self.input_shape)
 
     def get_params(self):
         """
@@ -78,14 +81,13 @@ class Layer(object):
 
     def get_output_shape(self):
         """
-        Deprecated. Use `lasagne.layers.get_output_shape(layer)`.
+        Deprecated. Use `layer.output_shape`.
         """
         import warnings
         warnings.warn("layer.get_output_shape() is deprecated and will be "
                       "removed for the first release of Lasagne. Please use "
-                      "lasagne.layers.get_output_shape(layer) instead.")
-        from .helper import get_output_shape
-        return get_output_shape(self)
+                      "layer.output_shape instead.")
+        return self.output_shape
 
     def get_output(self, input=None, **kwargs):
         """
@@ -231,14 +233,17 @@ class MultipleInputsLayer(Layer):
             - name : a string or None
                 an optional name to attach to this layer
         """
-        from .helper import get_output_shape
         self.input_shapes = [incoming if isinstance(incoming, tuple)
-                             else get_output_shape(incoming)
+                             else incoming.output_shape
                              for incoming in incomings]
         self.input_layers = [None if isinstance(incoming, tuple)
                              else incoming
                              for incoming in incomings]
         self.name = name
+
+    @Layer.output_shape.getter
+    def output_shape(self):
+        return self.get_output_shape_for(self.input_shapes)
 
     def get_output_shape_for(self, input_shapes):
         """

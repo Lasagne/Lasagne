@@ -240,18 +240,10 @@ def get_output_shape(layer_or_layers):
     from .input import InputLayer
     from .base import MultipleInputsLayer
 
-    def default_shape(layer):
-        if isinstance(layer, InputLayer):
-            return layer.shape
-        elif isinstance(layer, MultipleInputsLayer):
-            return layer.get_output_shape_for(layer.input_shapes)
-        else:
-            return layer.get_output_shape_for(layer.input_shape)
-
     try:
-        return [default_shape(layer) for layer in layer_or_layers]
+        return [layer.output_shape for layer in layer_or_layers]
     except TypeError:
-        return default_shape(layer_or_layers)
+        return layer_or_layers.output_shape
 
 
 def get_all_params(layer):

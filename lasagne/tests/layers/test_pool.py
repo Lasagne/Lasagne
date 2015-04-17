@@ -1,6 +1,7 @@
 from mock import Mock
 import numpy as np
 import pytest
+import importlib
 import theano
 
 
@@ -140,80 +141,108 @@ class TestMaxPool1DLayer:
         assert layer.get_output_shape_for((32, 64, 128)) == (32, 64, 64)
 
 
-class TestMaxPool2DLayer:
+class TestMaxPool2DLayerImplementations:
+    @pytest.fixture(
+        params=[
+            ('lasagne.layers', 'MaxPool2DLayer', {}),
+            ('lasagne.layers.cuda_convnet', 'MaxPool2DCCLayer', {}),
+            ('lasagne.layers.dnn', 'MaxPool2DDNNLayer', {}),
+            ],
+        )
+    def MaxPool2DImpl(self, request):
+        impl_module_name, impl_name, impl_default_kwargs = request.param
+        try:
+            mod = importlib.import_module(impl_module_name)
+        except ImportError:
+            pytest.skip("{} not available".format(impl_module_name))
+
+        impl = getattr(mod, impl_name)
+
+        def wrapper(*args, **kwargs):
+            kwargs2 = impl_default_kwargs.copy()
+            kwargs2.update(kwargs)
+            return impl(*args, **kwargs2)
+
+        wrapper.__name__ = impl_name
+        return wrapper
 
     def input_layer(self, output_shape):
         return Mock(get_output_shape=lambda: output_shape)
 
-    def layer(self, input_layer, pool_size, stride=None):
-        from lasagne.layers.pool import MaxPool2DLayer
-        return MaxPool2DLayer(
-            input_layer,
-            pool_size=pool_size,
-            stride=stride,
-            ignore_border=False,
-        )
-
-    def layer_ignoreborder(self, input_layer, pool_size,
-                           stride=None, pad=(0, 0)):
-        from lasagne.layers.pool import MaxPool2DLayer
-        return MaxPool2DLayer(
+    def layer(self, MaxPool2DImpl, input_layer, pool_size, stride=None,
+              pad=(0, 0), ignore_border=False):
+        return MaxPool2DImpl(
             input_layer,
             pool_size=pool_size,
             stride=stride,
             pad=pad,
-            ignore_border=True,
+            ignore_border=ignore_border,
         )
 
     @pytest.mark.parametrize(
         "pool_size, stride", list(pool_test_sets()))
-    def test_get_output_for(self, pool_size, stride):
-        input = np.random.randn(8, 16, 17, 13)
-        input_layer = self.input_layer(input.shape)
-        input_theano = theano.shared(input)
-        result = self.layer(
-            input_layer,
-            (pool_size, pool_size),
-            (stride, stride),
-        ).get_output_for(input_theano)
+    def test_get_output_for(self, MaxPool2DImpl, pool_size, stride):
+        try:
+            input = np.random.randn(8, 16, 17, 13)
+            input_layer = self.input_layer(input.shape)
+            input_theano = theano.shared(input)
+            result = self.layer(
+                MaxPool2DImpl,
+                input_layer,
+                (pool_size, pool_size),
+                (stride, stride),
+                ignore_border=False,
+            ).get_output_for(input_theano)
 
-        result_eval = result.eval()
+            result_eval = result.eval()
 
-        numpy_result = max_pool_2d(
-            input, (pool_size, pool_size), (stride, stride))
+            numpy_result = max_pool_2d(
+                input, (pool_size, pool_size), (stride, stride))
 
-        assert np.all(numpy_result.shape == result_eval.shape)
-        assert np.allclose(result_eval, numpy_result)
+            assert np.all(numpy_result.shape == result_eval.shape)
+            assert np.allclose(result_eval, numpy_result)
+        except NotImplementedError:
+            pass
 
     @pytest.mark.parametrize(
         "pool_size, stride, pad", list(pool_test_sets_ignoreborder()))
-    def test_get_output_for_ignoreborder(self, pool_size, stride, pad):
-        input = np.random.randn(8, 16, 17, 13)
-        input_layer = self.input_layer(input.shape)
-        input_theano = theano.shared(input)
+    def test_get_output_for_ignoreborder(self, MaxPool2DImpl, pool_size,
+                                         stride, pad):
+        try:
+            input = np.random.randn(8, 16, 17, 13)
+            input_layer = self.input_layer(input.shape)
+            input_theano = theano.shared(input)
 
-        result = self.layer_ignoreborder(
-            input_layer,
-            pool_size,
-            stride,
-            pad,
-        ).get_output_for(input_theano)
+            result = self.layer(
+                MaxPool2DImpl,
+                input_layer,
+                pool_size,
+                stride,
+                pad,
+                ignore_border=True,
+            ).get_output_for(input_theano)
 
-        result_eval = result.eval()
-        numpy_result = max_pool_2d_ignoreborder(
-            input, (pool_size, pool_size), (stride, stride), (pad, pad))
+            result_eval = result.eval()
+            numpy_result = max_pool_2d_ignoreborder(
+                input, (pool_size, pool_size), (stride, stride), (pad, pad))
 
-        assert np.all(numpy_result.shape == result_eval.shape)
-        assert np.allclose(result_eval, numpy_result)
+            assert np.all(numpy_result.shape == result_eval.shape)
+            assert np.allclose(result_eval, numpy_result)
+        except NotImplementedError:
+            pass
 
     @pytest.mark.parametrize(
         "input_shape",
         [(32, 64, 24, 24), (None, 64, 24, 24), (32, None, 24, 24)],
     )
-    def test_get_output_shape_for(self, input_shape):
-        input_layer = self.input_layer(input_shape)
-        layer = self.layer_ignoreborder(input_layer, pool_size=(2, 2))
-        assert layer.get_output_shape_for(
-            (None, 64, 24, 24)) == (None, 64, 12, 12)
-        assert layer.get_output_shape_for(
-            (32, 64, 24, 24)) == (32, 64, 12, 12)
+    def test_get_output_shape_for(self, MaxPool2DImpl, input_shape):
+        try:
+            input_layer = self.input_layer(input_shape)
+            layer = self.layer(MaxPool2DImpl, input_layer,
+                               pool_size=(2, 2), stride=None)
+            assert layer.get_output_shape_for(
+                (None, 64, 24, 24)) == (None, 64, 12, 12)
+            assert layer.get_output_shape_for(
+                (32, 64, 24, 24)) == (32, 64, 12, 12)
+        except NotImplementedError:
+            pass

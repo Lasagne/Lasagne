@@ -206,6 +206,10 @@ class MaxPool2DCCLayer(CCLayer):
                  dimshuffle=True, **kwargs):
         from pylearn2.sandbox.cuda_convnet.pool import MaxPool
 
+        if 'pad' in kwargs:
+            raise NotImplementedError("MaxPool2DCCLayer does not "
+                                      "support padding")
+
         super(MaxPool2DCCLayer, self).__init__(incoming, **kwargs)
 
         pool_size = as_tuple(pool_size, 2)

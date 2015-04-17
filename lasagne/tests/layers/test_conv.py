@@ -28,7 +28,7 @@ def conv2d_test_sets():
                                 shift_y:input.shape[3] + shift_y]
             output = output[:, :, ::stride, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
-                                                   'strides': (stride, stride)
+                                                   'stride': (stride, stride)
                                                    })
 
             input = np.random.random((3, 3, 16, 23))
@@ -43,7 +43,7 @@ def conv2d_test_sets():
                                 shift_y:input.shape[3] + shift_y]
             output = output[:, :, ::stride, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
-                                                   'strides': (stride, stride)
+                                                   'stride': (stride, stride)
                                                    })
 
 

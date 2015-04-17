@@ -31,7 +31,7 @@ class MMLayer(Layer):
 
 
 class Conv2DMMLayer(MMLayer):
-    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
+    def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  pad=None, flip_filters=False, **kwargs):
@@ -43,7 +43,7 @@ class Conv2DMMLayer(MMLayer):
 
         self.num_filters = num_filters
         self.filter_size = filter_size
-        self.strides = strides
+        self.stride = stride
         self.untie_biases = untie_biases
         self.flip_filters = flip_filters
 
@@ -80,7 +80,7 @@ class Conv2DMMLayer(MMLayer):
         else:
             self.b = self.create_param(b, (num_filters,), name="b")
 
-        self.corr_mm_op = GpuCorrMM(subsample=self.strides, pad=self.pad)
+        self.corr_mm_op = GpuCorrMM(subsample=self.stride, pad=self.pad)
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
@@ -98,12 +98,12 @@ class Conv2DMMLayer(MMLayer):
 
         output_rows = conv_output_length(input_shape[2],
                                          self.filter_size[0],
-                                         self.strides[0],
+                                         self.stride[0],
                                          'pad', self.pad[0])
 
         output_columns = conv_output_length(input_shape[3],
                                             self.filter_size[1],
-                                            self.strides[1],
+                                            self.stride[1],
                                             'pad', self.pad[1])
 
         return (batch_size, self.num_filters, output_rows, output_columns)

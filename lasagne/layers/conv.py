@@ -13,18 +13,18 @@ __all__ = [
 ]
 
 
-def conv_output_length(input_length, filter_length,
+def conv_output_length(input_length, filter_size,
                        stride, border_mode, pad=0):
     if input_length is None:
         return None
     if border_mode == 'valid':
-        output_length = input_length - filter_length + 1
+        output_length = input_length - filter_size + 1
     elif border_mode == 'full':
-        output_length = input_length + filter_length - 1
+        output_length = input_length + filter_size - 1
     elif border_mode == 'same':
         output_length = input_length
     elif border_mode == 'pad':
-        output_length = input_length + 2 * pad - filter_length + 1
+        output_length = input_length + 2 * pad - filter_size + 1
     else:
         raise RuntimeError('Invalid border mode: {0}'.format(border_mode))
 
@@ -36,7 +36,7 @@ def conv_output_length(input_length, filter_length,
 
 
 class Conv1DLayer(Layer):
-    def __init__(self, incoming, num_filters, filter_length, stride=1,
+    def __init__(self, incoming, num_filters, filter_size, stride=1,
                  border_mode="valid", untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify,
@@ -48,7 +48,7 @@ class Conv1DLayer(Layer):
             self.nonlinearity = nonlinearity
 
         self.num_filters = num_filters
-        self.filter_length = filter_length
+        self.filter_size = filter_size
         self.stride = stride
         self.border_mode = border_mode
         self.untie_biases = untie_biases
@@ -66,7 +66,7 @@ class Conv1DLayer(Layer):
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
-        return (self.num_filters, num_input_channels, self.filter_length)
+        return (self.num_filters, num_input_channels, self.filter_size)
 
     def get_params(self):
         return [self.W] + self.get_bias_params()
@@ -76,7 +76,7 @@ class Conv1DLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         output_length = conv_output_length(input_shape[2],
-                                           self.filter_length,
+                                           self.filter_size,
                                            self.stride,
                                            self.border_mode)
 
@@ -105,7 +105,7 @@ class Conv1DLayer(Layer):
                                       image_shape=input_shape,
                                       filter_shape=filter_shape,
                                       border_mode='full')
-            shift = (self.filter_length - 1) // 2
+            shift = (self.filter_size - 1) // 2
             conved = conved[:, :, shift:input.shape[2] + shift]
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
@@ -121,7 +121,7 @@ class Conv1DLayer(Layer):
 
 
 class Conv2DLayer(Layer):
-    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
+    def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode="valid", untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify,
@@ -134,7 +134,7 @@ class Conv2DLayer(Layer):
 
         self.num_filters = num_filters
         self.filter_size = filter_size
-        self.strides = strides
+        self.stride = stride
         self.border_mode = border_mode
         self.untie_biases = untie_biases
         self.convolution = convolution
@@ -163,12 +163,12 @@ class Conv2DLayer(Layer):
     def get_output_shape_for(self, input_shape):
         output_rows = conv_output_length(input_shape[2],
                                          self.filter_size[0],
-                                         self.strides[0],
+                                         self.stride[0],
                                          self.border_mode)
 
         output_columns = conv_output_length(input_shape[3],
                                             self.filter_size[1],
-                                            self.strides[1],
+                                            self.stride[1],
                                             self.border_mode)
 
         return (input_shape[0], self.num_filters, output_rows, output_columns)
@@ -182,17 +182,17 @@ class Conv2DLayer(Layer):
         filter_shape = self.get_W_shape()
 
         if self.border_mode in ['valid', 'full']:
-            conved = self.convolution(input, self.W, subsample=self.strides,
+            conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
                                       filter_shape=filter_shape,
                                       border_mode=self.border_mode)
         elif self.border_mode == 'same':
-            if self.strides != (1, 1):
+            if self.stride != (1, 1):
                 raise NotImplementedError("Strided convolution with "
                                           "border_mode 'same' is not "
                                           "supported by this layer yet.")
 
-            conved = self.convolution(input, self.W, subsample=self.strides,
+            conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
                                       filter_shape=filter_shape,
                                       border_mode='full')

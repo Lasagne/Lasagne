@@ -24,30 +24,30 @@ class DNNLayer(Layer):
 
 
 class Pool2DDNNLayer(DNNLayer):
-    def __init__(self, incoming, ds, strides=None, mode='max', **kwargs):
+    def __init__(self, incoming, ds, stride=None, mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.ds = ds  # a tuple
         self.mode = mode
-        self.strides = strides if strides is not None else ds
+        self.stride = stride if stride is not None else ds
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
-        output_shape[2] = (output_shape[2] - self.ds[0]) // self.strides[0] + 1
-        output_shape[3] = (output_shape[3] - self.ds[1]) // self.strides[1] + 1
+        output_shape[2] = (output_shape[2] - self.ds[0]) // self.stride[0] + 1
+        output_shape[3] = (output_shape[3] - self.ds[1]) // self.stride[1] + 1
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
-        return dnn.dnn_pool(input, self.ds, self.strides, self.mode)
+        return dnn.dnn_pool(input, self.ds, self.stride, self.mode)
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
-    def __init__(self, incoming, ds, strides=None, **kwargs):
-        super(MaxPool2DDNNLayer, self).__init__(incoming, ds, strides,
+    def __init__(self, incoming, ds, stride=None, **kwargs):
+        super(MaxPool2DDNNLayer, self).__init__(incoming, ds, stride,
                                                 mode='max', **kwargs)
 
 
 class Conv2DDNNLayer(DNNLayer):
-    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
+    def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  pad=None, flip_filters=False, **kwargs):
@@ -59,9 +59,9 @@ class Conv2DDNNLayer(DNNLayer):
 
         self.num_filters = num_filters
         self.filter_size = filter_size
-        if isinstance(strides, int):
-            strides = (strides, strides)
-        self.strides = strides
+        if isinstance(stride, int):
+            stride = (stride, stride)
+        self.stride = stride
         self.untie_biases = untie_biases
         self.flip_filters = flip_filters
 
@@ -123,12 +123,12 @@ class Conv2DDNNLayer(DNNLayer):
 
         output_rows = conv_output_length(input_shape[2],
                                          self.filter_size[0],
-                                         self.strides[0],
+                                         self.stride[0],
                                          'pad', self.pad[0])
 
         output_columns = conv_output_length(input_shape[3],
                                             self.filter_size[1],
-                                            self.strides[1],
+                                            self.stride[1],
                                             'pad', self.pad[1])
 
         return (batch_size, self.num_filters, output_rows, output_columns)
@@ -143,7 +143,7 @@ class Conv2DDNNLayer(DNNLayer):
 
         conved = dnn.dnn_conv(img=input,
                               kerns=self.W,
-                              subsample=self.strides,
+                              subsample=self.stride,
                               border_mode=border_mode,
                               conv_mode=conv_mode
                               )

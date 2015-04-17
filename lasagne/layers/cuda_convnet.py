@@ -39,7 +39,7 @@ class CCLayer(Layer):
 
 
 class Conv2DCCLayer(CCLayer):
-    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
+    def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=None,
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  pad=None, dimshuffle=True, flip_filters=False, partial_sum=1,
@@ -54,9 +54,9 @@ class Conv2DCCLayer(CCLayer):
             raise RuntimeError("Conv2DCCLayer only supports square filters, "
                                "but filter_size=(%d, %d)" % filter_size)
 
-        if strides[0] != strides[1]:
+        if stride[0] != stride[1]:
             raise RuntimeError("Conv2DCCLayer only supports square strides, "
-                               "but strides=(%d, %d)" % strides)
+                               "but stride=(%d, %d)" % stride)
 
         if num_filters % 16 != 0:
             raise RuntimeError("Conv2DCCLayer requires num_filters to be a "
@@ -65,7 +65,7 @@ class Conv2DCCLayer(CCLayer):
 
         self.num_filters = num_filters
         self.filter_size = filter_size[0]
-        self.stride = strides[0]
+        self.stride = stride[0]
         self.untie_biases = untie_biases
         self.dimshuffle = dimshuffle
         self.flip_filters = flip_filters
@@ -198,7 +198,7 @@ class Conv2DCCLayer(CCLayer):
 
 
 class MaxPool2DCCLayer(CCLayer):
-    def __init__(self, incoming, ds, ignore_border=False, strides=None,
+    def __init__(self, incoming, ds, ignore_border=False, stride=None,
                  dimshuffle=True, **kwargs):
         from pylearn2.sandbox.cuda_convnet.pool import MaxPool
 
@@ -207,10 +207,10 @@ class MaxPool2DCCLayer(CCLayer):
             raise RuntimeError("MaxPool2DCCLayer only supports square pooling "
                                "regions, but ds=(%d, %d)" % ds)
 
-        if strides is not None and strides[0] != strides[1]:
+        if stride is not None and stride[0] != stride[1]:
             raise RuntimeError("MaxPool2DCCLayer only supports using the same "
                                "stride in both directions, but "
-                               "strides=(%d, %d)" % strides)
+                               "stride=(%d, %d)" % stride)
 
         # ignore_border argument is for compatibility with MaxPool2DLayer.
         # it is not supported. Borders are never ignored.
@@ -219,10 +219,10 @@ class MaxPool2DCCLayer(CCLayer):
                                "ignore_border.")
 
         self.ds = ds[0]
-        if strides is None:
+        if stride is None:
             self.stride = self.ds
         else:
-            self.stride = strides[0]
+            self.stride = stride[0]
         self.dimshuffle = dimshuffle
 
         self.pool_op = MaxPool(ds=self.ds, stride=self.stride)

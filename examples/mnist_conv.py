@@ -56,7 +56,7 @@ def build_model(input_width, input_height, output_dim,
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.GlorotUniform(),
         )
-    l_pool1 = lasagne.layers.MaxPool2DLayer(l_conv1, ds=(2, 2))
+    l_pool1 = lasagne.layers.MaxPool2DLayer(l_conv1, pool_size=(2, 2))
 
     l_conv2 = lasagne.layers.Conv2DLayer(
         l_pool1,
@@ -65,7 +65,7 @@ def build_model(input_width, input_height, output_dim,
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.GlorotUniform(),
         )
-    l_pool2 = lasagne.layers.MaxPool2DLayer(l_conv2, ds=(2, 2))
+    l_pool2 = lasagne.layers.MaxPool2DLayer(l_conv2, pool_size=(2, 2))
 
     l_hidden1 = lasagne.layers.DenseLayer(
         l_pool2,

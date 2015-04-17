@@ -26,6 +26,9 @@ class DNNLayer(Layer):
 class Pool2DDNNLayer(DNNLayer):
 
     def __init__(self, incoming, pool_size, stride=None, mode='max', **kwargs):
+        if 'pad' in kwargs:
+            raise NotImplementedError("Pool2DDNNLayer does not "
+                                      "support padding")
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.pool_size = as_tuple(pool_size, 2)
         self.mode = mode

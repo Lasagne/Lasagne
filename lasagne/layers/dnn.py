@@ -3,10 +3,10 @@ from theano.sandbox.cuda import dnn
 
 from .. import init
 from .. import nonlinearities
-
 from .base import Layer
 
 from .conv import conv_output_length
+from ..utils import as_tuple
 
 if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
     raise ImportError("dnn not available")
@@ -24,29 +24,34 @@ class DNNLayer(Layer):
 
 
 class Pool2DDNNLayer(DNNLayer):
-    def __init__(self, incoming, ds, stride=None, mode='max', **kwargs):
+
+    def __init__(self, incoming, pool_size, stride=None, mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
-        self.ds = ds  # a tuple
+        self.pool_size = as_tuple(pool_size, 2)
         self.mode = mode
-        self.stride = stride if stride is not None else ds
+        self.stride = as_tuple(stride, 2) if stride is not None else pool_size
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
-        output_shape[2] = (output_shape[2] - self.ds[0]) // self.stride[0] + 1
-        output_shape[3] = (output_shape[3] - self.ds[1]) // self.stride[1] + 1
+        output_shape[2] = (
+            output_shape[2] - self.pool_size[0]) // self.stride[0] + 1
+        output_shape[3] = (
+            output_shape[3] - self.pool_size[1]) // self.stride[1] + 1
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
-        return dnn.dnn_pool(input, self.ds, self.stride, self.mode)
+        return dnn.dnn_pool(input, self.pool_size, self.stride, self.mode)
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
-    def __init__(self, incoming, ds, stride=None, **kwargs):
-        super(MaxPool2DDNNLayer, self).__init__(incoming, ds, stride,
+
+    def __init__(self, incoming, pool_size, stride=None, **kwargs):
+        super(MaxPool2DDNNLayer, self).__init__(incoming, pool_size, stride,
                                                 mode='max', **kwargs)
 
 
 class Conv2DDNNLayer(DNNLayer):
+
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
@@ -58,10 +63,8 @@ class Conv2DDNNLayer(DNNLayer):
             self.nonlinearity = nonlinearity
 
         self.num_filters = num_filters
-        self.filter_size = filter_size
-        if isinstance(stride, int):
-            stride = (stride, stride)
-        self.stride = stride
+        self.filter_size = as_tuple(filter_size, 2)
+        self.stride = as_tuple(stride, 2)
         self.untie_biases = untie_biases
         self.flip_filters = flip_filters
 
@@ -92,9 +95,7 @@ class Conv2DDNNLayer(DNNLayer):
                 raise RuntimeError("Unsupported border_mode for "
                                    "Conv2DDNNLayer: %s" % border_mode)
         else:
-            if isinstance(pad, int):
-                pad = (pad, pad)
-            self.pad = pad
+            self.pad = as_tuple(pad, 2)
             self.border_mode = None
 
         self.W = self.create_param(W, self.get_W_shape(), name="W")

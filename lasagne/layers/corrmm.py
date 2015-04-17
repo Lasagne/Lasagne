@@ -10,6 +10,7 @@ from .. import nonlinearities
 from .base import Layer
 
 from .conv import conv_output_length
+from ..utils import as_tuple
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from theano.sandbox.cuda.blas import GpuCorrMM
@@ -42,8 +43,8 @@ class Conv2DMMLayer(MMLayer):
             self.nonlinearity = nonlinearity
 
         self.num_filters = num_filters
-        self.filter_size = filter_size
-        self.stride = stride
+        self.filter_size = as_tuple(filter_size, 2)
+        self.stride = as_tuple(stride, 2)
         self.untie_biases = untie_biases
         self.flip_filters = flip_filters
 
@@ -68,7 +69,7 @@ class Conv2DMMLayer(MMLayer):
                 raise RuntimeError("Unsupported border_mode for "
                                    "Conv2DMMLayer: %s" % border_mode)
         else:
-            self.pad = pad
+            self.pad = as_tuple(pad, 2)
 
         self.W = self.create_param(W, self.get_W_shape(), name="W")
         if b is None:

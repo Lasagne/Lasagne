@@ -1,6 +1,7 @@
 import theano.tensor as T
 
 from .base import Layer
+from ..utils import as_tuple
 
 from theano.tensor.signal import downsample
 
@@ -171,32 +172,14 @@ class MaxPool2DLayer(Layer):
         """
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
 
-        if (isinstance(pool_size, int)):
-            self.pool_size = (pool_size, pool_size)
-        else:
-            pool_size = tuple(pool_size)
-            if len(pool_size) != 2:
-                raise ValueError('pool_size must have len == 2')
-            self.pool_size = pool_size
+        self.pool_size = as_tuple(pool_size, 2)
 
         if stride is None:
             self.stride = self.pool_size
         else:
-            if (isinstance(stride, int)):
-                self.stride = (stride, stride)
-            else:
-                stride = tuple(stride)
-                if len(stride) != 2:
-                    raise ValueError('stride must have len == 2')
-                self.stride = stride
+            self.stride = as_tuple(stride, 2)
 
-        if (isinstance(pad, int)):
-            self.pad = (pad, pad)
-        else:
-            pad = tuple(pad)
-            if len(pad) != 2:
-                raise ValueError('pad must have len == 2')
-            self.pad = pad
+        self.pad = as_tuple(pad, 2)
 
         self.ignore_border = ignore_border
 

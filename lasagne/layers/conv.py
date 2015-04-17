@@ -2,6 +2,7 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
+from ..utils import as_tuple
 from ..theano_extensions import conv
 
 from .base import Layer
@@ -133,8 +134,8 @@ class Conv2DLayer(Layer):
             self.nonlinearity = nonlinearity
 
         self.num_filters = num_filters
-        self.filter_size = filter_size
-        self.stride = stride
+        self.filter_size = as_tuple(filter_size, 2)
+        self.stride = as_tuple(stride, 2)
         self.border_mode = border_mode
         self.untie_biases = untie_biases
         self.convolution = convolution

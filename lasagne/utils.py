@@ -66,6 +66,28 @@ def unique(l):
     return new_list
 
 
+def as_tuple(x, N):
+    """
+    Coerce a value to a tuple of length N.
+
+    Parameters:
+    -----------
+    x : value or iterable
+    N : integer
+        length of the desired tuple
+    """
+    try:
+        X = tuple(x)
+    except TypeError:
+        X = (x,) * N
+
+    if len(X) != N:
+        raise ValueError("input must be a single value "
+                         "or an iterable with length {0}".format(N))
+
+    return X
+
+
 def compute_norms(array, norm_axes=None):
     """
     Compute incoming weight vector norms.

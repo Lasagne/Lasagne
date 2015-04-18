@@ -84,7 +84,7 @@ class DropoutLayer(Layer):
             return input * _srng.binomial(input_shape, p=retain_prob,
                                           dtype=theano.config.floatX)
 
-dropout = DropoutLayer # shortcut
+dropout = DropoutLayer  # shortcut
 
 
 class GaussianNoiseLayer(Layer):

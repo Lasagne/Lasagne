@@ -4,5 +4,8 @@
 git stash -q --keep-index
 # Run tests
 py.test
+RETURN_CODE=$?
 # Pop stashed changes
 git stash pop -q
+
+exit $RETURN_CODE

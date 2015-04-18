@@ -58,7 +58,7 @@ folder:
 
 .. code:: bash
 
-    $ ln -s pre-commit-hook.sh .git/hooks/pre-commit
+    $ ln -s ../../pre-commit-hook.sh .git/hooks/pre-commit
 
 
 Documentation

@@ -46,7 +46,7 @@ setup(
     keywords="",
     author="Sander Dieleman",
     author_email="sanderdieleman@gmail.com",
-    url="https://github.com/benanne/lasagne",
+    url="https://github.com/Lasagne/Lasagne",
     license="MIT",
     packages=find_packages(),
     include_package_data=True,

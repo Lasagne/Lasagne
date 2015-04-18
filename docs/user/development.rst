@@ -4,7 +4,7 @@ Development
 The ``Lasagne`` project is developed by Sander Dieleman and contributors via
 GitHub. The development began in September 2014.
 
-It is developed on GitHub: https://github.com/benanne/Lasagne
+It is developed on GitHub: https://github.com/Lasagne/Lasagne
 
 You can file issues and feature requests there.
 
@@ -28,7 +28,7 @@ Everybody is welcome to contribute to ``Lasagne``. You can do so by
 * Suggesting something else how you can contribute.
 
 
-We suggest reading the issues page https://github.com/benanne/Lasagne/issues
+We suggest reading the issues page https://github.com/Lasagne/Lasagne/issues
 for more ideas how you can contribute.
 
 
@@ -51,6 +51,14 @@ Code coverage can be tested with
 
 Testing will take over 5 minutes for the first run, but less than a minute for
 subsequent runs when Theano can reuse compiled code.
+
+You can add a so called pre-commit-hook to git to run all tests automatically
+before you commit. The hook is installed by copying it to the `.git/hooks/`
+folder:
+
+.. code:: bash
+
+    $ ln -s pre-commit-hook.sh .git/hooks/pre-commit
 
 
 Documentation

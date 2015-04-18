@@ -64,7 +64,7 @@ class DropoutLayer(Layer):
         input : tensor
             output from the previous layer
         deterministic : bool
-            If true dropout and scaling is disabled, use full at test time
+            If true dropout and scaling is disabled, see notes
         rescale: bool
             If true the input is rescaled with input / (1-p) when deterministic
             is False.
@@ -124,7 +124,7 @@ class GaussianNoiseLayer(Layer):
         input : tensor
             output from the previous layer
         deterministic : bool
-            If true dropout and scaling is disabled, use full at test time
+            If true noise is disabled, see notes
         rescale: bool
             If true the input is rescaled with input / (1-p) when deterministic
             is False.

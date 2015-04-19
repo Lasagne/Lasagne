@@ -53,12 +53,22 @@ Testing will take over 5 minutes for the first run, but less than a minute for
 subsequent runs when Theano can reuse compiled code.
 
 You can add a so called pre-commit-hook to git to run all tests automatically
-before you commit. The hook is installed by copying it to the `.git/hooks/`
-folder:
+before you commit. The hook is installed by copying the following code to
+`.git/hooks/pre-commit` and making this file executable:
 
 .. code:: bash
 
-    $ ln -s ../../pre-commit-hook.sh .git/hooks/pre-commit
+    #!/usr/bin/env bash
+
+    # Stash uncommited changes to make sure the commited ones will work
+    git stash -q --keep-index
+    # Run tests
+    py.test
+    RETURN_CODE=$?
+    # Pop stashed changes
+    git stash pop -q
+
+    exit $RETURN_CODE
 
 
 Documentation

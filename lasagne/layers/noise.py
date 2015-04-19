@@ -17,7 +17,7 @@ __all__ = [
 
 
 class DropoutLayer(Layer):
-    """Dropout layer [1,2]
+    """Dropout layer [1]_,[2]_
 
     Sets values to zero with probability p. See notes for disabling dropout
     during testing.
@@ -88,7 +88,7 @@ dropout = DropoutLayer  # shortcut
 
 
 class GaussianNoiseLayer(Layer):
-    """Gaussian noise layer [1]
+    """Gaussian noise layer [1]_
 
     Add zero Gaussian noise with mean 0 and std sigma to the input
 

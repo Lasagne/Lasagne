@@ -90,7 +90,7 @@ dropout = DropoutLayer  # shortcut
 class GaussianNoiseLayer(Layer):
     """Gaussian noise layer [1]
 
-    Add zero Guassian noise with mean 0 and std. sigma to the input
+    Add zero Gaussian noise with mean 0 and std sigma to the input
 
     Parameters
     ----------
@@ -101,7 +101,7 @@ class GaussianNoiseLayer(Layer):
 
     Notes
     ----------
-    The Guassian noise layer is a regularizer. During training you should set
+    The Gaussian noise layer is a regularizer. During training you should set
     deterministic to false and during testing you should set deterministic to
     true.
 

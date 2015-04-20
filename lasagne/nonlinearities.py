@@ -77,7 +77,7 @@ def rectify(x):
     # The following is faster than T.maximum(0, x),
     # and it works with nonsymbolic inputs as well.
     # Thanks to @SnipyHollow for pointing this out. Also see:
-    # http://github.com/benanne/Lasagne/pull/163#issuecomment-81765117
+    # https://github.com/Lasagne/Lasagne/pull/163#issuecomment-81765117
     return 0.5 * (x + abs(x))
 
 
@@ -114,7 +114,7 @@ class LeakyRectify(object):
         if self.leakiness:
             # The following is faster than T.maximum(leakiness * x, x),
             # and it works with nonsymbolic inputs as well. Also see:
-            # http://github.com/benanne/Lasagne/pull/163#issuecomment-81765117
+            # https://github.com/Lasagne/Lasagne/pull/163#issuecomment-81765117
             f1 = 0.5 * (1 + self.leakiness)
             f2 = 0.5 * (1 - self.leakiness)
             return f1 * x + f2 * abs(x)

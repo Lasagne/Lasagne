@@ -44,4 +44,4 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-.. _GitHub: https://github.com/benanne/Lasagne
+.. _GitHub: https://github.com/Lasagne/Lasagne

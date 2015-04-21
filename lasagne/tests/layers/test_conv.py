@@ -28,7 +28,7 @@ def conv2d_test_sets():
                                 shift_y:input.shape[3] + shift_y]
             output = output[:, :, ::stride, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
-                                                   'stride': (stride, stride)
+                                                   'stride': stride
                                                    })
 
             input = np.random.random((3, 3, 16, 23))
@@ -43,8 +43,30 @@ def conv2d_test_sets():
                                 shift_y:input.shape[3] + shift_y]
             output = output[:, :, ::stride, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
-                                                   'stride': (stride, stride)
+                                                   'stride': stride
                                                    })
+
+
+def conv1d_test_sets():
+    def _convert(input, kernel, output, kwargs):
+        return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
+
+    for border_mode in ['valid', 'full', 'same']:
+        for stride in [1, 2, 3]:
+            input = np.random.random((3, 1, 23))
+            kernel = np.random.random((16, 1, 3))
+            output = []
+            for b in input:
+                temp = []
+                for c in kernel:
+                    temp.append(np.convolve(b[0,:], c[0,:], mode=border_mode))
+                output.append(temp)
+            output = np.array(output)
+            output = output[:, :, ::stride]
+            yield _convert(input, kernel, output, {'border_mode': border_mode,
+                                                   'stride': stride,
+                                                   })
+
 
 
 @pytest.fixture
@@ -55,6 +77,36 @@ def DummyInputLayer():
             get_output=lambda input: input,
             )
     return factory
+
+
+class TestConv1DLayer:
+    @pytest.mark.parametrize(
+        "input, kernel, output, kwargs", list(conv1d_test_sets()))
+    @pytest.mark.parametrize("extra_kwargs", [
+        {},
+        {'untie_biases': True},
+        ])
+    def test_defaults(self, DummyInputLayer,
+                      input, kernel, output, kwargs, extra_kwargs):
+        kwargs.update(extra_kwargs)
+        b, c, w = input.shape.eval()
+        input_layer = DummyInputLayer((b, c, w))
+        try:
+            from lasagne.layers.conv import Conv1DLayer
+            layer = Conv1DLayer(
+                input_layer,
+                num_filters=kernel.shape[0],
+                filter_size=kernel.shape[2],
+                W=kernel,
+                **kwargs
+                )
+            actual = layer.get_output(input).eval()
+            assert actual.shape == output.shape
+            assert actual.shape == layer.get_output_shape()
+            assert np.allclose(actual, output)
+
+        except NotImplementedError:
+            pass
 
 
 class TestConv2DLayerImplementations:
@@ -110,7 +162,7 @@ class TestConv2DLayerImplementations:
             assert np.allclose(actual, output)
 
         except NotImplementedError:
-            pass
+            pytest.skip()
 
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(conv2d_test_sets()))
@@ -136,4 +188,4 @@ class TestConv2DLayerImplementations:
             assert np.allclose(actual, output)
 
         except NotImplementedError:
-            pass
+            pytest.skip()

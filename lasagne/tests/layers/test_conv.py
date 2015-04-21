@@ -59,7 +59,8 @@ def conv1d_test_sets():
             for b in input:
                 temp = []
                 for c in kernel:
-                    temp.append(np.convolve(b[0,:], c[0,:], mode=border_mode))
+                    temp.append(
+                        np.convolve(b[0, :], c[0, :], mode=border_mode))
                 output.append(temp)
             output = np.array(output)
             output = output[:, :, ::stride]
@@ -68,24 +69,24 @@ def conv1d_test_sets():
                                                    })
 
 
-
 @pytest.fixture
 def DummyInputLayer():
     def factory(get_output_shape):
         return Mock(
             get_output_shape=lambda: get_output_shape,
             get_output=lambda input: input,
-            )
+        )
     return factory
 
 
 class TestConv1DLayer:
+
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(conv1d_test_sets()))
     @pytest.mark.parametrize("extra_kwargs", [
         {},
         {'untie_biases': True},
-        ])
+    ])
     def test_defaults(self, DummyInputLayer,
                       input, kernel, output, kwargs, extra_kwargs):
         kwargs.update(extra_kwargs)
@@ -99,7 +100,7 @@ class TestConv1DLayer:
                 filter_size=kernel.shape[2],
                 W=kernel,
                 **kwargs
-                )
+            )
             actual = layer.get_output(input).eval()
             assert actual.shape == output.shape
             assert actual.shape == layer.get_output_shape()
@@ -110,6 +111,7 @@ class TestConv1DLayer:
 
 
 class TestConv2DLayerImplementations:
+
     @pytest.fixture(
         params=[
             ('lasagne.layers', 'Conv2DLayer', {}),
@@ -118,8 +120,8 @@ class TestConv2DLayerImplementations:
              {'flip_filters': True}),
             ('lasagne.layers.corrmm', 'Conv2DMMLayer', {'flip_filters': True}),
             ('lasagne.layers.dnn', 'Conv2DDNNLayer', {'flip_filters': True}),
-            ],
-        )
+        ],
+    )
     def Conv2DImpl(self, request):
         impl_module_name, impl_name, impl_default_kwargs = request.param
         try:
@@ -142,7 +144,7 @@ class TestConv2DLayerImplementations:
     @pytest.mark.parametrize("extra_kwargs", [
         {},
         {'untie_biases': True},
-        ])
+    ])
     def test_defaults(self, Conv2DImpl, DummyInputLayer,
                       input, kernel, output, kwargs, extra_kwargs):
         kwargs.update(extra_kwargs)
@@ -155,7 +157,7 @@ class TestConv2DLayerImplementations:
                 filter_size=kernel.shape[2:],
                 W=kernel,
                 **kwargs
-                )
+            )
             actual = layer.get_output(input).eval()
             assert actual.shape == output.shape
             assert actual.shape == layer.get_output_shape()
@@ -177,7 +179,7 @@ class TestConv2DLayerImplementations:
                 filter_size=kernel.shape[2:],
                 W=kernel,
                 **kwargs
-                )
+            )
             actual = layer.get_output(input).eval()
 
             assert layer.get_output_shape() == (None,

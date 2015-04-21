@@ -25,32 +25,35 @@ class DNNLayer(Layer):
 
 class Pool2DDNNLayer(DNNLayer):
 
-    def __init__(self, incoming, pool_size, stride=None, mode='max', **kwargs):
-        if 'pad' in kwargs:
-            raise NotImplementedError("Pool2DDNNLayer does not "
-                                      "support padding")
+    def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
+                 mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.pool_size = as_tuple(pool_size, 2)
-        self.mode = mode
         self.stride = as_tuple(stride, 2) if stride is not None else pool_size
+        self.pad = as_tuple(pad, 2)
+        self.mode = mode
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
         output_shape[2] = (
-            output_shape[2] - self.pool_size[0]) // self.stride[0] + 1
+            output_shape[2] + 2 * self.pad[0] - self.pool_size[0]
+            ) // self.stride[0] + 1
         output_shape[3] = (
-            output_shape[3] - self.pool_size[1]) // self.stride[1] + 1
+            output_shape[3] + 2 * self.pad[1] - self.pool_size[1]
+            ) // self.stride[1] + 1
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
-        return dnn.dnn_pool(input, self.pool_size, self.stride, self.mode)
+        return dnn.dnn_pool(input, self.pool_size, self.stride,
+                            self.mode, self.pad)
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
 
-    def __init__(self, incoming, pool_size, stride=None, **kwargs):
+    def __init__(self, incoming, pool_size, stride=None,
+                 pad=(0, 0), **kwargs):
         super(MaxPool2DDNNLayer, self).__init__(incoming, pool_size, stride,
-                                                mode='max', **kwargs)
+                                                pad, mode='max', **kwargs)
 
 
 class Conv2DDNNLayer(DNNLayer):

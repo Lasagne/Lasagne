@@ -207,16 +207,19 @@ class MaxPool2DCCLayer(CCLayer):
         from pylearn2.sandbox.cuda_convnet.pool import MaxPool
 
         if 'pad' in kwargs:
-            raise NotImplementedError("MaxPool2DCCLayer does not "
-                                      "support padding")
+            pad = kwargs.pop('pad')
+            if as_tuple(pad, 2) != (0, 0):
+                raise NotImplementedError("MaxPool2DCCLayer does not "
+                                          "support padding")
 
         super(MaxPool2DCCLayer, self).__init__(incoming, **kwargs)
 
         pool_size = as_tuple(pool_size, 2)
 
         if pool_size[0] != pool_size[1]:
-            raise RuntimeError("MaxPool2DCCLayer only supports square pooling "
-                               "regions, but pool_size=(%d, %d)" % pool_size)
+            raise NotImplementedError("MaxPool2DCCLayer only supports square "
+                                      "pooling regions, but pool_size=(%d, %d)"
+                                      % pool_size)
 
         self.pool_size = pool_size[0]
 
@@ -225,16 +228,21 @@ class MaxPool2DCCLayer(CCLayer):
         else:
             stride = as_tuple(stride, 2)
             if stride[0] != stride[1]:
-                raise RuntimeError("MaxPool2DCCLayer only supports using the "
-                                   "same stride in both directions, but "
-                                   "stride=(%d, %d)" % stride)
+                raise NotImplementedError("MaxPool2DCCLayer only supports "
+                                          "using the same stride in both, "
+                                          "directions but stride=(%d, %d)"
+                                          % stride)
             self.stride = stride[0]
+
+        if self.stride > self.pool_size:
+            raise NotImplementedError("MaxPool2DCCLayer only supports "
+                                      "stride <= pool_size.")
 
         # ignore_border argument is for compatibility with MaxPool2DLayer.
         # it is not supported. Borders are never ignored.
         if ignore_border is not False:
-            raise RuntimeError("MaxPool2DCCLayer does not support "
-                               "ignore_border.")
+            raise NotImplementedError("MaxPool2DCCLayer does not support "
+                                      "ignore_border.")
 
         self.dimshuffle = dimshuffle
 
@@ -250,9 +258,9 @@ class MaxPool2DCCLayer(CCLayer):
             num_input_channels = input_shape[0]
             input_rows, input_columns = input_shape[1:3]
 
-        output_rows = int(np.ceil(float(input_rows - self.ds +
+        output_rows = int(np.ceil(float(input_rows - self.pool_size +
                                         self.stride) / self.stride))
-        output_columns = int(np.ceil(float(input_columns - self.ds +
+        output_columns = int(np.ceil(float(input_columns - self.pool_size +
                                            self.stride) / self.stride))
 
         if self.dimshuffle:

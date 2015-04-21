@@ -106,19 +106,19 @@ class MaxPool1DLayer(Layer):
         always corresponds to some element in the unpadded input region.
         """
         super(MaxPool1DLayer, self).__init__(incoming, **kwargs)
-        self.pool_size = pool_size  # an integer
-        self.stride = pool_size if stride is None else stride
-        self.pad = pad
+        self.pool_size = as_tuple(pool_size, 1)
+        self.stride = self.pool_size if stride is None else as_tuple(stride, 1)
+        self.pad = as_tuple(pad, 1)
         self.ignore_border = ignore_border
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
 
         output_shape[-1] = pool_output_length(input_shape[-1],
-                                              pool_size=self.pool_size,
-                                              stride=self.stride,
+                                              pool_size=self.pool_size[0],
+                                              stride=self.stride[0],
                                               ignore_border=self.ignore_border,
-                                              pad=self.pad,
+                                              pad=self.pad[0],
                                               )
 
         return tuple(output_shape)
@@ -127,10 +127,10 @@ class MaxPool1DLayer(Layer):
         input_4d = T.shape_padright(input, 1)
 
         pooled = downsample.max_pool_2d(input_4d,
-                                        ds=(self.pool_size, 1),
-                                        st=(self.stride, 1),
+                                        ds=(self.pool_size[0], 1),
+                                        st=(self.stride[0], 1),
                                         ignore_border=self.ignore_border,
-                                        padding=(self.pad, 0),
+                                        padding=(self.pad[0], 0),
                                         )
         return pooled[:, :, :, 0]
 

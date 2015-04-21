@@ -49,8 +49,8 @@ class Conv1DLayer(Layer):
             self.nonlinearity = nonlinearity
 
         self.num_filters = num_filters
-        self.filter_size = filter_size
-        self.stride = stride
+        self.filter_size = as_tuple(filter_size, 1)
+        self.stride = as_tuple(stride, 1)
         self.border_mode = border_mode
         self.untie_biases = untie_biases
         self.convolution = convolution
@@ -67,7 +67,7 @@ class Conv1DLayer(Layer):
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
-        return (self.num_filters, num_input_channels, self.filter_size)
+        return (self.num_filters, num_input_channels, self.filter_size[0])
 
     def get_params(self):
         return [self.W] + self.get_bias_params()
@@ -77,8 +77,8 @@ class Conv1DLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         output_length = conv_output_length(input_shape[2],
-                                           self.filter_size,
-                                           self.stride,
+                                           self.filter_size[0],
+                                           self.stride[0],
                                            self.border_mode)
 
         return (input_shape[0], self.num_filters, output_length)
@@ -92,21 +92,21 @@ class Conv1DLayer(Layer):
         filter_shape = self.get_W_shape()
 
         if self.border_mode in ['valid', 'full']:
-            conved = self.convolution(input, self.W, subsample=(self.stride,),
+            conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
                                       filter_shape=filter_shape,
                                       border_mode=self.border_mode)
         elif self.border_mode == 'same':
-            if self.stride != 1:
+            if self.stride[0] != 1:
                 raise NotImplementedError("Strided convolution with "
                                           "border_mode 'same' is not "
                                           "supported by this layer yet.")
 
-            conved = self.convolution(input, self.W, subsample=(self.stride,),
+            conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
                                       filter_shape=filter_shape,
                                       border_mode='full')
-            shift = (self.filter_size - 1) // 2
+            shift = (self.filter_size[0] - 1) // 2
             conved = conved[:, :, shift:input.shape[2] + shift]
         else:
             raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)

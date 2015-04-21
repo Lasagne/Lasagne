@@ -1,5 +1,44 @@
 """
 Functions to generate Theano update dictionaries for training.
+
+The update functions implements different methods to control the learning
+rate for use with stochastic gradient descent.
+
+
+In vanilla SGD generates update expressions of the form:
+
+    * ``param := param - learning_rate * gradient``
+
+With momentum the generated updates are of the form:
+
+    * ``velocity := momentum * velocity - learning_rate * gradient``
+    * ``param := param + velocity``
+
+For description of more advanced methods refer to the function descriptions.
+
+Update functions take a loss function or an ordered dictionary of updates as
+input and return an ordered dict of updates.
+
+The loss function must return a single scalar value.
+
+Usage
+--------
+>>> import lasagne
+>>> import theano.tensor as T
+>>> import theano
+>>> from lasagne.nonlinearities import softmax
+>>> from lasagne.layers import InputLayer, DenseLayer
+>>> from lasagne.updates import sgd, apply_momentum
+>>> l_in = InputLayer((100, 20))
+>>> l1 = DenseLayer(l_in, num_units=3, nonlinearity=softmax)
+>>> sym_x = T.matrix('sym_x')  # shp: num_batch x num_features
+>>> sym_y = T.ivector('sym_y') # shp: num_batch
+>>> l_out = l1.get_output(sym_x)
+>>> params = lasagne.layers.get_all_params(l1)
+>>> loss = T.mean(T.nnet.categorical_crossentropy(l_out, sym_y))
+>>> updates_sgd = sgd(loss, params, learning_rate=0.0001)
+>>> updates = apply_momentum(updates_sgd, params, momentum=0.9)
+>>> train_function = theano.function([sym_x, sym_y], updates=updates)
 """
 
 from collections import OrderedDict

@@ -4,23 +4,28 @@ Functions to generate Theano update dictionaries for training.
 The update functions implement different methods to control the learning
 rate for use with stochastic gradient descent.
 
+Update functions take a loss expression or a list of gradient expressions and
+a list of parameters as input and return an ordered dictionary of updates:
 
-Vanilla SGD generates update expressions of the form:
+ * sgd()
+ * momentum()
+ * nesterov_momentum()
+ * adagrad()
+ * rmsprop()
+ * adadelta()
 
-    * ``param := param - learning_rate * gradient``
+Two functions can be used to further modify the updates to include momentum:
 
-With momentum the generated updates are of the form:
+ * apply_momentum()
+ * apply_nesterov_momentum()
 
-    * ``velocity := momentum * velocity - learning_rate * gradient``
-    * ``param := param + velocity``
+Finally, we provide a helper function to constrain the norm of a
+tensor variable:
 
-For description of more advanced methods please refer to the function
-descriptions.
+ * norm_constraint()
 
-Update functions take a loss function or an ordered dictionary of updates as
-input and return an ordered dict of updates.
-
-The loss function expression must return a single scalar value.
+This can be used to constrain the norm of parameters (as an alternative
+to weight decay), or for a form of gradient clipping.
 
 Usage
 --------
@@ -94,6 +99,9 @@ def get_or_compute_grads(loss_or_grads, params):
 def sgd(loss_or_grads, params, learning_rate):
     """Stochastic Gradient Descent (SGD) updates.
 
+    Generates update expressions of the form:
+    * ``param := param - learning_rate * gradient``
+
     Parameters
     ----------
     loss_or_grads : symbolic expression or list of expressions
@@ -166,6 +174,10 @@ def apply_momentum(updates, params=None, momentum=0.9):
 
 def momentum(loss_or_grads, params, learning_rate, momentum=0.9):
     """Stochastic Gradient Descent (SGD) updates with momentum.
+
+    Generates update expressions of the form:
+    * ``velocity := momentum * velocity - learning_rate * gradient``
+    * ``param := param + velocity``
 
     Parameters
     ----------
@@ -253,6 +265,10 @@ def apply_nesterov_momentum(updates, params=None, momentum=0.9):
 
 def nesterov_momentum(loss_or_grads, params, learning_rate, momentum=0.9):
     """Stochastic Gradient Descent (SGD) updates with Nesterov momentum.
+
+    Generates update expressions of the form:
+    * ``velocity := momentum * velocity + updates[param] - param``
+    * ``param := param + momentum * velocity + updates[param] - param``
 
     Parameters
     ----------

@@ -75,6 +75,11 @@ def as_tuple(x, N):
     x : value or iterable
     N : integer
         length of the desired tuple
+
+    Returns:
+    --------
+    tuple
+        ``tuple(x)`` if `x` is iterable, ``(x,) * N`` otherwise.
     """
     try:
         X = tuple(x)

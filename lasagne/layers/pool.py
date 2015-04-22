@@ -227,7 +227,7 @@ class FeaturePoolLayer(Layer):
     def __init__(self, incoming, pool_size, axis=1, pool_function=T.max,
                  **kwargs):
         """
-        Instrideantiates the layer.
+        Instantiates the layer.
 
         Parameters
         ----------

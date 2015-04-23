@@ -212,12 +212,12 @@ class RecurrentLayer(CustomRecurrentLayer):
         # so we need to remove the first dimension
         in_to_hid = DenseLayer(InputLayer((input_shape[0],) + input_shape[2:]),
                                num_units, W=W_in_to_hid, b=b,
-                               nonlinearity=nonlinearity)
+                               nonlinearity=None)
         # The hidden-to-hidden layer expects its inputs to have num_units
         # features because it recycles the previous hidden state
         hid_to_hid = DenseLayer(InputLayer((input_shape[0], num_units)),
                                 num_units, W=W_hid_to_hid, b=None,
-                                nonlinearity=nonlinearity)
+                                nonlinearity=None)
 
         super(RecurrentLayer, self).__init__(
             input_layer, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,

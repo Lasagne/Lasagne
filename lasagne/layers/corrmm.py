@@ -10,6 +10,7 @@ from .. import nonlinearities
 from .base import Layer
 
 from .conv import conv_output_length
+from ..utils import as_tuple
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from theano.sandbox.cuda.blas import GpuCorrMM
@@ -31,7 +32,7 @@ class MMLayer(Layer):
 
 
 class Conv2DMMLayer(MMLayer):
-    def __init__(self, incoming, num_filters, filter_size, strides=(1, 1),
+    def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  pad=None, flip_filters=False, **kwargs):
@@ -42,8 +43,8 @@ class Conv2DMMLayer(MMLayer):
             self.nonlinearity = nonlinearity
 
         self.num_filters = num_filters
-        self.filter_size = filter_size
-        self.strides = strides
+        self.filter_size = as_tuple(filter_size, 2)
+        self.stride = as_tuple(stride, 2)
         self.untie_biases = untie_biases
         self.flip_filters = flip_filters
 
@@ -68,7 +69,7 @@ class Conv2DMMLayer(MMLayer):
                 raise RuntimeError("Unsupported border_mode for "
                                    "Conv2DMMLayer: %s" % border_mode)
         else:
-            self.pad = pad
+            self.pad = as_tuple(pad, 2)
 
         self.W = self.create_param(W, self.get_W_shape(), name="W")
         if b is None:
@@ -80,7 +81,7 @@ class Conv2DMMLayer(MMLayer):
         else:
             self.b = self.create_param(b, (num_filters,), name="b")
 
-        self.corr_mm_op = GpuCorrMM(subsample=self.strides, pad=self.pad)
+        self.corr_mm_op = GpuCorrMM(subsample=self.stride, pad=self.pad)
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
@@ -98,12 +99,12 @@ class Conv2DMMLayer(MMLayer):
 
         output_rows = conv_output_length(input_shape[2],
                                          self.filter_size[0],
-                                         self.strides[0],
+                                         self.stride[0],
                                          'pad', self.pad[0])
 
         output_columns = conv_output_length(input_shape[3],
                                             self.filter_size[1],
-                                            self.strides[1],
+                                            self.stride[1],
                                             'pad', self.pad[1])
 
         return (batch_size, self.num_filters, output_rows, output_columns)

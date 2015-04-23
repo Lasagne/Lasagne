@@ -63,7 +63,7 @@ def build_model(input_width, input_height, output_dim,
     )
     l_pool1 = cuda_convnet.MaxPool2DCCLayer(
         l_conv1,
-        ds=(2, 2),
+        pool_size=(2, 2),
         dimshuffle=dimshuffle,
     )
 
@@ -76,7 +76,7 @@ def build_model(input_width, input_height, output_dim,
     )
     l_pool2 = cuda_convnet.MaxPool2DCCLayer(
         l_conv2,
-        ds=(2, 2),
+        pool_size=(2, 2),
         dimshuffle=dimshuffle,
     )
 

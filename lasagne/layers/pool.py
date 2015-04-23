@@ -256,15 +256,13 @@ class FeaturePoolLayer(Layer):
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
-        num_feature_maps = input.shape[self.axis]
+        input_shape = tuple(input.shape)
+        num_feature_maps = input_shape[self.axis]
         num_feature_maps_out = num_feature_maps // self.pool_size
 
-        pool_shape = ()
-        for axis, length in enumerate(input.shape):
-            if axis == self.axis:
-                pool_shape += (num_feature_maps_out, self.pool_size)
-            else:
-                pool_shape += (length,)
+        pool_shape = (input_shape[:self.axis] +
+                      (num_feature_maps_out, self.pool_size) +
+                      input_shape[self.axis+1:])
 
         input_reshaped = input.reshape(pool_shape)
         return self.pool_function(input_reshaped, axis=self.axis + 1)

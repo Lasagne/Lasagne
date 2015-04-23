@@ -70,6 +70,36 @@ def max_pool_2d_ignoreborder(data, pool_size, stride, pad):
     return data_pooled
 
 
+class TestFeaturePoolLayer:
+    def input_layer(self, output_shape):
+        return Mock(get_output_shape=lambda: output_shape)
+
+    def layer(self, input_layer, pool_size):
+        from lasagne.layers.pool import FeaturePoolLayer
+        return FeaturePoolLayer(
+            input_layer,
+            pool_size=pool_size,
+        )
+
+    @pytest.mark.parametrize(
+        "pool_size", [2, 3, 4])
+    def test_layer(self, pool_size):
+        input = floatX(np.random.randn(3, 12, 16, 23))
+        input_layer = self.input_layer(input.shape)
+        input_theano = theano.shared(input)
+
+        layer = self.layer(input_layer, pool_size)
+        layer_result = layer.get_output_for(input_theano).eval()
+
+        numpy_result = np.swapaxes(input, 1, -1)
+        numpy_result = max_pool_1d(numpy_result, pool_size)
+        numpy_result = np.swapaxes(numpy_result, -1, 1)
+
+        assert np.all(numpy_result.shape == layer.get_output_shape())
+        assert np.all(numpy_result.shape == layer_result.shape)
+        assert np.allclose(numpy_result, layer_result)
+
+
 class TestMaxPool1DLayer:
     def pool_test_sets():
         for pool_size in [2, 3]:

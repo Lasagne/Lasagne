@@ -16,7 +16,7 @@ __all__ = [
 
 
 def pool_output_length(input_length, pool_size, stride,
-                       ignore_border=True, pad=0):
+                       ignore_border, pad):
     """
     Compute the output length of a pooling operator
     along a single dimension.
@@ -219,7 +219,8 @@ class MaxPool2DLayer(Layer):
 class FeaturePoolLayer(Layer):
 
     """
-    Pooling across feature maps. This can be used to implement maxout.
+    This layer performs pooling across feature maps, which can be used
+    to implement maxout.
     IMPORTANT: this layer requires that the number of feature maps is
     a multiple of the pool size.
     """
@@ -251,8 +252,7 @@ class FeaturePoolLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # make a mutable copy
-        output_shape[self.axis] = pool_output_length(input_shape[self.axis],
-                                                     self.pool_size)
+        output_shape[self.axis] = input_shape[self.axis] // self.pool_size
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
@@ -260,11 +260,11 @@ class FeaturePoolLayer(Layer):
         num_feature_maps_out = num_feature_maps // self.pool_size
 
         pool_shape = ()
-        for k in range(self.axis):
-            pool_shape += (input.shape[k],)
-        pool_shape += (num_feature_maps_out, self.pool_size)
-        for k in range(self.axis + 1, input.ndim):
-            pool_shape += (input.shape[k],)
+        for axis, length in enumerate(input.shape):
+            if axis == self.axis:
+                pool_shape += (num_feature_maps_out, self.pool_size)
+            else:
+                pool_shape += (length,)
 
         input_reshaped = input.reshape(pool_shape)
         return self.pool_function(input_reshaped, axis=self.axis + 1)

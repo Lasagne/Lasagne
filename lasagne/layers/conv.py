@@ -9,6 +9,7 @@ from .base import Layer
 
 
 __all__ = [
+    "conv_output_length",
     "Conv1DLayer",
     "Conv2DLayer",
 ]
@@ -16,6 +17,54 @@ __all__ = [
 
 def conv_output_length(input_length, filter_size,
                        stride, border_mode, pad=0):
+    """Helper function to compute the output size of a convolution operation
+
+    This function computes the length along a single axis, which corresponds
+    to a 1D convolution. It can also be used for convolutions with higher
+    dimensionalities by using it individually for each axis.
+
+    Parameters
+    ----------
+    input_length : int
+        The size of the input.
+
+    filter_size : int
+        The size of the filter.
+
+    stride : int
+        The stride of the convolution operation.
+
+    border_mode : str, 'valid', 'full', 'same' or 'pad'
+        A string indicating the convolution border mode.
+
+        If 'valid', it is assumed that the convolution is only computed where
+        the input and the filter fully overlap.
+
+        If 'full', it is assumed that the convolution is computed wherever the
+        input and the filter overlap by at least one position.
+
+        If 'same', it is assumed that the convolution is computed whenever the
+        input and the filter overlap by half, which results in an output length
+        that is the same as the input length.
+
+        If 'pad', zero padding of `pad` positions is assumed to be applied to
+        the input, and then a valid convolution is applied.
+
+    pad : int, optional (default 0)
+        If `border_mode` is set to 'pad', this is the size of the padding that
+        is applied on both sides of the input. Otherwise, this is ignored.
+
+    Returns
+    -------
+    int
+        The output size corresponding to the given convolution parameters.
+
+    Raises
+    ------
+    RuntimeError
+        When an invalid border_mode string is specified, a `RuntimeError` is
+        raised.
+    """
     if input_length is None:
         return None
     if border_mode == 'valid':

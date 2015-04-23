@@ -17,6 +17,7 @@ new Lasagne developers what to install and where to start.
 .. toctree::
   :maxdepth: 2
 
+  user/about
   user/installation
   user/tutorial
   user/development

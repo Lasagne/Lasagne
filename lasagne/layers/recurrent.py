@@ -221,7 +221,7 @@ class RecurrentLayer(CustomRecurrentLayer):
 
         super(RecurrentLayer, self).__init__(
             input_layer, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
-            hid_init=hid_init, backwards=backwards, learn_init=backwards,
+            hid_init=hid_init, backwards=backwards, learn_init=learn_init,
             gradient_steps=gradient_steps)
 
 

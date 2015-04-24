@@ -210,7 +210,7 @@ class RecurrentLayer(CustomRecurrentLayer):
         input_shape = input_layer.get_output_shape()
         n_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
-        # so we need to remove the first dimension
+        # so we need to remove the second dimension (the time dimension)
         in_to_hid = DenseLayer(InputLayer((n_batch,) + input_shape[2:]),
                                num_units, W=W_in_to_hid, b=b,
                                nonlinearity=None)

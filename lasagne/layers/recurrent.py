@@ -208,14 +208,15 @@ class RecurrentLayer(CustomRecurrentLayer):
         '''
 
         input_shape = input_layer.get_output_shape()
+        n_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
         # so we need to remove the first dimension
-        in_to_hid = DenseLayer(InputLayer((input_shape[0],) + input_shape[2:]),
+        in_to_hid = DenseLayer(InputLayer((n_batch,) + input_shape[2:]),
                                num_units, W=W_in_to_hid, b=b,
                                nonlinearity=None)
         # The hidden-to-hidden layer expects its inputs to have num_units
         # features because it recycles the previous hidden state
-        hid_to_hid = DenseLayer(InputLayer((input_shape[0], num_units)),
+        hid_to_hid = DenseLayer(InputLayer((n_batch, num_units)),
                                 num_units, W=W_hid_to_hid, b=None,
                                 nonlinearity=None)
 

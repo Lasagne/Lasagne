@@ -72,7 +72,7 @@ class CustomRecurrentLayer(Layer):
                 List of all parameters
         '''
         params = (helper.get_all_params(self.input_to_hidden) +
-                helper.get_all_params(self.hidden_to_hidden))
+                  helper.get_all_params(self.hidden_to_hidden))
 
         if self.learn_init:
             return params + self.get_init_params()

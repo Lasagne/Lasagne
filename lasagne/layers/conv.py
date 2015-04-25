@@ -9,7 +9,6 @@ from .base import Layer
 
 
 __all__ = [
-    "conv_output_length",
     "Conv1DLayer",
     "Conv2DLayer",
 ]
@@ -44,8 +43,12 @@ def conv_output_length(input_length, filter_size,
         input and the filter overlap by at least one position.
 
         If 'same', it is assumed that the convolution is computed wherever the
-        input and the filter overlap by half, which results in an output length
-        that is the same as the input length.
+        input and the filter overlap by at least half the filter size, when the
+        filter size is odd. In practice, the input is zero-padded with half the
+        filter size at the beginning and half at the end (or one less than half
+        in the case of an even filter size). Thisresults in an output length
+        that is the same as the input length (for both odd and even filter
+        sizes).
 
         If 'pad', zero padding of `pad` positions is assumed to be applied to
         the input, and then a valid convolution is applied.
@@ -97,7 +100,7 @@ class Conv1DLayer(Layer):
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape. The
         output of this layer should be a 3D tensor, with shape
-        `(batch_size, num_input_channels, input_length)`.
+        ``(batch_size, num_input_channels, input_length)``.
 
     num_filters : int
         The number of learnable convolutional filters this layer has.
@@ -119,8 +122,11 @@ class Conv1DLayer(Layer):
         filter overlap by at least one position.
 
         If 'same', the convolution is computed wherever the input and the
-        filter overlap by half, which results in an output length that is the
-        same as the input length.
+        filter overlap by at least half the filter size, when the filter size
+        is odd. In practice, the input is zero-padded with half the filter size
+        at the beginning and half at the end (or one less than half in the case
+        of an even filter size). Thisresults in an output length that is the
+        same as the input length (for both odd and even filter sizes).
 
     untie_biases : bool, default False
         If False, the layer will have a bias parameter for channel, which is
@@ -132,29 +138,16 @@ class Conv1DLayer(Layer):
         matrix (2D).
 
     W : Theano shared variable, numpy array or callable
-        An initializer for the weights of the layer. If a Theano shared
-        variable is provided, it is used unchanged. If a numpy array is
-        provided, a shared variable is created and initialized with the
-        array. If a callable is provided, a shared variable is created and
-        the callable is called with the desired shape to generate suitable
-        initial values. The variable is then initialized with those values.
-
-        This should initialize the layer weights to a 3D array with shape
-        `(num_filters, num_input_channels, filter_length)`.
+        An initializer for the weights of the layer. This should initialize the
+        layer weights to a 3D array with shape
+        ``(num_filters, num_input_channels, filter_length)``.
 
     b : Theano shared variable, numpy array, callable or None
-        An initializer for the biases of the layer. If a Theano shared
-        variable is provided, it is used unchanged. If a numpy array is
-        provided, a shared variable is created and initialized with the
-        array. If a callable is provided, a shared variable is created and
-        the callable is called with the desired shape to generate suitable
-        initial values. The variable is then initialized with those values.
-
-        If None is provided, the layer will have no biases.
-
-        This should initialize the layer biases to a 1D array with shape
-        `(num_filters,)` if `untied_biases` is set to False. If it is set to
-        True, its shape should be `(num_filers, input_length)` instead.
+        An initializer for the biases of the layer. If None is provided, the
+        layer will have no biases. This should initialize the layer biases to
+        a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
+        ``False``. If it is set to ``True``, its shape should be
+        ``(num_filers, input_length)`` instead.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
@@ -170,11 +163,19 @@ class Conv1DLayer(Layer):
     **kwargs
         Any additional keyword arguments are passed to the `Layer` superclass.
 
+    Attributes
+    ----------
+    W : Theano shared variable
+        TODO
+
+    b : Theano shared variable
+        TODO
+
     Notes
     -----
     Theano's default convolution function (`theano.tensor.nnet.conv.conv2d`)
     does not support the 'same' border mode by default. This layer emulates
-    it by performing a 'full' convolution and then slicing the result, which
+    it by performing a 'full' convolution and then cropping the result, which
     may negatively affect performance.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=1,

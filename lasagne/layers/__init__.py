@@ -8,7 +8,8 @@ Creating a layer
 A layer can be created as an instance of a `Layer` subclass. For example, a
 dense layer can be created as follows:
 
->>> l = lasagne.layers.DenseLayer(l_in, num_units=100)
+>>> import lasagne
+>>> l = lasagne.layers.DenseLayer(l_in, num_units=100) # doctest: +SKIP
 
 This will create a dense layer with 100 units, connected to another layer
 `l_in`.
@@ -28,10 +29,11 @@ multiple other layers, allowing for arbitrary tree and directed acyclic graph
 
 Here is an example of an MLP with a single hidden layer:
 
+>>> import theano.tensor as T
 >>> l_in = lasagne.layers.InputLayer((100, 50))
 >>> l_hidden = lasagne.layers.DenseLayer(l_in, num_units=200)
 >>> l_out = lasagne.layers.DenseLayer(l_hidden, num_units=10,
-                                      nonlinearity=theano.tensor.nnet.softmax)
+...                                   nonlinearity=T.nnet.softmax)
 
 The first layer of the network is an `InputLayer`, which represents the input.
 When creating an input layer, you should specify the shape of the input data.
@@ -59,7 +61,7 @@ For convenience, you can name a layer by specifying the `name` keyword
 argument:
 
 >>> l_hidden = lasagne.layers.DenseLayer(l_in, num_units=200,
-                                         name="hidden_layer")
+...                                      name="hidden_layer")
 
 Initializing parameters
 -----------------------
@@ -75,7 +77,7 @@ your own initialization strategy by using keyword arguments that match the
 parameter variable names. For example:
 
 >>> l = lasagne.layers.DenseLayer(l_in, num_units=100,
-                                  W=lasagne.init.Normal(0.01))
+...                               W=lasagne.init.Normal(0.01))
 
 The weight matrix `W` of this dense layer will be initialized using samples
 from a normal distribution with standard deviation 0.01 (see `lasagne.init`
@@ -87,6 +89,8 @@ There are several ways to manually initialize parameters:
     If a shared variable instance is provided, this is used unchanged as the
     parameter variable. For example:
 
+    >>> import theano
+    >>> import numpy as np
     >>> W = theano.shared(np.random.normal(0, 0.01, (50, 100)))
     >>> l = lasagne.layers.DenseLayer(l_in, num_units=100, W=W)
 
@@ -97,20 +101,20 @@ There are several ways to manually initialize parameters:
     >>> W_init = np.random.normal(0, 0.01, (50, 100))
     >>> l = lasagne.layers.DenseLayer(l_in, num_units=100, W=W_init)
 
-- callable 
-    If a callable is provided (e.g. a function or a 
+- callable
+    If a callable is provided (e.g. a function or a
     :class:`lasagne.init.Initializer` instance), a shared variable is created
     and the callable is called with the desired shape to generate suitable
     initial parameter values. The variable is then initialized with those
     values. For example:
 
     >>> l = lasagne.layers.DenseLayer(l_in, num_units=100,
-                                      W=lasagne.init.Normal(0.01))
+    ...                               W=lasagne.init.Normal(0.01))
 
     Or, using a custom initialization function:
 
     >>> def init_W(shape):
-    >>>     return np.random.normal(0, 0.01, shape)
+    ...     return np.random.normal(0, 0.01, shape)
     >>> l = lasagne.layers.DenseLayer(l_in, num_units=100, W=init_W)
 
 Some types of parameter variables can also be set to ``None`` at initialization

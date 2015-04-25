@@ -1,13 +1,25 @@
 import pytest
 
 
+def test_initializer_sample():
+    from lasagne.init import Initializer
+
+    with pytest.raises(NotImplementedError):
+        Initializer().sample((100, 100))
+
+
 def test_shape():
     from lasagne.init import Initializer
 
     # Assert that all `Initializer` sublasses return the shape that
     # we've asked for in `sample`:
     for klass in Initializer.__subclasses__():
-        assert klass().sample((12, 23)).shape == (12, 23)
+        if len(klass.__subclasses__()):
+            # check HeNormal, HeUniform, GlorotNormal, GlorotUniform
+            for sub_klass in klass.__subclasses__():
+                assert sub_klass().sample((12, 23)).shape == (12, 23)
+        else:
+            assert klass().sample((12, 23)).shape == (12, 23)
 
 
 def test_normal():
@@ -51,6 +63,13 @@ def test_glorot_normal():
     assert 0.09 < sample.std() < 0.11
 
 
+def test_glorot_1d_not_supported():
+    from lasagne.init import GlorotNormal
+
+    with pytest.raises(RuntimeError):
+        GlorotNormal().sample((100,))
+
+
 def test_glorot_normal_receptive_field():
     from lasagne.init import GlorotNormal
 
@@ -65,6 +84,10 @@ def test_glorot_normal_gain():
     sample = GlorotNormal(gain=10.0).sample((100, 100))
     assert -0.1 < sample.mean() < 0.1
     assert 0.9 < sample.std() < 1.1
+
+    sample = GlorotNormal(gain='relu').sample((100, 100))
+    assert -0.01 < sample.mean() < 0.01
+    assert 0.132 < sample.std() < 0.152
 
 
 def test_glorot_normal_c01b():
@@ -111,6 +134,10 @@ def test_glorot_uniform_gain():
     assert -1.0 <= sample.min() < -0.9
     assert 0.9 < sample.max() <= 1.0
 
+    sample = GlorotUniform(gain='relu').sample((100, 100))
+    assert -0.01 < sample.mean() < 0.01
+    assert 0.132 < sample.std() < 0.152
+
 
 def test_glorot_uniform_c01b():
     from lasagne.init import GlorotUniform
@@ -141,6 +168,13 @@ def test_he_normal():
     assert 0.09 < sample.std() < 0.11
 
 
+def test_he_1d_not_supported():
+    from lasagne.init import HeNormal
+
+    with pytest.raises(RuntimeError):
+        HeNormal().sample((100,))
+
+
 def test_he_normal_receptive_field():
     from lasagne.init import HeNormal
 
@@ -155,6 +189,10 @@ def test_he_normal_gain():
     sample = HeNormal(gain=10.0).sample((100, 100))
     assert -0.1 < sample.mean() < 0.1
     assert 0.9 < sample.std() < 1.1
+
+    sample = HeNormal(gain='relu').sample((200, 50))
+    assert -0.1 < sample.mean() < 0.1
+    assert 0.07 < sample.std() < 0.12
 
 
 def test_he_normal_c01b():
@@ -201,6 +239,10 @@ def test_he_uniform_gain():
     assert -1.0 <= sample.min() < -0.9
     assert 0.9 < sample.max() <= 1.0
 
+    sample = HeUniform(gain='relu').sample((100, 100))
+    assert -0.1 < sample.mean() < 0.1
+    assert 0.1 < sample.std() < 0.2
+
 
 def test_he_uniform_c01b():
     from lasagne.init import HeUniform
@@ -237,6 +279,13 @@ def test_sparse():
     assert (sample != 0.0).sum() == (10 * 20) * 0.1
 
 
+def test_sparse_1d_not_supported():
+    from lasagne.init import Sparse
+
+    with pytest.raises(RuntimeError):
+        Sparse().sample((100,))
+
+
 def test_orthogonal():
     import numpy as np
     from lasagne.init import Orthogonal
@@ -254,6 +303,11 @@ def test_orthogonal_gain():
 
     gain = 2
     sample = Orthogonal(gain).sample((100, 200))
+    assert np.allclose(np.dot(sample, sample.T), gain * gain * np.eye(100),
+                       atol=1e-6)
+
+    gain = np.sqrt(2)
+    sample = Orthogonal('relu').sample((100, 200))
     assert np.allclose(np.dot(sample, sample.T), gain * gain * np.eye(100),
                        atol=1e-6)
 

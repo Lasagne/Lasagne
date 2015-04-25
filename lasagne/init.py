@@ -1,5 +1,11 @@
 """
-Functions to create initializers for parameter variables
+Functions to create initializers for parameter variables.
+
+Usage
+-------
+>>> from lasagne.layers import DenseLayer
+>>> from lasagne.init import Constant, Glorot
+>>> l1 = DenseLayer((100,20), num_units=50, W=GlorotUniform(), b=Constant(0.0))
 """
 
 import numpy as np
@@ -8,14 +14,48 @@ from .utils import floatX
 
 
 class Initializer(object):
+    """Initializer class
+
+    The :class:`Initializer` class represents a weight initializer used
+    to initialize weight parameters in a neural network layer. It should be
+    subclassed when implementing new types of weight initializers.
+
+    """
     def __call__(self, shape):
+        """
+        Makes :class:`Initializer` instances callable like a function, invoking
+        their :meth:`sample()` method.
+        """
         return self.sample(shape)
 
     def sample(self, shape):
+        """
+        Sample should return a theano.tensor of size shape and data type
+        theano.config.floatX.
+
+        Parameters
+        -----------
+        shape : tuple or int
+            Integer or tuple specifying the size of the returned
+            matrix.
+        returns : theano.tensor
+            Matrix of size shape and dtype theano.config.floatX.
+        """
         raise NotImplementedError()
 
 
 class Normal(Initializer):
+    """Sample initial weights from the Gaussian distribution
+
+    Initial weight parameters are sampled from N(mean, std).
+
+    Parameters
+    ----------
+    std : float
+        Std of initial parameters.
+    mean : float
+        Mean of initial parameters.
+    """
     def __init__(self, std=0.01, mean=0.0):
         self.std = std
         self.mean = mean
@@ -25,6 +65,22 @@ class Normal(Initializer):
 
 
 class Uniform(Initializer):
+    """Sample initial weights from the uniform distribution
+
+    Parameters are sampled from U(a, b).
+
+    Parameters
+    ----------
+    range : float or tuple
+        When std is None then range determines a, b. If range is a float the
+        weights are sampled from U(-range, range). If range is a tuple the
+        weights are sampled from U(range[0], range[1]).
+    std : float or None
+        If std is a float then the weights are sampled from
+        U(mean - np.sqrt(3) * std, mean + np.sqrt(3) * std).
+    mean : float
+        see std for description.
+    """
     def __init__(self, range=0.01, std=None, mean=0.0):
         import warnings
         warnings.warn("The uniform initializer no longer uses Glorot et al.'s "
@@ -50,7 +106,48 @@ class Uniform(Initializer):
 
 
 class Glorot(Initializer):
-    def __init__(self, initializer=Normal, gain=1.0, c01b=False):
+    """Glorot weight initialization [1]_
+
+    This is also known as Xavier initialization.
+
+    Parameters
+    ----------
+    initializer : lasagne.init.Initializer
+        Initializer used to sample the weights, must accept std in its
+        constructor to sample from a distribution with a given standard
+        deviation.
+    gain : float or 'relu'
+        When 'relu' the gain is set to sqrt(2), see notes.
+    c01b : bool
+        If lasagne.layers.cuda_convnet.Conv2DCCLayer is initialized with
+        dimshuffle=False, then c01b should be set to True.
+
+    References
+    ----------
+    [1] Glorot, Xavier, and Yoshua Bengio. "Understanding the difficulty of
+    training deep feedforward neural networks." International conference on
+    artificial intelligence and statistics. 2010.
+
+    Notes
+    ----------
+    For DenseLayers if gain='relu' and initializer is Uniform then the weights
+    are initialized as
+
+    :math:`a = \frac{sqrt{6}}{\sqrt{fan_{in}+n_{hid}}}`
+    :nath: `W \sim U[-a, a]`.
+
+    If gain=1 and initializer is Normal then the weights are initialized
+    as
+
+    :math: `std = \sqrt{\frac{2}{fan_{in}+n_{hid}}}`
+    :math: `W \sim N(0, std)`.
+
+    See Also
+    --------
+    GlorotNormal  : Shortcut with Gaussian initializer.
+    GlorotUniform : Shortcut with uniform initializer.
+    """
+    def __init__(self, initializer, gain=1.0, c01b=False):
         if gain == 'relu':
             gain = np.sqrt(2)
 
@@ -67,6 +164,10 @@ class Glorot(Initializer):
             n1, n2 = shape[0], shape[3]
             receptive_field_size = shape[1] * shape[2]
         else:
+            if len(shape) < 2:
+                raise RuntimeError(
+                    "This initializer only works with shapes of length >= 2")
+
             n1, n2 = shape[:2]
             receptive_field_size = np.prod(shape[2:])
 
@@ -75,17 +176,54 @@ class Glorot(Initializer):
 
 
 class GlorotNormal(Glorot):
+    """Glorot with weights sampled from Uniform distribution
+
+    See Glorot for description of parameters.
+    """
     def __init__(self, gain=1.0, c01b=False):
         super(GlorotNormal, self).__init__(Normal, gain, c01b)
 
 
 class GlorotUniform(Glorot):
+    """Glorot with weights sampled from Uniform distribution
+
+    See Glorot for description of parameters.
+    """
     def __init__(self, gain=1.0, c01b=False):
         super(GlorotUniform, self).__init__(Uniform, gain, c01b)
 
 
 class He(Initializer):
-    def __init__(self, initializer=Normal, gain=1.0, c01b=False):
+    """He weight initialization [1]_
+
+    Weights are initialized with std
+
+    :math:`\sigma = gain \sqrt{\frac{1}{fan_{in}}}`.
+
+    Parameters
+    ----------
+    initializer : lasagne.init.Initializer
+        Initializer used to sample the weights, must accept std in its
+        constructor to sample from a distribution with a given standard
+        deviation.
+    gain : float or 'relu'
+        When 'relu' gain is set to sqrt(2).
+    c01b : bool
+        If lasagne.layers.cuda_convnet.Conv2DCCLayer is initialized with
+        dimshuffle=False, then c01b should be set to True.
+
+    References
+    ----------
+    [1] He, Kaiming, et al. Delving deep into rectifiers: Surpassing
+    human-level performance on imagenet classification.
+    arXiv preprint arXiv:1502.01852 (2015).
+
+    See Also
+    ----------
+    HeNormal  : Shortcut with Gaussian initializer.
+    HeUniform : Shortcut with uniform initializer.
+    """
+    def __init__(self, initializer, gain=1.0, c01b=False):
         if gain == 'relu':
             gain = np.sqrt(2)
 
@@ -114,16 +252,31 @@ class He(Initializer):
 
 
 class HeNormal(He):
+    """He initializer with weights sampled from Gaussian
+
+    See He for description of parameters.
+    """
     def __init__(self, gain=1.0, c01b=False):
         super(HeNormal, self).__init__(Normal, gain, c01b)
 
 
 class HeUniform(He):
+    """He initializer with weights sampled from Gaussian
+
+    See He for description of parameters.
+    """
     def __init__(self, gain=1.0, c01b=False):
         super(HeUniform, self).__init__(Uniform, gain, c01b)
 
 
 class Constant(Initializer):
+    """Initialize weights with constant value.
+
+    Parameters
+    ----------
+     val : float
+        Constant value for weights.
+    """
     def __init__(self, val=0.0):
         self.val = val
 
@@ -132,6 +285,16 @@ class Constant(Initializer):
 
 
 class Sparse(Initializer):
+    """Initialize weights as sparse matrix.
+
+    Parameters
+    ----------
+    sparsity : float
+        Exact fraction of non-zero values per column. Larger values give less
+        sparsity.
+    std : float
+        Non-zero weights are sampled from N(0, std).
+    """
     def __init__(self, sparsity=0.1, std=0.01):
         self.sparsity = sparsity
         self.std = std
@@ -156,11 +319,17 @@ class Sparse(Initializer):
 
 
 class Orthogonal(Initializer):
-    """
+    """Intialize weights as Orthogonal matrix.
+
     Orthogonal matrix initialization. For n-dimensional shapes where n > 2,
     the n-1 trailing axes are flattened. For convolutional layers, this
     corresponds to the fan-in, so this makes the initialization usable for
     both dense and convolutional layers.
+
+    Parameters
+    ----------
+    gain : float or 'relu'
+        'relu' gives gain of sqrt(2).
     """
     def __init__(self, gain=1.0):
         if gain == 'relu':

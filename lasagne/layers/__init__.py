@@ -136,13 +136,42 @@ These two layers will now share weights (but have separate biases).
 
 Propagating data through layers
 -------------------------------
-- TODO: explain get_output_for vs. get_output
-- TODO: explain propagation of keyword args
+
+To compute the output of a single layer given its input, the `get_output_for()`
+method can be used. To compute the output of a network, you should instead call
+`get_output()`. This will traverse the network graph.
+
+Any keyword arguments passed to `get_output()` are propagated to all layers.
+This makes it possible to control the behaviour of the entire network. The
+main use case for this is the `deterministic` keyword argument, which disables
+stochastic behaviour such as dropout when set to ``True``. This is useful
+because a deterministic output is desirable at evaluation time.
 
 Creating a custom layer class
 -----------------------------
-- TODO: explain get_output_for, get_output_shape_for, get_params,
-  create_param, ...
+
+To implement a custom layer class, you should subclass :class:`Layer` and
+implement at least one method: `get_output_for()`. This method computes the
+output of the layer given its input. Note that both the output and the input
+are Theano expressions, so they are symbolic.
+
+If the layer does not change the shape of the data (for example because it
+applies an elementwise operation), then implementing this one method is
+sufficient. Otherwise, you should also implement `get_output_shape_for()`,
+which computes the shape of the layer output given the shape of its input.
+Note that this shape computation should result in a tuple of integers, so it
+is *not* symbolic.
+
+If the layer has trainable parameters, these should be initialized in the
+constructor using the `create_param()` method. When overriding the constructor,
+it is also important to call the base class constructor as the first statement,
+passing ``kwargs`` as well.
+
+A layer should declare its trainable parameters by implementing a
+`get_params()` method, which returns a list of Theano shared variables
+representing the trainable parameters.
+
+TODO: flesh out this section, update it once the API is frozen.
 """
 
 

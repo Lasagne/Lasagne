@@ -275,4 +275,7 @@ except ImportError:
     from mock import Mock
 
 import theano
+import theano.sandbox.cuda
+
 theano.config = Mock(device='gpu')
+theano.sandbox.cuda.dnn = Mock(dnn_available=lambda: True)

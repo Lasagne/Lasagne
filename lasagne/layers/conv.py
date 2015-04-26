@@ -166,10 +166,10 @@ class Conv1DLayer(Layer):
     Attributes
     ----------
     W : Theano shared variable
-        TODO
+        Variable representing the filter weights.
 
     b : Theano shared variable
-        TODO
+        Variable representing the biases.
 
     Notes
     -----
@@ -344,10 +344,10 @@ class Conv2DLayer(Layer):
     Attributes
     ----------
     W : Theano shared variable
-        TODO
+        Variable representing the filter weights.
 
     b : Theano shared variable
-        TODO
+        Variable representing the biases.
 
     Notes
     -----

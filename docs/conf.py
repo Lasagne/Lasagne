@@ -279,3 +279,10 @@ import theano.sandbox.cuda
 
 theano.config = Mock(device='gpu')
 theano.sandbox.cuda.dnn = Mock(dnn_available=lambda: True)
+
+import sys
+
+sys.modules['pylearn2.sandbox.cuda_convnet.filter_acts'] = \
+    Mock(FilterActs=None)
+
+sys.modules['theano.sandbox.cuda.blas'] = Mock(GpuCorrMM=None)

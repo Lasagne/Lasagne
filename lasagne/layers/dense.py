@@ -10,7 +10,7 @@ from .base import Layer
 __all__ = [
     "DenseLayer",
     "NINLayer",
-    "NonlinearityOnlyLayer"
+    "NonlinearityLayer"
 ]
 
 
@@ -19,7 +19,7 @@ class DenseLayer(Layer):
     A fully connected layer.
 
     :parameters:
-        - input_layer : `Layer` instance
+        - incoming : `Layer` instance
             The layer from which this layer will obtain its input
 
         - num_units : int
@@ -88,19 +88,11 @@ class DenseLayer(Layer):
         return self.nonlinearity(activation)
 
 
-class NonlinearityOnlyLayer(Layer):
+class NonlinearityLayer(Layer):
     """
-    A layer that just performs a nonlinearity.
-    This is for use in conjunction with MultipleInputsLayer subclasses,
-    which just add or concatenate outputs from layers.  For example, one
-    might want to take inputs of length n and m, perform linear transformations
-    on them using DenseLayer objects, then add the transformed outputs with an
-    ElemwiseSumLayer, and then use this class to apply a nonlinearity
-    (note that this would be different from applying the nonlinearity and
-    then adding).  Alternatively, one could use a ConcatLayer followed by
-    a DenseLayer, but concatenation is less efficient than adding.
+    A layer that just applies a nonlinearity.
 
-    - input_layer : `Layer` instance
+    - incoming : `Layer` instance
         The layer from which this layer will obtain its input
 
     - nonlinearity : callable or None
@@ -109,7 +101,7 @@ class NonlinearityOnlyLayer(Layer):
     """
     def __init__(self, incoming, nonlinearity=nonlinearities.rectify,
                  **kwargs):
-        super(NonlinearityOnlyLayer, self).__init__(incoming, **kwargs)
+        super(NonlinearityLayer, self).__init__(incoming, **kwargs)
         self.nonlinearity = (nonlinearities.identity if nonlinearity is None
                              else nonlinearity)
 

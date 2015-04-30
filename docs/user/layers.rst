@@ -43,7 +43,7 @@ The first layer of the network is an `InputLayer`, which represents the input.
 When creating an input layer, you should specify the shape of the input data.
 In this example, the input is a matrix with shape (100, 50), representing a
 batch of 100 data points, where each data point is a vector of length 50.
-the first dimension of a tensor is usually the batch dimension, following the
+The first dimension of a tensor is usually the batch dimension, following the
 established Theano and scikit-learn conventions.
 
 The hidden layer of the network is a dense layer with 200 units, taking its

@@ -49,8 +49,6 @@ Layer classes: convolutional layers
 .. autoclass:: Conv2DLayer
     :members:
 
-.. autofunction:: lasagne.layers.conv.conv_output_length
-
 Layer classes: pooling layers
 -----------------------------
 

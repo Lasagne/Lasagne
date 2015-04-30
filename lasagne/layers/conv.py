@@ -125,7 +125,7 @@ class Conv1DLayer(Layer):
         filter overlap by at least half the filter size, when the filter size
         is odd. In practice, the input is zero-padded with half the filter size
         at the beginning and half at the end (or one less than half in the case
-        of an even filter size). Thisresults in an output length that is the
+        of an even filter size). This results in an output length that is the
         same as the input length (for both odd and even filter sizes).
 
     untie_biases : bool, default False
@@ -148,7 +148,7 @@ class Conv1DLayer(Layer):
         layer will have no biases. This should initialize the layer biases to
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filers, input_length)`` instead.
+        ``(num_filters, input_length)`` instead.
         See :meth:`Layer.create_param` for more information.
 
     nonlinearity : callable or None
@@ -331,7 +331,7 @@ class Conv2DLayer(Layer):
         layer will have no biases. This should initialize the layer biases to
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filers, input_height, input_width)`` instead.
+        ``(num_filters, input_height, input_width)`` instead.
         See :meth:`Layer.create_param` for more information.
 
     nonlinearity : callable or None

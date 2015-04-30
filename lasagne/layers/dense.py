@@ -19,8 +19,8 @@ class DenseLayer(Layer):
     A fully connected layer.
 
     :parameters:
-        - incoming : `Layer` instance
-            The layer from which this layer will obtain its input
+        - incoming : a :class:`Layer` instance or a tuple
+            the layer feeding into this layer, or the expected input shape
 
         - num_units : int
             The number of units of the layer
@@ -92,8 +92,8 @@ class NonlinearityLayer(Layer):
     """
     A layer that just applies a nonlinearity.
 
-    - incoming : `Layer` instance
-        The layer from which this layer will obtain its input
+    - incoming : a :class:`Layer` instance or a tuple
+        the layer feeding into this layer, or the expected input shape
 
     - nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None

@@ -20,6 +20,7 @@ new Lasagne developers what to install and where to start.
   user/installation
   user/tutorial
   user/development
+  user/layers
 
 API Reference
 -------------

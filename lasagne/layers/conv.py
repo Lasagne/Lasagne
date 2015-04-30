@@ -16,6 +16,58 @@ __all__ = [
 
 def conv_output_length(input_length, filter_size,
                        stride, border_mode, pad=0):
+    """Helper function to compute the output size of a convolution operation
+
+    This function computes the length along a single axis, which corresponds
+    to a 1D convolution. It can also be used for convolutions with higher
+    dimensionalities by using it individually for each axis.
+
+    Parameters
+    ----------
+    input_length : int
+        The size of the input.
+
+    filter_size : int
+        The size of the filter.
+
+    stride : int
+        The stride of the convolution operation.
+
+    border_mode : str, 'valid', 'full', 'same' or 'pad'
+        A string indicating the convolution border mode.
+
+        If 'valid', it is assumed that the convolution is only computed where
+        the input and the filter fully overlap.
+
+        If 'full', it is assumed that the convolution is computed wherever the
+        input and the filter overlap by at least one position.
+
+        If 'same', it is assumed that the convolution is computed wherever the
+        input and the filter overlap by at least half the filter size, when the
+        filter size is odd. In practice, the input is zero-padded with half the
+        filter size at the beginning and half at the end (or one less than half
+        in the case of an even filter size). This results in an output length
+        that is the same as the input length (for both odd and even filter
+        sizes).
+
+        If 'pad', zero padding of `pad` positions is assumed to be applied to
+        the input, and then a valid convolution is applied.
+
+    pad : int, optional (default 0)
+        If `border_mode` is set to 'pad', this is the size of the padding that
+        is applied on both sides of the input. Otherwise, this is ignored.
+
+    Returns
+    -------
+    int
+        The output size corresponding to the given convolution parameters.
+
+    Raises
+    ------
+    RuntimeError
+        When an invalid border_mode string is specified, a `RuntimeError` is
+        raised.
+    """
     if input_length is None:
         return None
     if border_mode == 'valid':
@@ -37,6 +89,97 @@ def conv_output_length(input_length, filter_size,
 
 
 class Conv1DLayer(Layer):
+    """
+    1D convolutional layer
+
+    Performs a 1D convolution on its input and optionally adds a bias and
+    applies an elementwise nonlinearity.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 3D tensor, with shape
+        ``(batch_size, num_input_channels, input_length)``.
+
+    num_filters : int
+        The number of learnable convolutional filters this layer has.
+
+    filter_size : int or tuple of int
+        An integer or a 1-element tuple specifying the size of the filters.
+
+    stride : int or tuple of int
+        An integer or a 1-element tuple specifying the stride of the
+        convolution operation.
+
+    border_mode : str, one of 'valid', 'full', 'same'
+        A string indicating the convolution border mode.
+
+        If 'valid', the convolution is only computed where the input and the
+        filter fully overlap.
+
+        If 'full', the convolution is computed wherever the input and the
+        filter overlap by at least one position.
+
+        If 'same', the convolution is computed wherever the input and the
+        filter overlap by at least half the filter size, when the filter size
+        is odd. In practice, the input is zero-padded with half the filter size
+        at the beginning and half at the end (or one less than half in the case
+        of an even filter size). This results in an output length that is the
+        same as the input length (for both odd and even filter sizes).
+
+    untie_biases : bool, default False
+        If ``False``, the layer will have a bias parameter for channel, which
+        is shared across all positions in this channel. As a result, the `b`
+        attribute will be a vector (1D).
+
+        If True, the layer will have separate bias parameters for each
+        position in each channel. As a result, the `b` attribute will be a
+        matrix (2D).
+
+    W : Theano shared variable, numpy array or callable
+        An initializer for the weights of the layer. This should initialize the
+        layer weights to a 3D array with shape
+        ``(num_filters, num_input_channels, filter_length)``.
+        See :meth:`Layer.create_param` for more information.
+
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases of the layer. If None is provided, the
+        layer will have no biases. This should initialize the layer biases to
+        a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
+        ``False``. If it is set to ``True``, its shape should be
+        ``(num_filters, input_length)`` instead.
+        See :meth:`Layer.create_param` for more information.
+
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+
+    convolution : callable
+        The convolution implementation to use. The
+        `lasagne.theano_extensions.conv` module provides some alternative
+        implementations for 1D convolutions, because the Theano API only
+        features a 2D convolution implementation. Usually it should be fine
+        to leave this at the default value.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
+
+    Attributes
+    ----------
+    W : Theano shared variable
+        Variable representing the filter weights.
+
+    b : Theano shared variable
+        Variable representing the biases.
+
+    Notes
+    -----
+    Theano's default convolution function (`theano.tensor.nnet.conv.conv2d`)
+    does not support the 'same' border mode by default. This layer emulates
+    it by performing a 'full' convolution and then cropping the result, which
+    may negatively affect performance.
+    """
     def __init__(self, incoming, num_filters, filter_size, stride=1,
                  border_mode="valid", untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
@@ -66,6 +209,13 @@ class Conv1DLayer(Layer):
             self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
+        """Get the shape of the weight matrix `W`.
+
+        Returns
+        -------
+        tuple of int
+            The shape of the weight matrix.
+        """
         num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0])
 
@@ -122,6 +272,94 @@ class Conv1DLayer(Layer):
 
 
 class Conv2DLayer(Layer):
+    """
+    2D convolutional layer
+
+    Performs a 2D convolution on its input and optionally adds a bias and
+    applies an elementwise nonlinearity.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 4D tensor, with shape
+        ``(batch_size, num_input_channels, input_height, input_width)``.
+
+    num_filters : int
+        The number of learnable convolutional filters this layer has.
+
+    filter_size : int or tuple of int
+        An integer or a 2-element tuple specifying the size of the filters.
+
+    stride : int or tuple of int
+        An integer or a 2-element tuple specifying the stride of the
+        convolution operation.
+
+    border_mode : str, one of 'valid', 'full', 'same'
+        A string indicating the convolution border mode.
+
+        If 'valid', the convolution is only computed where the input and the
+        filter fully overlap.
+
+        If 'full', the convolution is computed wherever the input and the
+        filter overlap by at least one position.
+
+        If 'same', the convolution is computed wherever the input and the
+        filter overlap by at least half the filter size, when the filter size
+        is odd. In practice, the input is zero-padded with half the filter size
+        at the beginning and half at the end (or one less than half in the case
+        of an even filter size). This results in an output length that is the
+        same as the input length (for both odd and even filter sizes).
+
+    untie_biases : bool, default False
+        If ``False``, the layer will have a bias parameter for channel, which
+        is shared across all positions in this channel. As a result, the `b`
+        attribute will be a vector (1D).
+
+        If True, the layer will have separate bias parameters for each
+        position in each channel. As a result, the `b` attribute will be a
+        3D tensor.
+
+    W : Theano shared variable, numpy array or callable
+        An initializer for the weights of the layer. This should initialize the
+        layer weights to a 4D array with shape
+        ``(num_filters, num_input_channels, filter_height, filter_width)``.
+        See :meth:`Layer.create_param` for more information.
+
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases of the layer. If None is provided, the
+        layer will have no biases. This should initialize the layer biases to
+        a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
+        ``False``. If it is set to ``True``, its shape should be
+        ``(num_filters, input_height, input_width)`` instead.
+        See :meth:`Layer.create_param` for more information.
+
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+
+    convolution : callable
+        The convolution implementation to use. Usually it should be fine to
+        leave this at the default value.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
+
+    Attributes
+    ----------
+    W : Theano shared variable
+        Variable representing the filter weights.
+
+    b : Theano shared variable
+        Variable representing the biases.
+
+    Notes
+    -----
+    Theano's default convolution function (`theano.tensor.nnet.conv.conv2d`)
+    does not support the 'same' border mode by default. This layer emulates
+    it by performing a 'full' convolution and then cropping the result, which
+    may negatively affect performance.
+    """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode="valid", untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
@@ -151,6 +389,13 @@ class Conv2DLayer(Layer):
             self.b = self.create_param(b, (num_filters,), name="b")
 
     def get_W_shape(self):
+        """Get the shape of the weight matrix `W`.
+
+        Returns
+        -------
+        tuple of int
+            The shape of the weight matrix.
+        """
         num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0],
                 self.filter_size[1])

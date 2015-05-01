@@ -10,6 +10,7 @@ from .base import Layer
 __all__ = [
     "DenseLayer",
     "NINLayer",
+    "NonlinearityLayer"
 ]
 
 
@@ -18,8 +19,8 @@ class DenseLayer(Layer):
     A fully connected layer.
 
     :parameters:
-        - input_layer : `Layer` instance
-            The layer from which this layer will obtain its input
+        - incoming : a :class:`Layer` instance or a tuple
+            the layer feeding into this layer, or the expected input shape
 
         - num_units : int
             The number of units of the layer
@@ -55,10 +56,8 @@ class DenseLayer(Layer):
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  **kwargs):
         super(DenseLayer, self).__init__(incoming, **kwargs)
-        if nonlinearity is None:
-            self.nonlinearity = nonlinearities.identity
-        else:
-            self.nonlinearity = nonlinearity
+        self.nonlinearity = (nonlinearities.identity if nonlinearity is None
+                             else nonlinearity)
 
         self.num_units = num_units
 
@@ -89,6 +88,27 @@ class DenseLayer(Layer):
         return self.nonlinearity(activation)
 
 
+class NonlinearityLayer(Layer):
+    """
+    A layer that just applies a nonlinearity.
+
+    - incoming : a :class:`Layer` instance or a tuple
+        the layer feeding into this layer, or the expected input shape
+
+    - nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+    """
+    def __init__(self, incoming, nonlinearity=nonlinearities.rectify,
+                 **kwargs):
+        super(NonlinearityLayer, self).__init__(incoming, **kwargs)
+        self.nonlinearity = (nonlinearities.identity if nonlinearity is None
+                             else nonlinearity)
+
+    def get_output_for(self, input, **kwargs):
+        return self.nonlinearity(input)
+
+
 class NINLayer(Layer):
     """
     Network-in-network layer.
@@ -101,10 +121,8 @@ class NINLayer(Layer):
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, **kwargs):
         super(NINLayer, self).__init__(incoming, **kwargs)
-        if nonlinearity is None:
-            self.nonlinearity = nonlinearities.identity
-        else:
-            self.nonlinearity = nonlinearity
+        self.nonlinearity = (nonlinearities.identity if nonlinearity is None
+                             else nonlinearity)
 
         self.num_units = num_units
         self.untie_biases = untie_biases

@@ -141,7 +141,7 @@ class Conv1DLayer(Layer):
         An initializer for the weights of the layer. This should initialize the
         layer weights to a 3D array with shape
         ``(num_filters, num_input_channels, filter_length)``.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, numpy array, callable or None
         An initializer for the biases of the layer. If None is provided, the
@@ -149,7 +149,7 @@ class Conv1DLayer(Layer):
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
         ``(num_filters, input_length)`` instead.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
@@ -198,14 +198,14 @@ class Conv1DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
-        self.W = self.create_param(W, self.get_W_shape(), name="W")
+        self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
-            self.b = self.create_param(b, (num_filters, self.output_shape[2]),
-                                       name="b")
+            biases_shape = (num_filters, self.output_shape[2])
         else:
-            self.b = self.create_param(b, (num_filters,), name="b")
+            biases_shape = (num_filters,)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
 
     def get_W_shape(self):
         """Get the shape of the weight matrix `W`.
@@ -217,12 +217,6 @@ class Conv1DLayer(Layer):
         """
         num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0])
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         output_length = conv_output_length(input_shape[2],
@@ -323,7 +317,7 @@ class Conv2DLayer(Layer):
         An initializer for the weights of the layer. This should initialize the
         layer weights to a 4D array with shape
         ``(num_filters, num_input_channels, filter_height, filter_width)``.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, numpy array, callable or None
         An initializer for the biases of the layer. If None is provided, the
@@ -331,7 +325,7 @@ class Conv2DLayer(Layer):
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
         ``(num_filters, input_height, input_width)`` instead.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
@@ -377,14 +371,15 @@ class Conv2DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
-        self.W = self.create_param(W, self.get_W_shape(), name="W")
+        self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
-            self.b = self.create_param(b, (num_filters, self.output_shape[2],
-                                           self.output_shape[3]), name="b")
+            biases_shape = (num_filters, self.output_shape[2], self.
+                            output_shape[3])
         else:
-            self.b = self.create_param(b, (num_filters,), name="b")
+            biases_shape = (num_filters,)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
 
     def get_W_shape(self):
         """Get the shape of the weight matrix `W`.
@@ -397,12 +392,6 @@ class Conv2DLayer(Layer):
         num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0],
                 self.filter_size[1])
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         output_rows = conv_output_length(input_shape[2],

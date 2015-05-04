@@ -2,8 +2,6 @@ from collections import OrderedDict
 
 from .. import utils
 
-from .helper import create_param
-
 
 __all__ = [
     "Layer",
@@ -182,11 +180,13 @@ class Layer(object):
             if self.name is not None:
                 name = "%s.%s" % (self.name, name)
 
-        param = create_param(spec, shape, name)
+        param = utils.create_param(spec, shape, name)
         # parameters should be trainable and regularizable by default
         tags['trainable'] = tags.get('trainable', True)
         tags['regularizable'] = tags.get('regularizable', True)
         self.params[param] = set(tag for tag, value in tags.items() if value)
+
+        return param
 
     # def create_param(self, param, shape, name=None):
     #     """

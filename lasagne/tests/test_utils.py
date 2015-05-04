@@ -1,9 +1,10 @@
+from mock import Mock
 import pytest
+import numpy as np
+import theano
 
 
 def test_compute_norms():
-    import numpy as np
-    import theano
     from lasagne.utils import compute_norms
 
     array = np.random.randn(10, 20, 30, 40).astype(theano.config.floatX)
@@ -15,8 +16,6 @@ def test_compute_norms():
 
 
 def test_compute_norms_axes():
-    import numpy as np
-    import theano
     from lasagne.utils import compute_norms
 
     array = np.random.randn(10, 20, 30, 40).astype(theano.config.floatX)
@@ -28,8 +27,6 @@ def test_compute_norms_axes():
 
 
 def test_compute_norms_ndim6_raises():
-    import numpy as np
-    import theano
     from lasagne.utils import compute_norms
 
     array = np.random.randn(1, 2, 3, 4, 5, 6).astype(theano.config.floatX)
@@ -38,3 +35,48 @@ def test_compute_norms_ndim6_raises():
         compute_norms(array)
 
     assert "Unsupported tensor dimensionality" in str(excinfo.value)
+
+
+def test_create_param_numpy_bad_shape_raises_error():
+    from lasagne.utils import create_param
+
+    param = np.array([[1, 2, 3], [4, 5, 6]])
+    with pytest.raises(RuntimeError):
+        create_param(param, (3, 2))
+
+
+def test_create_param_numpy_returns_shared():
+    from lasagne.utils import create_param
+
+    param = np.array([[1, 2, 3], [4, 5, 6]])
+    result = create_param(param, (2, 3))
+    assert (result.get_value() == param).all()
+    assert isinstance(result, type(theano.shared(param)))
+    assert (result.get_value() == param).all()
+
+
+def test_create_param_shared_returns_same():
+    from lasagne.utils import create_param
+
+    param = theano.shared(np.array([[1, 2, 3], [4, 5, 6]]))
+    result = create_param(param, (2, 3))
+    assert result is param
+
+
+def test_create_param_shared_bad_ndim_raises_error():
+    from lasagne.utils import create_param
+
+    param = theano.shared(np.array([[1, 2, 3], [4, 5, 6]]))
+    with pytest.raises(RuntimeError):
+        create_param(param, (2, 3, 4))
+
+
+def test_create_param_callable_returns_return_value():
+    from lasagne.utils import create_param
+
+    array = np.array([[1, 2, 3], [4, 5, 6]])
+    factory = Mock()
+    factory.return_value = array
+    result = create_param(factory, (2, 3))
+    assert (result.get_value() == array).all()
+    factory.assert_called_with((2, 3))

@@ -27,36 +27,6 @@ class TestLayer:
         assert layer.input_layer is None
         assert layer.input_shape == (None, 20)
 
-    def test_create_param_numpy_bad_shape_raises_error(self, layer):
-        param = numpy.array([[1, 2, 3], [4, 5, 6]])
-        with pytest.raises(RuntimeError):
-            layer.create_param(param, (3, 2))
-
-    def test_create_param_numpy_returns_shared(self, layer):
-        param = numpy.array([[1, 2, 3], [4, 5, 6]])
-        result = layer.create_param(param, (2, 3))
-        assert (result.get_value() == param).all()
-        assert isinstance(result, type(theano.shared(param)))
-        assert (result.get_value() == param).all()
-
-    def test_create_param_shared_returns_same(self, layer):
-        param = theano.shared(numpy.array([[1, 2, 3], [4, 5, 6]]))
-        result = layer.create_param(param, (2, 3))
-        assert result is param
-
-    def test_create_param_shared_bad_ndim_raises_error(self, layer):
-        param = theano.shared(numpy.array([[1, 2, 3], [4, 5, 6]]))
-        with pytest.raises(RuntimeError):
-            layer.create_param(param, (2, 3, 4))
-
-    def test_create_param_callable_returns_return_value(self, layer):
-        array = numpy.array([[1, 2, 3], [4, 5, 6]])
-        factory = Mock()
-        factory.return_value = array
-        result = layer.create_param(factory, (2, 3))
-        assert (result.get_value() == array).all()
-        factory.assert_called_with((2, 3))
-
     def test_named_layer(self):
         from lasagne.layers.base import Layer
         l = Layer(Mock(), name="foo")

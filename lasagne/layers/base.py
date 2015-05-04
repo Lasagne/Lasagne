@@ -65,41 +65,6 @@ class Layer(object):
 
         return result
 
-    # def get_params(self):
-    #     """
-    #     Returns a list of all the Theano variables that parameterize the
-    #     layer.
-
-    #     :returns:
-    #         - list
-    #             the list of Theano variables.
-
-    #     :note:
-    #         By default this returns an empty list, but it should be overridden
-    #         in a subclass that has trainable parameters.
-    #     """
-    #     return []
-
-    # def get_bias_params(self):
-    #     """
-    #     Returns a list of all the Theano variables that are bias parameters
-    #     for the layer.
-
-    #     :returns:
-    #         - bias_params : list
-    #             the list of Theano variables.
-
-    #     :note:
-    #         By default this returns an empty list, but it should be overridden
-    #         in a subclass that has trainable parameters.
-
-    #         While `get_params()` should return all Theano variables,
-    #         `get_bias_params()` should only return those corresponding to bias
-    #         parameters. This is useful when specifying regularization (it is
-    #         often undesirable to regularize bias parameters).
-    #     """
-    #     return []
-
     def get_output_shape(self):
         """
         Deprecated. Use `layer.output_shape`.

@@ -31,7 +31,7 @@ def shared_empty(dim=2, dtype=None):
     dim : int, optional
         The number of dimensions for the empty variable, defaults to 2.
     dtype : a numpy data-type, optional
-        The desired data-type for the variable, defaults to the Theano
+        The desired data-type for the variable. Defaults to the Theano
         ``floatX`` data-type.
 
     Returns
@@ -159,7 +159,6 @@ def compute_norms(array, norm_axes=None):
     >>> norms = compute_norms(array, norm_axes=(1,))
     >>> norms.shape
     (100,)
-
     """
     ndim = array.ndim
 

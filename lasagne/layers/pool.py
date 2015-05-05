@@ -32,8 +32,8 @@ def pool_output_length(input_length, pool_size, stride,
     pad : integer
         The number of elements to be added to the input on each side.
     ignore_border: bool
-        If True, partial pooling regions will be ignored.
-        Must be True if pad != 0.
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != 0``.
 
     Returns
     -------
@@ -43,11 +43,11 @@ def pool_output_length(input_length, pool_size, stride,
 
     Notes
     -----
-    When `ignore_border == True`, this is given by the number of full
+    When ``ignore_border == True``, this is given by the number of full
     pooling regions that fit in the padded input length,
     divided by the stride (rounding down).
 
-    If `ignore_border == False`, a single partial pooling region is
+    If ``ignore_border == False``, a single partial pooling region is
     appended if at least one input element would be left uncovered otherwise.
     """
     if input_length is None or pool_size is None:
@@ -86,17 +86,17 @@ class MaxPool1DLayer(Layer):
     pool_size : integer or iterable
         The length of the pooling region
 
-    stride : integer, iterable or None
+    stride : integer, iterable or ``None``
         The stride between sucessive pooling regions.
-        If `None`, stride = pool_size.
+        If ``None`` then ``stride == pool_size``.
 
     pad : integer or iterable
         The number of elements to be added to the input on each side.
         Must be less than stride.
 
     ignore_border : bool
-        If True, partial pooling regions will be ignored.
-        Must be True if pad != 0.
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != 0``.
 
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
@@ -156,9 +156,9 @@ class MaxPool2DLayer(Layer):
     pool_size : integer or iterable
         The length of the pooling region in each dimension
 
-    stride : integer, iterable or None
+    stride : integer, iterable or ``None``
         The strides between sucessive pooling regions in each dimension.
-        If None, stride = pool_size.
+        If ``None`` then ``stride = pool_size``.
 
     pad : integer or iterable
         Number of elements to be added on each side of the input
@@ -166,8 +166,8 @@ class MaxPool2DLayer(Layer):
         the corresponding stride.
 
     ignore_border : bool
-        If True, partial pooling regions will be ignored.
-        Must be True if pad != (0, 0).
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != (0, 0)``.
 
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
@@ -243,11 +243,11 @@ class FeaturePoolLayer(Layer):
         The layer feeding into this layer, or the expected input shape.
 
     pool_size : integer
-        the size of the pooling windows, i.e. the number of features / feature
+        the size of the pooling regions, i.e. the number of features / feature
         maps to be pooled together.
 
     axis : integer
-        the axis along which to pool. The default value of 1 works
+        the axis along which to pool. The default value of ``1`` works
         for :class:`DenseLayer`, :class:`Conv1DLayer` and :class:`Conv2DLayer`.
 
     pool_function : callable
@@ -301,7 +301,7 @@ class FeatureWTALayer(Layer):
     'Winner Take' All layer
 
     This layer performs 'Winner Take All' (WTA) across feature maps: zero out
-    all but the maximal activation value within a group of features.
+    all but the maximal activation value within a region.
 
     Parameters
     ----------
@@ -309,10 +309,10 @@ class FeatureWTALayer(Layer):
         The layer feeding into this layer, or the expected input shape.
 
     pool_size : integer
-        the number of feature maps per group.
+        the number of feature maps per region.
 
     axis : integer
-        the axis along which the groups are formed.
+        the axis along which the regions are formed.
 
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
@@ -332,7 +332,7 @@ class FeatureWTALayer(Layer):
         num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.pool_size != 0:
             raise RuntimeError("Number of input feature maps (%d) is not a "
-                               "multiple of the group size (pool_size=%d)" %
+                               "multiple of the region size (pool_size=%d)" %
                                (num_feature_maps, self.pool_size))
 
     def get_output_for(self, input, **kwargs):
@@ -381,11 +381,6 @@ class GlobalPoolLayer(Layer):
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
         superclass.
-
-    Notes
-    -----
-    This layer requires that the size of the axis along which it groups units
-    is a multiple of the pool size.
     """
 
     def __init__(self, incoming, pool_function=T.mean, **kwargs):

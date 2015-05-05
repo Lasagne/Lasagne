@@ -58,9 +58,12 @@ class TestDenseLayer:
 
     def test_get_params(self, layer):
         assert layer.get_params() == [layer.W, layer.b]
-
-    def test_get_bias_params(self, layer):
-        assert layer.get_bias_params() == [layer.b]
+        assert layer.get_params(regularizable=False) == [layer.b]
+        assert layer.get_params(regularizable=True) == [layer.W]
+        assert layer.get_params(trainable=True) == [layer.W, layer.b]
+        assert layer.get_params(trainable=False) == []
+        assert layer.get_params(_nonexistent_tag=True) == []
+        assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
 
     def test_get_output_shape_for(self, layer):
         assert layer.get_output_shape_for((5, 6, 7)) == (5, 3)

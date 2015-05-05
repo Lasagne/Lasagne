@@ -178,6 +178,7 @@ class MergeLayer(Layer):
                              else incoming
                              for incoming in incomings]
         self.name = name
+        self.params = OrderedDict()
 
     @Layer.output_shape.getter
     def output_shape(self):

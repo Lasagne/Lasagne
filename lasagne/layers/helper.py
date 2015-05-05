@@ -12,8 +12,6 @@ __all__ = [
     "get_output",
     "get_output_shape",
     "get_all_params",
-    "get_all_bias_params",
-    "get_all_non_bias_params",
     "count_params",
     "get_all_param_values",
     "set_all_param_values",

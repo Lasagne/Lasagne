@@ -49,7 +49,7 @@ class Layer(object):
         """
         TODO: docstring
         """
-        result = self.params.keys()
+        result = list(self.params.keys())
 
         only = set(tag for tag, value in tags.items() if value)
         if only:

@@ -5,7 +5,7 @@ import theano.tensor as T
 
 
 def floatX(arr):
-    """Converts numpy array to one with the correct Theano data-type.
+    """Converts numpy array to one with the correct dtype.
 
     Parameters
     ----------
@@ -15,7 +15,7 @@ def floatX(arr):
     Returns
     -------
     numpy array
-        The input array in the ``floatX`` data-type configured for Theano.
+        The input array in the ``floatX`` dtype configured for Theano.
     """
     return arr.astype(theano.config.floatX)
 
@@ -31,13 +31,13 @@ def shared_empty(dim=2, dtype=None):
     dim : int, optional
         The number of dimensions for the empty variable, defaults to 2.
     dtype : a numpy data-type, optional
-        The desired data-type for the variable. Defaults to the Theano
-        ``floatX`` data-type.
+        The desired dtype for the variable. Defaults to the Theano
+        ``floatX`` dtype.
 
     Returns
     -------
     Theano shared variable
-        An empty Theano shared variable of data-type ``dtype`` with
+        An empty Theano shared variable of dtype ``dtype`` with
         `dim` dimensions.
     """
     if dtype is None:
@@ -50,19 +50,19 @@ def shared_empty(dim=2, dtype=None):
 def as_theano_expression(input):
     """Wrap as Theano expression.
 
-    Wraps the given input as a Theano Constant if it is not
+    Wraps the given input as a Theano constant if it is not
     a valid Theano expression already. Useful to transparently
     handle numpy arrays and Python scalars, for example.
 
     Parameters
     ----------
     input :
-        Expression to be converted to a Theano Constant.
+        Expression to be converted to a Theano constant.
 
     Returns
     -------
     Theano symbolic constant
-        Theano Constant version of `input`.
+        Theano constant version of `input`.
     """
     if isinstance(input, theano.gof.Variable):
         return input

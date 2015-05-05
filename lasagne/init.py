@@ -176,7 +176,7 @@ class Glorot(Initializer):
 
 
 class GlorotNormal(Glorot):
-    """Glorot with weights sampled from Uniform distribution
+    """Glorot with weights sampled from Normal distribution
 
     See Glorot for description of parameters.
     """

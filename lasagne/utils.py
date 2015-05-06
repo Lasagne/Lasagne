@@ -56,7 +56,7 @@ def as_theano_expression(input):
 
     Parameters
     ----------
-    input :
+    input : number, numpy array or Theano expression
         Expression to be converted to a Theano constant.
 
     Returns
@@ -133,7 +133,7 @@ def compute_norms(array, norm_axes=None):
     Parameters
     ----------
     array : ndarray
-        Weight array
+        Weight array.
     norm_axes : sequence (list or tuple)
         The axes over which to compute the norm.  This overrides the
         default norm axes defined for the number of dimensions

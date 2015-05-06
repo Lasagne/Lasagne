@@ -32,8 +32,8 @@ def pool_output_length(input_length, pool_size, stride,
     pad : integer
         The number of elements to be added to the input on each side.
     ignore_border: bool
-        If True, partial pooling regions will be ignored.
-        Must be True if pad != 0.
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != 0``.
 
     Returns
     -------
@@ -43,11 +43,11 @@ def pool_output_length(input_length, pool_size, stride,
 
     Notes
     -----
-    When `ignore_border == True`, this is given by the number of full
+    When ``ignore_border == True``, this is given by the number of full
     pooling regions that fit in the padded input length,
     divided by the stride (rounding down).
 
-    If `ignore_border == False`, a single partial pooling region is
+    If ``ignore_border == False``, a single partial pooling region is
     appended if at least one input element would be left uncovered otherwise.
     """
     if input_length is None or pool_size is None:
@@ -72,39 +72,45 @@ def pool_output_length(input_length, pool_size, stride,
 
 
 class MaxPool1DLayer(Layer):
-
     """
-    This layer performs max pooling over the final dimension
-    of a 3D tensor.
+    1D max-pooling layer
+
+    Performs 1D max-pooling over the trailing axis of a 3D input tensor.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 3D tensor.
+
+    pool_size : integer or iterable
+        The length of the pooling region
+
+    stride : integer, iterable or ``None``
+        The stride between sucessive pooling regions.
+        If ``None`` then ``stride == pool_size``.
+
+    pad : integer or iterable
+        The number of elements to be added to the input on each side.
+        Must be less than stride.
+
+    ignore_border : bool
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != 0``.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    The value used to pad the input is chosen to be less than
+    the minimum of the input, so that the output of each pooling region
+    always corresponds to some element in the unpadded input region.
     """
 
     def __init__(self, incoming, pool_size, stride=None, pad=0,
                  ignore_border=False, **kwargs):
-        """
-        Instantiates the layer.
-
-        Parameters
-        ----------
-        incoming : a :class:`Layer` instance or tuple
-            The layer feeding into this layer, or the expected input shape.
-        pool_size : integer
-            The length of the pooling region
-        stride : integer or None
-            The stride between sucessive pooling regions.
-            If None, stride = pool_size.
-        pad : integer
-            The number of elements to be added to the input on each side.
-            Must be less than stride.
-        ignore_border : bool
-            If True, partial pooling regions will be ignored.
-            Must be True if pad != 0.
-
-        Notes
-        -----
-        The value used to pad the input is chosen to be less than
-        the minimum of the input, so that the output of each pooling region
-        always corresponds to some element in the unpadded input region.
-        """
         super(MaxPool1DLayer, self).__init__(incoming, **kwargs)
         self.pool_size = as_tuple(pool_size, 1)
         self.stride = self.pool_size if stride is None else as_tuple(stride, 1)
@@ -136,40 +142,46 @@ class MaxPool1DLayer(Layer):
 
 
 class MaxPool2DLayer(Layer):
-
     """
-    This layer performs max pooling over the last two dimensions
-    of a 4D tensor.
+    2D max-pooling layer
+
+    Performs 2D max-pooling over the two trailing axes of a 4D input tensor.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 4D tensor.
+
+    pool_size : integer or iterable
+        The length of the pooling region in each dimension
+
+    stride : integer, iterable or ``None``
+        The strides between sucessive pooling regions in each dimension.
+        If ``None`` then ``stride = pool_size``.
+
+    pad : integer or iterable
+        Number of elements to be added on each side of the input
+        in each dimension. Each value must be less than
+        the corresponding stride.
+
+    ignore_border : bool
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != (0, 0)``.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    The value used to pad the input is chosen to be less than
+    the minimum of the input, so that the output of each pooling region
+    always corresponds to some element in the unpadded input region.
     """
 
     def __init__(self, incoming, pool_size, stride=None,
                  ignore_border=False, pad=(0, 0), **kwargs):
-        """
-        Instantiates the layer.
-
-        Parameters
-        ----------
-        incoming : a :class:`Layer` instance or tuple
-            The layer feeding into this layer, or the expected input shape.
-        pool_size : integer or iterable
-            The length of the pooling region in each dimension
-        stride : integer, iterable or None
-            The strides between sucessive pooling regions in each dimension.
-            If None, stride = pool_size.
-        pad : integer or iterable
-            Number of elements to be added on each side of the input
-            in each dimension. Each value must be less than
-            the corresponding stride.
-        ignore_border : bool
-            If True, partial pooling regions will be ignored.
-            Must be True if pad != (0, 0).
-
-        Notes
-        -----
-        The value used to pad the input is chosen to be less than
-        the minimum of the input, so that the output of each pooling region
-        always corresponds to some element in the unpadded input region.
-        """
         super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
 
         self.pool_size = as_tuple(pool_size, 2)
@@ -217,28 +229,44 @@ class MaxPool2DLayer(Layer):
 
 
 class FeaturePoolLayer(Layer):
-
     """
-    This layer performs pooling across feature maps, which can be used
-    to implement maxout.
-    IMPORTANT: this layer requires that the number of feature maps is
-    a multiple of the pool size.
+    Feature pooling layer
+
+    This layer pools across a given axis of the input. By default this is axis
+    1, which corresponds to the feature axis for :class:`DenseLayer`,
+    :class:`Conv1DLayer` and :class:`Conv2DLayer`. The layer can be used to
+    implement maxout.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_size : integer
+        the size of the pooling regions, i.e. the number of features / feature
+        maps to be pooled together.
+
+    axis : integer
+        the axis along which to pool. The default value of ``1`` works
+        for :class:`DenseLayer`, :class:`Conv1DLayer` and :class:`Conv2DLayer`.
+
+    pool_function : callable
+        the pooling function to use. This defaults to `theano.tensor.max`
+        (i.e. max-pooling) and can be replaced by any other aggregation
+        function.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    This layer requires that the size of the axis along which it pools is a
+    multiple of the pool size.
     """
 
     def __init__(self, incoming, pool_size, axis=1, pool_function=T.max,
                  **kwargs):
-        """
-        Instantiates the layer.
-
-        Parameters
-        ----------
-        pool_size : integer
-            the number of feature maps to be pooled together
-        axis : integer
-            the axis along which to pool. The default value of 1 works
-            for DenseLayer and Conv*DLayers
-        pool_function : the pooling function to use
-        """
         super(FeaturePoolLayer, self).__init__(incoming, **kwargs)
         self.pool_size = pool_size
         self.axis = axis
@@ -269,25 +297,34 @@ class FeaturePoolLayer(Layer):
 
 
 class FeatureWTALayer(Layer):
-
     """
-    Perform 'Winner Take All' across feature maps: zero out all but
-    the maximal activation value within a group of features.
-    IMPORTANT: this layer requires that the number of feature maps is
-    a multiple of the pool size.
+    'Winner Take' All layer
+
+    This layer performs 'Winner Take All' (WTA) across feature maps: zero out
+    all but the maximal activation value within a region.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_size : integer
+        the number of feature maps per region.
+
+    axis : integer
+        the axis along which the regions are formed.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    This layer requires that the size of the axis along which it groups units
+    is a multiple of the pool size.
     """
 
     def __init__(self, incoming, pool_size, axis=1, **kwargs):
-        """
-        Instantiates the layer.
-
-        Parameters
-        ----------
-        pool_size : integer
-            the number of feature maps per group.
-        axis : integer
-            the axis along which the groups are formed.
-        """
         super(FeatureWTALayer, self).__init__(incoming, **kwargs)
         self.pool_size = pool_size
         self.axis = axis
@@ -295,7 +332,7 @@ class FeatureWTALayer(Layer):
         num_feature_maps = self.input_shape[self.axis]
         if num_feature_maps % self.pool_size != 0:
             raise RuntimeError("Number of input feature maps (%d) is not a "
-                               "multiple of the group size (pool_size=%d)" %
+                               "multiple of the region size (pool_size=%d)" %
                                (num_feature_maps, self.pool_size))
 
     def get_output_for(self, input, **kwargs):
@@ -326,9 +363,24 @@ class FeatureWTALayer(Layer):
 
 
 class GlobalPoolLayer(Layer):
-
     """
-    Layer that pools globally across all trailing dimensions beyond the 2nd.
+    Global pooling layer
+
+    This layer pools globally across all trailing dimensions beyond the 2nd.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_function : callable
+        the pooling function to use. This defaults to `theano.tensor.mean`
+        (i.e. mean-pooling) and can be replaced by any other aggregation
+        function.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
     """
 
     def __init__(self, incoming, pool_function=T.mean, **kwargs):

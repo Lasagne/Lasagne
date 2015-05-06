@@ -109,7 +109,7 @@ Layer classes: merge layers
 
 
 :mod:`lasagne.layers.corrmm`
-==================================
+============================
 
 .. automodule:: lasagne.layers.corrmm
     :members:
@@ -123,7 +123,7 @@ Layer classes: merge layers
 
 
 :mod:`lasagne.layers.dnn`
-==================================
+=========================
 
 .. automodule:: lasagne.layers.dnn
     :members:

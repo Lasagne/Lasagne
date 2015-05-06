@@ -24,7 +24,49 @@ class DNNLayer(Layer):
 
 
 class Pool2DDNNLayer(DNNLayer):
+    """
+    2D pooling layer
 
+    Performs 2D mean- or max-pooling over the two trailing axes of a 4D input
+    tensor. This is an alternative implementation which uses
+    ``theano.sandbox.cuda.dnn.dnn_pool`` directly.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 4D tensor.
+
+    pool_size : integer or iterable
+        The length of the pooling region in each dimension
+
+    stride : integer, iterable or ``None``
+        The strides between sucessive pooling regions in each dimension.
+        If ``None`` then ``stride = pool_size``.
+
+    pad : integer or iterable
+        Number of elements to be added on each side of the input
+        in each dimension. Each value must be less than
+        the corresponding stride.
+
+    mode : string
+        Pooling mode, one of 'max', 'average_inc_pad' or 'average_exc_pad'.
+        Defaults to 'max'.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    The value used to pad the input is chosen to be less than
+    the minimum of the input, so that the output of each pooling region
+    always corresponds to some element in the unpadded input region.
+
+    This is a drop-in replacement for :class:`lasagne.layers.MaxPool2DLayer`.
+    Its interface is the same, except it does not support the ``ignore_border``
+    argument.
+    """
     def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
                  mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
@@ -49,7 +91,6 @@ class Pool2DDNNLayer(DNNLayer):
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
-
     def __init__(self, incoming, pool_size, stride=None,
                  pad=(0, 0), **kwargs):
         super(MaxPool2DDNNLayer, self).__init__(incoming, pool_size, stride,
@@ -57,7 +98,6 @@ class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
 
 
 class Conv2DDNNLayer(DNNLayer):
-
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,

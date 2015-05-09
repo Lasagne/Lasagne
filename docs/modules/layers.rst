@@ -22,7 +22,7 @@ Layer base classes
 .. autoclass:: Layer
    :members:
 
-.. autoclass:: MultipleInputsLayer
+.. autoclass:: MergeLayer
     :members:
 
 Layer classes: network input

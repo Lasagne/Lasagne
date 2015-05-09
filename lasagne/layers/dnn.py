@@ -34,11 +34,12 @@ class Pool2DDNNLayer(DNNLayer):
     Parameters
     ----------
     incoming : a :class:`Layer` instance or tuple
-        The layer feeding into this layer, or the expected input shape. The
-        output of this layer should be a 4D tensor.
+        The layer feeding into this layer, or the expected input shape.
 
     pool_size : integer or iterable
-        The length of the pooling region in each dimension
+        The length of the pooling region in each dimension. If an integer, it
+        is promoted to a square pooling region. If an iterable, it should have
+        two elements.
 
     stride : integer, iterable or ``None``
         The strides between sucessive pooling regions in each dimension.

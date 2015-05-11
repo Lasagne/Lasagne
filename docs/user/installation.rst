@@ -4,11 +4,11 @@
 Installation
 ============
 
-Lasagne currently requires Python 2.7 to run.  Some of Lasagne's
+Lasagne currently requires Python 2.7 or 3.4 to run. Some of Lasagne's
 dependencies such as ``numpy`` may require a C compiler to install.
 
 For most installations, it is recommended to install Lasagne and its
-dependencies inside a virtualenv or a conda environment.  The
+dependencies inside a virtualenv or a conda environment. The
 following commands assume that you have your environment active.
 
 You can either install from PyPI or install from source, such as from
@@ -34,7 +34,15 @@ level directory of the Lasagne source tree.
 Install from source
 ===================
 
-Download and navigate to your copy of the Lasagne source, then run:
+Download and navigate to your copy of the Lasagne source. One way to obtain a
+copy is by cloning the git repository, for example:
+
+.. code-block:: bash
+
+  git clone https://github.com/Lasagne/Lasagne.git
+
+Once you have obtained a copy of the source, run the following command to
+install its dependencies:
 
 .. code-block:: bash
 

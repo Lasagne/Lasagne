@@ -129,9 +129,9 @@ class Conv1DLayer(Layer):
         same as the input length (for both odd and even filter sizes).
 
     untie_biases : bool, default False
-        If ``False``, the layer will have a bias parameter for channel, which
-        is shared across all positions in this channel. As a result, the `b`
-        attribute will be a vector (1D).
+        If ``False``, the layer will have a bias parameter for each channel,
+        which is shared across all positions in this channel. As a result, the
+        `b` attribute will be a vector (1D).
 
         If True, the layer will have separate bias parameters for each
         position in each channel. As a result, the `b` attribute will be a
@@ -312,9 +312,9 @@ class Conv2DLayer(Layer):
         same as the input length (for both odd and even filter sizes).
 
     untie_biases : bool, default False
-        If ``False``, the layer will have a bias parameter for channel, which
-        is shared across all positions in this channel. As a result, the `b`
-        attribute will be a vector (1D).
+        If ``False``, the layer will have a bias parameter for each channel,
+        which is shared across all positions in this channel. As a result, the
+        `b` attribute will be a vector (1D).
 
         If True, the layer will have separate bias parameters for each
         position in each channel. As a result, the `b` attribute will be a

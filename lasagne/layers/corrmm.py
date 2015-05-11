@@ -1,7 +1,3 @@
-"""
-GpuCorrMM-based convolutional layers
-"""
-
 import theano
 
 from .. import init
@@ -32,6 +28,105 @@ class MMLayer(Layer):
 
 
 class Conv2DMMLayer(MMLayer):
+    """
+    2D convolutional layer
+
+    Performs a 2D convolution on its input and optionally adds a bias and
+    applies an elementwise nonlinearity.  This is an alternative implementation
+    which uses ``theano.sandbox.cuda.blas.GpuCorrMM`` directly.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 4D tensor, with shape
+        ``(batch_size, num_input_channels, input_height, input_width)``.
+
+    num_filters : int
+        The number of learnable convolutional filters this layer has.
+
+    filter_size : int or tuple of int
+        An integer or a 2-element tuple specifying the size of the filters.
+
+    stride : int or tuple of int
+        An integer or a 2-element tuple specifying the stride of the
+        convolution operation.
+
+    border_mode : str, one of 'valid', 'full', 'same'
+        A string indicating the convolution border mode.
+
+        If 'valid', the convolution is only computed where the input and the
+        filter fully overlap.
+
+        If 'full', the convolution is computed wherever the input and the
+        filter overlap by at least one position.
+
+        If 'same', the convolution is computed wherever the input and the
+        filter overlap by at least half the filter size, when the filter size
+        is odd. In practice, the input is zero-padded with half the filter size
+        at the beginning and half at the end (or one less than half in the case
+        of an even filter size). This results in an output length that is the
+        same as the input length (for both odd and even filter sizes).
+
+    untie_biases : bool, default False
+        If ``False``, the layer will have a bias parameter for each channel,
+        which is shared across all positions in this channel. As a result, the
+        `b` attribute will be a vector (1D).
+
+        If True, the layer will have separate bias parameters for each
+        position in each channel. As a result, the `b` attribute will be a
+        3D tensor.
+
+    W : Theano shared variable, numpy array or callable
+        An initializer for the weights of the layer. This should initialize the
+        layer weights to a 4D array with shape
+        ``(num_filters, num_input_channels, filter_height, filter_width)``.
+        See :meth:`Layer.create_param` for more information.
+
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases of the layer. If None is provided, the
+        layer will have no biases. This should initialize the layer biases to
+        a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
+        ``False``. If it is set to ``True``, its shape should be
+        ``(num_filters, input_height, input_width)`` instead.
+        See :meth:`Layer.create_param` for more information.
+
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+
+    pad : int, tuple of int or None
+        An integer or a 2-element tuple specifying the amount of zero-padding
+        on each side. This may also be ``None``, in which case the correct
+        amount of padding will be inferred from the specified ``border_mode``.
+
+    flip_filters : bool, default False
+        Whether to flip the filters and perform a convolution, or not to flip
+        them and perform a correlation. Flipping adds a bit of overhead, so it
+        is disabled by default. In most cases this does not make a difference
+        anyway because the filters are learnt. However, ``flip_filters`` should
+        be set to ``True`` if weights are loaded into it that were learnt using
+        a regular :class:`lasagne.layers.Conv2DLayer`, for example.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
+
+    Attributes
+    ----------
+    W : Theano shared variable
+        Variable representing the filter weights.
+
+    b : Theano shared variable
+        Variable representing the biases.
+
+    Notes
+    -----
+    Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
+    the 'same' border mode. It is not emulated. This should result in better
+    performance.
+
+    Only one of ``pad`` and ``border_mode`` should be specified.
+    """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,

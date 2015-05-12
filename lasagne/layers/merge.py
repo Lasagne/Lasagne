@@ -11,6 +11,24 @@ __all__ = [
 
 
 class ConcatLayer(MultipleInputsLayer):
+    """
+    Concatenates multiple inputs along the specified axis. Inputs should have
+    the same shape except for the dimension specified in axis, which can have
+    different sizes.
+
+    Parameters
+    -----------
+    incomings : a list of :class:`Layer` instances or tuples
+        The layers feeding into this layer, or expected input shapes
+
+    axis : int
+        Axis which inputs are joined over
+
+    See Also
+    ---------
+    concat : Shortcut
+
+    """
     def __init__(self, incomings, axis=1, **kwargs):
         super(ConcatLayer, self).__init__(incomings, **kwargs)
         self.axis = axis
@@ -32,7 +50,20 @@ class ElemwiseSumLayer(MultipleInputsLayer):
     This layer performs an elementwise sum of its input layers.
     It requires all input layers to have the same output shape.
 
-    Hint: Depending on your architecture, this can be used to avoid the more
+    Parameters
+    -----------
+    incomings : a list of :class:`Layer` instances or tuples
+        the layers feeding into this layer, or expected input shapes,
+        with all incoming shapes being equal
+
+    coeffs: list or scalar
+        A same-sized list of coefficients, or a single coefficient that
+        is to be applied to all instances. By default, these will not
+        be included in the learnable parameters of this layer.
+
+    Notes
+    -----------
+    Depending on your architecture, this can be used to avoid the more
     costly :class:`ConcatLayer`. For example, instead of concatenating layers
     before a :class:`DenseLayer`, insert separate :class:`DenseLayer` instances
     of the same number of output units and add them up afterwards. (This avoids
@@ -40,18 +71,6 @@ class ElemwiseSumLayer(MultipleInputsLayer):
     """
 
     def __init__(self, incomings, coeffs=1, **kwargs):
-        """
-        Creates a layer perfoming an elementwise sum of its input layers.
-
-        :parameters:
-            - incomings : a list of :class:`Layer` instances or tuples
-                the layers feeding into this layer, or expected input shapes,
-                with all incoming shapes being equal
-            - coeffs: list or scalar
-                A same-sized list of coefficients, or a single coefficient that
-                is to be applied to all instances. By default, these will not
-                be included in the learnable parameters of this layer.
-        """
         super(ElemwiseSumLayer, self).__init__(incomings, **kwargs)
         if isinstance(coeffs, list):
             if len(coeffs) != len(incomings):

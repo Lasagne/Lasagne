@@ -224,7 +224,7 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
         return all_outputs[layer_or_layers]
 
 
-def get_output_shape(layer_or_layers):
+def get_output_shape(layer_or_layers, input_shapes=None):
     """
     Computes the output shape of the network at one or more given layers.
 
@@ -233,17 +233,66 @@ def get_output_shape(layer_or_layers):
             the :class:`Layer` instance for which to compute the output
             shapes, or a list of :class:`Layer` instances.
 
+        - input_shapes : None, tuple, or dict
+            If None, uses the input shapes associated with the
+            :class:`InputLayer` instances.
+            If a tuple, this defines the input shape for a single 
+            :class:`InputLayer` instance. Will throw a ValueError if there
+            are multiple :class:`InputLayer` instances.
+            If a dictionary, any :class:`Layer` instance (including the
+            input layers) can be mapped to a shape tuple to use instead of
+            its regular output shape.
+
     :returns:
         - output : tuple or list
             the output shape of the given layer(s) for the given network input
     """
     from .input import InputLayer
     from .base import MultipleInputsLayer
+    # obtain topological ordering of all layers the output layer(s) depend on
+    if isinstance(input_shapes, dict):
+        treat_as_input = input_shapes.keys()
+    else:
+        treat_as_input = []
 
+    all_layers = get_all_layers(layer_or_layers, treat_as_input)
+    # initialize layer-to-shape mapping from all input layers
+    all_shapes = dict((layer, layer.shape)
+                      for layer in all_layers
+                      if isinstance(layer, InputLayer) and
+                      layer not in treat_as_input)
+    # update layer-to-shape mapping from given input(s), if any
+    if isinstance(input_shapes, dict):
+        all_shapes.update(input_shapes)
+    elif input_shapes is not None:
+        if len(all_shapes) > 1:
+            raise ValueError("get_output_shape() was called with a single "
+                             "input shape on a network with multiple input "
+                             "layers. Please call it with a dictionary of "
+                             "input shapes instead.")
+        for input_layer in all_shapes:
+            all_shapes[input_layer] = input_shapes
+    # update layer-to-shape mapping by propagating the input shapes
+    for layer in all_layers:
+        if layer not in all_shapes:
+            try:
+                if isinstance(layer, MultipleInputsLayer):
+                    input_shapes = [all_shapes[input_layer]
+                                    for input_layer in layer.input_layers]
+                else:
+                    input_shapes = all_shapes[layer.input_layer]
+            except KeyError:
+                raise ValueError("get_output() was called without giving an "
+                                 "input shape for the free-floating layer %r. "
+                                 "Please call it with a dictionary mapping "
+                                 "this layer to an input expression."
+                                 % layer)
+            all_shapes[layer] = layer.get_output_shape_for(input_shapes)
+    # return the output shape(s) of the requested layer(s) only
     try:
-        return [layer.output_shape for layer in layer_or_layers]
+        return [all_shapes[layer] for layer in layer_or_layers]
     except TypeError:
-        return layer_or_layers.output_shape
+        return all_shapes[layer_or_layers]
 
 
 def get_all_params(layer):

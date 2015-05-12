@@ -18,36 +18,32 @@ class DenseLayer(Layer):
     """
     A fully connected layer.
 
-    :parameters:
-        - incoming : a :class:`Layer` instance or a tuple
-            the layer feeding into this layer, or the expected input shape
+    Parameters
+    -----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
 
-        - num_units : int
-            The number of units of the layer
+    num_units : int
+        The number of units of the layer
 
-        - W : Theano shared variable, numpy array or callable
-            An initializer for the weights of the layer. If a Theano shared
-            variable is provided, it is used unchanged. If a numpy array is
-            provided, a shared variable is created and initialized with the
-            array. If a callable is provided, a shared variable is created and
-            the callable is called with the desired shape to generate suitable
-            initial values. The variable is then initialized with those values.
+    W : Theano shared variable, numpy array or callable
+        An initializer for the weights of the layer. If a shared variable or a
+        numpy array is provided the shape should  be (num_inputs, num_units).
+        See :meth:`Layer.create_param` for more information.
 
-        - b : Theano shared variable, numpy array, callable or None
-            An initializer for the biases of the layer. If a Theano shared
-            variable is provided, it is used unchanged. If a numpy array is
-            provided, a shared variable is created and initialized with the
-            array. If a callable is provided, a shared variable is created and
-            the callable is called with the desired shape to generate suitable
-            initial values. The variable is then initialized with those values.
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases of the layer. If a shared variable or a
+        numpy array is provided the shape should be (num_units,).
+        If None is provided the layer will have no biases.
+        See :meth:`Layer.create_param` for more information.
 
-            If None is provided, the layer will have no biases.
 
-        - nonlinearity : callable or None
-            The nonlinearity that is applied to the layer activations. If None
-            is provided, the layer will be linear.
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
 
-    :usage:
+    Usage
+    -------
         >>> from lasagne.layers import InputLayer, DenseLayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50)
@@ -92,10 +88,12 @@ class NonlinearityLayer(Layer):
     """
     A layer that just applies a nonlinearity.
 
-    - incoming : a :class:`Layer` instance or a tuple
-        the layer feeding into this layer, or the expected input shape
+    Parameters
+    -----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
 
-    - nonlinearity : callable or None
+    nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
     """
@@ -111,11 +109,54 @@ class NonlinearityLayer(Layer):
 
 class NINLayer(Layer):
     """
-    Network-in-network layer.
+    Network-in-network layer [1]_.
     Like DenseLayer, but broadcasting across all trailing dimensions beyond the
     2nd.  This results in a convolution operation with filter size 1 on all
     trailing dimensions.  Any number of trailing dimensions is supported,
     so NINLayer can be used to implement 1D, 2D, 3D, ... convolutions.
+
+    Parameters
+    -----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    num_units : int
+        The number of units of the layer
+
+    untie_biases : bool
+        If false the network has a single bias vector similar to a dense
+        layer. If true a separate bias vector is used for each trailing
+        dimension beyond the 2nd.
+
+    W : Theano shared variable, numpy array or callable
+        An initializer for the weights of the layer. If a shared variable or a
+        numpy array is provided the shape should be (num_inputs, num_units),
+        where num_units is the size of the 2nd. dimension of the input.
+        See :meth:`Layer.create_param` for more information.
+
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases of the layer. If a shared variable or a
+        numpy array is provided the correct shape is determined by the
+        untie_biases setting. If untie_biases is False, then the shape should
+        be (num_units, ). If untie_biases is True then the shape should be
+        (num_units, input_dim[2], ..., input_dim[-1]). If None is provided the
+        layer will have no biases.
+        See :meth:`Layer.create_param` for more information.
+
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+
+    Usage
+    ----------
+    >>> from lasagne.layers import InputLayer, NINLayer
+    >>> l_in = InputLayer((100, 20, 10, 3))
+    >>> l1 = NINLayer(l_in, num_units=5)
+
+    References
+    -----------
+    [1] Lin, Min, Qiang Chen, and Shuicheng Yan. "Network in network."
+    arXiv preprint arXiv:1312.4400 (2013).
     """
     def __init__(self, incoming, num_units, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),

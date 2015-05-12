@@ -236,7 +236,7 @@ def get_output_shape(layer_or_layers, input_shapes=None):
         - input_shapes : None, tuple, or dict
             If None, uses the input shapes associated with the
             :class:`InputLayer` instances.
-            If a tuple, this defines the input shape for a single 
+            If a tuple, this defines the input shape for a single
             :class:`InputLayer` instance. Will throw a ValueError if there
             are multiple :class:`InputLayer` instances.
             If a dictionary, any :class:`Layer` instance (including the

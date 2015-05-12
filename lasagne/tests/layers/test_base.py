@@ -10,8 +10,15 @@ class TestLayer:
         from lasagne.layers.base import Layer
         return Layer(Mock())
 
-    def test_input_shape(self, layer):
+    def test_input_shape(self):
+        from lasagne.layers.base import Layer
+        from lasagne.layers.input import InputLayer
         from lasagne.layers.helper import get_output_shape
+
+        shp = (1, 2, 3, 4)
+        l_in = InputLayer(shp)
+        layer = Layer(l_in)
+
         assert layer.input_shape == get_output_shape(layer.input_layer)
 
     def test_get_output_shape_for(self, layer):
@@ -70,8 +77,15 @@ class TestMultipleInputsLayer:
         from lasagne.layers.base import MultipleInputsLayer
         return MultipleInputsLayer([Mock(), Mock()])
 
-    def test_input_shapes(self, layer):
+    def test_input_shapes(self):
+        from lasagne.layers.base import MultipleInputsLayer
+        from lasagne.layers.input import InputLayer
         from lasagne.layers.helper import get_output_shape
+
+        l_in1 = InputLayer((1, 2, 3, 4))
+        l_in2 = InputLayer((4, 5, 6))
+        layer = MultipleInputsLayer([l_in1, l_in2])
+
         assert layer.input_shapes == get_output_shape(layer.input_layers)
 
     @pytest.fixture

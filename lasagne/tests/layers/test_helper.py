@@ -419,3 +419,263 @@ class TestGetOutput_MultipleInputsLayer:
         assert get_output(layer, inputs) is layer.get_output_for.return_value
         layer.get_output_for.assert_called_with(
             [inputs[None], layer.input_layers[1].input_var])
+
+
+class TestGetOutputShape_InputLayer:
+    @pytest.fixture
+    def get_output_shape(self):
+        from lasagne.layers.helper import get_output_shape
+        return get_output_shape
+
+    @pytest.fixture
+    def layer(self):
+        from lasagne.layers.input import InputLayer
+        return InputLayer((3, 2))
+
+    def test_get_output_shape_without_arguments(self, layer, get_output_shape):
+        assert get_output_shape(layer) == (3, 2)
+
+    def test_get_output_shape_input_is_tuple(self, layer, get_output_shape):
+        shp = (4, 5, 6)
+        assert get_output_shape(layer, shp) == shp
+
+    def test_get_output_shape_input_is_a_mapping(self, layer,
+                                                 get_output_shape):
+        input_shapes = {layer: (4, 5, 6)}
+        assert get_output_shape(layer, input_shapes) == input_shapes[layer]
+
+
+class TestGetOutputShape_Layer:
+    @pytest.fixture
+    def get_output_shape(self):
+        from lasagne.layers.helper import get_output_shape
+        return get_output_shape
+
+    @pytest.fixture
+    def layers(self):
+        from lasagne.layers.base import Layer
+        from lasagne.layers.input import InputLayer
+        # create a mock that has the same attributes as an InputLayer instance
+        l1 = Mock(InputLayer((None,)))
+        # create a mock that has the same attributes as a Layer instance
+        l2 = Mock(Layer(l1))
+        # link it to the InputLayer mock
+        l2.input_layer = l1
+        # create another mock that has the same attributes as a Layer instance
+        l3 = Mock(Layer(l2))
+        # link it to the first mock, to get an "l1 --> l2 --> l3" chain
+        l3.input_layer = l2
+        return l1, l2, l3
+
+    def test_get_output_shape_without_arguments(self, layers,
+                                                get_output_shape):
+        l1, l2, l3 = layers
+        output_shape = get_output_shape(l3)
+        # expected: l3.get_output_shape_for(l2.get_output_shape_for(l1.shape))
+        assert output_shape is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with(
+            l2.get_output_shape_for.return_value)
+        l2.get_output_shape_for.assert_called_with(
+            l1.shape)
+
+    def test_get_output_shape_with_single_argument(self, layers,
+                                                   get_output_shape):
+        l1, l2, l3 = layers
+        shp = (3, 4, 5)
+        output_shape = get_output_shape(l3, shp)
+        # expected: l3.get_output_shape_for(l2.get_output_shape_for(shp))
+        assert output_shape is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with(
+            l2.get_output_shape_for.return_value)
+        l2.get_output_shape_for.assert_called_with(shp)
+
+    def test_get_output_shape_input_is_a_mapping(self, layers,
+                                                 get_output_shape):
+        l1, l2, l3 = layers
+        input_shapes = {l3: (4, 5, 6)}
+        # expected: input_shapes[l3]
+        assert get_output_shape(l3, input_shapes) is input_shapes[l3]
+        # l3.get_output_shape_for, l2.get_output_shape_for should not have been
+        # called
+        assert l3.get_output_shape_for.call_count == 0
+        assert l2.get_output_shape_for.call_count == 0
+
+    def test_get_output_shape_input_is_a_mapping_no_key(self, layers,
+                                                        get_output_shape):
+        l1, l2, l3 = layers
+        output_shape = get_output_shape(l3, {})
+        # expected: l3.get_output_shape_for(l2.get_output_shape_for(l1.shape))
+        assert output_shape is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with(
+            l2.get_output_shape_for.return_value)
+        l2.get_output_shape_for.assert_called_with(
+            l1.shape)
+
+    def test_get_output_shape_input_is_a_mapping_for_layer(self, layers,
+                                                           get_output_shape):
+        l1, l2, l3 = layers
+        shp = (4, 5, 6)
+        input_shapes = {l2: shp}
+        output_shape = get_output_shape(l3, input_shapes)
+        # expected: l3.get_output_shape_for(shp)
+        assert output_shape is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with(shp)
+        # l2.get_output_shape_for should not have been called
+        assert l2.get_output_shape_for.call_count == 0
+
+    def test_get_output_shape_input_is_a_mapping_for_input_layer(self, layers,
+            get_output_shape):
+        l1, l2, l3 = layers
+        shp = (4, 5, 6)
+        input_shapes = {l1: shp}
+        output_shape = get_output_shape(l3, input_shapes)
+        # expected: l3.get_output_shape_for(l2.get_output_shape_for(shp))
+        assert output_shape is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with(
+            l2.get_output_shape_for.return_value)
+        l2.get_output_shape_for.assert_called_with(shp)
+
+    @pytest.fixture
+    def layer_from_shape(self):
+        from lasagne.layers.base import Layer
+        return Layer((None, 20))
+
+    def test_layer_from_shape(self, layer_from_shape, get_output_shape):
+        layer = layer_from_shape
+        input_shapes = {layer: (4, 5, 6)}
+        assert get_output_shape(layer, input_shapes) is input_shapes[layer]
+        input_shapes = {None: (4, 5, 6)}
+        layer.get_output_shape_for = Mock()
+        assert (get_output_shape(layer, input_shapes) is
+                layer.get_output_shape_for.return_value)
+        layer.get_output_shape_for.assert_called_with(input_shapes[None])
+
+
+class TestGetOutputShape_MultipleInputsLayer:
+    @pytest.fixture
+    def get_output_shape(self):
+        from lasagne.layers.helper import get_output_shape
+        return get_output_shape
+
+    @pytest.fixture
+    def layers(self):
+        from lasagne.layers.base import Layer, MultipleInputsLayer
+        from lasagne.layers.input import InputLayer
+        # create two mocks of the same attributes as an InputLayer instance
+        l1 = [Mock(InputLayer((None,))), Mock(InputLayer((None,)))]
+        # create two mocks of the same attributes as a Layer instance
+        l2 = [Mock(Layer(l1[0])), Mock(Layer(l1[1]))]
+        # link them to the InputLayer mocks
+        l2[0].input_layer = l1[0]
+        l2[1].input_layer = l1[1]
+        # create a mock that has the same attributes as a MultipleInputsLayer
+        l3 = Mock(MultipleInputsLayer(l2))
+        # link it to the two layer mocks, to get the following network:
+        # l1[0] --> l2[0] --> l3
+        # l1[1] --> l2[1] ----^
+        l3.input_layers = l2
+        return l1, l2, l3
+
+    def test_get_output_shape_without_arguments(self, layers,
+                                                get_output_shape):
+        l1, l2, l3 = layers
+        output = get_output_shape(l3)
+        # expected: l3.get_output_shape_for(
+        #     [l2[0].get_output_shape_for(l1[0].shape),
+        #      l2[1].get_output_shape_for(l1[1].shape)])
+        assert output is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with([
+            l2[0].get_output_shape_for.return_value,
+            l2[1].get_output_shape_for.return_value,
+            ])
+        l2[0].get_output_shape_for.assert_called_with(
+            l1[0].shape)
+        l2[1].get_output_shape_for.assert_called_with(
+            l1[1].shape)
+
+    def test_get_output_shape_with_single_argument_fails(self, layers,
+                                                         get_output_shape):
+        l1, l2, l3 = layers
+        shp = (4, 5, 6)
+        # expected to fail: only gave one shape tuple for two input layers
+        with pytest.raises(ValueError):
+            output_shape = get_output_shape(l3, shp)
+
+    def test_get_output_shape_input_is_a_mapping(self, layers,
+                                                 get_output_shape):
+        l1, l2, l3 = layers
+        input_shapes = {l3: (4, 5, 6)}
+        # expected: input_shapes[l3]
+        assert get_output_shape(l3, input_shapes) is input_shapes[l3]
+        # l3.get_output_shape_for, l2[*].get_output_shape_for should not have
+        # been called
+        assert l3.get_output_shape_for.call_count == 0
+        assert l2[0].get_output_shape_for.call_count == 0
+        assert l2[1].get_output_shape_for.call_count == 0
+
+    def test_get_output_shape_input_is_a_mapping_no_key(self, layers,
+                                                        get_output_shape):
+        l1, l2, l3 = layers
+        output = get_output_shape(l3, {})
+        # expected: l3.get_output_shape_for(
+        #   [l2[0].get_output_shape_for(l1[0].shape),
+        #    l2[1].get_output_shape_for(l1[1].shape)])
+        assert output is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with([
+            l2[0].get_output_shape_for.return_value,
+            l2[1].get_output_shape_for.return_value,
+            ])
+        l2[0].get_output_shape_for.assert_called_with(
+            l1[0].shape)
+        l2[1].get_output_shape_for.assert_called_with(
+            l1[1].shape)
+
+    def test_get_output_shape_input_is_a_mapping_for_layer(self, layers,
+                                                           get_output_shape):
+        l1, l2, l3 = layers
+        shp = (4, 5, 6)
+        input_shapes = {l2[0]: shp}
+        output = get_output_shape(l3, input_shapes)
+        # expected: l3.get_output_shape_for(
+        #     [shp, l2[1].get_output_shape_for(l1[1].shape)])
+        assert output is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with([
+            shp, l2[1].get_output_shape_for.return_value])
+        l2[1].get_output_shape_for.assert_called_with(l1[1].shape)
+        # l2[0].get_output_shape_for should not have been called
+        assert l2[0].get_output_shape_for.call_count == 0
+
+    def test_get_output_shape_input_is_a_mapping_for_input_layer(self, layers,
+            get_output_shape):
+        l1, l2, l3 = layers
+        shp = (4, 5, 6)
+        input_shapes = {l1[0]: shp}
+        output = get_output_shape(l3, input_shapes)
+        # expected: l3.get_output_shape_for(
+        #     [l2[0].get_output_shape_for(shp),
+        #      l2[1].get_output_shape_for(l1[1].shape)])
+        assert output is l3.get_output_shape_for.return_value
+        l3.get_output_shape_for.assert_called_with([
+            l2[0].get_output_shape_for.return_value,
+            l2[1].get_output_shape_for.return_value,
+            ])
+        l2[0].get_output_shape_for.assert_called_with(shp)
+        l2[1].get_output_shape_for.assert_called_with(l1[1].shape)
+
+    @pytest.fixture
+    def layer_from_shape(self):
+        from lasagne.layers.input import InputLayer
+        from lasagne.layers.base import MultipleInputsLayer
+        return MultipleInputsLayer([(None, 20), Mock(InputLayer((None,)))])
+
+    def test_layer_from_shape_valid_get_output_shape(self, layer_from_shape,
+                                                     get_output_shape):
+        layer = layer_from_shape
+        input_shapes = {layer: (4, 5, 6)}
+        assert get_output_shape(layer, input_shapes) is input_shapes[layer]
+        input_shapes = {None: (4, 5, 6)}
+        layer.get_output_shape_for = Mock()
+        assert (get_output_shape(layer, input_shapes) is
+                layer.get_output_shape_for.return_value)
+        layer.get_output_shape_for.assert_called_with(
+            [input_shapes[None], layer.input_layers[1].shape])

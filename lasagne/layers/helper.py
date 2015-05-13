@@ -285,7 +285,7 @@ def get_output_shape(layer_or_layers, input_shapes=None):
                 raise ValueError("get_output() was called without giving an "
                                  "input shape for the free-floating layer %r. "
                                  "Please call it with a dictionary mapping "
-                                 "this layer to an input expression."
+                                 "this layer to an input shape."
                                  % layer)
             all_shapes[layer] = layer.get_output_shape_for(input_shapes)
     # return the output shape(s) of the requested layer(s) only

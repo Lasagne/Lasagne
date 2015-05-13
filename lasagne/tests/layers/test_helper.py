@@ -523,8 +523,8 @@ class TestGetOutputShape_Layer:
         # l2.get_output_shape_for should not have been called
         assert l2.get_output_shape_for.call_count == 0
 
-    def test_get_output_shape_input_is_a_mapping_for_input_layer(self, layers,
-            get_output_shape):
+    def test_get_output_shape_input_is_a_mapping_for_input_layer(
+            self, layers, get_output_shape):
         l1, l2, l3 = layers
         shp = (4, 5, 6)
         input_shapes = {l1: shp}
@@ -645,8 +645,8 @@ class TestGetOutputShape_MultipleInputsLayer:
         # l2[0].get_output_shape_for should not have been called
         assert l2[0].get_output_shape_for.call_count == 0
 
-    def test_get_output_shape_input_is_a_mapping_for_input_layer(self, layers,
-            get_output_shape):
+    def test_get_output_shape_input_is_a_mapping_for_input_layer(
+            self, layers, get_output_shape):
         l1, l2, l3 = layers
         shp = (4, 5, 6)
         input_shapes = {l1[0]: shp}

@@ -77,7 +77,8 @@ class TestFeaturePoolLayer:
                 yield (pool_size, axis)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape)
+        from lasagne.layers.input import InputLayer
+        return InputLayer(output_shape)
 
     def layer(self, input_layer, pool_size, axis):
         from lasagne.layers.pool import FeaturePoolLayer

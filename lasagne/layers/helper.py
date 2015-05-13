@@ -247,6 +247,13 @@ def get_output_shape(layer_or_layers, input_shapes=None):
         - output : tuple or list
             the output shape of the given layer(s) for the given network input
     """
+    # shortcut: return precomputed shapes if we do not need to propagate any
+    if input_shapes is None or input_shapes == {}:
+        try:
+            return [layer.output_shape for layer in layer_or_layers]
+        except TypeError:
+            return layer_or_layers.output_shape
+
     from .input import InputLayer
     from .base import MultipleInputsLayer
     # obtain topological ordering of all layers the output layer(s) depend on

@@ -471,12 +471,12 @@ class TestGetOutputShape_Layer:
                                                 get_output_shape):
         l1, l2, l3 = layers
         output_shape = get_output_shape(l3)
-        # expected: l3.get_output_shape_for(l2.get_output_shape_for(l1.shape))
-        assert output_shape is l3.get_output_shape_for.return_value
-        l3.get_output_shape_for.assert_called_with(
-            l2.get_output_shape_for.return_value)
-        l2.get_output_shape_for.assert_called_with(
-            l1.shape)
+        # expected: l3.output_shape
+        assert output_shape is l3.output_shape
+        # l3.get_output_shape_for, l2.get_output_shape_for should not have been
+        # called
+        assert l3.get_output_shape_for.call_count == 0
+        assert l2.get_output_shape_for.call_count == 0
 
     def test_get_output_shape_with_single_argument(self, layers,
                                                    get_output_shape):
@@ -504,12 +504,12 @@ class TestGetOutputShape_Layer:
                                                         get_output_shape):
         l1, l2, l3 = layers
         output_shape = get_output_shape(l3, {})
-        # expected: l3.get_output_shape_for(l2.get_output_shape_for(l1.shape))
-        assert output_shape is l3.get_output_shape_for.return_value
-        l3.get_output_shape_for.assert_called_with(
-            l2.get_output_shape_for.return_value)
-        l2.get_output_shape_for.assert_called_with(
-            l1.shape)
+        # expected: l3.output_shape
+        assert output_shape is l3.output_shape
+        # l3.get_output_shape_for, l2.get_output_shape_for should not have been
+        # called
+        assert l3.get_output_shape_for.call_count == 0
+        assert l2.get_output_shape_for.call_count == 0
 
     def test_get_output_shape_input_is_a_mapping_for_layer(self, layers,
                                                            get_output_shape):
@@ -580,18 +580,13 @@ class TestGetOutputShape_MultipleInputsLayer:
                                                 get_output_shape):
         l1, l2, l3 = layers
         output = get_output_shape(l3)
-        # expected: l3.get_output_shape_for(
-        #     [l2[0].get_output_shape_for(l1[0].shape),
-        #      l2[1].get_output_shape_for(l1[1].shape)])
-        assert output is l3.get_output_shape_for.return_value
-        l3.get_output_shape_for.assert_called_with([
-            l2[0].get_output_shape_for.return_value,
-            l2[1].get_output_shape_for.return_value,
-            ])
-        l2[0].get_output_shape_for.assert_called_with(
-            l1[0].shape)
-        l2[1].get_output_shape_for.assert_called_with(
-            l1[1].shape)
+        # expected: l3.output_shape
+        assert get_output_shape(l3) is l3.output_shape
+        # l3.get_output_shape_for, l2[*].get_output_shape_for should not have
+        # been called
+        assert l3.get_output_shape_for.call_count == 0
+        assert l2[0].get_output_shape_for.call_count == 0
+        assert l2[1].get_output_shape_for.call_count == 0
 
     def test_get_output_shape_with_single_argument_fails(self, layers,
                                                          get_output_shape):
@@ -617,18 +612,13 @@ class TestGetOutputShape_MultipleInputsLayer:
                                                         get_output_shape):
         l1, l2, l3 = layers
         output = get_output_shape(l3, {})
-        # expected: l3.get_output_shape_for(
-        #   [l2[0].get_output_shape_for(l1[0].shape),
-        #    l2[1].get_output_shape_for(l1[1].shape)])
-        assert output is l3.get_output_shape_for.return_value
-        l3.get_output_shape_for.assert_called_with([
-            l2[0].get_output_shape_for.return_value,
-            l2[1].get_output_shape_for.return_value,
-            ])
-        l2[0].get_output_shape_for.assert_called_with(
-            l1[0].shape)
-        l2[1].get_output_shape_for.assert_called_with(
-            l1[1].shape)
+        # expected: l3.output_shape
+        assert get_output_shape(l3) is l3.output_shape
+        # l3.get_output_shape_for, l2[*].get_output_shape_for should not have
+        # been called
+        assert l3.get_output_shape_for.call_count == 0
+        assert l2[0].get_output_shape_for.call_count == 0
+        assert l2[1].get_output_shape_for.call_count == 0
 
     def test_get_output_shape_input_is_a_mapping_for_layer(self, layers,
                                                            get_output_shape):

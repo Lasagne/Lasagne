@@ -239,7 +239,7 @@ class Layer(object):
 
             return theano.shared(utils.floatX(arr), name=name)
 
-        elif np.issubdtype(param, np.float) or np.issubdtype(param, np.int):
+        elif isinstance(param, (int, long, float, np.float16, np.float32, np.float64)):
             return theano.shared(utils.floatX(param), name=name)
 
         else:

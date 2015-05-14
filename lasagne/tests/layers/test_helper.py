@@ -725,13 +725,13 @@ class TestSetAllParamValues(object):
         l2 = DenseLayer(l1, 30)
         l3 = DenseLayer(l2, 40)
 
-        a = floatX(np.random.normal(0, 1, (1, 1)))
-        b = floatX(np.random.normal(0, 1, (1,)))
+        a = floatX(numpy.random.normal(0, 1, (1, 1)))
+        b = floatX(numpy.random.normal(0, 1, (1,)))
         set_all_param_values(l3, [a, b, a, b])
-        assert np.allclose(l3.W.get_value(), a)
-        assert np.allclose(l3.b.get_value(), b)
-        assert np.allclose(l2.W.get_value(), a)
-        assert np.allclose(l2.b.get_value(), b)
+        assert numpy.allclose(l3.W.get_value(), a)
+        assert numpy.allclose(l3.b.get_value(), b)
+        assert numpy.allclose(l2.W.get_value(), a)
+        assert numpy.allclose(l2.b.get_value(), b)
 
         with pytest.raises(ValueError):
             set_all_param_values(l3, [a, b, a])

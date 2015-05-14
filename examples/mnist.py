@@ -93,17 +93,25 @@ def build_model(input_dim, output_dim,
         l_hidden1,
         p=0.5,
     )
+    #l_hidden1_prelu = lasagne.layers.PReLULayer(
+    #    l_hidden1_dropout,   
+    #)
     l_hidden2 = lasagne.layers.DenseLayer(
         l_hidden1_dropout,
         num_units=num_hidden_units,
-        nonlinearity=lasagne.nonlinearities.rectify,
+        nonlinearity=lasagne.nonlinearities.identity,
     )
     l_hidden2_dropout = lasagne.layers.DropoutLayer(
         l_hidden2,
         p=0.5,
     )
-    l_out = lasagne.layers.DenseLayer(
+    l_hidden2_prelu = lasagne.layers.PReLULayer(
         l_hidden2_dropout,
+        alpha=0.25        
+    )
+    
+    l_out = lasagne.layers.DenseLayer(
+        l_hidden2_prelu,
         num_units=output_dim,
         nonlinearity=lasagne.nonlinearities.softmax,
     )
@@ -176,6 +184,7 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
     """
     num_batches_train = dataset['num_examples_train'] // batch_size
     num_batches_valid = dataset['num_examples_valid'] // batch_size
+    num_batches_test = dataset['num_examples_test'] // batch_size
 
     for epoch in itertools.count(1):
         batch_train_losses = []
@@ -194,12 +203,24 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
 
         avg_valid_loss = np.mean(batch_valid_losses)
         avg_valid_accuracy = np.mean(batch_valid_accuracies)
+        
+        batch_test_losses = []
+        batch_test_accuracies = []
+        for b in range(num_batches_test):
+            batch_test_loss, batch_test_accuracy = iter_funcs['test'](b)
+            batch_test_losses.append(batch_test_loss)
+            batch_test_accuracies.append(batch_test_accuracy)
+
+        avg_test_loss = np.mean(batch_test_losses)
+        avg_test_accuracy = np.mean(batch_test_accuracies)
 
         yield {
             'number': epoch,
             'train_loss': avg_train_loss,
             'valid_loss': avg_valid_loss,
             'valid_accuracy': avg_valid_accuracy,
+            'test_loss': avg_test_loss,
+            'test_accuracy': avg_test_accuracy,
         }
 
 
@@ -221,17 +242,18 @@ def main(num_epochs=NUM_EPOCHS):
             print("Epoch {} of {} took {:.3f}s".format(
                 epoch['number'], num_epochs, time.time() - now))
             now = time.time()
+            print(output_layer.input_layer.alpha.eval())
             print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
             print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
             print("  validation accuracy:\t\t{:.2f} %%".format(
                 epoch['valid_accuracy'] * 100))
-
+            print("Test Accuracy:\t\t{:.2f} %%".format(epoch['test_accuracy']*100))
             if epoch['number'] >= num_epochs:
                 break
-
+            
     except KeyboardInterrupt:
         pass
-
+    
     return output_layer
 
 

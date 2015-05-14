@@ -229,7 +229,7 @@ class Layer(object):
                 raise RuntimeError("parameter array has shape %s, should be "
                                    "%s" % (param.shape, shape))
             return theano.shared(param, name=name)
-                
+
         elif hasattr(param, '__call__'):
             arr = param(shape)
             if not isinstance(arr, np.ndarray):
@@ -241,7 +241,7 @@ class Layer(object):
 
         elif np.issubdtype(param, np.float):
             return theano.shared(param, name=name)
-            
+
         else:
             raise RuntimeError("cannot initialize parameters: 'param' is not "
                                "a numpy array, a Theano shared variable, a numpy scalar or a "

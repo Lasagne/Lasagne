@@ -75,8 +75,10 @@ def build_model(input_dim, output_dim,
     """Create a symbolic representation of a neural network with `intput_dim`
     input nodes, `output_dim` output nodes and `num_hidden_units` per hidden
     layer.
+
     The training function of this model must have a mini-batch size of
     `batch_size`.
+
     A theano expression which represents such a network is returned.
     """
     l_in = lasagne.layers.InputLayer(

@@ -31,4 +31,3 @@ class PReLULayer(Layer):
             return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0,'x','x'))(input)
         else:
             raise Exception('Not handling this yet, needs to be dim 2 or 4 and spread across channels')
-        

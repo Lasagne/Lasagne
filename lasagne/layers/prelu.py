@@ -17,7 +17,7 @@ class PReLULayer(Layer):
         super(PReLULayer, self).__init__(incoming, **kwargs)
         self.unique_chan_param = unique_chan_param
         if not unique_chan_param:
-            self.alpha = self.create_param(np.float32(alpha), (), name="alpha")
+            self.alpha = self.create_param(alpha, (), name="alpha")
         else:
             self.alpha = self.create_param(np.zeros(incoming.shape[1])+alpha, (incoming.shape[1]), name="W")
 
@@ -30,4 +30,4 @@ class PReLULayer(Layer):
         elif input.ndim == 4 and unique_chan_param: 
             return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0,'x','x'))(input)
         else:
-            raise Exception('Not handling this yet, needs to be dim 2 or 4 and spread across channels')
+            raise Exception('Incorrect number of dimensions.')

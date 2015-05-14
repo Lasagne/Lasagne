@@ -244,7 +244,7 @@ class Layer(object):
 
         else:
             raise RuntimeError("cannot initialize parameters: 'param' is not "
-                               "a numpy array, a Theano shared variable, a numpy scalar or a "
+                               "a numpy array, a Theano shared variable, a scalar, or a "
                                "callable")
 
 

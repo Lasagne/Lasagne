@@ -45,14 +45,13 @@ class ReshapeLayer(Layer):
         The layer feeding into this layer, or the expected input shape
 
     shape : tuple
-        The target shape specification. In the specification integer values
-        specify output shapes and `[i]` can be used to refer to the ith
-        dimension of the input. `[i]` must be a single element list with an
-        integer value.  At most one element can be `-1`, denoting to
-        infer the size for this dimension to match the total number of
-        elements of the input tensor. Any remaining elements must be
-        positive integers directly giving the size of the corresponding
-        dimension.
+        The target shape specification. Each element can be one of:
+        * A positive integer directly giving the size of the dimension
+        * ``[i]``, a single-element list of int, denoting to use the size
+          of the ``i``th input dimension
+        * ``-1``, denoting to infer the size for this dimension to match
+          the total number of elements in the input tensor (cannot be used
+          more than once in a specification)
 
     Usage
     ----------
@@ -62,13 +61,9 @@ class ReshapeLayer(Layer):
     >>> l1.output_shape
     (32, 50, 40)
     >>> l_in = InputLayer((None, 100, 20))
-    >>> l2 = ReshapeLayer(l_in, ([0], 50, 40))
-    >>> l2.output_shape
-    (None, 50, 40)
-    >>> l_in = InputLayer((None, 100, 20))
-    >>> l3 = ReshapeLayer(l_in, (-1, [1], [0], 1))
-    >>> l3.output_shape
-    (20, 100, None, 1)
+    >>> l1 = ReshapeLayer(l_in, ([0], [1], 5, -1))
+    >>> l1.output_shape
+    (None, 100, 5, 4)
 
     Note
     ----------

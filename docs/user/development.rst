@@ -1,10 +1,10 @@
 Development
 ===========
 
-The ``Lasagne`` project is developed by Sander Dieleman and contributors via
-GitHub. The development began in September 2014.
-
-It is developed on GitHub: https://github.com/Lasagne/Lasagne
+The Lasagne project was started by Sander Dieleman in September 2014. It is
+developed by a [core team of seven people](https://github.com/orgs/Lasagne/teams/core-team)
+and [numerous additional contributors](https://github.com/Lasagne/Lasagne/graphs/contributors)
+on GitHub: https://github.com/Lasagne/Lasagne
 
 You can file feature requests and bug reports there. If you have questions
 about how to use the library, please post on the lasagne-users mailing list
@@ -24,11 +24,13 @@ Everybody is welcome to contribute to Lasagne. You can do so by
 * Writing new code and sending pull requests on GitHub. Note that Lasagne
   has a fairly narrow focus and we strictly follow a set of design principles
   (see below), so we cannot guarantee upfront that your pull request will
-  be accepted.
+  be accepted. However, please don't hesitate to just propose your idea in a
+  GitHub issue or on the mailing list first, so we can discuss it and/or guide
+  you through the implementation.
 
 * Improving the documentation.
 
-Suggestions for new features are also welcome.
+* Suggestions for new features are also welcome.
 
 We suggest reading the `issues page on GitHub`_ for more ideas how you can
 contribute.

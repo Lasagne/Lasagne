@@ -31,12 +31,12 @@ sufficient. Lasagne will assume that the output of the layer has the same shape
 as its input.
 
 However, if the operation performed by the layer changes the shape of the data,
-you should also implement `get_output_shape_for()`. This method computes the
+you also need to implement `get_output_shape_for()`. This method computes the
 shape of the layer output given the shape of its input. Note that this shape
 computation should result in a tuple of integers, so it is *not* symbolic.
 
 This method exists because Lasagne needs a way to propagate shape information
-when a network is defined, so it can determine what sizes the parameter arrays
+when a network is defined, so it can determine what sizes the parameter tensors
 should be, for example. This mechanism allows each layer to obtain the size of
 its input from the previous layer, which means you don't have to specify the
 input size manually. This also prevents errors stemming from inconsistencies

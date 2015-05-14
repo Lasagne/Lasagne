@@ -22,7 +22,7 @@ class FlattenLayer(Layer):
     Flatten all but the first dimension.
 
     See Also
-    ----------
+    --------
     flatten  : Shortcut
     """
     def get_output_shape_for(self, input_shape):
@@ -46,15 +46,16 @@ class ReshapeLayer(Layer):
 
     shape : tuple
         The target shape specification. Each element can be one of:
-        * A positive integer directly giving the size of the dimension
+
+        * ``i``, a positive integer directly giving the size of the dimension
         * ``[i]``, a single-element list of int, denoting to use the size
-          of the ``i``th input dimension
+          of the ``i`` th input dimension
         * ``-1``, denoting to infer the size for this dimension to match
           the total number of elements in the input tensor (cannot be used
           more than once in a specification)
 
-    Usage
-    ----------
+    Examples
+    --------
     >>> from lasagne.layers import InputLayer, ReshapeLayer
     >>> l_in = InputLayer((32, 100, 20))
     >>> l1 = ReshapeLayer(l_in, ((32, 50, 40)))
@@ -65,8 +66,8 @@ class ReshapeLayer(Layer):
     >>> l1.output_shape
     (None, 100, 5, 4)
 
-    Note
-    ----------
+    Notes
+    -----
     The tensor elements will be fetched and placed in C-like order. That
     is, reshaping `[1,2,3,4,5,6]` to shape `(2,3)` will result in a matrix
     `[[1,2,3],[4,5,6]]`, not in `[[1,3,5],[2,4,6]]` (Fortran-like order),
@@ -158,7 +159,7 @@ class DimshuffleLayer(Layer):
     the same same total number of elements.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         the layer feeding into this layer, or the expected input shape
 
@@ -177,8 +178,8 @@ class DimshuffleLayer(Layer):
         collapsing the 4th dimension resulting in a tensor of shape
         `(2,3,5,7)`.
 
-    Usage
-    -----------
+    Examples
+    --------
     >>> from lasagne.layers import InputLayer, DimshuffleLayer
     >>> l_in = InputLayer((2, 3, 5, 7))
     >>> l1 = DimshuffleLayer(l_in, (3, 2, 1, 'x', 0))
@@ -189,7 +190,7 @@ class DimshuffleLayer(Layer):
     (2, 3, 5, 7)
 
     See Also
-    ------------
+    --------
     dimshuffle : Shortcut
     """
     def __init__(self, incoming, pattern, **kwargs):
@@ -260,7 +261,7 @@ class PadLayer(Layer):
     zeros on both sides, or with another value specified in 'val'.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
@@ -276,7 +277,7 @@ class PadLayer(Layer):
         not padded
 
     See Also
-    -----------
+    --------
     pad : Shortcut
     """
     def __init__(self, incoming, width, val=0, batch_ndim=2, **kwargs):

@@ -2,9 +2,9 @@ Development
 ===========
 
 The Lasagne project was started by Sander Dieleman in September 2014. It is
-developed by a [core team of seven people](https://github.com/orgs/Lasagne/teams/core-team)
-and [numerous additional contributors](https://github.com/Lasagne/Lasagne/graphs/contributors)
-on GitHub: https://github.com/Lasagne/Lasagne
+developed by a `core team of seven people`_ and
+`numerous additional contributors`_ on GitHub:
+https://github.com/Lasagne/Lasagne
 
 You can file feature requests and bug reports there. If you have questions
 about how to use the library, please post on the lasagne-users mailing list
@@ -139,3 +139,5 @@ Lasagne grew out of a need to combine the flexibility of Theano with the availab
 
 
 .. _issues page on GitHub: https://github.com/Lasagne/Lasagne/issues
+.. _core team of seven people: https://github.com/orgs/Lasagne/teams/core-team
+.. _numerous additional contributors: https://github.com/Lasagne/Lasagne/graphs/contributors

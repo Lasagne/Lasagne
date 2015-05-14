@@ -27,7 +27,7 @@ class PReLULayer(Layer):
     def get_output_for(self, input, **kwargs):
         if input.ndim == 2 or (input.ndim ==4 and not self.unique_chan_param):
             return nonlinearities.LeakyRectify(self.alpha)(input)
-        elif input.ndim == 4 and unique_chan_param: 
+        elif input.ndim == 4 and self.unique_chan_param: 
             return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0,'x','x'))(input)
         else:
             raise Exception('Incorrect number of dimensions.')

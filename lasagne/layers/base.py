@@ -7,7 +7,7 @@ from .. import utils
 
 __all__ = [
     "Layer",
-    "MultipleInputsLayer",
+    "MergeLayer",
 ]
 
 
@@ -217,7 +217,7 @@ class Layer(object):
                                "callable")
 
 
-class MultipleInputsLayer(Layer):
+class MergeLayer(Layer):
     """
     This class represents a layer that aggregates input from multiple layers.
     It should be subclassed when implementing new types of layers that
@@ -282,7 +282,7 @@ class MultipleInputsLayer(Layer):
                 the output of this layer given the inputs to this layer
 
         :note:
-            This is called by the base :class:`MultipleInputsLayer`
+            This is called by the base :class:`MergeLayer`
             implementation to propagate data through a network in
             `get_output()`. While `get_output()` asks the underlying layers
             for input and thus returns an expression for a layer's output in

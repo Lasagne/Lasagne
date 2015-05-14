@@ -63,11 +63,11 @@ class TestLayer:
         assert l.name == "foo"
 
 
-class TestMultipleInputsLayer:
+class TestMergeLayer:
     @pytest.fixture
     def layer(self):
-        from lasagne.layers.base import MultipleInputsLayer
-        return MultipleInputsLayer([Mock(), Mock()])
+        from lasagne.layers.base import MergeLayer
+        return MergeLayer([Mock(), Mock()])
 
     def test_input_shapes(self, layer):
         assert layer.input_shapes == [l.output_shape
@@ -76,8 +76,8 @@ class TestMultipleInputsLayer:
     @pytest.fixture
     def layer_from_shape(self):
         from lasagne.layers.input import InputLayer
-        from lasagne.layers.base import MultipleInputsLayer
-        return MultipleInputsLayer([(None, 20), Mock(InputLayer((None,)))])
+        from lasagne.layers.base import MergeLayer
+        return MergeLayer([(None, 20), Mock(InputLayer((None,)))])
 
     def test_layer_from_shape(self, layer_from_shape):
         layer = layer_from_shape

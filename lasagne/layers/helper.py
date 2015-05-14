@@ -179,7 +179,7 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
         both, while the latter will use two different dropout masks.
     """
     from .input import InputLayer
-    from .base import MultipleInputsLayer
+    from .base import MergeLayer
     # obtain topological ordering of all layers the output layer(s) depend on
     treat_as_input = inputs.keys() if isinstance(inputs, dict) else []
     all_layers = get_all_layers(layer_or_layers, treat_as_input)
@@ -204,7 +204,7 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     for layer in all_layers:
         if layer not in all_outputs:
             try:
-                if isinstance(layer, MultipleInputsLayer):
+                if isinstance(layer, MergeLayer):
                     layer_inputs = [all_outputs[input_layer]
                                     for input_layer in layer.input_layers]
                 else:
@@ -255,7 +255,7 @@ def get_output_shape(layer_or_layers, input_shapes=None):
             return layer_or_layers.output_shape
 
     from .input import InputLayer
-    from .base import MultipleInputsLayer
+    from .base import MergeLayer
     # obtain topological ordering of all layers the output layer(s) depend on
     if isinstance(input_shapes, dict):
         treat_as_input = input_shapes.keys()
@@ -283,7 +283,7 @@ def get_output_shape(layer_or_layers, input_shapes=None):
     for layer in all_layers:
         if layer not in all_shapes:
             try:
-                if isinstance(layer, MultipleInputsLayer):
+                if isinstance(layer, MergeLayer):
                     input_shapes = [all_shapes[input_layer]
                                     for input_layer in layer.input_layers]
                 else:

@@ -252,7 +252,7 @@ class TestGetOutput_Layer:
         layer.get_output_for.assert_called_with(inputs[None])
 
 
-class TestGetOutput_MultipleInputsLayer:
+class TestGetOutput_MergeLayer:
     @pytest.fixture
     def get_output(self):
         from lasagne.layers.helper import get_output
@@ -260,7 +260,7 @@ class TestGetOutput_MultipleInputsLayer:
 
     @pytest.fixture
     def layers(self):
-        from lasagne.layers.base import Layer, MultipleInputsLayer
+        from lasagne.layers.base import Layer, MergeLayer
         from lasagne.layers.input import InputLayer
         # create two mocks of the same attributes as an InputLayer instance
         l1 = [Mock(InputLayer((None,))), Mock(InputLayer((None,)))]
@@ -269,8 +269,8 @@ class TestGetOutput_MultipleInputsLayer:
         # link them to the InputLayer mocks
         l2[0].input_layer = l1[0]
         l2[1].input_layer = l1[1]
-        # create a mock that has the same attributes as a MultipleInputsLayer
-        l3 = Mock(MultipleInputsLayer(l2))
+        # create a mock that has the same attributes as a MergeLayer
+        l3 = Mock(MergeLayer(l2))
         # link it to the two layer mocks, to get the following network:
         # l1[0] --> l2[0] --> l3
         # l1[1] --> l2[1] ----^
@@ -396,8 +396,8 @@ class TestGetOutput_MultipleInputsLayer:
     @pytest.fixture
     def layer_from_shape(self):
         from lasagne.layers.input import InputLayer
-        from lasagne.layers.base import MultipleInputsLayer
-        return MultipleInputsLayer([(None, 20), Mock(InputLayer((None,)))])
+        from lasagne.layers.base import MergeLayer
+        return MergeLayer([(None, 20), Mock(InputLayer((None,)))])
 
     def test_layer_from_shape_invalid_get_output(self, layer_from_shape,
                                                  get_output):
@@ -551,7 +551,7 @@ class TestGetOutputShape_Layer:
         layer.get_output_shape_for.assert_called_with(input_shapes[None])
 
 
-class TestGetOutputShape_MultipleInputsLayer:
+class TestGetOutputShape_MergeLayer:
     @pytest.fixture
     def get_output_shape(self):
         from lasagne.layers.helper import get_output_shape
@@ -559,7 +559,7 @@ class TestGetOutputShape_MultipleInputsLayer:
 
     @pytest.fixture
     def layers(self):
-        from lasagne.layers.base import Layer, MultipleInputsLayer
+        from lasagne.layers.base import Layer, MergeLayer
         from lasagne.layers.input import InputLayer
         # create two mocks of the same attributes as an InputLayer instance
         l1 = [Mock(InputLayer((None,))), Mock(InputLayer((None,)))]
@@ -568,8 +568,8 @@ class TestGetOutputShape_MultipleInputsLayer:
         # link them to the InputLayer mocks
         l2[0].input_layer = l1[0]
         l2[1].input_layer = l1[1]
-        # create a mock that has the same attributes as a MultipleInputsLayer
-        l3 = Mock(MultipleInputsLayer(l2))
+        # create a mock that has the same attributes as a MergeLayer
+        l3 = Mock(MergeLayer(l2))
         # link it to the two layer mocks, to get the following network:
         # l1[0] --> l2[0] --> l3
         # l1[1] --> l2[1] ----^
@@ -655,8 +655,8 @@ class TestGetOutputShape_MultipleInputsLayer:
     @pytest.fixture
     def layer_from_shape(self):
         from lasagne.layers.input import InputLayer
-        from lasagne.layers.base import MultipleInputsLayer
-        return MultipleInputsLayer([(None, 20), Mock(InputLayer((None,)))])
+        from lasagne.layers.base import MergeLayer
+        return MergeLayer([(None, 20), Mock(InputLayer((None,)))])
 
     def test_layer_from_shape_valid_get_output_shape(self, layer_from_shape,
                                                      get_output_shape):

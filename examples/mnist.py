@@ -131,9 +131,7 @@ def create_iter_functions(dataset, output_layer,
                                    deterministic=True)
 
     pred = T.argmax(
-        lasagne.layers.get_output(output_layer, X_batch, deterministic=True),
-        axis=1)
-    accuracy = T.mean(T.eq(pred, y_batch), dtype=theano.config.floatX)
+        output_layer.get_output(X_batch, deterministic=True), axis=1)
 
     all_params = lasagne.layers.get_all_params(output_layer)
     updates = lasagne.updates.nesterov_momentum(

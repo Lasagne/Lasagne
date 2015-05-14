@@ -239,8 +239,8 @@ class Layer(object):
 
             return theano.shared(utils.floatX(arr), name=name)
 
-        elif np.issubdtype(param, np.float):
-            return theano.shared(param, name=name)
+        elif np.issubdtype(param, np.float) or np.issubdtype(param, np.int):
+            return theano.shared(utils.floatX(param), name=name)
 
         else:
             raise RuntimeError("cannot initialize parameters: 'param' is not "

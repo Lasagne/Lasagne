@@ -32,10 +32,8 @@ class TestLayer:
         assert layer.input_layer is None
         assert layer.input_shape == (None, 20)
 
-    def test_named_layer(self):
-        from lasagne.layers.base import Layer
-        l = Layer(Mock(), name="foo")
-        assert l.name == "foo"
+    def test_named_layer(self, named_layer):
+        assert named_layer.name == 'layer_name'
 
     def test_get_params(self, layer):
         assert layer.get_params() == []

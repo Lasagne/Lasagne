@@ -343,6 +343,22 @@ def get_all_params(layer, **tags):
     return utils.unique(params)
 
 
+def get_all_bias_params(layer):
+    import warnings
+    warnings.warn("get_all_bias_params(layer) is deprecated and will be "
+                  "removed for the first release of Lasagne. Please use "
+                  "get_all_params(layer, regularizable=False) instead.")
+    return get_all_params(layer, regularizable=False)
+
+
+def get_all_non_bias_params(layer):
+    import warnings
+    warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
+                  "removed for the first release of Lasagne. Please use "
+                  "get_all_params(layer, regularizable=True) instead.")
+    return get_all_params(layer, regularizable=True)
+
+
 def count_params(layer, **tags):
     """
     This function counts all learnable parameters (i.e. the number of scalar

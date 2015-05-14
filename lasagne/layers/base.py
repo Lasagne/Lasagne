@@ -153,6 +153,13 @@ class Layer(object):
 
         return param
 
+    def get_bias_params(self):
+        import warnings
+        warnings.warn("layer.get_bias_params() is deprecated and will be "
+                      "removed for the first release of Lasagne. Please use "
+                      "layer.get_params(regularizable=False) instead.")
+        return self.get_params(regularizable=False)
+
 
 class MergeLayer(Layer):
     """

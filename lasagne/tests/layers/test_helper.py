@@ -4,7 +4,7 @@ import numpy
 import theano
 
 
-class TestGetAllLayers(object):
+class TestGetAllLayers:
     def test_stack(self):
         from lasagne.layers import InputLayer, DenseLayer, get_all_layers
         from itertools import permutations
@@ -671,7 +671,7 @@ class TestGetOutputShape_MergeLayer:
             [input_shapes[None], layer.input_layers[1].shape])
 
 
-class TestGetAllParams(object):
+class TestGetAllParams:
     def test_get_all_params(self):
         from lasagne.layers import (InputLayer, DenseLayer, get_all_params)
         l1 = InputLayer((10, 20))
@@ -688,7 +688,7 @@ class TestGetAllParams(object):
                  l3.get_params(regularizable=True)))
 
 
-class TestCountParams(object):
+class TestCountParams:
     def test_get_all_params(self):
         from lasagne.layers import (InputLayer, DenseLayer, count_params)
         l1 = InputLayer((10, 20))
@@ -703,7 +703,7 @@ class TestCountParams(object):
         assert count_params(l3) == num_weights + num_biases
 
 
-class TestGetAllParamValues(object):
+class TestGetAllParamValues:
     def test_get_all_param_values(self):
         from lasagne.layers import (InputLayer, DenseLayer,
                                     get_all_param_values)
@@ -715,7 +715,7 @@ class TestGetAllParamValues(object):
         assert len(pvs) == 4
 
 
-class TestSetAllParamValues(object):
+class TestSetAllParamValues:
     def test_set_all_param_values(self):
         from lasagne.layers import (InputLayer, DenseLayer,
                                     set_all_param_values)

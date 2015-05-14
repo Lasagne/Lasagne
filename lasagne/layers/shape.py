@@ -59,15 +59,15 @@ class ReshapeLayer(Layer):
     >>> from lasagne.layers import InputLayer, ReshapeLayer
     >>> l_in = InputLayer((32, 100, 20))
     >>> l1 = ReshapeLayer(l_in, ((32, 50, 40)))
-    >>> l1.get_output_shape()
+    >>> l1.output_shape
     (32, 50, 40)
     >>> l_in = InputLayer((None, 100, 20))
     >>> l2 = ReshapeLayer(l_in, ([0], 50, 40))
-    >>> l2.get_output_shape()
+    >>> l2.output_shape
     (None, 50, 40)
     >>> l_in = InputLayer((None, 100, 20))
     >>> l3 = ReshapeLayer(l_in, (-1, [1], [0], 1))
-    >>> l3.get_output_shape()
+    >>> l3.output_shape
     (20, 100, None, 1)
 
     Note
@@ -95,6 +95,8 @@ class ReshapeLayer(Layer):
         if sum(s == -1 for s in shape) > 1:
             raise ValueError("`shape` cannot contain multiple -1")
         self.shape = shape
+        # try computing the output shape once as a sanity check
+        self.get_output_shape_for(self.input_shape)
 
     def get_output_shape_for(self, input_shape, **kwargs):
         # Initialize output shape from shape specification
@@ -185,10 +187,10 @@ class DimshuffleLayer(Layer):
     >>> from lasagne.layers import InputLayer, DimshuffleLayer
     >>> l_in = InputLayer((2, 3, 5, 7))
     >>> l1 = DimshuffleLayer(l_in, (3, 2, 1, 'x', 0))
-    >>> l1.get_output_shape()
+    >>> l1.output_shape
     (7, 5, 3, 1, 2)
     >>> l2 = DimshuffleLayer(l1, (4, 2, 1, 0))
-    >>> l2.get_output_shape()
+    >>> l2.output_shape
     (2, 3, 5, 7)
 
     See Also
@@ -215,6 +217,9 @@ class DimshuffleLayer(Layer):
                                  "indices or 'x', not {0}".format(p))
 
         self.pattern = pattern
+
+        # try computing the output shape once as a sanity check
+        self.get_output_shape_for(self.input_shape)
 
     def get_output_shape_for(self, input_shape):
         # Build output shape while keeping track of the dimensions that we are

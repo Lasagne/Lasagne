@@ -175,18 +175,21 @@ class TestObjectives:
 
     def test_objective(self):
         from lasagne.objectives import Objective
+        from lasagne.layers.input import Layer, InputLayer
 
-        input_layer = mock.Mock()
+        input_layer = mock.Mock(InputLayer((None,)))
+        layer = mock.Mock(Layer(input_layer))
+        layer.input_layer = input_layer
         loss_function = mock.Mock()
-        input, target, kwarg1 = object(), object(), object()
-        objective = Objective(input_layer, loss_function)
+        input, target, kwarg1 = theano.tensor.vector(), object(), object()
+        objective = Objective(layer, loss_function)
         result = objective.get_loss(input, target, 'mean', kwarg1=kwarg1)
 
-        # We expect that the input layer's `get_output` was called with
+        # We expect that the layer's `get_output_for` was called with
         # the `input` argument we provided, plus the extra positional and
         # keyword arguments.
-        input_layer.get_output.assert_called_with(input, kwarg1=kwarg1)
-        network_output = input_layer.get_output.return_value
+        layer.get_output_for.assert_called_with(input, kwarg1=kwarg1)
+        network_output = layer.get_output_for.return_value
 
         # The `network_output` and `target` are fed into the loss
         # function:
@@ -195,15 +198,18 @@ class TestObjectives:
 
     def test_objective_no_target(self):
         from lasagne.objectives import Objective
+        from lasagne.layers.input import Layer, InputLayer
 
-        input_layer = mock.Mock()
+        input_layer = mock.Mock(InputLayer((None,)))
+        layer = mock.Mock(Layer(input_layer))
+        layer.input_layer = input_layer
         loss_function = mock.Mock()
-        input = object()
-        objective = Objective(input_layer, loss_function)
+        input = theano.tensor.vector()
+        objective = Objective(layer, loss_function)
         result = objective.get_loss(input)
 
-        input_layer.get_output.assert_called_with(input)
-        network_output = input_layer.get_output.return_value
+        layer.get_output_for.assert_called_with(input)
+        network_output = layer.get_output_for.return_value
 
         loss_function.assert_called_with(network_output, objective.target_var)
         assert result == loss_function.return_value.mean.return_value

@@ -71,11 +71,9 @@ def conv1d_test_sets():
 
 @pytest.fixture
 def DummyInputLayer():
-    def factory(get_output_shape):
-        return Mock(
-            get_output_shape=lambda: get_output_shape,
-            get_output=lambda input: input,
-        )
+    def factory(shape):
+        from lasagne.layers.input import InputLayer
+        return InputLayer(shape)
     return factory
 
 
@@ -94,6 +92,7 @@ class TestConv1DLayer:
         input_layer = DummyInputLayer((b, c, w))
         try:
             from lasagne.layers.conv import Conv1DLayer
+            from lasagne.layers.helper import get_output
             layer = Conv1DLayer(
                 input_layer,
                 num_filters=kernel.shape[0],
@@ -101,9 +100,9 @@ class TestConv1DLayer:
                 W=kernel,
                 **kwargs
             )
-            actual = layer.get_output(input).eval()
+            actual = get_output(layer, input).eval()
             assert actual.shape == output.shape
-            assert actual.shape == layer.get_output_shape()
+            assert actual.shape == layer.output_shape
             assert np.allclose(actual, output)
 
         except NotImplementedError:
@@ -158,9 +157,9 @@ class TestConv2DLayerImplementations:
                 W=kernel,
                 **kwargs
             )
-            actual = layer.get_output(input).eval()
+            actual = layer.get_output_for(input).eval()
             assert actual.shape == output.shape
-            assert actual.shape == layer.get_output_shape()
+            assert actual.shape == layer.output_shape
             assert np.allclose(actual, output)
 
         except NotImplementedError:
@@ -180,12 +179,12 @@ class TestConv2DLayerImplementations:
                 W=kernel,
                 **kwargs
             )
-            actual = layer.get_output(input).eval()
+            actual = layer.get_output_for(input).eval()
 
-            assert layer.get_output_shape() == (None,
-                                                kernel.shape[0],
-                                                None,
-                                                None)
+            assert layer.output_shape == (None,
+                                          kernel.shape[0],
+                                          None,
+                                          None)
             assert actual.shape == output.shape
             assert np.allclose(actual, output)
 

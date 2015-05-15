@@ -1,6 +1,7 @@
 Creating custom layers
 ======================
 
+
 A simple layer
 --------------
 
@@ -21,6 +22,7 @@ by 2:
 
 This is all that's required to implement a functioning custom layer class in
 Lasagne.
+
 
 A layer that changes the shape
 ------------------------------
@@ -58,21 +60,100 @@ input as follows:
 It is important that the shape computation is correct, as this shape
 information may be used to initialize other layers in the network.
 
-A layer with trainable parameters
----------------------------------
 
-If the layer has trainable parameters, these should be initialized in the
-constructor using the :meth:`lasagne.layers.Layer.create_param()` method. When
-overriding the constructor, it is also important to call the base class
-constructor as the first statement, passing ``kwargs`` as well.
+A layer with parameters
+-----------------------
 
-A layer should declare its trainable parameters by implementing a
-`get_params()` method, which returns a list of Theano shared variables
-representing the trainable parameters.
+If the layer has parameters, these should be initialized in the constructor.
+In Lasagne, parameters are represented by Theano shared variables. A method
+is provided to create and register parameter variables:
+:meth:`lasagne.layers.Layer.add_param()`.
 
-TODO: flesh out this section, update it once the API is frozen.
+To show how this can be used, here is a layer that multiplies its input
+by a matrix ``W`` (much like a typical fully connected layer in a neural
+network would). This matrix is a parameter of the layer. The shape of the
+matrix will be ``(num_inputs, num_units)``, where ``num_inputs`` is the
+number of input features and ``num_units`` has to be specified when the layer
+is created.
 
-TODO: replace create_param with add_param once #228 is merged, and remove 
-any references to get_params
+.. code:: python
 
-TODO: layer class creation tutorial?
+    class DotLayer(lasagne.layers.Layer):
+        def __init__(self, incoming, num_units, W=lasagne.init.Normal(0.01), **kwargs):
+            super(DotLayer, self).__init__(incoming, **kwargs)
+            num_inputs = self.input_shape[1]
+            self.num_units = num_units
+            self.W = self.add_param(W, (num_inputs, num_units), name='W')
+
+        def get_output_for(self, input, **kwargs):
+            return T.dot(input, self.W)
+
+        def get_output_shape_for(self, input_shape):
+            return (input_shape[0], self.num_units)
+
+A few things are worth noting here: when overriding the constructor, we need
+to call the superclass constructor on the first line. This is important to
+ensure the layer functions properly.
+Note that we pass ``**kwargs`` - although this is not strictly necessary, it
+enables some other cool Lasagne features, such as making it possible to give
+the layer a name:
+
+>>> l_dot = DotLayer(l_in, num_units=50, name='my_dot_layer')
+
+The call to ``self.add_param()`` creates the Theano shared variable
+representing the parameter, and registers it so it can later be retrieved using
+:meth:`lasagne.layers.Layer.get_params()`. It returns the created variable,
+which we tuck away in ``self.W`` for easy access.
+
+Note that we've also made it possible to specify a custom initialization
+strategy for ``W`` by adding a constructor argument for it, e.g.:
+
+>>> l_dot = DotLayer(l_in, num_units=50, W=lasagne.init.Constant(0.0))
+
+This 'Lasagne idiom' of tucking away a created parameter variable in an
+attribute for easy access and adding a constructor argument with the same name
+to specify the initialization strategy is very common throughout the library.
+
+Finally, note that we used ``self.input_shape`` to determine the shape of the
+parameter matrix. This property is available in all Lasagne layers, once the
+superclass constructor has been called.
+
+
+A layer with multiple behaviors
+-------------------------------
+
+Some layers can have multiple behaviors. For example, a layer implementing
+dropout should be able to be switched on or off. During training, we want it
+to apply dropout noise to its input, but during evaluation we don't want it to
+do anything.
+
+For this purpose, the `get_output_for()` method takes optional keyword
+arguments (``kwargs``). When `get_output()` is called to compute the output
+of a network, all specified keyword arguments are passed to the
+`get_output_for()` methods of all layers in the network.
+
+For layers that add noise for regularization purposes, such as dropout, the
+convention in Lasagne is to use the keyword argument ``deterministic`` to
+control its behavior.
+
+Lasagne's :class:`lasagne.layers.DropoutLayer` looks roughly like this
+(simplified implementation for illustration purposes):
+
+.. code:: python
+
+    from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+    _srng = RandomStreams()
+
+    class DropoutLayer(Layer):
+        def __init__(self, incoming, p=0.5, **kwargs):
+            super(DropoutLayer, self).__init__(incoming, **kwargs)
+            self.p = p
+
+        def get_output_for(self, input, deterministic=False, **kwargs):
+            if deterministic:  # do nothing in the deterministic case
+                return input
+            else:  # add dropout noise otherwise
+                retain_prob = 1 - self.p
+                input /= retain_prob
+                return input * _srng.binomial(input.shape, p=retain_prob,
+                                              dtype=theano.config.floatX)

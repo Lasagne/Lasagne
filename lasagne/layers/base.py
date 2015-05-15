@@ -55,7 +55,7 @@ class Layer(object):
         specifying tags as keyword arguments. For example, ``trainable=True``
         will only return trainable parameters, and ``regularizable=True``
         will only return parameters that can be regularized (e.g, by L2 decay).
-        
+
         Parameters
         ----------
         **tags (optional)

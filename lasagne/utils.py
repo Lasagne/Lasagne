@@ -268,12 +268,17 @@ def create_param(spec, shape, name=None):
 
     elif hasattr(spec, '__call__'):
         arr = spec(shape)
-        if not isinstance(arr, np.ndarray):
+        try:
+            arr = floatX(arr)
+        except Exception:
             raise RuntimeError("cannot initialize parameters: the "
-                               "provided callable did not return a numpy "
-                               "array")
-
-        return theano.shared(floatX(arr), name=name)
+                               "provided callable did not return an "
+                               "array-like value")
+        if arr.shape != shape:
+            raise RuntimeError("cannot initialize parameters: the "
+                               "provided callable did not return a value "
+                               "with the correct shape")
+        return theano.shared(arr, name=name)
 
     else:
         raise RuntimeError("cannot initialize parameters: 'spec' is not "

@@ -13,6 +13,7 @@ a list of parameters as input and return an ordered dictionary of updates:
  * adagrad()
  * rmsprop()
  * adadelta()
+ * adam()
 
 Two functions can be used to further modify the updates to include momentum:
 
@@ -53,7 +54,7 @@ import numpy as np
 
 import theano
 import theano.tensor as T
-
+from . import utils
 
 __all__ = [
     "sgd",
@@ -64,6 +65,7 @@ __all__ = [
     "adagrad",
     "rmsprop",
     "adadelta",
+    "adam",
     "norm_constraint",
 ]
 
@@ -507,6 +509,57 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
         delta_accu_new = rho * delta_accu + (1 - rho) * update ** 2
         updates[delta_accu] = delta_accu_new
 
+    return updates
+
+
+def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
+         beta2=0.999, epsilon=1e-8):
+    """Adam updates [1]_
+
+    Parameters
+    ----------
+    loss_or_grads : symbolic expression or list of expressions
+        A scalar loss expression, or a list of gradient expressions
+    params : list of shared variables
+        The variables to generate update expressions for
+    learning_rate : float
+        Learning rate
+    beta_1 : float
+        Exponential decay rate for the first moment estimates.
+    beta_2 : float
+        Exponential decay rate for the second moment estimates.
+    epsilon : float
+        Constant for numerical stability.
+
+    References
+    ----------
+    [1] Diederik Kingma, Jimmy Ba,
+    Adam: A Method for Stochastic Optimization,
+    http://arxiv.org/abs/1412.6980
+
+    Notes
+    ----------
+    The implementation does not include lambda as it is only used to
+    prove convergence of the algorithm (personal communication with the
+    authors of [1]_).
+    """
+    all_grads = get_or_compute_grads(loss_or_grads, params)
+    t_prev = theano.shared(utils.floatX(0.))
+    updates = []
+    for param, g_t in zip(params, all_grads):
+        m_prev = theano.shared(param.get_value() * 0.)
+        v_prev = theano.shared(param.get_value() * 0.)
+        t = t_prev + 1
+        m_t = beta1*m_prev + (1-beta1)*g_t
+        v_t = beta2*v_prev + (1-beta2)*g_t**2
+        a_t = learning_rate*T.sqrt(1-beta2**2)/(1-beta1**2)
+        step = a_t*m_t/(T.sqrt(v_t) + epsilon)
+
+        updates.append((m_prev, m_t))
+        updates.append((v_prev, v_t))
+        updates.append((param, param - step))
+
+    updates.append((t_prev, t))
     return updates
 
 

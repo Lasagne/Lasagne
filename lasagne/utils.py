@@ -217,11 +217,12 @@ def create_param(spec, shape, name=None):
 
     spec : numpy array, Theano shared variable, or callable
         One of three things:
-            * a numpy array with the initial parameter values
-            * a Theano shared variable representing the parameters
-            * a function or callable that takes the desired shape of
-              the parameter array as its single argument and returns
-              a numpy array.
+
+        * a numpy array with the initial parameter values
+        * a Theano shared variable representing the parameters
+        * a function or callable that takes the desired shape of
+          the parameter array as its single argument and returns
+          a numpy array.
 
     shape : tuple
         a tuple of integers representing the desired shape of the

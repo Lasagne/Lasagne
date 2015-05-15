@@ -318,6 +318,12 @@ def get_all_params(layer, **tags):
     main use is to collect all parameters of a network just given the output
     layer(s).
 
+    By default, all parameters that participate in the forward pass will be
+    returned. The list can optionally be filtered by specifying tags as keyword
+    arguments. For example, ``trainable=True`` will only return trainable
+    parameters, and ``regularizable=True`` will only return parameters that can
+    be regularized (e.g., by L2 decay).
+
     Parameters
     ----------
     layer : Layer or list

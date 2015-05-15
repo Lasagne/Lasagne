@@ -124,12 +124,12 @@ A layer with multiple behaviors
 
 Some layers can have multiple behaviors. For example, a layer implementing
 dropout should be able to be switched on or off. During training, we want it
-to apply dropout noise to its input, but during evaluation we don't want it to
-do anything.
+to apply dropout noise to its input and scale up the remaining values, but
+during evaluation we don't want it to do anything.
 
 For this purpose, the `get_output_for()` method takes optional keyword
-arguments (``kwargs``). When `get_output()` is called to compute the output
-of a network, all specified keyword arguments are passed to the
+arguments (``kwargs``). When `get_output()` is called to compute an expression
+for the output of a network, all specified keyword arguments are passed to the
 `get_output_for()` methods of all layers in the network.
 
 For layers that add noise for regularization purposes, such as dropout, the

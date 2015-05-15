@@ -49,11 +49,13 @@ class Layer(object):
         """
         Returns a list of all the Theano variables that parameterize the layer.
 
-        By default, all parameters that were registered with
-        ``Layer.add_param()`` will be returned, in the order they were
-        registered. The list can optionally be filtered by specifying tags
-        as keyword arguments.
-
+        By default, all parameters that participate in the forward pass will be
+        returned (in the order they were registered in the Layer's constructor
+        via :meth:`add_param()`). The list can optionally be filtered by
+        specifying tags as keyword arguments. For example, ``trainable=True``
+        will only return trainable parameters, and ``regularizable=True``
+        will only return parameters that can be regularized (e.g, by L2 decay).
+        
         Parameters
         ----------
         **tags (optional)

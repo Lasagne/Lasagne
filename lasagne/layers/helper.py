@@ -313,7 +313,7 @@ def get_output_shape(layer_or_layers, input_shapes=None):
 
 def get_all_params(layer, **tags):
     """
-    This function gathers all learnable parameters of all layers below one or
+    This function gathers all parameters of all layers below one or
     more given :class:`Layer` instances, including the layer(s) itself. Its
     main use is to collect all parameters of a network just given the output
     layer(s).
@@ -323,6 +323,13 @@ def get_all_params(layer, **tags):
     layer : Layer or list
         The :class:`Layer` instance for which to gather all parameters, or a
         list of :class:`Layer` instances.
+
+    **tags (optional)
+        tags can be specified to filter the list. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
     Returns
     -------
@@ -361,19 +368,27 @@ def get_all_non_bias_params(layer):
 
 def count_params(layer, **tags):
     """
-    This function counts all learnable parameters (i.e. the number of scalar
+    This function counts all parameters (i.e. the number of scalar
     values) of all layers below one or more given :class:`Layer` instances,
     including the layer(s) itself.
 
     This is useful to compare the capacity of various network architectures.
     All parameters returned by the :class:`Layer`s' `get_params` methods are
-    counted, including biases.
+    counted.
 
     Parameters
     ----------
     layer : Layer or list
         The :class:`Layer` instance for which to count the parameters, or a
         list of :class:`Layer` instances.
+
+    **tags (optional)
+        tags can be specified to filter the list of parameter variables that
+        will be included in the count. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
     Returns
     -------
@@ -411,6 +426,13 @@ def get_all_param_values(layer, **tags):
         The :class:`Layer` instance for which to gather all parameter values,
         or a list of :class:`Layer` instances.
 
+    **tags (optional)
+        tags can be specified to filter the list. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
+
     Returns
     -------
     list of numpy.array
@@ -445,9 +467,18 @@ def set_all_param_values(layer, values, **tags):
     layer : Layer or list
         The :class:`Layer` instance for which to set all parameter values, or a
         list of :class:`Layer` instances.
+
     values : list of numpy.array
         A list of numpy arrays representing the parameter values, must match
         the number of parameters.
+
+    **tags (optional)
+        tags can be specified to filter the list of parameters to be set.
+        Specifying ``tag1=True`` will limit the list to parameters that are
+        tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
     Raises
     ------

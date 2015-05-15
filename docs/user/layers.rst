@@ -143,10 +143,60 @@ Propagating data through layers
 
 To compute the output of a single layer given its input, the `get_output_for()`
 method can be used. To compute the output of a network, you should instead call
-`get_output()`. This will traverse the network graph.
+:func:`lasagne.layers.get_output()` on it. This will traverse the network
+graph.
+
+You can call this function with the layer you want to compute the output for:
+
+>>> y = lasagne.layers.get_output(l_out)
+
+In that case, a Theano expression will be returned that represents the output
+in function of the input variables associated with the
+:class:`lasagne.layers.InputLayer` instance (or instances) in the network,
+so given the example network from before, you could compile a Theano function
+to compute its output given an input as follows:
+
+>>> f = theano.function([l_in.input_var], lasagne.layers.get_output(l_out))
+
+You can also specify a Theano expression to use as input as a second argument
+to :func:`lasagne.layers.get_output()`:
+
+>>> x = T.matrix('x')
+>>> y = lasagne.layers.get_output(l_out, x)
+>>> f = theano.function([x], y)
+
+This only works when there is only a single :class:`InputLayer` in the network.
+If there is more than one, you can specify input expressions in a dictionary.
+For example, in a network with two input layers `l_in1` and `l_in2` and an
+output layer `l_out`:
+
+>>> x1 = T.matrix('x1')
+>>> x2 = T.matrix('x2')
+>>> y = lasagne.layers.get_output(l_out, { l_in1: x1, l_in2: x2 })
 
 Any keyword arguments passed to `get_output()` are propagated to all layers.
 This makes it possible to control the behaviour of the entire network. The
-main use case for this is the `deterministic` keyword argument, which disables
+main use case for this is the ``deterministic`` keyword argument, which disables
 stochastic behaviour such as dropout when set to ``True``. This is useful
 because a deterministic output is desirable at evaluation time.
+
+>>> y = lasagne.layers.get_output(l_out, deterministic=True)
+
+Some networks may have multiple output layers - or you may just want to
+compute the output of intermediate layers in the network. In that case, you can
+pass a list of layers. For example, in a network with two output layers
+`l_out1` and `l_out2`:
+
+>>> y1, y2 = lasagne.layers.get_output([l_out1, l_out2])
+
+You could also just call :func:`lasagne.layers.get_output()` twice:
+
+>>> y1 = lasagne.layers.get_output(l_out1)
+>>> y2 = lasagne.layers.get_output(l_out2)
+
+However, this is **not recommended**! Some network layers may have
+non-deterministic output, such as dropout layers. If you compute the network
+outputs with separate calls to :func:`lasagne.layers.get_output()`, they will
+not use the same samples. Furthermore, this may lead to unnecessary computation
+because Theano is not always able to merge identical computations properly.
+Calling `get_output()` only once prevents both of these issues.

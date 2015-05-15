@@ -6,13 +6,31 @@
 .. autoclass:: Initializer
    :members:
 
-.. autoclass:: Normal
-   :members:
-
 .. autoclass:: Constant
    :members:
 
+.. autoclass:: Normal
+   :members:
+
 .. autoclass:: Uniform
+   :members:
+
+.. autoclass:: Glorot
+   :members:
+
+.. autoclass:: GlorotNormal
+   :members:
+
+.. autoclass:: GlorotUniform
+   :members:
+
+.. autoclass:: He
+   :members:
+
+.. autoclass:: HeNormal
+   :members:
+
+.. autoclass:: HeUniform
    :members:
 
 .. autoclass:: Orthogonal

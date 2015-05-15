@@ -1,8 +1,8 @@
 """
 Functions to create initializers for parameter variables.
 
-Usage
--------
+Examples
+--------
 >>> from lasagne.layers import DenseLayer
 >>> from lasagne.init import Constant, Glorot
 >>> l1 = DenseLayer((100,20), num_units=50, W=GlorotUniform(), b=Constant(0.0))
@@ -14,7 +14,7 @@ from .utils import floatX
 
 
 class Initializer(object):
-    """Initializer class
+    """Base class for parameter tensor initializers.
 
     The :class:`Initializer` class represents a weight initializer used
     to initialize weight parameters in a neural network layer. It should be
@@ -45,7 +45,7 @@ class Initializer(object):
 
 
 class Normal(Initializer):
-    """Sample initial weights from the Gaussian distribution
+    """Sample initial weights from the Gaussian distribution.
 
     Initial weight parameters are sampled from N(mean, std).
 
@@ -65,7 +65,7 @@ class Normal(Initializer):
 
 
 class Uniform(Initializer):
-    """Sample initial weights from the uniform distribution
+    """Sample initial weights from the uniform distribution.
 
     Parameters are sampled from U(a, b).
 
@@ -106,41 +106,46 @@ class Uniform(Initializer):
 
 
 class Glorot(Initializer):
-    """Glorot weight initialization [1]_
+    """Glorot weight initialization [1]_.
 
     This is also known as Xavier initialization.
 
     Parameters
     ----------
     initializer : lasagne.init.Initializer
-        Initializer used to sample the weights, must accept std in its
+        Initializer used to sample the weights, must accept `std` in its
         constructor to sample from a distribution with a given standard
         deviation.
     gain : float or 'relu'
-        When 'relu' the gain is set to sqrt(2), see notes.
+        Scaling factor for the weights. Set this to 1.0 for linear and sigmoid
+        units, to 'relu' or sqrt(2) for rectified linear units. Other transfer
+        functions may need different factors.
     c01b : bool
-        If lasagne.layers.cuda_convnet.Conv2DCCLayer is initialized with
-        dimshuffle=False, then c01b should be set to True.
+        For a :class:`lasagne.layers.cuda_convnet.Conv2DCCLayer` constructed
+        with ``dimshuffle=False``, `c01b` must be set to ``True`` to compute
+        the correct fan-in and fan-out.
 
     References
     ----------
-    [1] Glorot, Xavier, and Yoshua Bengio. "Understanding the difficulty of
-    training deep feedforward neural networks." International conference on
-    artificial intelligence and statistics. 2010.
+    .. [1] Xavier Glorot and Yoshua Bengio (2010):
+           Understanding the difficulty of training deep feedforward neural
+           networks. International conference on artificial intelligence and
+           statistics.
 
     Notes
-    ----------
-    For DenseLayers if gain='relu' and initializer is Uniform then the weights
-    are initialized as
+    -----
+    For a :class:`DenseLayer`, if ``gain='relu'`` and ``initializer=Uniform``,
+    the weights are initialized as
 
-    :math:`a = \frac{sqrt{6}}{\sqrt{fan_{in}+n_{hid}}}`
-    :nath: `W \sim U[-a, a]`.
+    .. math::
+       a &= \\sqrt{\\frac{6}{fan_{in}+fan_{out}}}\\\\
+       W &\sim U[-a, a]
 
-    If gain=1 and initializer is Normal then the weights are initialized
-    as
+    If ``gain=1`` and ``initializer=Normal``, the weights are initialized as
 
-    :math: `std = \sqrt{\frac{2}{fan_{in}+n_{hid}}}`
-    :math: `W \sim N(0, std)`.
+    .. math::
+       \\sigma &= \\sqrt{\\frac{2}{fan_{in}+fan_{out}}}\\\\
+       W &\sim N(0, \\sigma)
 
     See Also
     --------
@@ -176,47 +181,49 @@ class Glorot(Initializer):
 
 
 class GlorotNormal(Glorot):
-    """Glorot with weights sampled from Normal distribution
+    """Glorot with weights sampled from the Normal distribution.
 
-    See Glorot for description of parameters.
+    See :class:`Glorot` for a description of the parameters.
     """
     def __init__(self, gain=1.0, c01b=False):
         super(GlorotNormal, self).__init__(Normal, gain, c01b)
 
 
 class GlorotUniform(Glorot):
-    """Glorot with weights sampled from Uniform distribution
+    """Glorot with weights sampled from the Uniform distribution.
 
-    See Glorot for description of parameters.
+    See :class:`Glorot` for a description of the parameters.
     """
     def __init__(self, gain=1.0, c01b=False):
         super(GlorotUniform, self).__init__(Uniform, gain, c01b)
 
 
 class He(Initializer):
-    """He weight initialization [1]_
+    """He weight initialization [1]_.
 
-    Weights are initialized with std
-
-    :math:`\sigma = gain \sqrt{\frac{1}{fan_{in}}}`.
+    Weights are initialized with a standard deviation of
+    :math:`\\sigma = gain \\sqrt{\\frac{1}{fan_{in}}}`.
 
     Parameters
     ----------
     initializer : lasagne.init.Initializer
-        Initializer used to sample the weights, must accept std in its
+        Initializer used to sample the weights, must accept `std` in its
         constructor to sample from a distribution with a given standard
         deviation.
     gain : float or 'relu'
-        When 'relu' gain is set to sqrt(2).
+        Scaling factor for the weights. Set this to 1.0 for linear and sigmoid
+        units, to 'relu' or sqrt(2) for rectified linear units. Other transfer
+        functions may need different factors.
     c01b : bool
-        If lasagne.layers.cuda_convnet.Conv2DCCLayer is initialized with
-        dimshuffle=False, then c01b should be set to True.
+        For a :class:`lasagne.layers.cuda_convnet.Conv2DCCLayer` constructed
+        with ``dimshuffle=False``, `c01b` must be set to ``True`` to compute
+        the correct fan-in and fan-out.
 
     References
     ----------
-    [1] He, Kaiming, et al. Delving deep into rectifiers: Surpassing
-    human-level performance on imagenet classification.
-    arXiv preprint arXiv:1502.01852 (2015).
+    .. [1] Kaiming He et al. (2015):
+           Delving deep into rectifiers: Surpassing human-level performance on
+           imagenet classification. arXiv preprint arXiv:1502.01852.
 
     See Also
     ----------
@@ -252,18 +259,18 @@ class He(Initializer):
 
 
 class HeNormal(He):
-    """He initializer with weights sampled from Gaussian
+    """He initializer with weights sampled from the Normal distribution.
 
-    See He for description of parameters.
+    See :class:`He` for a description of the parameters.
     """
     def __init__(self, gain=1.0, c01b=False):
         super(HeNormal, self).__init__(Normal, gain, c01b)
 
 
 class HeUniform(He):
-    """He initializer with weights sampled from Gaussian
+    """He initializer with weights sampled from the Uniform distribution.
 
-    See He for description of parameters.
+    See :class:`He` for a description of the parameters.
     """
     def __init__(self, gain=1.0, c01b=False):
         super(HeUniform, self).__init__(Uniform, gain, c01b)

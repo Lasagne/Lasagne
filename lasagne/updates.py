@@ -7,28 +7,28 @@ rate for use with stochastic gradient descent.
 Update functions take a loss expression or a list of gradient expressions and
 a list of parameters as input and return an ordered dictionary of updates:
 
- * sgd()
- * momentum()
- * nesterov_momentum()
- * adagrad()
- * rmsprop()
- * adadelta()
- * adam()
+* :func:`sgd()`
+* :func:`momentum()`
+* :func:`nesterov_momentum()`
+* :func:`adagrad()`
+* :func:`rmsprop()`
+* :func:`adadelta()`
+* :func:`adam()`
 
 Two functions can be used to further modify the updates to include momentum:
 
- * apply_momentum()
- * apply_nesterov_momentum()
+* :func:`apply_momentum()`
+* :func:`apply_nesterov_momentum()`
 
 Finally, we provide a helper function to constrain the norm of a
 tensor variable:
 
- * norm_constraint()
+* :func:`norm_constraint()`
 
 This can be used to constrain the norm of parameters (as an alternative
 to weight decay), or for a form of gradient clipping.
 
-Usage
+Examples
 --------
 >>> import lasagne
 >>> import theano.tensor as T
@@ -102,6 +102,7 @@ def sgd(loss_or_grads, params, learning_rate):
     """Stochastic Gradient Descent (SGD) updates.
 
     Generates update expressions of the form:
+
     * ``param := param - learning_rate * gradient``
 
     Parameters
@@ -131,6 +132,7 @@ def apply_momentum(updates, params=None, momentum=0.9):
     """Returns a modified update dictionary that includes momentum terms.
 
     Generates update expressions of the form:
+
     * ``velocity := momentum * velocity + updates[param] - param``
     * ``param := param + velocity``
 
@@ -178,6 +180,7 @@ def momentum(loss_or_grads, params, learning_rate, momentum=0.9):
     """Stochastic Gradient Descent (SGD) updates with momentum.
 
     Generates update expressions of the form:
+
     * ``velocity := momentum * velocity - learning_rate * gradient``
     * ``param := param + velocity``
 
@@ -196,7 +199,7 @@ def momentum(loss_or_grads, params, learning_rate, momentum=0.9):
     Returns
     -------
     OrderedDict
-         A dictionary mapping each parameter to its update expression
+        A dictionary mapping each parameter to its update expression
 
     Notes
     -----
@@ -216,6 +219,7 @@ def apply_nesterov_momentum(updates, params=None, momentum=0.9):
     """Returns a modified update dictionary including Nesterov momentum.
 
     Generates update expressions of the form:
+
     * ``velocity := momentum * velocity + updates[param] - param``
     * ``param := param + momentum * velocity + updates[param] - param``
 
@@ -269,6 +273,7 @@ def nesterov_momentum(loss_or_grads, params, learning_rate, momentum=0.9):
     """Stochastic Gradient Descent (SGD) updates with Nesterov momentum.
 
     Generates update expressions of the form:
+
     * ``velocity := momentum * velocity + updates[param] - param``
     * ``param := param + momentum * velocity + updates[param] - param``
 
@@ -287,7 +292,7 @@ def nesterov_momentum(loss_or_grads, params, learning_rate, momentum=0.9):
     Returns
     -------
     OrderedDict
-         A dictionary mapping each parameter to its update expression
+        A dictionary mapping each parameter to its update expression
 
     Notes
     -----
@@ -309,11 +314,10 @@ def nesterov_momentum(loss_or_grads, params, learning_rate, momentum=0.9):
 
 
 def adagrad(loss_or_grads, params, learning_rate=1.0, epsilon=1e-6):
-    """Adagrad updates [1]_
+    """Adagrad updates [1]_.
 
     Scale learning rates by dividing with the square root of accumulated
     squared gradients.
-
 
     Parameters
     ----------
@@ -329,30 +333,28 @@ def adagrad(loss_or_grads, params, learning_rate=1.0, epsilon=1e-6):
     Returns
     -------
     OrderedDict
-         A dictionary mapping each parameter to its update expression
+        A dictionary mapping each parameter to its update expression
 
     Notes
     -----
     Using step size eta Adagrad calculates the learning rate for feature i at
     time step t as:
 
-    :math:`\eta_{t,i} = \frac{\eta}
-      {\sqrt{\sum^t_{t^\prime} g^2_{t^\prime,i}+\epsilon } }g_{t,i}`
+    .. math:: \\eta_{t,i} = \\frac{\\eta}
+       {\\sqrt{\\sum^t_{t^\\prime} g^2_{t^\\prime,i}+\\epsilon}} g_{t,i}
 
     as such the learning rate is monotonically decreasing.
 
-    Epsilon is not included in the typical formula,
-    See "Notes on AdaGrad" by Chris Dyer for more info [2]_.
+    Epsilon is not included in the typical formula, see [2]_.
 
     References
     ----------
-    [1] Duchi, J., Hazan, E., & Singer, Y. (2011).
-    Adaptive subgradient methods for online learning and stochastic
-    optimization. JMLR, 12:2121-2159.
+    .. [1] Duchi, J., Hazan, E., & Singer, Y. (2011):
+           Adaptive subgradient methods for online learning and stochastic
+           optimization. JMLR, 12:2121-2159.
 
-    [2] Notes on AdaGrad, Chris Dyer
-    http://www.ark.cs.cmu.edu/cdyer/adagrad.pdf
-
+    .. [2] Chris Dyer:
+           Notes on AdaGrad. http://www.ark.cs.cmu.edu/cdyer/adagrad.pdf
     """
 
     grads = get_or_compute_grads(loss_or_grads, params)
@@ -371,11 +373,10 @@ def adagrad(loss_or_grads, params, learning_rate=1.0, epsilon=1e-6):
 
 
 def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
-    """RMSProp updates [1]_
+    """RMSProp updates [1]_.
 
     Scale learning rates by dividing with the moving average of the root mean
     squared (RMS) gradients.
-
 
     Parameters
     ----------
@@ -393,26 +394,26 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
     Returns
     -------
     OrderedDict
-         A dictionary mapping each parameter to its update expression
+        A dictionary mapping each parameter to its update expression
 
     Notes
     -----
-    rho should be between 0 and 1. A value of rho close to 1 will decay the
+    `rho` should be between 0 and 1. A value of `rho` close to 1 will decay the
     moving average slowly and a value close to 0 will decay the moving average
     fast.
 
-    Using the step size eta and a decay factor rho the learning rate is
-    calculated as:
+    Using the step size :math:`\\eta` and a decay factor :math:`\\rho` the
+    learning rate :math:`\\eta_t` is calculated as:
 
-    :math:`r_t = \rho r_{t-1} + (1-\rho)*g^2`
-    :math:`\eta_t = \frac{\eta}{\sqrt{r_t + \epsilon}}`
-
+    .. math::
+       r_t &= \\rho r_{t-1} + (1-\\rho)*g^2\\\\
+       \\eta_t &= \\frac{\\eta}{\\sqrt{r_t + \\epsilon}}
 
     References
     ----------
-    [1] Tieleman, T. and Hinton, G. (2012),
-    Lecture 6.5 - rmsprop, COURSERA: Neural Networks for Machine Learning
-    http://www.youtube.com/watch?v=O3sxAc4hxZU  (formula 5.20 min)
+    .. [1] Tieleman, T. and Hinton, G. (2012):
+           Neural Networks for Machine Learning, Lecture 6.5 - rmsprop.
+           Coursera. http://www.youtube.com/watch?v=O3sxAc4hxZU (formula @5:20)
     """
     grads = get_or_compute_grads(loss_or_grads, params)
     updates = OrderedDict()
@@ -430,11 +431,10 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
 
 
 def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
-    """ Adadelta updates [1]_
+    """ Adadelta updates [1]_.
 
     Scale learning rates by a the ratio of accumulated gradients to accumulated
     step sizes, see notes for further description.
-
 
     Parameters
     ----------
@@ -452,7 +452,7 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     Returns
     -------
     OrderedDict
-         A dictionary mapping each parameter to its update expression
+        A dictionary mapping each parameter to its update expression
 
     Notes
     -----
@@ -471,18 +471,17 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     Using the step size eta and a decay factor rho the learning rate is
     calculated as:
 
-    :math:`r_t = \rho r_{t-1} + (1-\rho)*g^2`
-    :math:`\eta_t = \eta \frac{\sqrt{s_{t-1} + \epsilon}}
-                    {\sqrt{r_t + \epsilon}}`
-    :math:`s_t = \rho s_{t-1} + (1-\rho)*g^2`
-
-
+    .. math::
+       r_t &= \\rho r_{t-1} + (1-\\rho)*g^2\\\\
+       \\eta_t &= \\eta \\frac{\\sqrt{s_{t-1} + \\epsilon}}
+                             {\sqrt{r_t + \epsilon}}\\\\
+       s_t &= \\rho s_{t-1} + (1-\\rho)*g^2
 
     References
     ----------
-    [1] Zeiler, M. D. (2012). ADADELTA: An Adaptive Learning Rate Method.
-    arXiv Preprint arXiv:1212.5701.
-
+    .. [1] Zeiler, M. D. (2012):
+           ADADELTA: An Adaptive Learning Rate Method.
+           arXiv Preprint arXiv:1212.5701.
     """
     grads = get_or_compute_grads(loss_or_grads, params)
     updates = OrderedDict()
@@ -536,17 +535,17 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
     OrderedDict
         A dictionary mapping each parameter to its update expression
 
-    References
-    ----------
-    .. [1] Kingma, Diederik, and Jimmy Ba:
-           Adam: A Method for Stochastic Optimization.
-           arXiv preprint arXiv:1412.6980 (2014).
-
     Notes
     -----
-    The implementation does not include lambda as it is only used to
-    prove convergence of the algorithm (personal communication with the
-    authors of [1]_).
+    The paper [1]_ includes an additional hyperparameter lambda. This is only
+    needed to prove convergence of the algorithm and has no practical use
+    (personal communication with the authors), it is therefore omitted here.
+
+    References
+    ----------
+    .. [1] Kingma, Diederik, and Jimmy Ba (2014):
+           Adam: A Method for Stochastic Optimization.
+           arXiv preprint arXiv:1412.6980.
     """
     all_grads = get_or_compute_grads(loss_or_grads, params)
     t_prev = theano.shared(utils.floatX(0.))

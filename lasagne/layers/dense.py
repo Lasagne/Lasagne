@@ -19,7 +19,7 @@ class DenseLayer(Layer):
     A fully connected layer.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
@@ -37,16 +37,15 @@ class DenseLayer(Layer):
         If None is provided the layer will have no biases.
         See :meth:`Layer.create_param` for more information.
 
-
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    Usage
-    -------
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
     """
     def __init__(self, incoming, num_units, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
@@ -89,7 +88,7 @@ class NonlinearityLayer(Layer):
     A layer that just applies a nonlinearity.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
@@ -116,7 +115,7 @@ class NINLayer(Layer):
     so NINLayer can be used to implement 1D, 2D, 3D, ... convolutions.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
@@ -147,16 +146,16 @@ class NINLayer(Layer):
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    Usage
-    ----------
+    Examples
+    --------
     >>> from lasagne.layers import InputLayer, NINLayer
     >>> l_in = InputLayer((100, 20, 10, 3))
     >>> l1 = NINLayer(l_in, num_units=5)
 
     References
-    -----------
-    [1] Lin, Min, Qiang Chen, and Shuicheng Yan. "Network in network."
-    arXiv preprint arXiv:1312.4400 (2013).
+    ----------
+    .. [1] Lin, Min, Qiang Chen, and Shuicheng Yan (2013):
+           Network in network. arXiv preprint arXiv:1312.4400.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),

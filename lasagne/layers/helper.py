@@ -8,6 +8,8 @@ from .. import utils
 __all__ = [
     "get_all_layers",
     "get_all_layers_old",
+    "get_output",
+    "get_output_shape",
     "get_all_params",
     "get_all_bias_params",
     "get_all_non_bias_params",
@@ -17,7 +19,7 @@ __all__ = [
 ]
 
 
-def get_all_layers(layer):
+def get_all_layers(layer, treat_as_input=None):
     """
     This function gathers all layers below one or more given :class:`Layer`
     instances, including the given layer(s). Its main use is to collect all
@@ -36,11 +38,21 @@ def get_all_layers(layer):
         True
         >>> get_all_layers([l1, l2]) == [l_in, l1, l2]
         True
+        >>> l3 = DenseLayer(l2, num_units=20)
+        >>> get_all_layers(l3) == [l_in, l2, l3]
+        True
+        >>> get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
+        True
 
     :parameters:
         - layer : Layer or list
             the :class:`Layer` instance for which to gather all layers feeding
             into it, or a list of :class:`Layer` instances.
+        - treat_as_input : None or iterable
+            an iterable of :class:`Layer` instances to treat as input layers
+            with no layers feeding into them. They will show up in the result
+            list, but their incoming layers will not be collected (unless they
+            are required for other layers as well).
 
     :returns:
         - layers : list
@@ -66,6 +78,11 @@ def get_all_layers(layer):
     seen = set()
     done = set()
     result = []
+
+    # If treat_as_input is given, we pretend we've already collected all their
+    # incoming layers.
+    if treat_as_input is not None:
+        seen.update(treat_as_input)
 
     while queue:
         # Peek at the leftmost node in the queue.
@@ -124,6 +141,165 @@ def get_all_layers_old(layer):
         layers.extend(children)
 
     return layers
+
+
+def get_output(layer_or_layers, inputs=None, **kwargs):
+    """
+    Computes the output of the network at one or more given layers.
+    Optionally, you can define the input(s) to propagate through the network
+    instead of using the input variable(s) associated with the network's
+    input layer(s).
+
+    :parameters:
+        - layer_or_layers : Layer or list
+            the :class:`Layer` instance for which to compute the output
+            expressions, or a list of :class:`Layer` instances.
+        - inputs : None, Theano expression, numpy array, or dict
+            If None, uses the input variables associated with the
+            :class:`InputLayer` instances.
+            If a Theano expression, this defines the input for a single
+            :class:`InputLayer` instance. Will throw a ValueError if there
+            are multiple :class:`InputLayer` instances.
+            If a numpy array, this will be wrapped as a Theano constant
+            and used just like a Theano expression.
+            If a dictionary, any :class:`Layer` instance (including the
+            input layers) can be mapped to a Theano expression or numpy
+            array to use instead of its regular output.
+
+    :returns:
+        - output : Theano expression or list
+            the output of the given layer(s) for the given network input
+
+    :note:
+        Depending on your network architecture, `get_output([l1, l2])` may
+        be crucially different from `[get_output(l1), get_output(l2)]`. Only
+        the former ensures that the output expressions depend on the same
+        intermediate expressions. For example, when `l1` and `l2` depend on
+        a common dropout layer, the former will use the same dropout mask for
+        both, while the latter will use two different dropout masks.
+    """
+    from .input import InputLayer
+    from .base import MergeLayer
+    # obtain topological ordering of all layers the output layer(s) depend on
+    treat_as_input = inputs.keys() if isinstance(inputs, dict) else []
+    all_layers = get_all_layers(layer_or_layers, treat_as_input)
+    # initialize layer-to-expression mapping from all input layers
+    all_outputs = dict((layer, layer.input_var)
+                       for layer in all_layers
+                       if isinstance(layer, InputLayer) and
+                       layer not in treat_as_input)
+    # update layer-to-expression mapping from given input(s), if any
+    if isinstance(inputs, dict):
+        all_outputs.update((layer, utils.as_theano_expression(expr))
+                           for layer, expr in inputs.items())
+    elif inputs is not None:
+        if len(all_outputs) > 1:
+            raise ValueError("get_output() was called with a single input "
+                             "expression on a network with multiple input "
+                             "layers. Please call it with a dictionary of "
+                             "input expressions instead.")
+        for input_layer in all_outputs:
+            all_outputs[input_layer] = utils.as_theano_expression(inputs)
+    # update layer-to-expression mapping by propagating the inputs
+    for layer in all_layers:
+        if layer not in all_outputs:
+            try:
+                if isinstance(layer, MergeLayer):
+                    layer_inputs = [all_outputs[input_layer]
+                                    for input_layer in layer.input_layers]
+                else:
+                    layer_inputs = all_outputs[layer.input_layer]
+            except KeyError:
+                # one of the input_layer attributes must have been `None`
+                raise ValueError("get_output() was called without giving an "
+                                 "input expression for the free-floating "
+                                 "layer %r. Please call it with a dictionary "
+                                 "mapping this layer to an input expression."
+                                 % layer)
+            all_outputs[layer] = layer.get_output_for(layer_inputs, **kwargs)
+    # return the output(s) of the requested layer(s) only
+    try:
+        return [all_outputs[layer] for layer in layer_or_layers]
+    except TypeError:
+        return all_outputs[layer_or_layers]
+
+
+def get_output_shape(layer_or_layers, input_shapes=None):
+    """
+    Computes the output shape of the network at one or more given layers.
+
+    :parameters:
+        - layer_or_layers : Layer or list
+            the :class:`Layer` instance for which to compute the output
+            shapes, or a list of :class:`Layer` instances.
+
+        - input_shapes : None, tuple, or dict
+            If None, uses the input shapes associated with the
+            :class:`InputLayer` instances.
+            If a tuple, this defines the input shape for a single
+            :class:`InputLayer` instance. Will throw a ValueError if there
+            are multiple :class:`InputLayer` instances.
+            If a dictionary, any :class:`Layer` instance (including the
+            input layers) can be mapped to a shape tuple to use instead of
+            its regular output shape.
+
+    :returns:
+        - output : tuple or list
+            the output shape of the given layer(s) for the given network input
+    """
+    # shortcut: return precomputed shapes if we do not need to propagate any
+    if input_shapes is None or input_shapes == {}:
+        try:
+            return [layer.output_shape for layer in layer_or_layers]
+        except TypeError:
+            return layer_or_layers.output_shape
+
+    from .input import InputLayer
+    from .base import MergeLayer
+    # obtain topological ordering of all layers the output layer(s) depend on
+    if isinstance(input_shapes, dict):
+        treat_as_input = input_shapes.keys()
+    else:
+        treat_as_input = []
+
+    all_layers = get_all_layers(layer_or_layers, treat_as_input)
+    # initialize layer-to-shape mapping from all input layers
+    all_shapes = dict((layer, layer.shape)
+                      for layer in all_layers
+                      if isinstance(layer, InputLayer) and
+                      layer not in treat_as_input)
+    # update layer-to-shape mapping from given input(s), if any
+    if isinstance(input_shapes, dict):
+        all_shapes.update(input_shapes)
+    elif input_shapes is not None:
+        if len(all_shapes) > 1:
+            raise ValueError("get_output_shape() was called with a single "
+                             "input shape on a network with multiple input "
+                             "layers. Please call it with a dictionary of "
+                             "input shapes instead.")
+        for input_layer in all_shapes:
+            all_shapes[input_layer] = input_shapes
+    # update layer-to-shape mapping by propagating the input shapes
+    for layer in all_layers:
+        if layer not in all_shapes:
+            try:
+                if isinstance(layer, MergeLayer):
+                    input_shapes = [all_shapes[input_layer]
+                                    for input_layer in layer.input_layers]
+                else:
+                    input_shapes = all_shapes[layer.input_layer]
+            except KeyError:
+                raise ValueError("get_output() was called without giving an "
+                                 "input shape for the free-floating layer %r. "
+                                 "Please call it with a dictionary mapping "
+                                 "this layer to an input shape."
+                                 % layer)
+            all_shapes[layer] = layer.get_output_shape_for(input_shapes)
+    # return the output shape(s) of the requested layer(s) only
+    try:
+        return [all_shapes[layer] for layer in layer_or_layers]
+    except TypeError:
+        return all_shapes[layer_or_layers]
 
 
 def get_all_params(layer):

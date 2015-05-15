@@ -7,7 +7,8 @@ import pytest
 class TestDropoutLayer:
     @pytest.fixture(params=[(100, 100), (None, 100)])
     def input_layer(self, request):
-        return Mock(get_output_shape=lambda: request.param)
+        from lasagne.layers.input import InputLayer
+        return InputLayer(request.param)
 
     @pytest.fixture
     def layer(self, input_layer):

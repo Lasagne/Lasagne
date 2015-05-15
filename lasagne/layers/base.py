@@ -7,7 +7,7 @@ from .. import utils
 
 __all__ = [
     "Layer",
-    "MultipleInputsLayer",
+    "MergeLayer",
 ]
 
 
@@ -36,9 +36,13 @@ class Layer(object):
             self.input_shape = incoming
             self.input_layer = None
         else:
-            self.input_shape = incoming.get_output_shape()
+            self.input_shape = incoming.output_shape
             self.input_layer = incoming
         self.name = name
+
+    @property
+    def output_shape(self):
+        return self.get_output_shape_for(self.input_shape)
 
     def get_params(self):
         """
@@ -77,56 +81,24 @@ class Layer(object):
 
     def get_output_shape(self):
         """
-        Computes the output shape of the network at this layer.
-
-        :returns:
-            - output shape: tuple
-                a tuple that represents the output shape of this layer. The
-                tuple has as many elements as there are output dimensions, and
-                the elements of the tuple are either integers or `None`.
-
-        :note:
-            When implementing a new :class:`Layer` class, you will usually
-            keep this unchanged and just override `get_output_shape_for()`.
+        Deprecated. Use `layer.output_shape`.
         """
-        return self.get_output_shape_for(self.input_shape)
+        import warnings
+        warnings.warn("layer.get_output_shape() is deprecated and will be "
+                      "removed for the first release of Lasagne. Please use "
+                      "layer.output_shape instead.")
+        return self.output_shape
 
     def get_output(self, input=None, **kwargs):
         """
-        Computes the output of the network at this layer. Optionally, you can
-        define an input to propagate through the network instead of using the
-        input variables associated with the network's input layers.
-
-        :parameters:
-            - input : None, Theano expression, numpy array, or dict
-                If None, uses the inputs of the :class:`InputLayer` instances.
-                If a Theano expression, this will replace the inputs of all
-                :class:`InputLayer` instances (useful if your network has a
-                single input layer).
-                If a numpy array, this will be wrapped as a Theano constant
-                and used just like a Theano expression.
-                If a dictionary, any :class:`Layer` instance (including the
-                input layers) can be mapped to a Theano expression or numpy
-                array to use instead of its regular output.
-
-        :returns:
-            - output : Theano expression
-                the output of this layer given the input to the network
-
-        :note:
-            When implementing a new :class:`Layer` class, you will usually
-            keep this unchanged and just override `get_output_for()`.
+        Deprecated. Use `lasagne.layers.get_output(layer, input, **kwargs)`.
         """
-        if isinstance(input, dict) and (self in input):
-            # this layer is mapped to an expression or numpy array
-            return utils.as_theano_expression(input[self])
-        elif self.input_layer is None:
-            raise RuntimeError("get_output() called on a free-floating layer; "
-                               "there isn't anything to get its input from. "
-                               "Did you mean get_output_for()?")
-        else:  # in all other cases, just pass the input on to the next layer.
-            layer_input = self.input_layer.get_output(input, **kwargs)
-            return self.get_output_for(layer_input, **kwargs)
+        import warnings
+        warnings.warn("layer.get_output(...) is deprecated and will be "
+                      "removed for the first release of Lasagne. Please use "
+                      "lasagne.layers.get_output(layer, ...) instead.")
+        from .helper import get_output
+        return get_output(self, input, **kwargs)
 
     def get_output_shape_for(self, input_shape):
         """
@@ -248,7 +220,7 @@ class Layer(object):
                                "callable")
 
 
-class MultipleInputsLayer(Layer):
+class MergeLayer(Layer):
     """
     This class represents a layer that aggregates input from multiple layers.
     It should be subclassed when implementing new types of layers that
@@ -265,29 +237,16 @@ class MultipleInputsLayer(Layer):
                 an optional name to attach to this layer
         """
         self.input_shapes = [incoming if isinstance(incoming, tuple)
-                             else incoming.get_output_shape()
+                             else incoming.output_shape
                              for incoming in incomings]
         self.input_layers = [None if isinstance(incoming, tuple)
                              else incoming
                              for incoming in incomings]
         self.name = name
 
-    def get_output_shape(self):
+    @Layer.output_shape.getter
+    def output_shape(self):
         return self.get_output_shape_for(self.input_shapes)
-
-    def get_output(self, input=None, **kwargs):
-        if isinstance(input, dict) and (self in input):
-            # this layer is mapped to an expression or numpy array
-            return utils.as_theano_expression(input[self])
-        elif any(input_layer is None for input_layer in self.input_layers):
-            raise RuntimeError("get_output() called on a free-floating layer; "
-                               "there isn't anything to get its inputs from. "
-                               "Did you mean get_output_for()?")
-        # In all other cases, just pass the network input on to the next layers
-        else:
-            layer_inputs = [input_layer.get_output(input, **kwargs) for
-                            input_layer in self.input_layers]
-            return self.get_output_for(layer_inputs, **kwargs)
 
     def get_output_shape_for(self, input_shapes):
         """
@@ -326,7 +285,7 @@ class MultipleInputsLayer(Layer):
                 the output of this layer given the inputs to this layer
 
         :note:
-            This is called by the base :class:`MultipleInputsLayer`
+            This is called by the base :class:`MergeLayer`
             implementation to propagate data through a network in
             `get_output()`. While `get_output()` asks the underlying layers
             for input and thus returns an expression for a layer's output in

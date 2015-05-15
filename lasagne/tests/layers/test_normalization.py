@@ -117,7 +117,7 @@ class TestLocalResponseNormalization2DLayer:
 
     def test_normalization(self, input_data, input_layer, layer):
         X = input_layer.input_var
-        lrn = theano.function([X], layer.get_output(X))
+        lrn = theano.function([X], lasagne.layers.get_output(layer, X))
         out = lrn(input_data)
 
         # ground_truth_normalizer assumes c01b

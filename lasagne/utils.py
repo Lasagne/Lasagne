@@ -5,19 +5,20 @@ import theano.tensor as T
 
 
 def floatX(arr):
-    """Converts numpy array to one with the correct dtype.
+    """Converts data to a numpy array of dtype ``theano.config.floatX``.
 
     Parameters
     ----------
-    arr : numpy array
-        The array to be converted.
+    arr : array_like
+        The data to be converted.
 
     Returns
     -------
-    numpy array
+    numpy ndarray
         The input array in the ``floatX`` dtype configured for Theano.
+        If `arr` is an ndarray of correct dtype, it is returned as is.
     """
-    return arr.astype(theano.config.floatX)
+    return np.asarray(arr, dtype=theano.config.floatX)
 
 
 def shared_empty(dim=2, dtype=None):

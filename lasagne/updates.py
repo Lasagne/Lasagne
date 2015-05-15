@@ -33,13 +33,13 @@ Usage
 >>> import theano.tensor as T
 >>> import theano
 >>> from lasagne.nonlinearities import softmax
->>> from lasagne.layers import InputLayer, DenseLayer
+>>> from lasagne.layers import InputLayer, DenseLayer, get_output
 >>> from lasagne.updates import sgd, apply_momentum
 >>> l_in = InputLayer((100, 20))
 >>> l1 = DenseLayer(l_in, num_units=3, nonlinearity=softmax)
 >>> x = T.matrix('x')  # shp: num_batch x num_features
 >>> y = T.ivector('y') # shp: num_batch
->>> l_out = l1.get_output(x)
+>>> l_out = get_output(l1, x)
 >>> params = lasagne.layers.get_all_params(l1)
 >>> loss = T.mean(T.nnet.categorical_crossentropy(l_out, y))
 >>> updates_sgd = sgd(loss, params, learning_rate=0.0001)

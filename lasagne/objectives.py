@@ -1,6 +1,7 @@
 import theano
 import theano.tensor as T
 from theano.tensor.nnet import binary_crossentropy, categorical_crossentropy
+from lasagne.layers import get_output
 
 
 def mse(x, t):
@@ -68,7 +69,7 @@ class Objective(object):
         :returns:
             - output : loss expressions
         """
-        network_output = self.input_layer.get_output(input, **kwargs)
+        network_output = get_output(self.input_layer, input, **kwargs)
         if target is None:
             target = self.target_var
         if aggregation not in self._valid_aggregation:
@@ -149,7 +150,7 @@ class MaskedObjective(object):
         :returns:
             - output : loss expressions
         """
-        network_output = self.input_layer.get_output(input, **kwargs)
+        network_output = get_output(self.input_layer, input, **kwargs)
         if target is None:
             target = self.target_var
         if mask is None:

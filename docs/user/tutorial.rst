@@ -4,14 +4,19 @@
 Tutorial
 ========
 
-The following document will give a high-level overview of how to classify the
-MNIST dataset with Lasagne. If you want to get detailed information how neural
-networks work and how it is done with Theano (which is used by Lasagne), then
-you should read the `Deeplearning Tutorial`_, possibly along with an online
-course for more theoretical background (`Neural Networks and Deep Learning`_ by
-Michael Nielsen, `Convolutional Neural Networks for Visual Recognition`_ by
+The following document will give a high-level overview of how to build a
+handwritten digits classifier using the MNIST dataset with Lasagne.
+
+If you want to get detailed information about neural networks and how to build
+them using Theano (the library which Lasagne is built on top of), you should
+read the `Deeplearning Tutorial`_, possibly along with an online course for
+more theoretical background (`Neural Networks and Deep Learning`_ by Michael
+Nielsen, `Convolutional Neural Networks for Visual Recognition`_ by
 Andrej Karpathy et al.) or a standard text book such as "Machine Learning" by
 Tom Mitchell.
+
+Note that a basic understanding of how Theano works is required to be able to
+use Lasagne.
 
 
 Run the MNIST example
@@ -36,9 +41,9 @@ Now run the ``mnist.py`` example:
 
   python mnist.py
 
-You will get the following output:
+If everything is set up correctly, you will get the following output:
 
-.. code-block::text
+.. code-block:: text
 
   Loading data...
   Building model and compiling functions...
@@ -67,6 +72,10 @@ You will get the following output:
 Understand the MNIST example
 ============================
 
+TODO: flesh out this section with code fragments and descriptions of what they
+are used for, once the examples are in their final format (see `GitHub issue
+#215`_).
+
 The example starts with loading the MNIST dataset as train-, test- and
 validation set in line 206. It continues with automatically building a model
 with two hidden layers. It automatically detects the necessary number of input
@@ -79,3 +88,4 @@ with mini-batch gradient descent.
 .. _Neural Networks and Deep Learning: http://neuralnetworksanddeeplearning.com/
 .. _Deeplearning Tutorial: http://deeplearning.net/tutorial/
 .. _Convolutional Neural Networks for Visual Recognition: http://cs231n.github.io/
+.. _GitHub issue #215: https://github.com/Lasagne/Lasagne/issues/215

@@ -4,23 +4,23 @@ Welcome to Lasagne
 Lasagne is a lightweight library to build and train neural networks in Theano.
 
 Lasagne is a work in progress, input is welcome. The available documentation is
-limited for now. The project is at `GitHub`_.
+limited for now. The project is on `GitHub`_.
 
-User's Guide
+User Guide
 ------------
 
-This part of the documentation is mostly prose.  It starts with installation
-instructions for setting up Lasagne, then walks step-by-step through an example
-of using Lasagne to classify MNIST digits. Finally, there are some hints for
-new Lasagne developers what to install and where to start.
+The Lasagne user guide explains how to install Lasagne, how to build and train
+neural networks using Lasagne, and how to contribute to the library as a
+developer.
 
 .. toctree::
   :maxdepth: 2
 
   user/installation
   user/tutorial
-  user/development
   user/layers
+  user/custom_layers
+  user/development
 
 API Reference
 -------------

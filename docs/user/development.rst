@@ -1,35 +1,39 @@
 Development
 ===========
 
-The ``Lasagne`` project is developed by Sander Dieleman and contributors via
-GitHub. The development began in September 2014.
+The Lasagne project was started by Sander Dieleman in September 2014. It is
+developed by a `core team of seven people`_ and
+`numerous additional contributors`_ on GitHub:
+https://github.com/Lasagne/Lasagne
 
-It is developed on GitHub: https://github.com/Lasagne/Lasagne
-
-You can file issues and feature requests there.
+You can file feature requests and bug reports there. If you have questions
+about how to use the library, please post on the lasagne-users mailing list
+instead: https://groups.google.com/forum/#!forum/lasagne-users
 
 Contributions
 -------------
 
-Everybody is welcome to contribute to ``Lasagne``. You can do so by
+Everybody is welcome to contribute to Lasagne. You can do so by
 
-* Testing it and giving us feedback / opening issues on GitHub.
+* Testing it and giving us feedback / submitting bug reports on GitHub.
 
-  * Writing unittests.
-
-  * Simply using the software.
-
-* Writing new code and sending it to us as pull requests. However, before you
-  add new functionality you should eventually ask if we really want that as
-  part of our project.
+* Writing unit tests.
 
 * Improving existing code.
 
-* Suggesting something else how you can contribute.
+* Writing new code and sending pull requests on GitHub. Note that Lasagne
+  has a fairly narrow focus and we strictly follow a set of design principles
+  (see below), so we cannot guarantee upfront that your pull request will
+  be accepted. However, please don't hesitate to just propose your idea in a
+  GitHub issue or on the mailing list first, so we can discuss it and/or guide
+  you through the implementation.
 
+* Improving the documentation.
 
-We suggest reading the issues page https://github.com/Lasagne/Lasagne/issues
-for more ideas how you can contribute.
+* Suggestions for new features are also welcome.
+
+We suggest reading the `issues page on GitHub`_ for more ideas how you can
+contribute.
 
 
 Tools
@@ -112,3 +116,28 @@ The project structure is
         ├── tests
         │   └── layers
         └── theano_extensions
+
+
+
+Philosophy
+----------
+
+Lasagne grew out of a need to combine the flexibility of Theano with the availability of the right building blocks for training neural networks. Its development is guided by a number of design goals:
+
+* **Simplicity**: it should be easy to use and extend the library. Whenever a feature is added, the effect on both of these should be considered. Every added abstraction should be carefully scrutinized, to determine whether the added complexity is justified.
+
+* **Small interfaces**: as few classes and methods as possible. Try to rely on Theano's functionality and data types where possible, and follow Theano's conventions. Don't wrap things in classes if it is not strictly necessary. This should make it easier to both use the library and extend it (less cognitive overhead).
+
+* **Don't get in the way**: unused features should be invisible, the user should not have to take into account a feature that they do not use. It should be possible to use each component of the library in isolation from the others.
+
+* **Transparency**: don't try to hide Theano behind abstractions. Functions and methods should return Theano expressions and standard Python / numpy data types where possible.
+
+* **Focus**: follow the Unix philosophy of "do one thing and do it well", with a strong focus on feed-forward neural networks.
+
+* **Pragmatism**: making common use cases easy is more important than supporting every possible use case out of the box.
+
+
+
+.. _issues page on GitHub: https://github.com/Lasagne/Lasagne/issues
+.. _core team of seven people: https://github.com/orgs/Lasagne/teams/core-team
+.. _numerous additional contributors: https://github.com/Lasagne/Lasagne/graphs/contributors

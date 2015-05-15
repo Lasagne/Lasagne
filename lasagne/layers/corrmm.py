@@ -170,9 +170,8 @@ class Conv2DMMLayer(MMLayer):
         if b is None:
             self.b = None
         elif self.untie_biases:
-            output_shape = self.get_output_shape()
-            self.b = self.create_param(b, (num_filters, output_shape[2],
-                                           output_shape[3]), name="b")
+            self.b = self.create_param(b, (num_filters, self.output_shape[2],
+                                           self.output_shape[3]), name="b")
         else:
             self.b = self.create_param(b, (num_filters,), name="b")
 

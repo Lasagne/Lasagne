@@ -47,7 +47,30 @@ class Layer(object):
 
     def get_params(self, **tags):
         """
-        TODO: docstring
+        Returns a list of all the Theano variables that parameterize the layer.
+
+        By default, all parameters that were registered with
+        ``Layer.add_param()`` will be returned, in the order they were
+        registered. The list can optionally be filtered by specifying tags
+        as keyword arguments.
+
+        Parameters
+        ----------
+        **tags (optional)
+            tags can be specified to filter the list. Specifying ``tag1=True``
+            will limit the list to parameters that are tagged with ``tag1``.
+            Specifying ``tag1=False`` will limit the list to parameters that
+            are not tagged with ``tag1``. Commonly used tags are
+            ``regularizable`` and ``trainable``.
+
+        Returns
+        -------
+        list of Theano shared variables
+            A list of variables that parameterize the layer
+
+        Notes
+        -----
+        For layers without any parameters, this will return an empty list.
         """
         result = list(self.params.keys())
 
@@ -140,6 +163,60 @@ class Layer(object):
         raise NotImplementedError
 
     def add_param(self, spec, shape, name=None, **tags):
+        """
+        Register and initialize a Theano shared variable containing parameters
+        associated with the layer.
+
+        When defining a new layer, this method can be used in the constructor
+        to define which parameters the layer has, what their shapes are, how
+        they should be initialized and what tags are associated with them.
+
+        All parameter variables associated with the layer can be retrieved
+        using :meth:`Layer.get_params()`.
+
+        Parameters
+        ----------
+        spec : Theano shared variable, numpy array or callable
+            an initializer for this parameter variable. This should initialize
+            the variable with an array of the specified shape. See
+            :func:`lasagne.utils.create_param` for more information.
+
+        shape : tuple of int
+            a tuple of integers representing the desired shape of the
+            parameter array.
+
+        name : str (optional)
+            the name of the parameter variable. This will be passed to
+            ``theano.shared`` when the variable is created. If ``spec`` is
+            already a shared variable, this parameter will be ignored to avoid
+            overwriting an existing name. If the layer itself has a name,
+            the name of the parameter variable will be prefixed with it and it
+            will be of the form 'layer_name.param_name'.
+
+        **tags (optional)
+            tags associated with the parameter variable can be specified as
+            keyword arguments.
+
+            To associate the tag ``tag1`` with the variable, pass
+            ``tag1=True``.
+
+            By default, the tags ``regularizable`` and ``trainable`` are
+            associated with the parameter variable. Pass
+            ``regularizable=False`` or ``trainable=False`` respectively to
+            prevent this.
+
+        Returns
+        -------
+        Theano shared variable
+            the resulting parameter variable
+
+        Notes
+        -----
+        It is recommend to assign the resulting parameter variable to an
+        attribute of the layer, so it can be accessed easily, for example:
+
+        >>> self.W = self.add_param(W, (2, 3), name='W')  #doctest: +SKIP
+        """
         # prefix the param name with the layer name if it exists
         if name is not None:
             if self.name is not None:

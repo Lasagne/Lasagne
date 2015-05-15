@@ -514,7 +514,7 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
 
 def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
          beta2=0.999, epsilon=1e-8):
-    """Adam updates [1]_
+    """Adam updates [1]_.
 
     Parameters
     ----------
@@ -533,12 +533,12 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
 
     References
     ----------
-    [1] Diederik Kingma, Jimmy Ba,
-    Adam: A Method for Stochastic Optimization,
-    http://arxiv.org/abs/1412.6980
+    .. [1] Kingma, Diederik, and Jimmy Ba:
+           Adam: A Method for Stochastic Optimization.
+           arXiv preprint arXiv:1412.6980 (2014).
 
     Notes
-    ----------
+    -----
     The implementation does not include lambda as it is only used to
     prove convergence of the algorithm (personal communication with the
     authors of [1]_).

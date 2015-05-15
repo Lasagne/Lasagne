@@ -21,29 +21,28 @@ class PReLULayer(Layer):
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
 
-    alpha : double or None
+    alpha : float or None
         The initial "leakiness" of the rectifier which is then learned.
         If argument not provided, initial leakiness will be set to 0.25.
 
-    unique_chan_param : boolean or None
+    untied : boolean or None
         When true, this argument creates a vector of alphas rather than a
         single theano scalar. Each scalar is applied to a separate channel
-        of the previous layer's output. Should only be used if the 
-        previous layer is a convolution. If argument not provided, it will
-        be set to False.
+        of the previous layer's output, in the case of convolutional output. 
+        If argument not provided, it will be set to False.
 
-    Usage
+    Examples
     -------
         >>> from lasagne.layers import InputLayer, DenseLayer, PReLULayer
         >>> l_in = InputLayer((100, 20))
         >>> l1 = DenseLayer(l_in, num_units=50, nonlinearity=identity)
-        >>> l1_prelu = PReLULayer(l1, alpha=0.5)
+        >>> l1_prelu = PReLULayer(l1, alpha=0.35)
     """
-    def __init__(self, incoming, alpha=0.25, unique_chan_param=False, 
+    def __init__(self, incoming, alpha=0.25, untied=False, 
                  **kwargs):
         super(PReLULayer, self).__init__(incoming, **kwargs)
-        self.unique_chan_param = unique_chan_param
-        if not unique_chan_param:
+        self.untied = untied
+        if not untied:
             self.alpha = self.create_param(alpha, (), name="alpha")
         else:
             self.alpha = self.create_param(np.zeros(incoming.shape[1])+alpha, (incoming.shape[1]), name="W")
@@ -52,9 +51,15 @@ class PReLULayer(Layer):
         return [self.alpha]
         
     def get_output_for(self, input, **kwargs):
-        if input.ndim == 2 or (input.ndim ==4 and not self.unique_chan_param):
-            return nonlinearities.LeakyRectify(self.alpha)(input)
-        elif input.ndim == 4 and self.unique_chan_param: 
-            return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0,'x','x'))(input)
+        if input.ndim == 2: 
+            if self.untied:
+                return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0))(input)
+            else:
+                return nonlinearities.LeakyRectify(self.alpha)(input)
+        elif input.ndim == 4:
+            if self.untied: 
+                return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0,'x','x'))(input)
+            else:
+                return nonlinearities.LeakyRectify(self.alpha)(input)
         else:
             raise Exception('Incorrect number of dimensions.')

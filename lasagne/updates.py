@@ -531,6 +531,11 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
     epsilon : float
         Constant for numerical stability.
 
+    Returns
+    -------
+    OrderedDict
+        A dictionary mapping each parameter to its update expression
+
     References
     ----------
     .. [1] Kingma, Diederik, and Jimmy Ba:

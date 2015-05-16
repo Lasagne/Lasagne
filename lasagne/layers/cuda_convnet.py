@@ -103,20 +103,19 @@ class Conv2DCCLayer(CCLayer):
             else:
                 W = init.GlorotUniform(c01b=True)
 
-        self.W = self.create_param(W, self.get_W_shape())
+        self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
             if self.dimshuffle:
-                self.b = self.create_param(b, (num_filters,
-                                               self.output_shape[2],
-                                               self.output_shape[3]))
+                biases_shape = (num_filters, self.output_shape[2],
+                                self.output_shape[3])
             else:
-                self.b = self.create_param(b, (num_filters,
-                                               self.output_shape[1],
-                                               self.output_shape[2]))
+                biases_shape = (num_filters, self.output_shape[1],
+                                self.output_shape[2])
         else:
-            self.b = self.create_param(b, (num_filters,))
+            biases_shape = (num_filters,)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
 
         self.filter_acts_op = FilterActs(
             stride=self.stride, partial_sum=self.partial_sum, pad=self.pad)
@@ -130,12 +129,6 @@ class Conv2DCCLayer(CCLayer):
             num_input_channels = self.input_shape[0]
             return (num_input_channels, self.filter_size, self.filter_size,
                     self.num_filters)
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         if self.dimshuffle:
@@ -342,20 +335,14 @@ class NINLayer_c01b(Layer):
 
         num_input_channels = self.input_shape[0]
 
-        self.W = self.create_param(W, (num_units, num_input_channels))
+        self.W = self.add_param(W, (num_units, num_input_channels), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
-            self.b = self.create_param(b, (num_units,) +
-                                       self.output_shape[1:-1])
+            biases_shape = (num_units,) + self.output_shape[1:-1]
         else:
-            self.b = self.create_param(b, (num_units,))
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
+            biases_shape = (num_units,)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (self.num_units,) + input_shape[1:]

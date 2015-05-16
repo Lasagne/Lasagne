@@ -1,5 +1,6 @@
 from collections import deque
 
+import theano
 import numpy as np
 
 from .. import utils
@@ -11,8 +12,6 @@ __all__ = [
     "get_output",
     "get_output_shape",
     "get_all_params",
-    "get_all_bias_params",
-    "get_all_non_bias_params",
     "count_params",
     "get_all_param_values",
     "set_all_param_values",
@@ -312,18 +311,31 @@ def get_output_shape(layer_or_layers, input_shapes=None):
         return all_shapes[layer_or_layers]
 
 
-def get_all_params(layer):
+def get_all_params(layer, **tags):
     """
-    This function gathers all learnable parameters of all layers below one or
+    This function gathers all parameters of all layers below one or
     more given :class:`Layer` instances, including the layer(s) itself. Its
     main use is to collect all parameters of a network just given the output
     layer(s).
+
+    By default, all parameters that participate in the forward pass will be
+    returned. The list can optionally be filtered by specifying tags as keyword
+    arguments. For example, ``trainable=True`` will only return trainable
+    parameters, and ``regularizable=True`` will only return parameters that can
+    be regularized (e.g., by L2 decay).
 
     Parameters
     ----------
     layer : Layer or list
         The :class:`Layer` instance for which to gather all parameters, or a
         list of :class:`Layer` instances.
+
+    **tags (optional)
+        tags can be specified to filter the list. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
     Returns
     -------
@@ -340,93 +352,49 @@ def get_all_params(layer):
     True
     """
     layers = get_all_layers(layer)
-    params = sum([l.get_params() for l in layers], [])
+    params = sum([l.get_params(**tags) for l in layers], [])
     return utils.unique(params)
 
 
 def get_all_bias_params(layer):
-    """
-    This function gathers all learnable bias parameters of all layers below one
-    or more given :class:`Layer` instances, including the layer(s) itself.
-
-    This is useful for situations where the biases should be treated separately
-    from other parameters, e.g. they are typically excluded from L2
-    regularization.
-
-    Examples
-    --------
-    >>> from lasagne.layers import InputLayer, DenseLayer
-    >>> l_in = InputLayer((100, 20))
-    >>> l1 = DenseLayer(l_in, num_units=50)
-    >>> all_params = get_all_bias_params(l1)
-    >>> all_params == [l1.b]
-    True
-
-    Parameters
-    ----------
-    layer : Layer or list
-        The :class:`Layer` instance for which to gather all bias parameters, or
-        a list of :class:`Layer` instances.
-
-    Returns
-    -------
-    list
-        A list of Theano shared variables representing the bias parameters.
-    """
-    layers = get_all_layers(layer)
-    params = sum([l.get_bias_params() for l in layers], [])
-    return utils.unique(params)
+    import warnings
+    warnings.warn("get_all_bias_params(layer) is deprecated and will be "
+                  "removed for the first release of Lasagne. Please use "
+                  "get_all_params(layer, regularizable=False) instead.")
+    return get_all_params(layer, regularizable=False)
 
 
 def get_all_non_bias_params(layer):
+    import warnings
+    warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
+                  "removed for the first release of Lasagne. Please use "
+                  "get_all_params(layer, regularizable=True) instead.")
+    return get_all_params(layer, regularizable=True)
+
+
+def count_params(layer, **tags):
     """
-    This function gathers all learnable non-bias parameters of all layers below
-    one or more given :class:`Layer` instances, including the layer(s) itself.
-
-    This is useful for situations where the biases should be treated separately
-    from other parameters, e.g. they are typically excluded from L2
-    regularization.
-
-    Parameters
-    ----------
-    layer : Layer or list
-        The :class:`Layer` instance for which to gather all non-bias
-        parameters, or a list of :class:`Layer` instances.
-
-    Returns
-    -------
-    list
-        A list of Theano shared variables representing the non-bias parameters.
-
-    Examples
-    --------
-    >>> from lasagne.layers import InputLayer, DenseLayer
-    >>> l_in = InputLayer((100, 20))
-    >>> l1 = DenseLayer(l_in, num_units=50)
-    >>> all_params = get_all_non_bias_params(l1)
-    >>> all_params == [l1.W]
-    True
-    """
-    all_params = get_all_params(layer)
-    all_bias_params = get_all_bias_params(layer)
-    return [p for p in all_params if p not in all_bias_params]
-
-
-def count_params(layer):
-    """
-    This function counts all learnable parameters (i.e. the number of scalar
+    This function counts all parameters (i.e. the number of scalar
     values) of all layers below one or more given :class:`Layer` instances,
     including the layer(s) itself.
 
     This is useful to compare the capacity of various network architectures.
     All parameters returned by the :class:`Layer`s' `get_params` methods are
-    counted, including biases.
+    counted.
 
     Parameters
     ----------
     layer : Layer or list
         The :class:`Layer` instance for which to count the parameters, or a
         list of :class:`Layer` instances.
+
+    **tags (optional)
+        tags can be specified to filter the list of parameter variables that
+        will be included in the count. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
     Returns
     -------
@@ -444,13 +412,13 @@ def count_params(layer):
     >>> param_count == 20 * 50 + 50  # 20 input * 50 units + 50 biases
     True
     """
-    params = get_all_params(layer)
+    params = get_all_params(layer, **tags)
     shapes = [p.get_value().shape for p in params]
     counts = [np.prod(shape) for shape in shapes]
     return sum(counts)
 
 
-def get_all_param_values(layer):
+def get_all_param_values(layer, **tags):
     """
     This function returns the values of the parameters of all layers below one
     or more given :class:`Layer` instances, including the layer(s) itself.
@@ -463,6 +431,13 @@ def get_all_param_values(layer):
     layer : Layer or list
         The :class:`Layer` instance for which to gather all parameter values,
         or a list of :class:`Layer` instances.
+
+    **tags (optional)
+        tags can be specified to filter the list. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
     Returns
     -------
@@ -480,11 +455,11 @@ def get_all_param_values(layer):
     >>> (all_param_values[1] == l1.b.get_value()).all()
     True
     """
-    params = get_all_params(layer)
+    params = get_all_params(layer, **tags)
     return [p.get_value() for p in params]
 
 
-def set_all_param_values(layer, values):
+def set_all_param_values(layer, values, **tags):
     """
     Given a list of numpy arrays, this function sets the parameters of all
     layers below one or more given :class:`Layer` instances (including the
@@ -498,9 +473,18 @@ def set_all_param_values(layer, values):
     layer : Layer or list
         The :class:`Layer` instance for which to set all parameter values, or a
         list of :class:`Layer` instances.
+
     values : list of numpy.array
         A list of numpy arrays representing the parameter values, must match
         the number of parameters.
+
+    **tags (optional)
+        tags can be specified to filter the list of parameters to be set.
+        Specifying ``tag1=True`` will limit the list to parameters that are
+        tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
     Raises
     ------
@@ -518,7 +502,7 @@ def set_all_param_values(layer, values):
     >>> set_all_param_values(l1, all_param_values)
     >>> # the parameter values are restored.
     """
-    params = get_all_params(layer)
+    params = get_all_params(layer, **tags)
     if len(params) != len(values):
         raise ValueError("mismatch: got %d values to set %d parameters" %
                          (len(values), len(params)))

@@ -22,3 +22,6 @@ class TestInputLayer:
         from lasagne.layers.input import InputLayer
         layer = InputLayer((3, 2), name="foo")
         assert layer.input_var.name == "foo.input"
+
+    def test_get_params(self, layer):
+        assert layer.get_params() == []

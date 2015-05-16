@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import theano
 import theano.tensor as T
 
@@ -60,6 +62,7 @@ class InputLayer(Layer):
                                  "%d" % (ndim, input_var.ndim))
         self.input_var = input_var
         self.name = name
+        self.params = OrderedDict()
 
     @Layer.output_shape.getter
     def output_shape(self):

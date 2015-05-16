@@ -1,6 +1,4 @@
-import numpy as np
-
-import theano
+from collections import OrderedDict
 
 from .. import utils
 
@@ -39,49 +37,59 @@ class Layer(object):
         else:
             self.input_shape = incoming.output_shape
             self.input_layer = incoming
+
         self.name = name
+        self.params = OrderedDict()
 
     @property
     def output_shape(self):
         return self.get_output_shape_for(self.input_shape)
 
-    def get_params(self):
+    def get_params(self, **tags):
         """
         Returns a list of all the Theano variables that parameterize the layer.
 
+        By default, all parameters that participate in the forward pass will be
+        returned (in the order they were registered in the Layer's constructor
+        via :meth:`add_param()`). The list can optionally be filtered by
+        specifying tags as keyword arguments. For example, ``trainable=True``
+        will only return trainable parameters, and ``regularizable=True``
+        will only return parameters that can be regularized (e.g., by L2
+        decay).
+
+        Parameters
+        ----------
+        **tags (optional)
+            tags can be specified to filter the list. Specifying ``tag1=True``
+            will limit the list to parameters that are tagged with ``tag1``.
+            Specifying ``tag1=False`` will limit the list to parameters that
+            are not tagged with ``tag1``. Commonly used tags are
+            ``regularizable`` and ``trainable``.
+
         Returns
         -------
-        list
-            The list of Theano variables.
+        list of Theano shared variables
+            A list of variables that parameterize the layer
 
         Notes
         -----
-        By default this returns an empty list, but it should be overridden in a
-        subclass that has trainable parameters.
+        For layers without any parameters, this will return an empty list.
         """
-        return []
+        result = list(self.params.keys())
 
-    def get_bias_params(self):
-        """
-        Returns a list of all the Theano variables that are bias parameters for
-        the layer.
+        only = set(tag for tag, value in tags.items() if value)
+        if only:
+            # retain all parameters that have all of the tags in `only`
+            result = [param for param in result
+                      if not (only - self.params[param])]
 
-        Returns
-        -------
-        bias_params : list
-            The list of Theano variables.
+        exclude = set(tag for tag, value in tags.items() if not value)
+        if exclude:
+            # retain all parameters that have none of the tags in `exclude`
+            result = [param for param in result
+                      if not (self.params[param] & exclude)]
 
-        Notes
-        -----
-        By default this returns an empty list, but it should be overridden in a
-        subclass that has trainable parameters.
-
-        While `get_params()` should return all Theano variables,
-        `get_bias_params()` should only return those corresponding to bias
-        parameters. This is useful when specifying regularization (it is often
-        undesirable to regularize bias parameters).
-        """
-        return []
+        return result
 
     def get_output_shape(self):
         """
@@ -157,73 +165,80 @@ class Layer(object):
         """
         raise NotImplementedError
 
-    def create_param(self, param, shape, name=None):
+    def add_param(self, spec, shape, name=None, **tags):
         """
-        Helper method to create Theano shared variables for layer parameters
-        and to initialize them.
+        Register and initialize a Theano shared variable containing parameters
+        associated with the layer.
+
+        When defining a new layer, this method can be used in the constructor
+        to define which parameters the layer has, what their shapes are, how
+        they should be initialized and what tags are associated with them.
+
+        All parameter variables associated with the layer can be retrieved
+        using :meth:`Layer.get_params()`.
 
         Parameters
         ----------
-        param : numpy array, Theano shared variable, or callable
-            One of three things:
-                * a numpy array with the initial parameter values
-                * a Theano shared variable representing the parameters
-                * a function or callable that takes the desired shape of
-                  the parameter array as its single argument.
+        spec : Theano shared variable, numpy array or callable
+            an initializer for this parameter variable. This should initialize
+            the variable with an array of the specified shape. See
+            :func:`lasagne.utils.create_param` for more information.
 
-        shape : tuple
-            A tuple of integers representing the desired shape of the parameter
-            array.
+        shape : tuple of int
+            a tuple of integers representing the desired shape of the
+            parameter array.
+
+        name : str (optional)
+            the name of the parameter variable. This will be passed to
+            ``theano.shared`` when the variable is created. If ``spec`` is
+            already a shared variable, this parameter will be ignored to avoid
+            overwriting an existing name. If the layer itself has a name,
+            the name of the parameter variable will be prefixed with it and it
+            will be of the form 'layer_name.param_name'.
+
+        **tags (optional)
+            tags associated with the parameter variable can be specified as
+            keyword arguments.
+
+            To associate the tag ``tag1`` with the variable, pass
+            ``tag1=True``.
+
+            By default, the tags ``regularizable`` and ``trainable`` are
+            associated with the parameter variable. Pass
+            ``regularizable=False`` or ``trainable=False`` respectively to
+            prevent this.
 
         Returns
         -------
         Theano shared variable
-            A Theano shared variable representing layer parameters. If a numpy
-            array was provided, the variable is initialized to contain this
-            array. If a shared variable was provided, it is simply returned. If
-            a callable was provided, it is called, and its output is used to
-            initialize the variable.
+            the resulting parameter variable
 
         Notes
         -----
-        This method should be used in `__init__()` when creating a
-        :class:`Layer` subclass that has trainable parameters. This enables the
-        layer to support initialization with numpy arrays, existing Theano
-        shared variables, and callables for generating initial parameter
-        values.
+        It is recommend to assign the resulting parameter variable to an
+        attribute of the layer, so it can be accessed easily, for example:
+
+        >>> self.W = self.add_param(W, (2, 3), name='W')  #doctest: +SKIP
         """
+        # prefix the param name with the layer name if it exists
         if name is not None:
             if self.name is not None:
                 name = "%s.%s" % (self.name, name)
 
-        if isinstance(param, theano.compile.SharedVariable):
-            # We cannot check the shape here, the shared variable might not be
-            # initialized correctly yet. We can check the dimensionality
-            # though. Note that we cannot assign a name here.
-            if param.ndim != len(shape):
-                raise RuntimeError("shared variable has %d dimensions, "
-                                   "should be %d" % (param.ndim, len(shape)))
-            return param
+        param = utils.create_param(spec, shape, name)
+        # parameters should be trainable and regularizable by default
+        tags['trainable'] = tags.get('trainable', True)
+        tags['regularizable'] = tags.get('regularizable', True)
+        self.params[param] = set(tag for tag, value in tags.items() if value)
 
-        elif isinstance(param, np.ndarray):
-            if param.shape != shape:
-                raise RuntimeError("parameter array has shape %s, should be "
-                                   "%s" % (param.shape, shape))
-            return theano.shared(param, name=name)
+        return param
 
-        elif hasattr(param, '__call__'):
-            arr = param(shape)
-            if not isinstance(arr, np.ndarray):
-                raise RuntimeError("cannot initialize parameters: the "
-                                   "provided callable did not return a numpy "
-                                   "array")
-
-            return theano.shared(utils.floatX(arr), name=name)
-
-        else:
-            raise RuntimeError("cannot initialize parameters: 'param' is not "
-                               "a numpy array, a Theano shared variable, or a "
-                               "callable")
+    def get_bias_params(self):
+        import warnings
+        warnings.warn("layer.get_bias_params() is deprecated and will be "
+                      "removed for the first release of Lasagne. Please use "
+                      "layer.get_params(regularizable=False) instead.")
+        return self.get_params(regularizable=False)
 
 
 class MergeLayer(Layer):
@@ -250,6 +265,7 @@ class MergeLayer(Layer):
                              else incoming
                              for incoming in incomings]
         self.name = name
+        self.params = OrderedDict()
 
     @Layer.output_shape.getter
     def output_shape(self):

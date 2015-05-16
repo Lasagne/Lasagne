@@ -9,4 +9,4 @@
 .. autofunction:: one_hot
 .. autofunction:: unique
 .. autofunction:: compute_norms
-
+.. autofunction:: create_param

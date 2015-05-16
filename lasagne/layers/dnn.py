@@ -244,25 +244,20 @@ class Conv2DDNNLayer(DNNLayer):
             self.pad = as_tuple(pad, 2)
             self.border_mode = None
 
-        self.W = self.create_param(W, self.get_W_shape(), name="W")
+        self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
-            self.b = self.create_param(b, (num_filters, self.output_shape[2],
-                                           self.output_shape[3]), name="b")
+            biases_shape = (num_filters, self.output_shape[2],
+                            self.output_shape[3])
         else:
-            self.b = self.create_param(b, (num_filters,), name="b")
+            biases_shape = (num_filters,)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0],
                 self.filter_size[1])
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]

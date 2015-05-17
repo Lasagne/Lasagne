@@ -356,7 +356,86 @@ class Conv2DCCLayer(CCLayer):
 
 
 class MaxPool2DCCLayer(CCLayer):
-    def __init__(self, incoming, pool_size, ignore_border=False, stride=None,
+    """
+    2D max-pooling layer
+
+    Performs 2D max-pooling over the two trailing axes of a 4D input tensor
+    (or over axis 1 and 2 if ``dimshuffle=False``, see notes). This is an
+    alternative implementation which uses the cuda-convnet wrappers from
+    pylearn2: ``pylearn2.sandbox.cuda_convnet.pool.MaxPool``.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_size : integer or iterable
+        The length of the pooling region in each dimension.  If an integer, it
+        is promoted to a square pooling region. If an iterable, it should have
+        two elements. This layer does not support non-square pooling regions.
+
+    stride : integer, iterable or ``None``
+        The strides between sucessive pooling regions in each dimension.
+        If ``None`` then ``stride = pool_size``. This layer does not support
+        using different strides along both axes.
+
+    pad : integer or iterable (default: 0)
+        This implementation does not support custom padding, so this argument
+        should always be set to ``0``. It exists only to make sure the
+        interface is compatible with :class:`lasagne.layers.MaxPool2DLayer`.
+
+    ignore_border : bool (default: False)
+        This implementation always ignores partial pooling regions, so this
+        argument should always be set to False. It exists only to make sure the
+        interface is compatible with :class:`lasagne.layers.MaxPool2DLayer`.
+
+    dimshuffle : bool (default: True)
+        If ``True``, the layer will automatically apply the necessary
+        dimshuffle operations to deal with the fact that the cuda-convnet
+        implementation uses c01b (batch-size-last) axis order instead of bc01
+        (batch-size-first), which is the Lasagne/Theano default. This makes the
+        layer interoperable with other Lasagne layers.
+
+        If ``False``, this automatic dimshuffling is disabled and the layer
+        will expect its input and parameters to have c01b axis order. It is up
+        to the user to ensure this. :class:`ShuffleBC01ToC01BLayer` and
+        :class:`ShuffleC01BToBC01Layer` can be used to convert between bc01 and
+        c01b axis order.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    The cuda-convnet max-pooling implementation has several limitations:
+
+    * only square pooling regions are supported.
+    * only identical strides in the horizontal and vertical direction are
+      supported.
+    * only square inputs are supported. (This limitation does not exist for
+      the convolution implementation.)
+    * partial pooling regions are always ignored (``ignore_border`` is forced
+      to ``False``).
+    * custom padding is not supported (``pad`` is forced to ``0``).
+    * this layer only works on the GPU.
+
+    The cuda-convnet pooling implementation uses c01b (batch-size-last)
+    axis order by default. The Theano/Lasagne default is bc01
+    (batch-size-first). This layer automatically adds the necessary dimshuffle
+    operations for the input and the parameters so that it is interoperable
+    with other layers that assume bc01 axis order.
+
+    However, these additional dimshuffle operations may sometimes negatively
+    affect performance. For this reason, it is possible to disable them by
+    setting ``dimshuffle=False``.
+
+    In this case, the user is expected to manually ensure that the input and
+    parameters have the correct axis order. :class:`ShuffleBC01ToC01BLayer` and
+    :class:`ShuffleC01BToBC01Layer` can be used to convert between bc01 and
+    c01b axis order.
+    """
+    def __init__(self, incoming, pool_size, stride=None, ignore_border=False,
                  dimshuffle=True, **kwargs):
         from pylearn2.sandbox.cuda_convnet.pool import MaxPool
 
@@ -435,10 +514,6 @@ class MaxPool2DCCLayer(CCLayer):
             return pooled.dimshuffle(3, 0, 1, 2)  # c01b to bc01
         else:
             return pooled
-
-
-# TODO: crossmapnorm
-# from pylearn2.sandbox.cuda_convnet.response_norm import CrossMapNorm
 
 
 # Helper classes for switching between bc01 and c01b input formats

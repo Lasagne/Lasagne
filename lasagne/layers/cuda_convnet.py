@@ -520,9 +520,20 @@ class MaxPool2DCCLayer(CCLayer):
 
 class ShuffleBC01ToC01BLayer(Layer):
     """
-    This layer dimshuffles 4D input for interoperability between c01b and bc01
-    ops.
-    bc01 (theano) -> c01b (cuda-convnet)
+    shuffle 4D input from bc01 (batch-size-first) order to c01b
+    (batch-size-last) order.
+
+    This layer can be used for interoperability between c01b and bc01 layers.
+    For example, :class:`MaxPool2DCCLayer` and :class:`Conv2DCCLayer` operate
+    in c01b mode when they are created with ``dimshuffle=False``.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
     """
     def get_output_shape_for(self, input_shape):
         return (input_shape[1], input_shape[2], input_shape[3], input_shape[0])
@@ -535,9 +546,20 @@ bc01_to_c01b = ShuffleBC01ToC01BLayer  # shortcut
 
 class ShuffleC01BToBC01Layer(Layer):
     """
-    This layer dimshuffles 4D input for interoperability between c01b and bc01
-    ops.
-    c01b (cuda-convnet) -> bc01 (theano)
+    shuffle 4D input from c01b (batch-size-last) order to bc01
+    (batch-size-first) order.
+
+    This layer can be used for interoperability between c01b and bc01 layers.
+    For example, :class:`MaxPool2DCCLayer` and :class:`Conv2DCCLayer` operate
+    in c01b mode when they are created with ``dimshuffle=False``.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
     """
     def get_output_shape_for(self, input_shape):
         return (input_shape[3], input_shape[0], input_shape[1], input_shape[2])
@@ -552,9 +574,44 @@ c01b_to_bc01 = ShuffleC01BToBC01Layer  # shortcut
 
 class NINLayer_c01b(Layer):
     """
-    This does the same as lasagne.layers.NINLayer, but operates with c01b
-    axis arrangement instead of bc01. This reduces the number of shuffles
-    and reshapes required and might be faster as a result.
+    Network-in-network layer with c01b axis ordering.
+
+    This is a c01b version of :class:`lasagne.layers.NINLayer`.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    num_units : int
+        The number of units of the layer
+
+    untie_biases : bool
+        If false the network has a single bias vector similar to a dense
+        layer. If true a separate bias vector is used for each spatial
+        position.
+
+    W : Theano shared variable, numpy array or callable
+        An initializer for the weights of the layer. If a shared variable or a
+        numpy array is provided the shape should be
+        (num_units, num_input_channels).
+        See :func:`lasagne.utils.create_param` for more information.
+
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases of the layer. If a shared variable or a
+        numpy array is provided the correct shape is determined by the
+        untie_biases setting. If untie_biases is False, then the shape should
+        be (num_units, ). If untie_biases is True then the shape should be
+        (num_units, height, width). If None is provided the
+        layer will have no biases.
+        See :func:`lasagne.utils.create_param` for more information.
+
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
                  W=init.GlorotUniform(c01b=True), b=init.Constant(0.),

@@ -81,7 +81,7 @@ class Conv2DMMLayer(MMLayer):
         An initializer for the weights of the layer. This should initialize the
         layer weights to a 4D array with shape
         ``(num_filters, num_input_channels, filter_height, filter_width)``.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, numpy array, callable or None
         An initializer for the biases of the layer. If None is provided, the
@@ -89,7 +89,7 @@ class Conv2DMMLayer(MMLayer):
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
         ``(num_filters, input_height, input_width)`` instead.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None

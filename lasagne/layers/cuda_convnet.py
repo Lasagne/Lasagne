@@ -29,17 +29,177 @@ if not theano.config.device.startswith("gpu"):
     raise ImportError("requires a GPU to work")
 
 
-# TODO: make sure to document the limitations and 'best practices'
-# (i.e. minibatch size % 128 == 0)
-# TODO: see if the 'dimshuffle' logic can be put in the base class instead.
-
-
 # base class for all layers that use ops from pylearn2.sandbox.cuda_convnet
 class CCLayer(Layer):
     pass
 
 
 class Conv2DCCLayer(CCLayer):
+    """
+    2D convolutional layer
+
+    Performs a 2D convolution on its input and optionally adds a bias and
+    applies an elementwise nonlinearity.  This is an alternative implementation
+    which uses the cuda-convnet wrappers from pylearn2:
+    ``pylearn2.sandbox.cuda_convnet.filter_acts.FilterActs``.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 4D tensor, with shape
+        ``(batch_size, num_input_channels, input_height, input_width)``.
+        If automatic dimshuffling is disabled (see notes), the shape should be
+        ``(num_input_channels, input_height, input_width, batch_size)``
+        instead (c01b axis order).
+
+    num_filters : int
+        The number of learnable convolutional filters this layer has.
+
+    filter_size : int or tuple of int
+        An integer or a 2-element tuple specifying the size of the filters.
+        This layer does not support non-square filters.
+
+    stride : int or tuple of int
+        An integer or a 2-element tuple specifying the stride of the
+        convolution operation. This layer does not support using different
+        strides along both axes.
+
+    border_mode : str, one of 'valid', 'full', 'same'
+        A string indicating the convolution border mode.
+
+        If 'valid', the convolution is only computed where the input and the
+        filter fully overlap.
+
+        If 'full', the convolution is computed wherever the input and the
+        filter overlap by at least one position.
+
+        If 'same', the convolution is computed wherever the input and the
+        filter overlap by at least half the filter size, when the filter size
+        is odd. In practice, the input is zero-padded with half the filter size
+        at the beginning and half at the end (or one less than half in the case
+        of an even filter size). This results in an output length that is the
+        same as the input length (for both odd and even filter sizes).
+
+    untie_biases : bool, default False
+        If ``False``, the layer will have a bias parameter for each channel,
+        which is shared across all positions in this channel. As a result, the
+        `b` attribute will be a vector (1D).
+
+        If True, the layer will have separate bias parameters for each
+        position in each channel. As a result, the `b` attribute will be a
+        3D tensor.
+
+    W : Theano shared variable, numpy array or callable
+        An initializer for the weights of the layer. This should initialize the
+        layer weights to a 4D array with shape
+        ``(num_filters, num_input_channels, filter_height, filter_width)``.
+         If automatic dimshuffling is disabled (see notes), the shape should be
+        ``(num_input_channels, input_height, input_width, num_filters)``
+        instead (c01b axis order).
+        See :func:`lasagne.utils.create_param` for more information.
+
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases of the layer. If None is provided, the
+        layer will have no biases. This should initialize the layer biases to
+        a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
+        ``False``. If it is set to ``True``, its shape should be
+        ``(num_filters, input_height, input_width)`` instead.
+        See :func:`lasagne.utils.create_param` for more information.
+
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+
+    pad : int, tuple of int or None
+        An integer or a 2-element tuple specifying the amount of zero-padding
+        on each side. This may also be ``None``, in which case the correct
+        amount of padding will be inferred from the specified ``border_mode``.
+        This layer does not support using different amounts of padding along
+        both axes.
+
+    dimshuffle : bool (default: True)
+        If ``True``, the layer will automatically apply the necessary
+        dimshuffle operations to deal with the fact that the cuda-convnet
+        implementation uses c01b (batch-size-last) axis order instead of bc01
+        (batch-size-first), which is the Lasagne/Theano default. This makes the
+        layer interoperable with other Lasagne layers.
+
+        If ``False``, this automatic dimshuffling is disabled and the layer
+        will expect its input and parameters to have c01b axis order. It is up
+        to the user to ensure this. :class:`ShuffleBC01ToC01BLayer` and
+        :class:`ShuffleC01BToBC01Layer` can be used to convert between bc01 and
+        c01b axis order.
+
+    flip_filters : bool, default False
+        Whether to flip the filters and perform a convolution, or not to flip
+        them and perform a correlation. Flipping adds a bit of overhead, so it
+        is disabled by default. In most cases this does not make a difference
+        anyway because the filters are learnt. However, ``flip_filters`` should
+        be set to ``True`` if weights are loaded into it that were learnt using
+        a regular :class:`lasagne.layers.Conv2DLayer`, for example.
+
+    partial_sum : int or None (default: 1)
+        This value tunes the trade-off between memory usage and performance.
+        You can specify any positive integer that is a divisor of the output
+        feature map size (i.e. output height times output width). Higher
+        values decrease memory usage, but also performance. Specifying 0 or
+        ``None`` means the highest possible value will be used. The Lasagne
+        default of ``1`` gives the best performance, but also the highest
+        memory usage.
+
+        More information about this parameter can be found in the
+        `cuda-convnet documentation
+        <https://code.google.com/p/cuda-convnet/wiki/LayerParams>`_.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
+
+    Attributes
+    ----------
+    W : Theano shared variable
+        Variable representing the filter weights.
+
+    b : Theano shared variable
+        Variable representing the biases.
+
+    Notes
+    -----
+    Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
+    the 'same' border mode. It is not emulated. This should result in better
+    performance.
+
+    Only one of ``pad`` and ``border_mode`` should be specified.
+
+    The cuda-convnet convolution implementation has several limitations:
+
+    * only square filters are supported.
+    * only identical strides in the horizontal and vertical direction are
+      supported.
+    * the number of filters must be a multiple of 16.
+    * the number of input channels must be even, or less than or equal to
+      3.
+    * if the gradient w.r.t. the input is to be computed, the number of
+      channels should be divisible by 4.
+    * performance is optimal when the batch size is a multiple of 128 (but
+      other batch sizes are supported).
+    * this layer only works on the GPU.
+
+    The cuda-convnet convolution implementation uses c01b (batch-size-last)
+    axis order by default. The Theano/Lasagne default is bc01
+    (batch-size-first). This layer automatically adds the necessary dimshuffle
+    operations for the input and the parameters so that it is interoperable
+    with other layers that assume bc01 axis order.
+
+    However, these additional dimshuffle operations may sometimes negatively
+    affect performance. For this reason, it is possible to disable them by
+    setting ``dimshuffle=False``.
+
+    In this case, the user is expected to manually ensure that the input and
+    parameters have the correct axis order. :class:`ShuffleBC01ToC01BLayer` and
+    :class:`ShuffleC01BToBC01Layer` can be used to convert between bc01 and
+    c01b axis order.
+    """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  border_mode=None, untie_biases=False, W=None,
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,

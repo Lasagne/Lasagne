@@ -40,15 +40,15 @@ class Conv2DMMLayer(MMLayer):
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape. The
         output of this layer should be a 4D tensor, with shape
-        ``(batch_size, num_input_channels, input_height, input_width)``.
+        ``(batch_size, num_input_channels, input_rows, input_columns)``.
 
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or tuple of int
+    filter_size : int or iterable
         An integer or a 2-element tuple specifying the size of the filters.
 
-    stride : int or tuple of int
+    stride : int or iterable
         An integer or a 2-element tuple specifying the stride of the
         convolution operation.
 
@@ -80,7 +80,7 @@ class Conv2DMMLayer(MMLayer):
     W : Theano shared variable, numpy array or callable
         An initializer for the weights of the layer. This should initialize the
         layer weights to a 4D array with shape
-        ``(num_filters, num_input_channels, filter_height, filter_width)``.
+        ``(num_filters, num_input_channels, filter_rows, filter_columns)``.
         See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, numpy array, callable or None
@@ -88,14 +88,14 @@ class Conv2DMMLayer(MMLayer):
         layer will have no biases. This should initialize the layer biases to
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filters, input_height, input_width)`` instead.
+        ``(num_filters, input_rows, input_columns)`` instead.
         See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    pad : int, tuple of int or None
+    pad : int, iterable or None
         An integer or a 2-element tuple specifying the amount of zero-padding
         on each side. This may also be ``None``, in which case the correct
         amount of padding will be inferred from the specified ``border_mode``.

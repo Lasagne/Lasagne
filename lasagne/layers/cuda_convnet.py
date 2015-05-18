@@ -46,21 +46,21 @@ class Conv2DCCLayer(CCLayer):
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
-        The layer feeding into this layer, or the expected input shape. The
-        output of this layer should be a 4D tensor, with shape
-        ``(batch_size, num_input_channels, input_height, input_width)``.
+        The layer feeding into this layer, or the expected input shape. This
+        layer expects a 4D tensor as its input, with shape
+        ``(batch_size, num_input_channels, input_rows, input_columns)``.
         If automatic dimshuffling is disabled (see notes), the shape should be
-        ``(num_input_channels, input_height, input_width, batch_size)``
+        ``(num_input_channels, input_rows, input_columns, batch_size)``
         instead (c01b axis order).
 
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or tuple of int
+    filter_size : int or iterable
         An integer or a 2-element tuple specifying the size of the filters.
         This layer does not support non-square filters.
 
-    stride : int or tuple of int
+    stride : int or iterable
         An integer or a 2-element tuple specifying the stride of the
         convolution operation. This layer does not support using different
         strides along both axes.
@@ -86,16 +86,16 @@ class Conv2DCCLayer(CCLayer):
         which is shared across all positions in this channel. As a result, the
         `b` attribute will be a vector (1D).
 
-        If True, the layer will have separate bias parameters for each
+        If ``True``, the layer will have separate bias parameters for each
         position in each channel. As a result, the `b` attribute will be a
         3D tensor.
 
     W : Theano shared variable, numpy array or callable
         An initializer for the weights of the layer. This should initialize the
         layer weights to a 4D array with shape
-        ``(num_filters, num_input_channels, filter_height, filter_width)``.
+        ``(num_filters, num_input_channels, filter_rows, filter_columns)``.
          If automatic dimshuffling is disabled (see notes), the shape should be
-        ``(num_input_channels, input_height, input_width, num_filters)``
+        ``(num_input_channels, input_rows, input_columns, num_filters)``
         instead (c01b axis order).
         See :func:`lasagne.utils.create_param` for more information.
 
@@ -104,14 +104,14 @@ class Conv2DCCLayer(CCLayer):
         layer will have no biases. This should initialize the layer biases to
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filters, input_height, input_width)`` instead.
+        ``(num_filters, input_rows, input_columns)`` instead.
         See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    pad : int, tuple of int or None
+    pad : int, iterable or None
         An integer or a 2-element tuple specifying the amount of zero-padding
         on each side. This may also be ``None``, in which case the correct
         amount of padding will be inferred from the specified ``border_mode``.
@@ -142,7 +142,7 @@ class Conv2DCCLayer(CCLayer):
     partial_sum : int or None (default: 1)
         This value tunes the trade-off between memory usage and performance.
         You can specify any positive integer that is a divisor of the output
-        feature map size (i.e. output height times output width). Higher
+        feature map size (i.e. output rows times output columns). Higher
         values decrease memory usage, but also performance. Specifying 0 or
         ``None`` means the highest possible value will be used. The Lasagne
         default of ``1`` gives the best performance, but also the highest
@@ -180,7 +180,7 @@ class Conv2DCCLayer(CCLayer):
     * the number of input channels must be even, or less than or equal to
       3.
     * if the gradient w.r.t. the input is to be computed, the number of
-      channels should be divisible by 4.
+      channels must be divisible by 4.
     * performance is optimal when the batch size is a multiple of 128 (but
       other batch sizes are supported).
     * this layer only works on the GPU.
@@ -189,13 +189,10 @@ class Conv2DCCLayer(CCLayer):
     axis order by default. The Theano/Lasagne default is bc01
     (batch-size-first). This layer automatically adds the necessary dimshuffle
     operations for the input and the parameters so that it is interoperable
-    with other layers that assume bc01 axis order.
-
-    However, these additional dimshuffle operations may sometimes negatively
-    affect performance. For this reason, it is possible to disable them by
-    setting ``dimshuffle=False``.
-
-    In this case, the user is expected to manually ensure that the input and
+    with other layers that assume bc01 axis order. However, these additional
+    dimshuffle operations may sometimes negatively affect performance. For this
+    reason, it is possible to disable them by setting ``dimshuffle=False``. In
+    this case, the user is expected to manually ensure that the input and
     parameters have the correct axis order. :class:`ShuffleBC01ToC01BLayer` and
     :class:`ShuffleC01BToBC01Layer` can be used to convert between bc01 and
     c01b axis order.
@@ -381,12 +378,12 @@ class MaxPool2DCCLayer(CCLayer):
 
     pad : integer or iterable (default: 0)
         This implementation does not support custom padding, so this argument
-        should always be set to ``0``. It exists only to make sure the
+        must always be set to ``0``. It exists only to make sure the
         interface is compatible with :class:`lasagne.layers.MaxPool2DLayer`.
 
     ignore_border : bool (default: False)
-        This implementation always ignores partial pooling regions, so this
-        argument should always be set to False. It exists only to make sure the
+        This implementation always includes partial pooling regions, so this
+        argument must always be set to False. It exists only to make sure the
         interface is compatible with :class:`lasagne.layers.MaxPool2DLayer`.
 
     dimshuffle : bool (default: True)
@@ -415,7 +412,7 @@ class MaxPool2DCCLayer(CCLayer):
       supported.
     * only square inputs are supported. (This limitation does not exist for
       the convolution implementation.)
-    * partial pooling regions are always ignored (``ignore_border`` is forced
+    * partial pooling regions are always included (``ignore_border`` is forced
       to ``False``).
     * custom padding is not supported (``pad`` is forced to ``0``).
     * this layer only works on the GPU.
@@ -424,13 +421,10 @@ class MaxPool2DCCLayer(CCLayer):
     axis order by default. The Theano/Lasagne default is bc01
     (batch-size-first). This layer automatically adds the necessary dimshuffle
     operations for the input and the parameters so that it is interoperable
-    with other layers that assume bc01 axis order.
-
-    However, these additional dimshuffle operations may sometimes negatively
-    affect performance. For this reason, it is possible to disable them by
-    setting ``dimshuffle=False``.
-
-    In this case, the user is expected to manually ensure that the input and
+    with other layers that assume bc01 axis order. However, these additional
+    dimshuffle operations may sometimes negatively affect performance. For this
+    reason, it is possible to disable them by setting ``dimshuffle=False``. In
+    this case, the user is expected to manually ensure that the input and
     parameters have the correct axis order. :class:`ShuffleBC01ToC01BLayer` and
     :class:`ShuffleC01BToBC01Layer` can be used to convert between bc01 and
     c01b axis order.
@@ -587,8 +581,8 @@ class NINLayer_c01b(Layer):
         The number of units of the layer
 
     untie_biases : bool
-        If false the network has a single bias vector similar to a dense
-        layer. If true a separate bias vector is used for each spatial
+        If ``False``, the network has a single bias vector similar to a dense
+        layer. If ``True``, a separate bias vector is used for each spatial
         position.
 
     W : Theano shared variable, numpy array or callable
@@ -600,9 +594,9 @@ class NINLayer_c01b(Layer):
     b : Theano shared variable, numpy array, callable or None
         An initializer for the biases of the layer. If a shared variable or a
         numpy array is provided the correct shape is determined by the
-        untie_biases setting. If untie_biases is False, then the shape should
-        be (num_units, ). If untie_biases is True then the shape should be
-        (num_units, height, width). If None is provided the
+        untie_biases setting. If untie_biases is ``False``, then the shape
+        should be ``(num_units,)``. If untie_biases is ``True`` then the shape
+        should be ``(num_units, rows, columns)``. If ``None`` is provided the
         layer will have no biases.
         See :func:`lasagne.utils.create_param` for more information.
 

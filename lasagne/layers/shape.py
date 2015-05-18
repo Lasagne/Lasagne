@@ -1,4 +1,5 @@
 import numpy as np
+import theano.tensor as T
 
 from ..theano_extensions import padding
 
@@ -14,6 +15,7 @@ __all__ = [
     "dimshuffle",
     "PadLayer",
     "pad",
+    "SliceLayer"
 ]
 
 
@@ -300,3 +302,64 @@ class PadLayer(Layer):
         return padding.pad(input, self.width, self.val, self.batch_ndim)
 
 pad = PadLayer  # shortcut
+
+
+class SliceLayer(Layer):
+    """
+    Slices the input at a specific axis and at specific indices.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    indices : int, list, tuple or slice instance
+        When indices is an int the corresponding index is selected from the
+        axis dimension and the axis dimension is dropped. When indices is list,
+        tuple or slice instance the axis dimension is kept even if it is
+        singleton dimension after slicing. Negative values behaves as in numpy
+        indexing.
+
+    axis : int
+        Specifies the axis from which the indices are selected. Negative values
+        behaves as in numpy indexing.
+
+    Examples
+    --------
+    >>> from lasagne.layers import SliceLayer, InputLayer, get_output
+    >>> in_shp = (2, 3, 2)
+    >>> l_inp = InputLayer(in_shp)
+    >>> l_slice_ax0 = SliceLayer(l_inp, axis=0, indices=0)
+    >>> l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=(1, 3))
+    >>> l_slice_ax2 = SliceLayer(l_inp, axis=-1, indices=-1)
+    >>> x = np.arange(np.prod(in_shp)).reshape(in_shp).astype('float32')
+    >>> get_output(l_slice_ax0, x).eval().shape
+    (3, 2)
+    >>> get_output(l_slice_ax1, x).eval().shape
+    (2, 2, 2)
+    >>> get_output(l_slice_ax2, x).eval().shape
+    (2, 3)
+    """
+    def __init__(self, incoming, indices, axis=-1, **kwargs):
+        super(SliceLayer, self).__init__(incoming, **kwargs)
+        if isinstance(indices, int):
+            self.slice = indices
+        else:
+            self.slice = indices if isinstance(indices, slice) \
+                else slice(*indices)
+        self.axis = axis
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)
+        if isinstance(self.slice, int):
+            del output_shape[self.axis]
+        else:
+            output_shape[self.axis] = len(
+                range(*self.slice.indices(input_shape[self.axis])))
+        return tuple(output_shape)
+
+    def get_output_for(self, input):
+        axis = self.axis
+        if axis < 0:
+            axis += input.ndim
+        return input[(slice(None),) * axis + (self.slice,)]

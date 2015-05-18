@@ -163,3 +163,27 @@ class TestDimshuffleLayer:
         with pytest.raises(ValueError):
             # There is no dimension 42
             DimshuffleLayer(input_layer, [0, 1, 2, 4, 42])
+
+
+def test_slice_layer():
+    from lasagne.layers import SliceLayer, InputLayer, get_output_shape,\
+        get_output
+    from numpy.testing import assert_array_almost_equal as aeq
+    in_shp = (3, 5, 2)
+    l_inp = InputLayer(in_shp)
+    l_slice_ax0 = SliceLayer(l_inp, axis=0, indices=0)
+    l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=(3, 5))
+    l_slice_ax2 = SliceLayer(l_inp, axis=-1, indices=-1)
+
+    x = numpy.arange(numpy.prod(in_shp)).reshape(in_shp).astype('float32')
+    x1 = x[0]
+    x2 = x[:, 3:5]
+    x3 = x[:, :, -1]
+
+    assert get_output_shape(l_slice_ax0) == x1.shape
+    assert get_output_shape(l_slice_ax1) == x2.shape
+    assert get_output_shape(l_slice_ax2) == x3.shape
+
+    aeq(get_output(l_slice_ax0, x).eval(), x1)
+    aeq(get_output(l_slice_ax1, x).eval(), x2)
+    aeq(get_output(l_slice_ax2, x).eval(), x3)

@@ -344,7 +344,7 @@ class SliceLayer(Layer):
     """
     def __init__(self, incoming, indices, axis=-1, **kwargs):
         super(SliceLayer, self).__init__(incoming, **kwargs)
-        if isinstance(indices, int) or isinstance(indices, slice):
+        if isinstance(indices, (int, slice)):
             self.slice = indices
         elif isinstance(indices, (list, tuple)) and len(indices) == 3:
             self.slice = slice(*indices)

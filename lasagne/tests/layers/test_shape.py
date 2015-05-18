@@ -172,7 +172,7 @@ def test_slice_layer():
     in_shp = (3, 5, 2)
     l_inp = InputLayer(in_shp)
     l_slice_ax0 = SliceLayer(l_inp, axis=0, indices=0)
-    l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=(3, 5))
+    l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=(3, 5, 1))
     l_slice_ax2 = SliceLayer(l_inp, axis=-1, indices=-1)
 
     x = numpy.arange(numpy.prod(in_shp)).reshape(in_shp).astype('float32')

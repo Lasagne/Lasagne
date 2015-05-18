@@ -314,15 +314,13 @@ class SliceLayer(Layer):
         The layer feeding into this layer, or the expected input shape
 
     indices : int, list, tuple or slice instance
-        When indices is an int the corresponding index is selected from the
-        axis dimension and the axis dimension is dropped. When indices is list,
-        tuple or slice instance the axis dimension is kept even if it is
-        singleton dimension after slicing. Negative values behaves as in numpy
-        indexing.
+        If an ``int``, selects a single element from the given axis, dropping
+        the axis. If a slice, selects all elements in the given range, keeping
+        the axis. If a list or a tuple of ``start, stop, step``, it will be
+        converted to a slice.
 
     axis : int
-        Specifies the axis from which the indices are selected. Negative values
-        behaves as in numpy indexing.
+        Specifies the axis from which the indices are selected.
 
     Examples
     --------
@@ -330,23 +328,30 @@ class SliceLayer(Layer):
     >>> in_shp = (2, 3, 2)
     >>> l_inp = InputLayer(in_shp)
     >>> l_slice_ax0 = SliceLayer(l_inp, axis=0, indices=0)
-    >>> l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=(1, 3))
+    >>> l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=(1, 3, 1))
     >>> l_slice_ax2 = SliceLayer(l_inp, axis=-1, indices=-1)
     >>> x = np.arange(np.prod(in_shp)).reshape(in_shp).astype('float32')
-    >>> get_output(l_slice_ax0, x).eval().shape
-    (3, 2)
-    >>> get_output(l_slice_ax1, x).eval().shape
-    (2, 2, 2)
-    >>> get_output(l_slice_ax2, x).eval().shape
-    (2, 3)
+    >>> l_in = InputLayer((2, 3, 4))
+    >>> SliceLayer(l_in, indices=0, axis=1).output_shape
+    ... # equals input[:, 0]
+    (2, 4)
+    >>> SliceLayer(l_in, indices=slice(0, 1), axis=1).output_shape
+    ... # equals input[:, 0:1]
+    (2, 1, 4)
+    >>> SliceLayer(l_in, indices=slice(-2, None), axis=-1).output_shape
+    ... # equals input[..., -2:]
+    (2, 3, 2)
     """
     def __init__(self, incoming, indices, axis=-1, **kwargs):
         super(SliceLayer, self).__init__(incoming, **kwargs)
-        if isinstance(indices, int):
+        if isinstance(indices, int) or isinstance(indices, slice):
             self.slice = indices
+        elif isinstance(indices, (list, tuple)) and len(indices) == 3:
+            self.slice = slice(*indices)
         else:
-            self.slice = indices if isinstance(indices, slice) \
-                else slice(*indices)
+            raise ValueError(
+                "Indices must be int, slice or a list/tuple of len 3")
+
         self.axis = axis
 
     def get_output_shape_for(self, input_shape):

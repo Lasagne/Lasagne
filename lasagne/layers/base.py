@@ -212,7 +212,7 @@ class Layer(object):
             return theano.shared(utils.floatX(arr), name=name)
 
         elif isinstance(param, (int, long, float, np.float16, np.float32, np.float64)):
-            return theano.shared(utils.floatX(np.float32(param)), name=name)
+            return theano.shared(utils.floatX(param), name=name)
 
         else:
             raise RuntimeError("cannot initialize parameters: 'param' is not "

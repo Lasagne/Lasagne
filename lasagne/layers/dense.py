@@ -46,6 +46,13 @@ class DenseLayer(Layer):
     >>> from lasagne.layers import InputLayer, DenseLayer
     >>> l_in = InputLayer((100, 20))
     >>> l1 = DenseLayer(l_in, num_units=50)
+
+    Notes
+    -----
+    If the input to this layer has more than two axes, it will flatten the
+    trailing axes. This is useful for when a dense layer follows a
+    convolutional layer, for example. It is not necessary to insert a
+    :class:`FlattenLayer` in this case.
     """
     def __init__(self, incoming, num_units, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
@@ -128,7 +135,7 @@ class NINLayer(Layer):
         An initializer for the weights of the layer. If a shared variable or a
         numpy array is provided the shape should be (num_inputs, num_units),
         where num_units is the size of the 2nd. dimension of the input.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, numpy array, callable or None
         An initializer for the biases of the layer. If a shared variable or a
@@ -137,7 +144,7 @@ class NINLayer(Layer):
         be (num_units, ). If untie_biases is True then the shape should be
         (num_units, input_dim[2], ..., input_dim[-1]). If None is provided the
         layer will have no biases.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None

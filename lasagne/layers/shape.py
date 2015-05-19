@@ -313,24 +313,17 @@ class SliceLayer(Layer):
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
-    indices : int, list, tuple or slice instance
+    indices : int or slice instance
         If an ``int``, selects a single element from the given axis, dropping
         the axis. If a slice, selects all elements in the given range, keeping
-        the axis. If a list or a tuple of ``start, stop, step``, it will be
-        converted to a slice.
+        the axis.
 
     axis : int
         Specifies the axis from which the indices are selected.
 
     Examples
     --------
-    >>> from lasagne.layers import SliceLayer, InputLayer, get_output
-    >>> in_shp = (2, 3, 2)
-    >>> l_inp = InputLayer(in_shp)
-    >>> l_slice_ax0 = SliceLayer(l_inp, axis=0, indices=0)
-    >>> l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=(1, 3, 1))
-    >>> l_slice_ax2 = SliceLayer(l_inp, axis=-1, indices=-1)
-    >>> x = np.arange(np.prod(in_shp)).reshape(in_shp).astype('float32')
+    >>> from lasagne.layers import SliceLayer, InputLayer
     >>> l_in = InputLayer((2, 3, 4))
     >>> SliceLayer(l_in, indices=0, axis=1).output_shape
     ... # equals input[:, 0]
@@ -344,14 +337,7 @@ class SliceLayer(Layer):
     """
     def __init__(self, incoming, indices, axis=-1, **kwargs):
         super(SliceLayer, self).__init__(incoming, **kwargs)
-        if isinstance(indices, (int, slice)):
-            self.slice = indices
-        elif isinstance(indices, (list, tuple)) and len(indices) == 3:
-            self.slice = slice(*indices)
-        else:
-            raise ValueError(
-                "Indices must be int, slice or a list/tuple of len 3")
-
+        self.slice = indices
         self.axis = axis
 
     def get_output_shape_for(self, input_shape):

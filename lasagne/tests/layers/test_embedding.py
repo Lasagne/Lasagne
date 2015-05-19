@@ -8,18 +8,23 @@ def test_embedding():
     import theano
     import theano.tensor as T
     from lasagne.layers import EmbeddingLayer, InputLayer, helper
-    x = T.ivector()
-    l_in = InputLayer((3, ))
-    l1 = EmbeddingLayer(l_in, input_size=3, output_size=5,
-                        W=np.arange(3*5).reshape((3, 5)).astype('float32'))
+    x = T.imatrix()
+    batch_size = 2
+    seq_len = 3
+    emb_size = 5
+    vocab_size = 3
+    l_in = InputLayer((None, seq_len))
+    W = np.arange(
+        vocab_size*emb_size).reshape((vocab_size, emb_size)).astype('float32')
+    l1 = EmbeddingLayer(l_in, input_size=vocab_size, output_size=emb_size,
+                        W=W)
+
+    x_test = np.array([[0, 1, 2], [0, 0, 2]], dtype='int32')
 
     # check output shape
-    assert helper.get_output_shape(l1, (2, )) == (2, 5)
+    assert helper.get_output_shape(
+        l1, (batch_size, seq_len)) == (batch_size, seq_len, emb_size)
 
     output = helper.get_output(l1, x)
     f = theano.function([x], output)
-    x_test = np.array([0, 2]).astype('int32')
-
-    output_correct = np.array(
-        [[0, 1, 2, 3, 4], [10, 11, 12, 13, 14]], dtype='float32')
-    np.testing.assert_array_almost_equal(f(x_test), output_correct)
+    np.testing.assert_array_almost_equal(f(x_test), W[x_test])

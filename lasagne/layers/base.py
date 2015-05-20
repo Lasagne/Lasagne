@@ -1,6 +1,4 @@
-import numpy as np
-
-import theano
+from collections import OrderedDict
 
 from .. import utils
 
@@ -15,22 +13,23 @@ __all__ = [
 
 class Layer(object):
     """
-    The :class:`Layer` class represents a single layer of a neural network.
-    It should be subclassed when implementing new types of layers.
+    The :class:`Layer` class represents a single layer of a neural network. It
+    should be subclassed when implementing new types of layers.
 
     Because each layer can keep track of the layer(s) feeding into it, a
-    network's output :class:`Layer` instance can double as a handle to the
-    full network.
+    network's output :class:`Layer` instance can double as a handle to the full
+    network.
     """
     def __init__(self, incoming, name=None):
         """
         Instantiates the layer.
 
-        :parameters:
-            - incoming : a :class:`Layer` instance or a tuple
-                the layer feeding into this layer, or the expected input shape
-            - name : a string or None
-                an optional name to attach to this layer
+        Parameters
+        ----------
+        incoming : a :class:`Layer` instance or a tuple
+            The layer feeding into this layer, or the expected input shape.
+        name : a string or None
+            An optional name to attach to this layer.
         """
         if isinstance(incoming, tuple):
             self.input_shape = incoming
@@ -38,46 +37,59 @@ class Layer(object):
         else:
             self.input_shape = incoming.output_shape
             self.input_layer = incoming
+
         self.name = name
+        self.params = OrderedDict()
 
     @property
     def output_shape(self):
         return self.get_output_shape_for(self.input_shape)
 
-    def get_params(self):
+    def get_params(self, **tags):
         """
-        Returns a list of all the Theano variables that parameterize the
-        layer.
+        Returns a list of all the Theano variables that parameterize the layer.
 
-        :returns:
-            - list
-                the list of Theano variables.
+        By default, all parameters that participate in the forward pass will be
+        returned (in the order they were registered in the Layer's constructor
+        via :meth:`add_param()`). The list can optionally be filtered by
+        specifying tags as keyword arguments. For example, ``trainable=True``
+        will only return trainable parameters, and ``regularizable=True``
+        will only return parameters that can be regularized (e.g., by L2
+        decay).
 
-        :note:
-            By default this returns an empty list, but it should be overridden
-            in a subclass that has trainable parameters.
+        Parameters
+        ----------
+        **tags (optional)
+            tags can be specified to filter the list. Specifying ``tag1=True``
+            will limit the list to parameters that are tagged with ``tag1``.
+            Specifying ``tag1=False`` will limit the list to parameters that
+            are not tagged with ``tag1``. Commonly used tags are
+            ``regularizable`` and ``trainable``.
+
+        Returns
+        -------
+        list of Theano shared variables
+            A list of variables that parameterize the layer
+
+        Notes
+        -----
+        For layers without any parameters, this will return an empty list.
         """
-        return []
+        result = list(self.params.keys())
 
-    def get_bias_params(self):
-        """
-        Returns a list of all the Theano variables that are bias parameters
-        for the layer.
+        only = set(tag for tag, value in tags.items() if value)
+        if only:
+            # retain all parameters that have all of the tags in `only`
+            result = [param for param in result
+                      if not (only - self.params[param])]
 
-        :returns:
-            - bias_params : list
-                the list of Theano variables.
+        exclude = set(tag for tag, value in tags.items() if not value)
+        if exclude:
+            # retain all parameters that have none of the tags in `exclude`
+            result = [param for param in result
+                      if not (self.params[param] & exclude)]
 
-        :note:
-            By default this returns an empty list, but it should be overridden
-            in a subclass that has trainable parameters.
-
-            While `get_params()` should return all Theano variables,
-            `get_bias_params()` should only return those corresponding to bias
-            parameters. This is useful when specifying regularization (it is
-            often undesirable to regularize bias parameters).
-        """
-        return []
+        return result
 
     def get_output_shape(self):
         """
@@ -104,24 +116,27 @@ class Layer(object):
         """
         Computes the output shape of this layer, given an input shape.
 
-        :parameters:
-            - input_shape : tuple
-                a tuple representing the shape of the input. The tuple should
-                have as many elements as there are input dimensions, and the
-                elements should be integers or `None`.
+        Parameters
+        ----------
+        input_shape : tuple
+            A tuple representing the shape of the input. The tuple should have
+            as many elements as there are input dimensions, and the elements
+            should be integers or `None`.
 
-        :returns:
-            - output : tuple
-                a tuple representing the shape of the output of this layer.
-                The tuple has as many elements as there are output dimensions,
-                and the elements are all either integers or `None`.
+        Returns
+        -------
+        tuple
+            A tuple representing the shape of the output of this layer. The
+            tuple has as many elements as there are output dimensions, and the
+            elements are all either integers or `None`.
 
-        :note:
-            This method will typically be overridden when implementing a new
-            :class:`Layer` class. By default it simply returns the input
-            shape. This means that a layer that does not modify the shape
-            (e.g. because it applies an elementwise operation) does not need
-            to override this method.
+        Notes
+        -----
+        This method will typically be overridden when implementing a new
+        :class:`Layer` class. By default it simply returns the input
+        shape. This means that a layer that does not modify the shape
+        (e.g. because it applies an elementwise operation) does not need
+        to override this method.
         """
         return input_shape
 
@@ -129,112 +144,119 @@ class Layer(object):
         """
         Propagates the given input through this layer (and only this layer).
 
-        :parameters:
-            - input : Theano expression
-                the expression to propagate through this layer
+        Parameters
+        ----------
+        input : Theano expression
+            The expression to propagate through this layer.
 
-        :returns:
-            - output : Theano expression
-                the output of this layer given the input to this layer
+        Returns
+        -------
+        output : Theano expression
+            The output of this layer given the input to this layer.
 
-        :note:
-            This is called by the base :class:`Layer` implementation to
-            propagate data through a network in `get_output()`. While
-            `get_output()` asks the underlying layers for input and thus
-            returns an expression for a layer's output in terms of the
-            network's input, `get_output_for()` just performs a single step
-            and returns an expression for a layer's output in terms of
-            that layer's input.
 
-            This method should be overridden when implementing a new
-            :class:`Layer` class. By default it raises `NotImplementedError`.
+        Notes
+        -----
+        This is called by the base :meth:`lasagne.layers.get_output()`
+        to propagate data through a network.
+
+        This method should be overridden when implementing a new
+        :class:`Layer` class. By default it raises `NotImplementedError`.
         """
         raise NotImplementedError
 
-    def create_param(self, param, shape, name=None):
+    def add_param(self, spec, shape, name=None, **tags):
         """
-        Helper method to create Theano shared variables for layer parameters
-        and to initialize them.
+        Register and initialize a Theano shared variable containing parameters
+        associated with the layer.
 
-        :parameters:
-            - param : numpy array, Theano shared variable, or callable
-                One of three things:
-                    * a numpy array with the initial parameter values
-                    * a Theano shared variable representing the parameters
-                    * a function or callable that takes the desired shape of
-                      the parameter array as its single argument.
+        When defining a new layer, this method can be used in the constructor
+        to define which parameters the layer has, what their shapes are, how
+        they should be initialized and what tags are associated with them.
 
-            - shape : tuple
-                a tuple of integers representing the desired shape of the
-                parameter array.
+        All parameter variables associated with the layer can be retrieved
+        using :meth:`Layer.get_params()`.
 
-        :returns:
-            - variable : Theano shared variable
-                a Theano shared variable representing layer parameters. If a
-                numpy array was provided, the variable is initialized to
-                contain this array. If a shared variable was provided, it is
-                simply returned. If a callable was provided, it is called, and
-                its output is used to initialize the variable.
+        Parameters
+        ----------
+        spec : Theano shared variable, numpy array or callable
+            an initializer for this parameter variable. This should initialize
+            the variable with an array of the specified shape. See
+            :func:`lasagne.utils.create_param` for more information.
 
-        :note:
-            This method should be used in `__init__()` when creating a
-            :class:`Layer` subclass that has trainable parameters. This
-            enables the layer to support initialization with numpy arrays,
-            existing Theano shared variables, and callables for generating
-            initial parameter values.
+        shape : tuple of int
+            a tuple of integers representing the desired shape of the
+            parameter array.
+
+        name : str (optional)
+            the name of the parameter variable. This will be passed to
+            ``theano.shared`` when the variable is created. If ``spec`` is
+            already a shared variable, this parameter will be ignored to avoid
+            overwriting an existing name. If the layer itself has a name,
+            the name of the parameter variable will be prefixed with it and it
+            will be of the form 'layer_name.param_name'.
+
+        **tags (optional)
+            tags associated with the parameter variable can be specified as
+            keyword arguments.
+
+            To associate the tag ``tag1`` with the variable, pass
+            ``tag1=True``.
+
+            By default, the tags ``regularizable`` and ``trainable`` are
+            associated with the parameter variable. Pass
+            ``regularizable=False`` or ``trainable=False`` respectively to
+            prevent this.
+
+        Returns
+        -------
+        Theano shared variable
+            the resulting parameter variable
+
+        Notes
+        -----
+        It is recommend to assign the resulting parameter variable to an
+        attribute of the layer, so it can be accessed easily, for example:
+
+        >>> self.W = self.add_param(W, (2, 3), name='W')  #doctest: +SKIP
         """
+        # prefix the param name with the layer name if it exists
         if name is not None:
             if self.name is not None:
                 name = "%s.%s" % (self.name, name)
 
-        if isinstance(param, theano.compile.SharedVariable):
-            # We cannot check the shape here, the shared variable might not be
-            # initialized correctly yet. We can check the dimensionality
-            # though. Note that we cannot assign a name here.
-            if param.ndim != len(shape):
-                raise RuntimeError("shared variable has %d dimensions, "
-                                   "should be %d" % (param.ndim, len(shape)))
-            return param
+        param = utils.create_param(spec, shape, name)
+        # parameters should be trainable and regularizable by default
+        tags['trainable'] = tags.get('trainable', True)
+        tags['regularizable'] = tags.get('regularizable', True)
+        self.params[param] = set(tag for tag, value in tags.items() if value)
 
-        elif isinstance(param, np.ndarray):
-            if param.shape != shape:
-                raise RuntimeError("parameter array has shape %s, should be "
-                                   "%s" % (param.shape, shape))
-            return theano.shared(utils.floatX(param), name=name)
+        return param
 
-        elif hasattr(param, '__call__'):
-            arr = param(shape)
-            if not isinstance(arr, np.ndarray):
-                raise RuntimeError("cannot initialize parameters: the "
-                                   "provided callable did not return a numpy "
-                                   "array")
-
-            return theano.shared(utils.floatX(arr), name=name)
-
-        elif isinstance(param, (int, long, float, np.float16, np.float32, np.float64)):
-            return theano.shared(utils.floatX(param), name=name)
-
-        else:
-            raise RuntimeError("cannot initialize parameters: 'param' is not "
-                               "a numpy array, a Theano shared variable, a scalar, or a "
-                               "callable")
+    def get_bias_params(self):
+        import warnings
+        warnings.warn("layer.get_bias_params() is deprecated and will be "
+                      "removed for the first release of Lasagne. Please use "
+                      "layer.get_params(regularizable=False) instead.")
+        return self.get_params(regularizable=False)
 
 
 class MergeLayer(Layer):
     """
     This class represents a layer that aggregates input from multiple layers.
-    It should be subclassed when implementing new types of layers that
-    obtain their input from multiple layers.
+    It should be subclassed when implementing new types of layers that obtain
+    their input from multiple layers.
     """
     def __init__(self, incomings, name=None):
         """
         Instantiates the layer.
 
-        :parameters:
-            - incomings : a list of :class:`Layer` instances or tuples
-                the layers feeding into this layer, or expected input shapes
-            - name : a string or None
-                an optional name to attach to this layer
+        Parameters
+        ----------
+        incomings : a list of :class:`Layer` instances or tuples
+            The layers feeding into this layer, or expected input shapes.
+        name : a string or None
+            An optional name to attach to this layer.
         """
         self.input_shapes = [incoming if isinstance(incoming, tuple)
                              else incoming.output_shape
@@ -243,6 +265,7 @@ class MergeLayer(Layer):
                              else incoming
                              for incoming in incomings]
         self.name = name
+        self.params = OrderedDict()
 
     @Layer.output_shape.getter
     def output_shape(self):
@@ -252,23 +275,26 @@ class MergeLayer(Layer):
         """
         Computes the output shape of this layer, given a list of input shapes.
 
-        :parameters:
-            - input_shape : list of tuple
-                a list of tuples, with each tuple representing the shape of
-                one of the inputs (in the correct order). These tuples should
-                have as many elements as there are input dimensions, and the
-                elements should be integers or `None`.
+        Parameters
+        ----------
+        input_shape : list of tuple
+            A list of tuples, with each tuple representing the shape of one of
+            the inputs (in the correct order). These tuples should have as many
+            elements as there are input dimensions, and the elements should be
+            integers or `None`.
 
-        :returns:
-            - output : tuple
-                a tuple representing the shape of the output of this layer.
-                The tuple has as many elements as there are output dimensions,
-                and the elements are all either integers or `None`.
+        Returns
+        -------
+        tuple
+            A tuple representing the shape of the output of this layer. The
+            tuple has as many elements as there are output dimensions, and the
+            elements are all either integers or `None`.
 
-        :note:
-            This method must be overridden when implementing a new
-            :class:`Layer` class with multiple inputs. By default it raises
-            `NotImplementedError`.
+        Notes
+        -----
+        This method must be overridden when implementing a new
+        :class:`Layer` class with multiple inputs. By default it raises
+        `NotImplementedError`.
         """
         raise NotImplementedError
 
@@ -276,25 +302,23 @@ class MergeLayer(Layer):
         """
         Propagates the given inputs through this layer (and only this layer).
 
-        :parameters:
-            - inputs : list of Theano expressions
-                The Theano expressions to propagate through this layer
+        Parameters
+        ----------
+        inputs : list of Theano expressions
+            The Theano expressions to propagate through this layer.
 
-        :returns:
-            - output : Theano expressions
-                the output of this layer given the inputs to this layer
+        Returns
+        -------
+        Theano expressions
+            The output of this layer given the inputs to this layer.
 
-        :note:
-            This is called by the base :class:`MergeLayer`
-            implementation to propagate data through a network in
-            `get_output()`. While `get_output()` asks the underlying layers
-            for input and thus returns an expression for a layer's output in
-            terms of the network's input, `get_output_for()` just performs a
-            single step and returns an expression for a layer's output in
-            terms of that layer's input.
+        Notes
+        -----
+        This is called by the base :meth:`lasagne.layers.get_output()`
+        to propagate data through a network.
 
-            This method should be overridden when implementing a new
-            :class:`Layer` class with multiple inputs. By default it raises
-            `NotImplementedError`.
+        This method should be overridden when implementing a new
+        :class:`Layer` class with multiple inputs. By default it raises
+        `NotImplementedError`.
         """
         raise NotImplementedError

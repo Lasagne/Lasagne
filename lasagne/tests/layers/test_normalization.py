@@ -110,10 +110,7 @@ class TestLocalResponseNormalization2DLayer:
         return layer
 
     def test_get_params(self, layer):
-        assert len(layer.get_params()) == 0
-
-    def test_get_bias_params(self, layer):
-        assert len(layer.get_bias_params()) == 0
+        assert layer.get_params() == []
 
     def test_normalization(self, input_data, input_layer, layer):
         X = input_layer.input_var

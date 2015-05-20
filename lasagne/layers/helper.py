@@ -1,5 +1,6 @@
 from collections import deque
 
+import theano
 import numpy as np
 
 from .. import utils
@@ -11,11 +12,11 @@ __all__ = [
     "get_output",
     "get_output_shape",
     "get_all_params",
-    "get_all_bias_params",
-    "get_all_non_bias_params",
     "count_params",
     "get_all_param_values",
     "set_all_param_values",
+    "get_all_bias_params",
+    "get_all_non_bias_params",
 ]
 
 
@@ -27,38 +28,42 @@ def get_all_layers(layer, treat_as_input=None):
     guaranteed to be returned in a topological order: a layer in the result
     list is always preceded by all layers its input depends on.
 
-    :usage:
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> get_all_layers(l1) == [l_in, l1]
-        True
-        >>> l2 = DenseLayer(l_in, num_units=10)
-        >>> get_all_layers([l2, l1]) == [l_in, l2, l1]
-        True
-        >>> get_all_layers([l1, l2]) == [l_in, l1, l2]
-        True
-        >>> l3 = DenseLayer(l2, num_units=20)
-        >>> get_all_layers(l3) == [l_in, l2, l3]
-        True
-        >>> get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
-        True
+    Parameters
+    ----------
+    layer : Layer or list
+        the :class:`Layer` instance for which to gather all layers feeding
+        into it, or a list of :class:`Layer` instances.
 
-    :parameters:
-        - layer : Layer or list
-            the :class:`Layer` instance for which to gather all layers feeding
-            into it, or a list of :class:`Layer` instances.
-        - treat_as_input : None or iterable
-            an iterable of :class:`Layer` instances to treat as input layers
-            with no layers feeding into them. They will show up in the result
-            list, but their incoming layers will not be collected (unless they
-            are required for other layers as well).
+    treat_as_input : None or iterable
+        an iterable of :class:`Layer` instances to treat as input layers
+        with no layers feeding into them. They will show up in the result
+        list, but their incoming layers will not be collected (unless they
+        are required for other layers as well).
 
-    :returns:
-        - layers : list
-            a list of :class:`Layer` instances feeding into the given
-            instance(s) either directly or indirectly, and the given
-            instance(s) themselves, in topological order.
+    Returns
+    -------
+    list
+        a list of :class:`Layer` instances feeding into the given
+        instance(s) either directly or indirectly, and the given
+        instance(s) themselves, in topological order.
+
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
+    >>> get_all_layers(l1) == [l_in, l1]
+    True
+    >>> l2 = DenseLayer(l_in, num_units=10)
+    >>> get_all_layers([l2, l1]) == [l_in, l2, l1]
+    True
+    >>> get_all_layers([l1, l2]) == [l_in, l1, l2]
+    True
+    >>> l3 = DenseLayer(l2, num_units=20)
+    >>> get_all_layers(l3) == [l_in, l2, l3]
+    True
+    >>> get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
+    True
     """
     import warnings
     warnings.warn("get_all_layers() has been changed to return layers in "
@@ -114,9 +119,9 @@ def get_all_layers(layer, treat_as_input=None):
 def get_all_layers_old(layer):
     """
     Earlier implementation of `get_all_layers()` that does a breadth-first
-    search. Kept here to ease converting old models that rely on the order
-    of get_all_layers() or get_all_params(). Will be removed before the
-    first release of Lasagne.
+    search. Kept here to ease converting old models that rely on the order of
+    get_all_layers() or get_all_params(). Will be removed before the first
+    release of Lasagne.
     """
     if isinstance(layer, (list, tuple)):
         layers = list(layer)
@@ -150,33 +155,37 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     instead of using the input variable(s) associated with the network's
     input layer(s).
 
-    :parameters:
-        - layer_or_layers : Layer or list
-            the :class:`Layer` instance for which to compute the output
-            expressions, or a list of :class:`Layer` instances.
-        - inputs : None, Theano expression, numpy array, or dict
-            If None, uses the input variables associated with the
-            :class:`InputLayer` instances.
-            If a Theano expression, this defines the input for a single
-            :class:`InputLayer` instance. Will throw a ValueError if there
-            are multiple :class:`InputLayer` instances.
-            If a numpy array, this will be wrapped as a Theano constant
-            and used just like a Theano expression.
-            If a dictionary, any :class:`Layer` instance (including the
-            input layers) can be mapped to a Theano expression or numpy
-            array to use instead of its regular output.
+    Parameters
+    ----------
+    layer_or_layers : Layer or list
+        the :class:`Layer` instance for which to compute the output
+        expressions, or a list of :class:`Layer` instances.
 
-    :returns:
-        - output : Theano expression or list
-            the output of the given layer(s) for the given network input
+    inputs : None, Theano expression, numpy array, or dict
+        If None, uses the input variables associated with the
+        :class:`InputLayer` instances.
+        If a Theano expression, this defines the input for a single
+        :class:`InputLayer` instance. Will throw a ValueError if there
+        are multiple :class:`InputLayer` instances.
+        If a numpy array, this will be wrapped as a Theano constant
+        and used just like a Theano expression.
+        If a dictionary, any :class:`Layer` instance (including the
+        input layers) can be mapped to a Theano expression or numpy
+        array to use instead of its regular output.
 
-    :note:
-        Depending on your network architecture, `get_output([l1, l2])` may
-        be crucially different from `[get_output(l1), get_output(l2)]`. Only
-        the former ensures that the output expressions depend on the same
-        intermediate expressions. For example, when `l1` and `l2` depend on
-        a common dropout layer, the former will use the same dropout mask for
-        both, while the latter will use two different dropout masks.
+    Returns
+    -------
+    output : Theano expression or list
+        the output of the given layer(s) for the given network input
+
+    Notes
+    -----
+    Depending on your network architecture, `get_output([l1, l2])` may
+    be crucially different from `[get_output(l1), get_output(l2)]`. Only
+    the former ensures that the output expressions depend on the same
+    intermediate expressions. For example, when `l1` and `l2` depend on
+    a common dropout layer, the former will use the same dropout mask for
+    both, while the latter will use two different dropout masks.
     """
     from .input import InputLayer
     from .base import MergeLayer
@@ -228,24 +237,26 @@ def get_output_shape(layer_or_layers, input_shapes=None):
     """
     Computes the output shape of the network at one or more given layers.
 
-    :parameters:
-        - layer_or_layers : Layer or list
-            the :class:`Layer` instance for which to compute the output
-            shapes, or a list of :class:`Layer` instances.
+    Parameters
+    ----------
+    layer_or_layers : Layer or list
+        the :class:`Layer` instance for which to compute the output
+        shapes, or a list of :class:`Layer` instances.
 
-        - input_shapes : None, tuple, or dict
-            If None, uses the input shapes associated with the
-            :class:`InputLayer` instances.
-            If a tuple, this defines the input shape for a single
-            :class:`InputLayer` instance. Will throw a ValueError if there
-            are multiple :class:`InputLayer` instances.
-            If a dictionary, any :class:`Layer` instance (including the
-            input layers) can be mapped to a shape tuple to use instead of
-            its regular output shape.
+    input_shapes : None, tuple, or dict
+        If None, uses the input shapes associated with the
+        :class:`InputLayer` instances.
+        If a tuple, this defines the input shape for a single
+        :class:`InputLayer` instance. Will throw a ValueError if there
+        are multiple :class:`InputLayer` instances.
+        If a dictionary, any :class:`Layer` instance (including the
+        input layers) can be mapped to a shape tuple to use instead of
+        its regular output shape.
 
-    :returns:
-        - output : tuple or list
-            the output shape of the given layer(s) for the given network input
+    Returns
+    -------
+    tuple or list
+        the output shape of the given layer(s) for the given network input
     """
     # shortcut: return precomputed shapes if we do not need to propagate any
     if input_shapes is None or input_shapes == {}:
@@ -302,136 +313,114 @@ def get_output_shape(layer_or_layers, input_shapes=None):
         return all_shapes[layer_or_layers]
 
 
-def get_all_params(layer):
+def get_all_params(layer, **tags):
     """
-    This function gathers all learnable parameters of all layers below one
-    or more given :class:`Layer` instances, including the layer(s) itself.
-    Its main use is to collect all parameters of a network just given the
-    output layer(s).
+    This function gathers all parameters of all layers below one or
+    more given :class:`Layer` instances, including the layer(s) itself. Its
+    main use is to collect all parameters of a network just given the output
+    layer(s).
 
-    :usage:
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> all_params = get_all_params(l1)
-        >>> all_params == [l1.W, l1.b]
-        True
+    By default, all parameters that participate in the forward pass will be
+    returned. The list can optionally be filtered by specifying tags as keyword
+    arguments. For example, ``trainable=True`` will only return trainable
+    parameters, and ``regularizable=True`` will only return parameters that can
+    be regularized (e.g., by L2 decay).
 
-    :parameters:
-        - layer : Layer or list
-            the :class:`Layer` instance for which to gather all parameters,
-            or a list of :class:`Layer` instances.
+    Parameters
+    ----------
+    layer : Layer or list
+        The :class:`Layer` instance for which to gather all parameters, or a
+        list of :class:`Layer` instances.
 
-    :returns:
-        - params : list
-            a list of Theano shared variables representing the parameters.
+    **tags (optional)
+        tags can be specified to filter the list. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
+
+    Returns
+    -------
+    params : list
+        A list of Theano shared variables representing the parameters.
+
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
+    >>> all_params = get_all_params(l1)
+    >>> all_params == [l1.W, l1.b]
+    True
     """
     layers = get_all_layers(layer)
-    params = sum([l.get_params() for l in layers], [])
+    params = sum([l.get_params(**tags) for l in layers], [])
     return utils.unique(params)
 
 
 def get_all_bias_params(layer):
-    """
-    This function gathers all learnable bias parameters of all layers below one
-    or more given :class:`Layer` instances, including the layer(s) itself.
-
-    This is useful for situations where the biases should be treated
-    separately from other parameters, e.g. they are typically excluded from
-    L2 regularization.
-
-    :usage:
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> all_params = get_all_bias_params(l1)
-        >>> all_params == [l1.b]
-        True
-
-    :parameters:
-        - layer : Layer or list
-            the :class:`Layer` instance for which to gather all bias
-            parameters, or a list of :class:`Layer` instances.
-
-    :returns:
-        - params : list
-            a list of Theano shared variables representing the bias parameters.
-
-    """
-    layers = get_all_layers(layer)
-    params = sum([l.get_bias_params() for l in layers], [])
-    return utils.unique(params)
+    import warnings
+    warnings.warn("get_all_bias_params(layer) is deprecated and will be "
+                  "removed for the first release of Lasagne. Please use "
+                  "get_all_params(layer, regularizable=False) instead.")
+    return get_all_params(layer, regularizable=False)
 
 
 def get_all_non_bias_params(layer):
+    import warnings
+    warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
+                  "removed for the first release of Lasagne. Please use "
+                  "get_all_params(layer, regularizable=True) instead.")
+    return get_all_params(layer, regularizable=True)
+
+
+def count_params(layer, **tags):
     """
-    This function gathers all learnable non-bias parameters of all layers below
-    one or more given :class:`Layer` instances, including the layer(s) itself.
-
-    This is useful for situations where the biases should be treated
-    separately from other parameters, e.g. they are typically excluded from
-    L2 regularization.
-
-    :usage:
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> all_params = get_all_non_bias_params(l1)
-        >>> all_params == [l1.W]
-        True
-
-    :parameters:
-        - layer : Layer or list
-            the :class:`Layer` instance for which to gather all non-bias
-            parameters, or a list of :class:`Layer` instances.
-
-    :returns:
-        - params : list
-            a list of Theano shared variables representing the non-bias
-            parameters.
-
-    """
-    all_params = get_all_params(layer)
-    all_bias_params = get_all_bias_params(layer)
-    return [p for p in all_params if p not in all_bias_params]
-
-
-def count_params(layer):
-    """
-    This function counts all learnable parameters (i.e. the number of scalar
+    This function counts all parameters (i.e. the number of scalar
     values) of all layers below one or more given :class:`Layer` instances,
     including the layer(s) itself.
 
     This is useful to compare the capacity of various network architectures.
     All parameters returned by the :class:`Layer`s' `get_params` methods are
-    counted, including biases.
+    counted.
 
-    :usage:
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> param_count = count_params(l1)
-        >>> param_count
-        1050
-        >>> param_count == 20 * 50 + 50  # 20 input * 50 units + 50 biases
-        True
+    Parameters
+    ----------
+    layer : Layer or list
+        The :class:`Layer` instance for which to count the parameters, or a
+        list of :class:`Layer` instances.
 
-    :parameters:
-        - layer : Layer or list
-            the :class:`Layer` instance for which to count the parameters,
-            or a list of :class:`Layer` instances.
-    :returns:
-        - count : int
-            the total number of learnable parameters.
+    **tags (optional)
+        tags can be specified to filter the list of parameter variables that
+        will be included in the count. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
+    Returns
+    -------
+    int
+        The total number of learnable parameters.
+
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
+    >>> param_count = count_params(l1)
+    >>> param_count
+    1050
+    >>> param_count == 20 * 50 + 50  # 20 input * 50 units + 50 biases
+    True
     """
-    params = get_all_params(layer)
+    params = get_all_params(layer, **tags)
     shapes = [p.get_value().shape for p in params]
     counts = [np.prod(shape) for shape in shapes]
     return sum(counts)
 
 
-def get_all_param_values(layer):
+def get_all_param_values(layer, **tags):
     """
     This function returns the values of the parameters of all layers below one
     or more given :class:`Layer` instances, including the layer(s) itself.
@@ -439,30 +428,40 @@ def get_all_param_values(layer):
     This function can be used in conjunction with set_all_param_values to save
     and restore model parameters.
 
-    :usage:
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> all_param_values = get_all_param_values(l1)
-        >>> (all_param_values[0] == l1.W.get_value()).all()
-        True
-        >>> (all_param_values[1] == l1.b.get_value()).all()
-        True
+    Parameters
+    ----------
+    layer : Layer or list
+        The :class:`Layer` instance for which to gather all parameter values,
+        or a list of :class:`Layer` instances.
 
-    :parameters:
-        - layer : Layer or list
-            the :class:`Layer` instance for which to gather all parameter
-            values, or a list of :class:`Layer` instances.
+    **tags (optional)
+        tags can be specified to filter the list. Specifying ``tag1=True``
+        will limit the list to parameters that are tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
 
-    :returns:
-        - param_values : list of numpy.array
-            a list of numpy arrays representing the parameter values.
+    Returns
+    -------
+    list of numpy.array
+        A list of numpy arrays representing the parameter values.
+
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
+    >>> all_param_values = get_all_param_values(l1)
+    >>> (all_param_values[0] == l1.W.get_value()).all()
+    True
+    >>> (all_param_values[1] == l1.b.get_value()).all()
+    True
     """
-    params = get_all_params(layer)
+    params = get_all_params(layer, **tags)
     return [p.get_value() for p in params]
 
 
-def set_all_param_values(layer, values):
+def set_all_param_values(layer, values, **tags):
     """
     Given a list of numpy arrays, this function sets the parameters of all
     layers below one or more given :class:`Layer` instances (including the
@@ -471,25 +470,41 @@ def set_all_param_values(layer, values):
     This function can be used in conjunction with get_all_param_values to save
     and restore model parameters.
 
-    :usage:
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
-        >>> all_param_values = get_all_param_values(l1)
-        >>> # all_param_values is now [l1.W.get_value(), l1.b.get_value()]
-        >>> # ...
-        >>> set_all_param_values(l1, all_param_values)
-        >>> # the parameter values are restored.
+    Parameters
+    ----------
+    layer : Layer or list
+        The :class:`Layer` instance for which to set all parameter values, or a
+        list of :class:`Layer` instances.
 
-    :parameters:
-        - layer : Layer or list
-            the :class:`Layer` instance for which to set all parameter
-            values, or a list of :class:`Layer` instances.
-        - values : list of numpy.array
-            a list of numpy arrays representing the parameter values,
-            must match the number of parameters
+    values : list of numpy.array
+        A list of numpy arrays representing the parameter values, must match
+        the number of parameters.
+
+    **tags (optional)
+        tags can be specified to filter the list of parameters to be set.
+        Specifying ``tag1=True`` will limit the list to parameters that are
+        tagged with ``tag1``.
+        Specifying ``tag1=False`` will limit the list to parameters that
+        are not tagged with ``tag1``. Commonly used tags are
+        ``regularizable`` and ``trainable``.
+
+    Raises
+    ------
+    ValueError
+        If the number of values is not equal to the number of params.
+
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
+    >>> all_param_values = get_all_param_values(l1)
+    >>> # all_param_values is now [l1.W.get_value(), l1.b.get_value()]
+    >>> # ...
+    >>> set_all_param_values(l1, all_param_values)
+    >>> # the parameter values are restored.
     """
-    params = get_all_params(layer)
+    params = get_all_params(layer, **tags)
     if len(params) != len(values):
         raise ValueError("mismatch: got %d values to set %d parameters" %
                          (len(values), len(params)))

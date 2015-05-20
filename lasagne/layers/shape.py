@@ -1,4 +1,5 @@
 import numpy as np
+import theano.tensor as T
 
 from ..theano_extensions import padding
 
@@ -14,6 +15,7 @@ __all__ = [
     "dimshuffle",
     "PadLayer",
     "pad",
+    "SliceLayer"
 ]
 
 
@@ -300,3 +302,55 @@ class PadLayer(Layer):
         return padding.pad(input, self.width, self.val, self.batch_ndim)
 
 pad = PadLayer  # shortcut
+
+
+class SliceLayer(Layer):
+    """
+    Slices the input at a specific axis and at specific indices.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    indices : int or slice instance
+        If an ``int``, selects a single element from the given axis, dropping
+        the axis. If a slice, selects all elements in the given range, keeping
+        the axis.
+
+    axis : int
+        Specifies the axis from which the indices are selected.
+
+    Examples
+    --------
+    >>> from lasagne.layers import SliceLayer, InputLayer
+    >>> l_in = InputLayer((2, 3, 4))
+    >>> SliceLayer(l_in, indices=0, axis=1).output_shape
+    ... # equals input[:, 0]
+    (2, 4)
+    >>> SliceLayer(l_in, indices=slice(0, 1), axis=1).output_shape
+    ... # equals input[:, 0:1]
+    (2, 1, 4)
+    >>> SliceLayer(l_in, indices=slice(-2, None), axis=-1).output_shape
+    ... # equals input[..., -2:]
+    (2, 3, 2)
+    """
+    def __init__(self, incoming, indices, axis=-1, **kwargs):
+        super(SliceLayer, self).__init__(incoming, **kwargs)
+        self.slice = indices
+        self.axis = axis
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)
+        if isinstance(self.slice, int):
+            del output_shape[self.axis]
+        else:
+            output_shape[self.axis] = len(
+                range(*self.slice.indices(input_shape[self.axis])))
+        return tuple(output_shape)
+
+    def get_output_for(self, input):
+        axis = self.axis
+        if axis < 0:
+            axis += input.ndim
+        return input[(slice(None),) * axis + (self.slice,)]

@@ -19,7 +19,7 @@ class DenseLayer(Layer):
     A fully connected layer.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
@@ -37,16 +37,22 @@ class DenseLayer(Layer):
         If None is provided the layer will have no biases.
         See :meth:`Layer.create_param` for more information.
 
-
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    Usage
-    -------
-        >>> from lasagne.layers import InputLayer, DenseLayer
-        >>> l_in = InputLayer((100, 20))
-        >>> l1 = DenseLayer(l_in, num_units=50)
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
+
+    Notes
+    -----
+    If the input to this layer has more than two axes, it will flatten the
+    trailing axes. This is useful for when a dense layer follows a
+    convolutional layer, for example. It is not necessary to insert a
+    :class:`FlattenLayer` in this case.
     """
     def __init__(self, incoming, num_units, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
@@ -59,15 +65,12 @@ class DenseLayer(Layer):
 
         num_inputs = int(np.prod(self.input_shape[1:]))
 
-        self.W = self.create_param(W, (num_inputs, num_units), name="W")
-        self.b = (self.create_param(b, (num_units,), name="b")
-                  if b is not None else None)
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
+        self.W = self.add_param(W, (num_inputs, num_units), name="W")
+        if b is None:
+            self.b = None
+        else:
+            self.b = self.add_param(b, (num_units,), name="b",
+                                    regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units)
@@ -89,7 +92,7 @@ class NonlinearityLayer(Layer):
     A layer that just applies a nonlinearity.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
@@ -116,7 +119,7 @@ class NINLayer(Layer):
     so NINLayer can be used to implement 1D, 2D, 3D, ... convolutions.
 
     Parameters
-    -----------
+    ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
@@ -132,7 +135,7 @@ class NINLayer(Layer):
         An initializer for the weights of the layer. If a shared variable or a
         numpy array is provided the shape should be (num_inputs, num_units),
         where num_units is the size of the 2nd. dimension of the input.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, numpy array, callable or None
         An initializer for the biases of the layer. If a shared variable or a
@@ -141,22 +144,22 @@ class NINLayer(Layer):
         be (num_units, ). If untie_biases is True then the shape should be
         (num_units, input_dim[2], ..., input_dim[-1]). If None is provided the
         layer will have no biases.
-        See :meth:`Layer.create_param` for more information.
+        See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    Usage
-    ----------
+    Examples
+    --------
     >>> from lasagne.layers import InputLayer, NINLayer
     >>> l_in = InputLayer((100, 20, 10, 3))
     >>> l1 = NINLayer(l_in, num_units=5)
 
     References
-    -----------
-    [1] Lin, Min, Qiang Chen, and Shuicheng Yan. "Network in network."
-    arXiv preprint arXiv:1312.4400 (2013).
+    ----------
+    .. [1] Lin, Min, Qiang Chen, and Shuicheng Yan (2013):
+           Network in network. arXiv preprint arXiv:1312.4400.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
@@ -170,21 +173,14 @@ class NINLayer(Layer):
 
         num_input_channels = self.input_shape[1]
 
-        self.W = self.create_param(W, (num_input_channels, num_units),
-                                   name="W")
+        self.W = self.add_param(W, (num_input_channels, num_units), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
-            self.b = self.create_param(b, (num_units,) +
-                                       self.output_shape[2:], name="b")
+            biases_shape = (num_units,) + self.output_shape[2:]
         else:
-            self.b = self.create_param(b, (num_units,), name="b")
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
+            biases_shape = (num_units,)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units) + input_shape[2:]

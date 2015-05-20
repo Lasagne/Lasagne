@@ -9,3 +9,4 @@ from .shape import *
 from .merge import *
 from .normalization import *
 from .prelu import *
+from .embedding import *

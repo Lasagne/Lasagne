@@ -111,15 +111,15 @@ class Conv2DDNNLayer(DNNLayer):
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape. The
         output of this layer should be a 4D tensor, with shape
-        ``(batch_size, num_input_channels, input_height, input_width)``.
+        ``(batch_size, num_input_channels, input_rows, input_columns)``.
 
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or tuple of int
+    filter_size : int or iterable
         An integer or a 2-element tuple specifying the size of the filters.
 
-    stride : int or tuple of int
+    stride : int or iterable
         An integer or a 2-element tuple specifying the stride of the
         convolution operation.
 
@@ -151,22 +151,22 @@ class Conv2DDNNLayer(DNNLayer):
     W : Theano shared variable, numpy array or callable
         An initializer for the weights of the layer. This should initialize the
         layer weights to a 4D array with shape
-        ``(num_filters, num_input_channels, filter_height, filter_width)``.
-        See :meth:`Layer.create_param` for more information.
+        ``(num_filters, num_input_channels, filter_rows, filter_columns)``.
+        See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, numpy array, callable or None
         An initializer for the biases of the layer. If None is provided, the
         layer will have no biases. This should initialize the layer biases to
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filters, input_height, input_width)`` instead.
-        See :meth:`Layer.create_param` for more information.
+        ``(num_filters, input_rows, input_columns)`` instead.
+        See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    pad : int, tuple of int or None
+    pad : int, iterable or None
         An integer or a 2-element tuple specifying the amount of zero-padding
         on each side. This may also be ``None``, in which case the correct
         amount of padding will be inferred from the specified ``border_mode``.
@@ -244,25 +244,20 @@ class Conv2DDNNLayer(DNNLayer):
             self.pad = as_tuple(pad, 2)
             self.border_mode = None
 
-        self.W = self.create_param(W, self.get_W_shape(), name="W")
+        self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
         elif self.untie_biases:
-            self.b = self.create_param(b, (num_filters, self.output_shape[2],
-                                           self.output_shape[3]), name="b")
+            biases_shape = (num_filters, self.output_shape[2],
+                            self.output_shape[3])
         else:
-            self.b = self.create_param(b, (num_filters,), name="b")
+            biases_shape = (num_filters,)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
         return (self.num_filters, num_input_channels, self.filter_size[0],
                 self.filter_size[1])
-
-    def get_params(self):
-        return [self.W] + self.get_bias_params()
-
-    def get_bias_params(self):
-        return [self.b] if self.b is not None else []
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]

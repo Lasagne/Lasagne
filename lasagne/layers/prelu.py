@@ -5,6 +5,7 @@ from .. import init
 from .. import nonlinearities
 
 from .base import Layer
+from .. import utils
 
 __all__ = [
     "PReLULayer"
@@ -43,13 +44,13 @@ class PReLULayer(Layer):
         self.untie_alphas = untie_alphas
         if untie_alphas == None:
             self.alpha_shape = ()
-            self.alpha = self.create_param(alpha, self.alpha_shape, name="alpha")
+            self.alpha = self.add_param(alpha, self.alpha_shape, name="alpha")
         elif isinstance(untie_alphas, int) and untie_alphas >= 0 and untie_alphas < len(self.input_shape):
             self.alpha_shape = tuple([self.input_shape[untie_alphas]])
-            self.alpha = self.create_param(np.zeros(self.alpha_shape)+alpha, self.alpha_shape, name="alpha")
+            self.alpha = self.add_param(utils.floatX(np.zeros(self.alpha_shape))+alpha, self.alpha_shape, name="alpha")
         elif isinstance(untie_alphas, list) and np.min(untie_alphas) >= 0 and np.max(untie_alphas) < len(self.input_shape):
             self.alpha_shape = tuple([self.input_shape[x] for x in set(untie_alphas)])
-            self.alpha = self.create_param(np.zeros(self.alpha_shape)+alpha, self.alpha_shape, name="alpha")
+            self.alpha = self.add_param(utils.floatX(np.zeros(self.alpha_shape))+alpha, self.alpha_shape, name="alpha")
         else:
             raise Exception('The untie_alphas parameter is badly formed.')
 

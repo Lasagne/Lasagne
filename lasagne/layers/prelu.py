@@ -44,7 +44,7 @@ class PReLULayer(Layer):
         self.untie_alphas = untie_alphas
         if untie_alphas == None:
             self.alpha_shape = ()
-            self.alpha = self.add_param(alpha, self.alpha_shape, name="alpha")
+            self.alpha = self.add_param(utils.floatX(alpha), self.alpha_shape, name="alpha")
         elif isinstance(untie_alphas, int) and untie_alphas >= 0 and untie_alphas < len(self.input_shape):
             self.alpha_shape = tuple([self.input_shape[untie_alphas]])
             self.alpha = self.add_param(utils.floatX(np.zeros(self.alpha_shape))+alpha, self.alpha_shape, name="alpha")

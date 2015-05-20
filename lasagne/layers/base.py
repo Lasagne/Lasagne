@@ -200,7 +200,7 @@ class Layer(object):
             if param.shape != shape:
                 raise RuntimeError("parameter array has shape %s, should be "
                                    "%s" % (param.shape, shape))
-            return theano.shared(param, name=name)
+            return theano.shared(utils.floatX(param), name=name)
 
         elif hasattr(param, '__call__'):
             arr = param(shape)

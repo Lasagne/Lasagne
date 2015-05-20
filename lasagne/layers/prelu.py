@@ -25,10 +25,10 @@ class PReLULayer(Layer):
         The initial "leakiness" of the rectifier which is then learned.
         If argument not provided, initial leakiness will be set to 0.25.
 
-    untie_alphas : int or None
-        When passed this argument creates a vector of alphas rather than a
-        single theano scalar. The argument dictates which dimension
-        the alphas are shared across. 
+    untie_alphas : int, array or None
+        When passed this argument creates a tensor of alphas rather than a
+        single theano scalar. The argument dictates which dimension(s)
+        the alphas are untied across. 
 
     Examples
     -------
@@ -42,32 +42,30 @@ class PReLULayer(Layer):
         super(PReLULayer, self).__init__(incoming, **kwargs)
         self.untie_alphas = untie_alphas
         if untie_alphas == None:
-            self.alpha = self.create_param(alpha, (), name="alpha")
+            self.alpha_shape = ()
+            self.alpha = self.create_param(alpha, self.alpha_shape, name="alpha")
+        elif isinstance(untie_alphas, int) and untie_alphas >= 0 and untie_alphas < len(self.input_shape):
+            self.alpha_shape = tuple([self.input_shape[untie_alphas]])
+            self.alpha = self.create_param(np.zeros(self.alpha_shape)+alpha, self.alpha_shape, name="alpha")
+        elif isinstance(untie_alphas, list) and np.min(untie_alphas) >= 0 and np.max(untie_alphas) < len(self.input_shape):
+            self.alpha_shape = tuple([self.input_shape[x] for x in set(untie_alphas)])
+            self.alpha = self.create_param(np.zeros(self.alpha_shape)+alpha, self.alpha_shape, name="alpha")
         else:
-            self.alpha = self.create_param(np.zeros(incoming.shape[1])+alpha, (incoming.shape[1]), name="W")
+            raise Exception('The untie_alphas parameter is badly formed.')
 
     def get_params(self):
         return [self.alpha]
-        
+
     def get_output_for(self, input, **kwargs):
-        if self.untie_alphas:
-            untie_dim = ['x']*input.ndim
+        untie_dim = ['x']*input.ndim
+        if isinstance(self.untie_alphas, int):
             untie_dim[self.untie_alphas] = 0
+            untie_dim = tuple(untie_dim)
+            return nonlinearities.LeakyRectify(self.alpha.dimshuffle(untie_dim))(input)
+        elif isinstance(self.untie_alphas, list):
+            for i, dim in enumerate(self.untie_alphas):
+                untie_dim[dim] = i
             untie_dim = tuple(untie_dim)
             return nonlinearities.LeakyRectify(self.alpha.dimshuffle(untie_dim))(input)
         else:
             return nonlinearities.LeakyRectify(self.alpha)(input)
-        '''
-        if input.ndim == 2: 
-            if self.untie_alphas:
-                return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0))(input)
-            else:
-                return nonlinearities.LeakyRectify(self.alpha)(input)
-        elif input.ndim == 4:
-            if self.untie_alphas: 
-                return nonlinearities.LeakyRectify(self.alpha.dimshuffle('x',0,'x','x'))(input)
-            else:
-                return nonlinearities.LeakyRectify(self.alpha)(input)
-        else:
-            raise Exception('Incorrect number of dimensions.')
-        '''

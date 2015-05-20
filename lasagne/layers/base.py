@@ -91,7 +91,7 @@ class Layer(object):
 
         return result
 
-    def get_output_shape(self):
+    def get_output_shape(self):  # pragma: no cover
         """
         Deprecated. Use `layer.output_shape`.
         """
@@ -101,7 +101,7 @@ class Layer(object):
                       "layer.output_shape instead.")
         return self.output_shape
 
-    def get_output(self, input=None, **kwargs):
+    def get_output(self, input=None, **kwargs):  # pragma: no cover
         """
         Deprecated. Use `lasagne.layers.get_output(layer, input, **kwargs)`.
         """
@@ -233,7 +233,7 @@ class Layer(object):
 
         return param
 
-    def get_bias_params(self):
+    def get_bias_params(self):  # pragma: no cover
         import warnings
         warnings.warn("layer.get_bias_params() is deprecated and will be "
                       "removed for the first release of Lasagne. Please use "

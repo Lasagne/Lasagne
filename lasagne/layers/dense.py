@@ -16,6 +16,10 @@ __all__ = [
 
 class DenseLayer(Layer):
     """
+    lasagne.layers.DenseLayer(incoming, num_units,
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
     A fully connected layer.
 
     Parameters
@@ -89,6 +93,9 @@ class DenseLayer(Layer):
 
 class NonlinearityLayer(Layer):
     """
+    lasagne.layers.NonlinearityLayer(incoming,
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
     A layer that just applies a nonlinearity.
 
     Parameters
@@ -112,6 +119,10 @@ class NonlinearityLayer(Layer):
 
 class NINLayer(Layer):
     """
+    lasagne.layers.NINLayer(incoming, num_units, untie_biases=False,
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
     Network-in-network layer [1]_.
     Like DenseLayer, but broadcasting across all trailing dimensions beyond the
     2nd.  This results in a convolution operation with filter size 1 on all

@@ -100,6 +100,12 @@ class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
 
 class Conv2DDNNLayer(DNNLayer):
     """
+    lasagne.layers.Conv2DDNNLayer(incoming, num_filters, filter_size,
+    stride=(1, 1), border_mode=None, untie_biases=False,
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
+    nonlinearity=lasagne.nonlinearities.rectify, pad=None, flip_filters=False,
+    **kwargs)
+
     2D convolutional layer
 
     Performs a 2D convolution on its input and optionally adds a bias and

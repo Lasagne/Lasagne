@@ -14,7 +14,6 @@
 
 # import sys
 # import os
-import sphinx_bootstrap_theme
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -35,7 +34,8 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'numpydoc'
+    'numpydoc',
+#    'sphinx.ext.napoleon',  # alternative to numpydoc -- looks a bit worse.
 ]
 
 # see http://stackoverflow.com/q/12206334/562769
@@ -55,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Lasagne'
-copyright = u'2014, Sander Dieleman and contributors'
+copyright = u'2014–2015, Sander Dieleman and contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -107,16 +107,25 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ----------------------------------------------
 
-html_theme = 'bootstrap'
+## Classic Python style:
+#html_theme = 'classic'
+#html_theme_options = {
+#    'stickysidebar': True,
+#}
 
-html_theme_options = {
-    'bootswatch_theme': 'cosmo',  # simplex', # yeti, spacelab,
-    'bootstrap_version': '3',
-    'navbar_title': 'Lasagne',
-    'source_link_position': 'footer',
-}
+## Read the docs style:
+html_theme = 'sphinx_rtd_theme'
 
-html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+## Bootstrap style:
+#import sphinx_bootstrap_theme
+#html_theme = 'bootstrap'
+#html_theme_options = {
+#    'bootswatch_theme': 'cosmo',  # see http://bootswatch.com/ for more
+#    'bootstrap_version': '3',
+#    'navbar_title': 'Lasagne',
+#    'source_link_position': 'footer',
+#}
+#html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".

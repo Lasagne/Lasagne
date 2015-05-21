@@ -39,6 +39,9 @@ Layer classes: dense layers
 .. autoclass:: DenseLayer
    :members:
 
+.. autoclass:: NonlinearityLayer
+   :members:
+
 .. autoclass:: NINLayer
     :members:
 

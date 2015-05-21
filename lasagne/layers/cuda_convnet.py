@@ -152,6 +152,13 @@ class Conv2DCCLayer(CCLayer):
         `cuda-convnet documentation
         <https://code.google.com/p/cuda-convnet/wiki/LayerParams>`_.
 
+    trainable : bool (default True)
+        If ``True`` updates will be applied to the weights in this layer as
+        usual.
+
+        If ``False`` the weights in this layer will remain unchanged by
+        training.
+
     **kwargs
         Any additional keyword arguments are passed to the `Layer` superclass.
 
@@ -201,7 +208,7 @@ class Conv2DCCLayer(CCLayer):
                  border_mode=None, untie_biases=False, W=None,
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  pad=None, dimshuffle=True, flip_filters=False, partial_sum=1,
-                 **kwargs):
+                 trainable=True, **kwargs):
         super(Conv2DCCLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -260,7 +267,7 @@ class Conv2DCCLayer(CCLayer):
             else:
                 W = init.GlorotUniform(c01b=True)
 
-        self.W = self.add_param(W, self.get_W_shape(), name="W")
+        self.W = self.add_param(W, self.get_W_shape(), name="W", trainable=trainable)
         if b is None:
             self.b = None
         elif self.untie_biases:
@@ -272,7 +279,7 @@ class Conv2DCCLayer(CCLayer):
                                 self.output_shape[2])
         else:
             biases_shape = (num_filters,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+        self.b = self.add_param(b, biases_shape, name="b", regularizable=False, trainable=trainable)
 
         self.filter_acts_op = FilterActs(
             stride=self.stride, partial_sum=self.partial_sum, pad=self.pad)

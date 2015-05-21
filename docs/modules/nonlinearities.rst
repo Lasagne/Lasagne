@@ -10,6 +10,8 @@
    tanh
    rectify
    LeakyRectify
+   leaky_rectify
+   very_leaky_rectify
    linear
    identity
 
@@ -22,4 +24,6 @@ Detailed description
 .. autofunction:: rectify
 .. autoclass:: LeakyRectify
    :members:
+.. autofunction:: leaky_rectify
+.. autofunction:: very_leaky_rectify
 .. autofunction:: linear

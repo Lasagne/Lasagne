@@ -83,29 +83,59 @@ def rectify(x):
 
 # leaky rectify
 class LeakyRectify(object):
-    """Implementation of a leaky rectifier
-    :math:`\\varphi(x) = \max(leakiness \cdot x, x)`.
+    """Leaky rectifier :math:`\\varphi(x) = \\max(\\alpha \\cdot x, x)`
+
+    The leaky rectifier was introduced in [1]_. Compared to the standard
+    rectifier :func:`rectify`, it has a nonzero gradient for negative input,
+    which often helps convergence.
 
     Parameters
     ----------
-    leakiness : float in [0, 1]
+    leakiness : float
+        Slope for negative input, usually between 0 and 1.
         A leakiness of 0 will lead to the standard rectifier,
-        a leakiness of 1 will lead to a linear activation function.
+        a leakiness of 1 will lead to a linear activation function,
+        and any value in between will give a leaky rectifier.
 
     Methods
     -------
     __call__(x)
-        Calculate the neuron's output by applying this leaky rectifier to the
-        activation `x`.
+        Apply the leaky rectify function to the activation `x`.
+
+    Examples
+    --------
+    In contrast to other activation functions in this module, this is
+    a class that needs to be instantiated to obtain a callable:
+
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((None, 100))
+    >>> from lasagne.nonlinearities import LeakyRectify
+    >>> custom_rectify = LeakyRectify(0.1)
+    >>> l1 = DenseLayer(l_in, num_units=200, nonlinearity=custom_rectify)
+
+    Alternatively, you can use the provided instance for leakiness=0.01:
+
+    >>> from lasagne.nonlinearities import leaky_rectify
+    >>> l2 = DenseLayer(l_in, num_units=200, nonlinearity=leaky_rectify)
+
+    Or the one for a high leakiness of 1/3:
+
+    >>> from lasagne.nonlinearities import very_leaky_rectify
+    >>> l3 = DenseLayer(l_in, num_units=200, nonlinearity=very_leaky_rectify)
+
+    See Also
+    --------
+    leaky_rectify: Instance with default leakiness of 0.01, as in [1]_.
+    very_leaky_rectify: Instance with high leakiness of 1/3, as in [2]_.
 
     References
     ----------
-    The leaky rectifier is described in [1]_.
-
-    .. [1] Maas et al, "Rectifier Nonlinearities Improve Neural Network
-       Acoustic Models",
+    .. [1] Maas et al. (2013):
+       Rectifier Nonlinearities Improve Neural Network Acoustic Models,
        http://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf
-
+    .. [2] Graham, Benjamin (2014):
+       Spatially-sparse convolutional neural networks,
+       http://arxiv.org/abs/1409.6070
     """
     def __init__(self, leakiness=0.01):
         self.leakiness = leakiness
@@ -123,6 +153,17 @@ class LeakyRectify(object):
 
 
 leaky_rectify = LeakyRectify()  # shortcut with default leakiness
+leaky_rectify.__doc__ = """leaky_rectify(x)
+
+    Instance of :class:`LeakyRectify` with leakiness :math:`\\alpha=0.01`
+    """
+
+
+very_leaky_rectify = LeakyRectify(1./3)  # shortcut with high leakiness
+very_leaky_rectify.__doc__ = """very_leaky_rectify(x)
+
+     Instance of :class:`LeakyRectify` with leakiness :math:`\\alpha=1/3`
+     """
 
 
 # linear

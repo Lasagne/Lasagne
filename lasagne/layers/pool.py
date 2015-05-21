@@ -231,6 +231,9 @@ class MaxPool2DLayer(Layer):
 
 class FeaturePoolLayer(Layer):
     """
+    lasagne.layers.FeaturePoolLayer(incoming, pool_size, axis=1,
+    pool_function=theano.tensor.max, **kwargs)
+
     Feature pooling layer
 
     This layer pools across a given axis of the input. By default this is axis
@@ -365,6 +368,9 @@ class FeatureWTALayer(Layer):
 
 class GlobalPoolLayer(Layer):
     """
+    lasagne.layers.GlobalPoolLayer(incoming,
+    pool_function=theano.tensor.mean, **kwargs)
+
     Global pooling layer
 
     This layer pools globally across all trailing dimensions beyond the 2nd.

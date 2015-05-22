@@ -75,14 +75,15 @@ target_output = T.tensor3('target_output')
 mask = T.matrix('mask')
 
 # Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input, mask=mask)[:, DELAY:, :]
+cost = T.mean((lasagne.layers.get_output(l_out, input, mask=mask)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)
 updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
 train = theano.function([input, target_output, mask], cost, updates=updates)
-y_pred = theano.function([input, mask], l_out.get_output(input, mask=mask))
+y_pred = theano.function([input, mask],
+                         lasagne.layers.get_output(l_out, input, mask=mask))
 compute_cost = theano.function([input, target_output, mask], cost)
 
 # Train the net

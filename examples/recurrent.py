@@ -18,24 +18,26 @@ N_ITERATIONS = 1000
 
 
 def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
-    '''
+    """
     Generate a simple lag sequence
 
-    :parameters:
-        - length : int
-            Length of sequences to generate
-        - n_batch : int
-            Number of training sequences per batch
-        - delay : int
-            How much to delay one feature dimension in the target
+    Parameters
+    ----------
+    length : int
+        Length of sequences to generate
+    n_batch : int
+        Number of training sequences per batch
+    delay : int
+        How much to delay one feature dimension in the target
 
-    :returns:
-        - X : np.ndarray, shape=(n_batch, length, 2)
-            Input sequence
-        - y : np.ndarray, shape=(n_batch, length, 1)
-            Target sequence, where
-            y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
-    '''
+    Returns
+    -------
+    X : np.ndarray, shape=(n_batch, length, 2)
+        Input sequence
+    y : np.ndarray, shape=(n_batch, length, 1)
+        Target sequence, where
+        y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
+    """
     X = np.random.rand(n_batch, length, 2)
     y = X[:, :, 0].reshape((n_batch, length, 1))
     # Compute y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
@@ -69,15 +71,16 @@ print "Total parameters: {}".format(
 # Cost function is mean squared error
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')
+
 # Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
+cost = T.mean((lasagne.layers.get_output(l_out, input)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)
 updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
 # Theano functions for training, getting output, and computing cost
 train = theano.function([input, target_output], cost, updates=updates)
-y_pred = theano.function([input], l_out.get_output(input))
+y_pred = theano.function([input], lasagne.layers.get_output(l_out, input))
 compute_cost = theano.function([input, target_output], cost)
 
 # Train the net

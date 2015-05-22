@@ -18,24 +18,26 @@ N_ITERATIONS = 1000
 
 
 def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
-    '''
+    """
     Generate a simple lag sequence
 
-    :parameters:
-        - length : int
-            Length of sequences to generate
-        - n_batch : int
-            Number of training sequences per batch
-        - delay : int
-            How much to delay one feature dimension in the target
+    Parameters
+    ----------
+    length : int
+        Length of sequences to generate
+    n_batch : int
+        Number of training sequences per batch
+    delay : int
+        How much to delay one feature dimension in the target
 
-    :returns:
-        - X : np.ndarray, shape=(n_batch, length, 2)
-            Input sequence
-        - y : np.ndarray, shape=(n_batch, length, 1)
-            Target sequence, where
-            y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
-    '''
+    Returns
+    -------
+    X : np.ndarray, shape=(n_batch, length, 2)
+        Input sequence
+    y : np.ndarray, shape=(n_batch, length, 1)
+        Target sequence, where
+        y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
+    """
     X = .5*np.random.rand(n_batch, length, 2)
     y = X[:, :, 0].reshape((n_batch, length, 1))
     # Compute y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
@@ -97,7 +99,7 @@ target_output.tag.test_value = np.random.rand(
     *y_val.shape).astype(theano.config.floatX)
 
 # Cost = mean squared error, starting from delay point
-cost = T.mean((l_out.get_output(input)[:, DELAY:, :]
+cost = T.mean((lasagne.layers.get_output(l_out, input)[:, DELAY:, :]
                - target_output[:, DELAY:, :])**2)
 # Use NAG for training
 all_params = lasagne.layers.get_all_params(l_out)
@@ -107,7 +109,7 @@ train = theano.function([input, target_output],
                         cost, updates=updates, on_unused_input='warn',
                         allow_input_downcast=True)
 y_pred = theano.function(
-    [input], l_out.get_output(input), on_unused_input='warn',
+    [input], lasagne.layers.get_output(l_out, input), on_unused_input='warn',
     allow_input_downcast=True)
 
 compute_cost = theano.function(

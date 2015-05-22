@@ -20,13 +20,15 @@ Two functions can be used to further modify the updates to include momentum:
 * :func:`apply_momentum()`
 * :func:`apply_nesterov_momentum()`
 
-Finally, we provide a helper function to constrain the norm of a
-tensor variable:
+Finally, we provide two helper functions to constrain the norm of tensors:
 
 * :func:`norm_constraint()`
+* :func:`total_norm_constraint()`
 
-This can be used to constrain the norm of parameters (as an alternative
-to weight decay), or for a form of gradient clipping.
+:func:`norm_constraint()` can be used to constrain the norm of parameters
+(as an alternative to weight decay), or for a form of gradient clipping.
+:func:`total_norm_constraint() constrain the total norm of a list of tensors.
+This is often used when training recurrent neural networks.`
 
 Examples
 --------
@@ -67,6 +69,7 @@ __all__ = [
     "adadelta",
     "adam",
     "norm_constraint",
+    "total_norm_constraint"
 ]
 
 
@@ -645,3 +648,71 @@ def norm_constraint(tensor_var, max_norm, norm_axes=None, epsilon=1e-7):
         (tensor_var * (target_norms / (dtype(epsilon) + norms)))
 
     return constrained_output
+
+
+def total_norm_constraint(tensor_var, max_norm, epsilon=1e-7,
+                          return_norm=False):
+    """Rescales a list of tensors based on their combined norm
+
+    If the combined norm of the input tensors exceeds the threshold then all
+    tensors are rescaled such that the combined norm is equal to the threshold.
+
+    Scaling the norms of the gradients is often used when training recurrent
+    neural networks [1]_.
+
+    Parameters
+    ----------
+    tensor_var : TensorVariable
+        Tensors to be rescaled.
+    threshold : float
+        Threshold value for total norm.
+    epsilon : scalar, optional
+        Value used to prevent numerical instability when dividing by
+        very small or zero norms.
+    return_norm : bool
+        If true the total norm is also returned
+
+    Returns
+    -------
+    tensor_vars : list of TensorVariables
+        The scaled tensor variables
+    norm : Theano scalar
+        The combined norms of the input variables prior to rescaling,
+        only returned if ``return_norms=True``
+
+    Examples
+    --------
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> import lasagne
+    >>> from lasagne.updates import sgd, total_norm_constraint
+    >>> x = T.matrix()
+    >>> y = T.ivector()
+    >>> l_in = InputLayer((5, 10))
+    >>> l1 = DenseLayer(l_in, num_units=7, nonlinearity=T.nnet.softmax)
+    >>> output = lasagne.layers.get_output(l1, x)
+    >>> cost = T.mean(T.nnet.categorical_crossentropy(output, y))
+    >>> all_params = lasagne.layers.get_all_params(l1)
+    >>> all_grads = T.grad(cost, all_params)
+    >>> scaled_grads = total_norm_constraint(all_grads, 5)
+    >>> updates = sgd(scaled_grads, all_params, learning_rate=0.1)
+
+    Notes
+    -----
+    The total norm can be used to monitor training.
+
+    References
+    ----------
+    .. [1] Sutskever, I., Vinyals, O., & Le, Q. V. (2014): Sequence to sequence
+       learning with neural networks. In Advances in Neural Information
+       Processing Systems (pp. 3104-3112).
+    """
+    norm = T.sqrt(sum(T.sum(tensor**2) for tensor in tensor_var))
+    dtype = np.dtype(theano.config.floatX).type
+    target_norm = T.clip(norm, 0, dtype(max_norm))
+    multiplier = target_norm / (dtype(epsilon) + norm)
+    tensor_vars_scaled = [step*multiplier for step in tensor_var]
+
+    if return_norm:
+        return tensor_vars_scaled, norm
+    else:
+        return tensor_vars_scaled

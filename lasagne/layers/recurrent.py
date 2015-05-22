@@ -1,55 +1,98 @@
+"""
+Layers to construct recurrent networks. Recurrent layers can be used similarly
+to feed-forward layers except that the input shape is expected to be
+(batch_size, sequence_length, num_inputs). The input is allowed to have more
+than three dimensions in which case dimensions trailing the third dimension are
+flattened.
+
+The following recurrent layers are implemented:
+
+* :func:`CustomRecurrentLayer()`
+* :func:`RecurrentLayer()`
+* :func:`LSTMLayer()`
+
+Recurrent layers and feed-forward layers can be combined in the same network
+by using a few reshape operations, please refer to the recurrent examples for
+further explanations.
+
+"""
+import numpy as np
 import theano
 import theano.tensor as T
 from .. import nonlinearities
 from .. import init
-from .. import utils
 
 from .base import Layer
 from .input import InputLayer
 from .dense import DenseLayer
 from . import helper
 
+__all__ = [
+    "CustomRecurrentLayer",
+    "RecurrentLayer",
+    "LSTMLayer"
+]
+
 
 class CustomRecurrentLayer(Layer):
-    '''
+    """
     A layer which implements a recurrent connection.
 
-    Expects inputs of shape
-        (n_batch, n_time_steps, n_features_1, n_features_2, ...)
-    '''
-    def __init__(self, input_layer, input_to_hidden, hidden_to_hidden,
-                 nonlinearity=nonlinearities.rectify,
-                 hid_init=init.Constant(0.), backwards=False,
-                 learn_init=False, gradient_steps=-1):
-        '''
-        Create a recurrent layer.
+    Parameters
+    ----------
+    incoming : a :class:`lasagne.layers.Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+    input_to_hidden : :class:`lasagne.layers.Layer`
+        Layer which connects input to the hidden state
+    hidden_to_hidden : :class:`lasagne.layers.Layer`
+        Layer which connects the previous hidden state to the new state
+    nonlinearity : function or theano.tensor.elemwise.Elemwise
+        Nonlinearity to apply when computing new state
+    hid_init : function, np.ndarray, theano.shared or TensorVariable
+        :math:`h_0`. Passing in a TensorVariable allows the user to specify
+        the value of hid_init. In this mode learn_init is ignored.
+    backwards : bool
+        If True, process the sequence backwards and then reverse the
+        output again such that the output from the layer is always
+        from x_1 to x_n.
+    learn_init : bool
+        If True, initial hidden values are learned. If hid_init or cell_init
+        are TensorVariables learn_init is ignored.
+    gradient_steps : int
+        Number of timesteps to include in backpropagated gradient
+        If -1, backpropagate through the entire sequence
+    grad_clipping: False or float
+        If float the gradient messages are clipped during the backward pass.
+        See [1]_ (p. 6) for further explanation.
 
-        :parameters:
-            - input_layer : nntools.layers.Layer
-                Input to the recurrent layer
-            - input_to_hidden : nntools.layers.Layer
-                Layer which connects input to the hidden state
-            - hidden_to_hidden : nntools.layers.Layer
-                Layer which connects the previous hidden state to the new state
-            - nonlinearity : function or theano.tensor.elemwise.Elemwise
-                Nonlinearity to apply when computing new state
-            - hid_init : function or np.ndarray or theano.shared
-                Initial hidden state
-            - backwards : boolean
-                If True, process the sequence backwards
-            - learn_init : boolean
-                If True, initial hidden values are learned
-            - gradient_steps : int
-                Number of timesteps to include in backpropagated gradient
-                If -1, backpropagate through the entire sequence
-        '''
-        super(CustomRecurrentLayer, self).__init__(input_layer)
+    References
+    ----------
+    .. [1] Alex Graves : Generating Sequences With Recurrent Neural
+           Networks
+    """
+    def __init__(self, incoming, input_to_hidden, hidden_to_hidden,
+                 nonlinearity=nonlinearities.rectify,
+                 hid_init=init.Constant(0.),
+                 backwards=False,
+                 learn_init=False,
+                 gradient_steps=-1,
+                 grad_clipping=False):
+
+        super(CustomRecurrentLayer, self).__init__(incoming)
 
         self.input_to_hidden = input_to_hidden
         self.hidden_to_hidden = hidden_to_hidden
         self.learn_init = learn_init
         self.backwards = backwards
         self.gradient_steps = gradient_steps
+        self.grad_clipping = grad_clipping
+
+        # check that output shapes match
+        if input_to_hidden.output_shape != hidden_to_hidden.output_shape:
+            raise ValueError("The output shape for input_to_hidden and "
+                             "input_to_hidden must be equal was, ",
+                             input_to_hidden.output_shape,
+                             hidden_to_hidden.output_shape)
 
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -58,70 +101,52 @@ class CustomRecurrentLayer(Layer):
 
         # Get the batch size and number of units based on the expected output
         # of the input-to-hidden layer
-        (n_batch, self.num_units) = self.input_to_hidden.get_output_shape()
+        self.num_batch = self.input_shape[0]
+        self.seq_len = self.input_shape[1]
+        self.num_inputs = np.prod(self.input_shape[2:])
+        self.num_units = input_to_hidden.output_shape[-1]
 
         # Initialize hidden state
-        self.hid_init = self.create_param(hid_init, (n_batch, self.num_units))
-
-    def get_params(self):
-        '''
-        Get all parameters of this layer.
-
-        :returns:
-            - params : list of theano.shared
-                List of all parameters
-        '''
-        params = (helper.get_all_params(self.input_to_hidden) +
-                  helper.get_all_params(self.hidden_to_hidden))
-
-        if self.learn_init:
-            return params + self.get_init_params()
+        if isinstance(hid_init, T.TensorVariable):
+            if hid_init.ndim != 2:
+                raise ValueError("When a tensor hid_init should be a matrix")
+            self.hid_init = hid_init
         else:
-            return params
+            self.hid_init = self.add_param(
+                hid_init, (1, self.num_units), name="hid_init",
+                trainable=learn_init, regularizable=False)
 
-    def get_init_params(self):
-        '''
-        Get all initital parameters of this layer.
-        :returns:
-            - init_params : list of theano.shared
-                List of all initial parameters
-        '''
-        return [self.hid_init]
-
-    def get_bias_params(self):
-        '''
-        Get all bias parameters of this layer.
-
-        :returns:
-            - bias_params : list of theano.shared
-                List of all bias parameters
-        '''
-        return (helper.get_all_bias_params(self.input_to_hidden) +
-                helper.get_all_bias_params(self.hidden_to_hidden))
+    def get_params(self, **tags):
+        params = super(CustomRecurrentLayer, self).get_params(**tags)
+        params += helper.get_all_params(self.input_to_hidden, **tags)
+        params += helper.get_all_params(self.hidden_to_hidden, **tags)
+        return params
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], input_shape[1], self.num_units)
+        return input_shape[0], input_shape[1], self.num_units
 
-    def get_output_for(self, input, mask=None, *args, **kwargs):
-        '''
+    def get_output_for(self, input, mask=None, **kwargs):
+        """
         Compute this layer's output function given a symbolic input variable
 
-        :parameters:
-            - input : theano.TensorType
-                Symbolic input variable
-            - mask : theano.TensorType
-                Theano variable denoting whether each time step in each
-                sequence in the batch is part of the sequence or not.  If None,
-                then it assumed that all sequences are of the same length.  If
-                not all sequences are of the same length, then it must be
-                supplied as a matrix of shape (n_batch, n_time_steps) where
-                `mask[i, j] = 1` when `j <= (length of sequence i)` and
-                `mask[i, j] = 0` when `j > (length of sequence i)`.
+        Parameters
+        ----------
+        input : theano.TensorType
+            Symbolic input variable
+        mask : theano.TensorType
+            Theano variable denoting whether each time step in each
+            sequence in the batch is part of the sequence or not.  If None,
+            then it assumed that all sequences are of the same length.  If
+            not all sequences are of the same length, then it must be
+            supplied as a matrix of shape (n_batch, n_time_steps) where
+            `mask[i, j] = 1` when `j <= (length of sequence i)` and
+            `mask[i, j] = 0` when `j > (length of sequence i)`.
 
-        :returns:
-            - layer_output : theano.TensorType
-                Symbolic output variable
-        '''
+        Returns
+        -------
+        layer_output : theano.TensorType
+            Symbolic output variable
+        """
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
                                    T.prod(input.shape[2:])))
@@ -131,83 +156,138 @@ class CustomRecurrentLayer(Layer):
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
 
-        # Create single recurrent computation step function
-        def step(layer_input, hid_previous):
-            return self.nonlinearity(
-                self.input_to_hidden.get_output(layer_input) +
-                self.hidden_to_hidden.get_output(hid_previous))
+        # Because the input is given for all time steps, we can precompute
+        # the inputs to hidden before scanning. First we need to reshape
+        # from (seq_len, batch_size, num_inputs) to
+        # (seq_len*batch_size, num_inputs)
+        input = T.reshape(input,
+                          (self.seq_len*self.num_batch, -1))
+        input_dot_W = helper.get_output(
+            self.input_to_hidden, input, **kwargs)
 
-        def step_masked(layer_input, mask, hid_previous):
+        # reshape to original (seq_len, batch_size, num_units)
+        input_dot_W = T.reshape(input_dot_W,
+                                (self.seq_len, self.num_batch, -1))
+
+        # Create single recurrent computation step function
+        def step(input_dot_W_n, hid_previous, *args):
+            # For optimization reasons we need to replace the calculation
+            # performed by hidden_to_hidden with weight values that scan
+            # knows. The weights are given in args. We use theano.clone to
+            # replace the relevant variables. This allows us to use
+            # strict=True when calling theano.scan(...)
+            original_hid_pre = helper.get_output(
+                self.hidden_to_hidden, hid_previous, **kwargs)
+            original_params = helper.get_all_params(self.hidden_to_hidden)
+            new_params = args
+            new_hid_pre = theano.clone(
+                original_hid_pre,
+                replace=dict(zip(original_params, new_params)))
+
+            new_hid_pre += input_dot_W_n
+
+            # clip gradients
+            if self.grad_clipping is not False:
+                new_hid_pre = theano.gradient.grad_clip(
+                    new_hid_pre, -self.grad_clipping, self.grad_clipping)
+
+            return self.nonlinearity(new_hid_pre)
+
+        def step_masked(input_dot_W_n, mask_n, hid_previous, *args):
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
             # until the end of the sequence is found.
-            hid = (step(layer_input, hid_previous)*mask
-                   + hid_previous*(1 - mask))
-            return [hid]
+            hid = step(input_dot_W_n, hid_previous, *args)
+            hid_out = hid*mask_n + hid_previous*(1 - mask_n)
+            return [hid_out]
 
-        if self.backwards and mask is not None:
+        if mask is not None:
             mask = mask.dimshuffle(1, 0, 'x')
-            sequences = [input, mask]
+            sequences = [input_dot_W, mask]
             step_fun = step_masked
         else:
-            sequences = input
+            sequences = input_dot_W
             step_fun = step
 
-        output = theano.scan(step_fun, sequences=sequences,
-                             go_backwards=self.backwards,
-                             outputs_info=[self.hid_init],
-                             truncate_gradient=self.gradient_steps)[0]
+        if isinstance(self.hid_init, T.TensorVariable):
+            hid_init = self.hid_init
+        else:
+            # repeat num_batch times
+            hid_init = T.dot(T.ones((self.num_batch, 1)), self.hid_init)
 
-        # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
-        output = output.dimshuffle(1, 0, 2)
+        non_seqs = helper.get_all_params(self.hidden_to_hidden)
+        hid_out = theano.scan(
+            step_fun,
+            sequences=sequences,
+            go_backwards=self.backwards,
+            outputs_info=[hid_init],
+            non_sequences=non_seqs,
+            truncate_gradient=self.gradient_steps,
+            strict=True)[0]
 
+        # dimshuffle back to (n_batch, n_time_steps, n_features))
+        hid_out = hid_out.dimshuffle(1, 0, 2)
+
+        # if scan is backward reverse the output
         if self.backwards:
-            output = output[:, ::-1, :]
+            hid_out = hid_out[:, ::-1, :]
 
-        return output
+        self.hid_out = hid_out
+        return hid_out
 
 
 class RecurrentLayer(CustomRecurrentLayer):
-    '''
+    """
     A "vanilla" RNN layer, which has dense input-to-hidden and
     hidden-to-hidden connections.
 
-    Expects inputs of shape
-        (n_batch, n_time_steps, n_features_1, n_features_2, ...)
-    '''
-    def __init__(self, input_layer, num_units, W_in_to_hid=init.Uniform(),
-                 W_hid_to_hid=init.Uniform(), b=init.Constant(0.),
+    Parameters
+    ----------
+    incoming : a :class:`lasagne.layers.Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+    num_units : int
+        Number of hidden units in the layer
+    W_in_to_hid : function or np.ndarray or theano.shared
+        Initializer for input-to-hidden weight matrix
+    W_hid_to_hid : function or np.ndarray or theano.shared
+        Initializer for hidden-to-hidden weight matrix
+    b : function or np.ndarray or theano.shared
+        Initializer for bias vector
+    nonlinearity : function or theano.tensor.elemwise.Elemwise
+        Nonlinearity to apply when computing new state
+    hid_init : function, np.ndarray, theano.shared or TensorVariable
+        :math:`h_0`. Passing in a TensorVariable allows the user to specify
+        the value of hid_init. In this mode learn_init is ignored.
+    backwards : bool
+        If True, process the sequence backwards and then reverse the
+        output again such that the output from the layer is always
+        from x_1 to x_n.
+    learn_init : bool
+        If True, initial hidden values are learned. If hid_init or cell_init
+        are TensorVariables learn_init is ignored.
+    gradient_steps : int
+        Number of timesteps to include in backpropagated gradient
+        If -1, backpropagate through the entire sequence
+    grad_clipping: False or float
+        If float the gradient messages are clipped during the backward pass.
+        See [1]_ (p. 6) for further explanation.
+
+    References
+    ----------
+    .. [1] Alex Graves : Generating Sequences With Recurrent Neural
+           Networks
+    """
+    def __init__(self, incoming, num_units,
+                 W_in_to_hid=init.Uniform(),
+                 W_hid_to_hid=init.Uniform(),
+                 b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify,
-                 hid_init=init.Constant(0.), backwards=False,
-                 learn_init=False, gradient_steps=-1):
-        '''
-        Create a recurrent layer.
-
-        :parameters:
-            - input_layer : nntools.layers.Layer
-                Input to the recurrent layer
-            - num_units : int
-                Number of hidden units in the layer
-            - W_in_to_hid : function or np.ndarray or theano.shared
-                Initializer for input-to-hidden weight matrix
-            - W_hid_to_hid : function or np.ndarray or theano.shared
-                Initializer for hidden-to-hidden weight matrix
-            - b : function or np.ndarray or theano.shared
-                Initializer for bias vector
-            - nonlinearity : function or theano.tensor.elemwise.Elemwise
-                Nonlinearity to apply when computing new state
-            - hid_init : function or np.ndarray or theano.shared
-                Initial hidden state
-            - backwards : boolean
-                If True, process the sequence backwards
-            - learn_init : boolean
-                If True, initial hidden values are learned
-            - gradient_steps : int
-                Number of timesteps to include in backpropagated gradient
-                If -1, backpropagate through the entire sequence
-        '''
-
-        input_shape = input_layer.get_output_shape()
+                 hid_init=init.Constant(0.),
+                 backwards=False,
+                 learn_init=False,
+                 gradient_steps=-1,
+                 grad_clipping=False):
+        input_shape = helper.get_output_shape(incoming)
         n_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
         # so we need to remove the second dimension (the time dimension)
@@ -221,25 +301,94 @@ class RecurrentLayer(CustomRecurrentLayer):
                                 nonlinearity=None)
 
         super(RecurrentLayer, self).__init__(
-            input_layer, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
+            incoming, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
             hid_init=hid_init, backwards=backwards, learn_init=learn_init,
-            gradient_steps=gradient_steps)
+            gradient_steps=gradient_steps,
+            grad_clipping=grad_clipping)
 
 
 class LSTMLayer(Layer):
-    '''
+    """
     A long short-term memory (LSTM) layer.  Includes "peephole connections" and
-    forget gate.  Based on the definition in [#graves2014generating]_, which is
-    the current common definition. Gate names are taken from [#zaremba2014],
-    figure 1.
+    forget gate.  Based on the definition in [1]_, which is
+    the current common definition.
 
-    :references:
-        .. [#graves2014generating] Alex Graves, "Generating Sequences With
-            Recurrent Neural Networks"
-        .. [#zaremba2014] Wojciech Zaremba et al.,  "Recurrent neural network
-           regularization"
-    '''
-    def __init__(self, input_layer, num_units,
+    Parameters
+    ----------
+    incoming : a :class:`:class:`lasagne.layers.Layer`` instance or a tuple
+        The layer feeding into this layer, or the expected input shape.
+    num_units : int
+        Number of hidden units in the layer
+    W_in_to_ingate : function or np.ndarray or theano.shared
+        :math:`W_{xi}`
+    W_hid_to_ingate : function or np.ndarray or theano.shared
+        :math:`W_{hi}`
+    W_cell_to_ingate : function or np.ndarray or theano.shared
+        :math:`W_{ci}`
+    b_ingate : function or np.ndarray or theano.shared
+        :math:`b_i`
+    nonlinearity_ingate : function
+        :math:`\sigma`
+    W_in_to_forgetgate : function or np.ndarray or theano.shared
+        :math:`W_{xf}`
+    W_hid_to_forgetgate : function or np.ndarray or theano.shared
+        :math:`W_{hf}`
+    W_cell_to_forgetgate : function or np.ndarray or theano.shared
+        :math:`W_{cf}`
+    b_forgetgate : function or np.ndarray or theano.shared
+        :math:`b_f`
+    nonlinearity_forgetgate : function
+        :math:`\sigma`
+    W_in_to_cell : function or np.ndarray or theano.shared
+        :math:`W_{ic}`
+    W_hid_to_cell : function or np.ndarray or theano.shared
+        :math:`W_{hc}`
+    b_cell : function or np.ndarray or theano.shared
+        :math:`b_c`
+    nonlinearity_cell : function or np.ndarray or theano.shared
+        :math:`\tanh`
+    W_in_to_outgate : function or np.ndarray or theano.shared
+        :math:`W_{io}`
+    W_hid_to_outgate : function or np.ndarray or theano.shared
+        :math:`W_{ho}`
+    W_cell_to_outgate : function or np.ndarray or theano.shared
+        :math:`W_{co}`
+    b_outgate : function or np.ndarray or theano.shared
+        :math:`b_o`
+    nonlinearity_outgate : function
+        :math:`\sigma`
+    nonlinearity_out : function or np.ndarray or theano.shared
+        :math:`\tanh`
+    cell_init : function, np.ndarray, theano.shared or TensorVariable
+        :math:`c_0`. Passing in a TensorVariable allows the user to specify
+        the value of cell_init. In this mode learn_init is ignored.
+    hid_init : function, np.ndarray, theano.shared or TensorVariable
+        :math:`h_0`. Passing in a TensorVariable allows the user to specify
+        the value of hid_init. In this mode learn_init is ignored.
+    backwards : bool
+        If True, process the sequence backwards and then reverse the
+        output again such that the output from the layer is always
+        from x_1 to x_n.
+    learn_init : bool
+        If True, initial hidden values are learned. If hid_init or cell_init
+        are TensorVariables learn_init is ignored.
+    peepholes : bool
+        If True, the LSTM uses peephole connections.
+        When False, W_cell_to_ingate, W_cell_to_forgetgate and
+        W_cell_to_outgate are ignored.
+    gradient_steps : int
+        Number of timesteps to include in backpropagated gradient
+        If -1, backpropagate through the entire sequence
+    grad_clipping: False or float
+        If float the gradient messages are clipped during the backward pass.
+        See [1]_ (p. 6) for further explanation.
+
+    References
+    ----------
+    .. [1] Alex Graves : Generating Sequences With Recurrent Neural
+           Networks
+    """
+    def __init__(self, incoming, num_units,
                  W_in_to_ingate=init.Normal(0.1),
                  W_hid_to_ingate=init.Normal(0.1),
                  W_cell_to_ingate=init.Normal(0.1),
@@ -265,77 +414,11 @@ class LSTMLayer(Layer):
                  backwards=False,
                  learn_init=False,
                  peepholes=True,
-                 gradient_steps=-1):
-        '''
-        Initialize an LSTM layer.  For details on what the parameters mean, see
-        (7-11) from [#graves2014generating]_.
-
-        :parameters:
-            - input_layer : layers.Layer
-                Input to this recurrent layer
-            - num_units : int
-                Number of hidden units
-            - W_in_to_ingate : function or np.ndarray or theano.shared
-                :math:`W_{xi}`
-            - W_hid_to_ingate : function or np.ndarray or theano.shared
-                :math:`W_{hi}`
-            - W_cell_to_ingate : function or np.ndarray or theano.shared
-                :math:`W_{ci}`
-            - b_ingate : function or np.ndarray or theano.shared
-                :math:`b_i`
-            - nonlinearity_ingate : function
-                :math:`\sigma`
-            - W_in_to_forgetgate : function or np.ndarray or theano.shared
-                :math:`W_{xf}`
-            - W_hid_to_forgetgate : function or np.ndarray or theano.shared
-                :math:`W_{hf}`
-            - W_cell_to_forgetgate : function or np.ndarray or theano.shared
-                :math:`W_{cf}`
-            - b_forgetgate : function or np.ndarray or theano.shared
-                :math:`b_f`
-            - nonlinearity_forgetgate : function
-                :math:`\sigma`
-            - W_in_to_cell : function or np.ndarray or theano.shared
-                :math:`W_{ic}`
-            - W_hid_to_cell : function or np.ndarray or theano.shared
-                :math:`W_{hc}`
-            - b_cell : function or np.ndarray or theano.shared
-                :math:`b_c`
-            - nonlinearity_cell : function or np.ndarray or theano.shared
-                :math:`\tanh`
-            - W_in_to_outgate : function or np.ndarray or theano.shared
-                :math:`W_{io}`
-            - W_hid_to_outgate : function or np.ndarray or theano.shared
-                :math:`W_{ho}`
-            - W_cell_to_outgate : function or np.ndarray or theano.shared
-                :math:`W_{co}`
-            - b_outgate : function or np.ndarray or theano.shared
-                :math:`b_o`
-            - nonlinearity_outgate : function
-                :math:`\sigma`
-            - nonlinearity_out : function or np.ndarray or theano.shared
-                :math:`\tanh`
-            - cell_init : function or np.ndarray or theano.shared
-                :math:`c_0`
-            - hid_init : function or np.ndarray or theano.shared
-                :math:`h_0`
-            - backwards : boolean
-                If True, process the sequence backwards and then reverse the
-                output again such that the output from the layer is always
-                from x_1 to x_n.
-            - learn_init : boolean
-                If True, initial hidden values are learned
-            - peepholes : boolean
-                If True, the LSTM uses peephole connections.
-                When False, W_cell_to_ingate, W_cell_to_forgetgate and
-                W_cell_to_outgate are ignored.
-            - gradient_steps : int
-                Number of timesteps to include in backpropagated gradient
-                If -1, backpropagate through the entire sequence
-        '''
+                 gradient_steps=-1,
+                 grad_clipping=False):
 
         # Initialize parent layer
-        super(LSTMLayer, self).__init__(input_layer)
+        super(LSTMLayer, self).__init__(incoming)
 
         # For any of the nonlinearities, if None is supplied, use identity
         if nonlinearity_ingate is None:
@@ -368,190 +451,120 @@ class LSTMLayer(Layer):
         self.backwards = backwards
         self.peepholes = peepholes
         self.gradient_steps = gradient_steps
+        self.grad_clipping = grad_clipping
 
-        # Input dimensionality is the output dimensionality of the input layer
-        (num_batch, _, num_inputs) = self.input_layer.get_output_shape()
+        self.num_batch = self.input_shape[0]
+        num_inputs = np.prod(self.input_shape[2:])
 
         # Initialize parameters using the supplied args
-        self.W_in_to_ingate = self.create_param(
+        self.W_in_to_ingate = self.add_param(
             W_in_to_ingate, (num_inputs, num_units), name="W_in_to_ingate")
 
-        self.W_hid_to_ingate = self.create_param(
+        self.W_hid_to_ingate = self.add_param(
             W_hid_to_ingate, (num_units, num_units), name="W_hid_to_ingate")
 
-        self.b_ingate = self.create_param(
-            b_ingate, (num_units), name="b_ingate")
+        self.b_ingate = self.add_param(
+            b_ingate, (num_units,), name="b_ingate", regularizable=False)
 
-        self.W_in_to_forgetgate = self.create_param(
+        self.W_in_to_forgetgate = self.add_param(
             W_in_to_forgetgate, (num_inputs, num_units),
             name="W_in_to_forgetgate")
 
-        self.W_hid_to_forgetgate = self.create_param(
+        self.W_hid_to_forgetgate = self.add_param(
             W_hid_to_forgetgate, (num_units, num_units),
             name="W_hid_to_forgetgate")
 
-        self.b_forgetgate = self.create_param(
-            b_forgetgate, (num_units,), name="b_forgetgate")
+        self.b_forgetgate = self.add_param(
+            b_forgetgate, (num_units,), name="b_forgetgate",
+            regularizable=False)
 
-        self.W_in_to_cell = self.create_param(
+        self.W_in_to_cell = self.add_param(
             W_in_to_cell, (num_inputs, num_units), name="W_in_to_cell")
 
-        self.W_hid_to_cell = self.create_param(
+        self.W_hid_to_cell = self.add_param(
             W_hid_to_cell, (num_units, num_units), name="W_hid_to_cell")
 
-        self.b_cell = self.create_param(
-            b_cell, (num_units,), name="b_cell")
+        self.b_cell = self.add_param(
+            b_cell, (num_units,), name="b_cell", regularizable=False)
 
-        self.W_in_to_outgate = self.create_param(
+        self.W_in_to_outgate = self.add_param(
             W_in_to_outgate, (num_inputs, num_units), name="W_in_to_outgate")
 
-        self.W_hid_to_outgate = self.create_param(
+        self.W_hid_to_outgate = self.add_param(
             W_hid_to_outgate, (num_units, num_units), name="W_hid_to_outgate")
 
-        self.b_outgate = self.create_param(
-            b_outgate, (num_units,), name="b_outgate")
+        self.b_outgate = self.add_param(
+            b_outgate, (num_units,), name="b_outgate", regularizable=False)
 
         # Stack input to gate weight matrices into a (num_inputs, 4*num_units)
         # matrix, which speeds up computation
-        self.W_in_to_gates = utils.concatenate(
+        self.W_in_to_gates = T.concatenate(
             [self.W_in_to_ingate, self.W_in_to_forgetgate,
-            self.W_in_to_cell, self.W_in_to_outgate], axis=1)
+             self.W_in_to_cell, self.W_in_to_outgate], axis=1)
 
         # Same for hidden to gate weight matrices
-        self.W_hid_to_gates = utils.concatenate(
+        self.W_hid_to_gates = T.concatenate(
             [self.W_hid_to_ingate, self.W_hid_to_forgetgate,
-            self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
+             self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
 
         # Stack gate biases into a (4*num_units) vector
-        self.b_gates = utils.concatenate(
+        self.b_gates = T.concatenate(
             [self.b_ingate, self.b_forgetgate,
-            self.b_cell, self.b_outgate], axis=0)
+             self.b_cell, self.b_outgate], axis=0)
 
         # Initialize peephole (cell to gate) connections.  These are
         # elementwise products with the cell state, so they are represented as
         # vectors.
         if self.peepholes:
-            self.W_cell_to_ingate = self.create_param(
-                W_cell_to_ingate, (num_units), name="W_cell_to_ingate")
+            self.W_cell_to_ingate = self.add_param(
+                W_cell_to_ingate, (num_units, ), name="W_cell_to_ingate")
 
-            self.W_cell_to_forgetgate = self.create_param(
-                W_cell_to_forgetgate, (num_units), name="W_cell_to_forgetgate")
+            self.W_cell_to_forgetgate = self.add_param(
+                W_cell_to_forgetgate, (num_units, ),
+                name="W_cell_to_forgetgate")
 
-            self.W_cell_to_outgate = self.create_param(
-                W_cell_to_outgate, (num_units), name="W_cell_to_outgate")
+            self.W_cell_to_outgate = self.add_param(
+                W_cell_to_outgate, (num_units, ), name="W_cell_to_outgate")
 
         # Setup initial values for the cell and the hidden units
-        self.cell_init = self.create_param(
-            cell_init, (num_batch, num_units), name="cell_init")
-        self.hid_init = self.create_param(
-            hid_init, (num_batch, num_units), name="hid_init")
-
-    def get_params(self):
-        '''
-        Get all parameters of this layer.
-
-        :returns:
-            - params : list of theano.shared
-                List of all parameters
-        '''
-        params = self.get_weight_params() + self.get_bias_params()
-        if self.peepholes:
-            params.extend(self.get_peephole_params())
-
-        if self.learn_init:
-            params.extend(self.get_init_params())
-
-        return params
-
-    def get_weight_params(self):
-        '''
-        Get all weight matrix parameters of this layer
-
-        :returns:
-            - weight_params : list of theano.shared
-                List of all weight matrix parameters
-        '''
-        return [self.W_in_to_ingate,
-                self.W_hid_to_ingate,
-                self.W_in_to_forgetgate,
-                self.W_hid_to_forgetgate,
-                self.W_in_to_cell,
-                self.W_hid_to_cell,
-                self.W_in_to_outgate,
-                self.W_hid_to_outgate]
-
-    def get_peephole_params(self):
-        '''
-        Get all peephole connection parameters of this layer.
-
-        :returns:
-            - peephole_params : list of theano.shared
-                List of all peephole parameters.  If this LSTM layer doesn't
-                use peephole connections (peepholes=False), then an empty list
-                is returned.
-        '''
-        if self.peepholes:
-            return [self.W_cell_to_ingate,
-                    self.W_cell_to_forgetgate,
-                    self.W_cell_to_outgate]
+        if isinstance(cell_init, T.TensorVariable):
+            if cell_init.ndim != 2:
+                raise ValueError("When a tensor cell_init should be a matrix")
+            self.cell_init = cell_init
         else:
-            return []
+            self.cell_init = self.add_param(
+                cell_init, (1, num_units), name="cell_init",
+                trainable=learn_init, regularizable=False)
 
-    def get_init_params(self):
-        '''
-        Get all initital state parameters of this layer.
-
-        :returns:
-            - init_params : list of theano.shared
-                List of all initial parameters
-        '''
-        return [self.hid_init, self.cell_init]
-
-    def get_bias_params(self):
-        '''
-        Get all bias parameters of this layer.
-
-        :returns:
-            - bias_params : list of theano.shared
-                List of all bias parameters
-        '''
-        return [self.b_ingate, self.b_forgetgate,
-                self.b_cell, self.b_outgate]
+        if isinstance(hid_init, T.TensorVariable):
+            if hid_init.ndim != 2:
+                raise ValueError("When a tensor hid_init should be a matrix")
+            self.hid_init = hid_init
+        else:
+            self.hid_init = self.add_param(
+                hid_init, (1, self.num_units), name="hid_init",
+                trainable=learn_init, regularizable=False)
 
     def get_output_shape_for(self, input_shape):
-        '''
-        Compute the expected output shape given the input.
+        return input_shape[0], input_shape[1], self.num_units
 
-        :parameters:
-            - input_shape : tuple
-                Dimensionality of expected input
-
-        :returns:
-            - output_shape : tuple
-                Dimensionality of expected outputs given input_shape
-        '''
-        return (input_shape[0], input_shape[1], self.num_units)
-
-    def get_output_for(self, input, mask=None, *args, **kwargs):
-        '''
+    def get_output_for(self, input, mask=None, **kwargs):
+        """
         Compute this layer's output function given a symbolic input variable
 
-        :parameters:
-            - input : theano.TensorType
-                Symbolic input variable
-            - mask : theano.TensorType
-                Theano variable denoting whether each time step in each
-                sequence in the batch is part of the sequence or not.  If None,
-                then it assumed that all sequences are of the same length.  If
-                not all sequences are of the same length, then it must be
-                supplied as a matrix of shape (n_batch, n_time_steps) where
-                `mask[i, j] = 1` when `j <= (length of sequence i)` and
-                `mask[i, j] = 0` when `j > (length of sequence i)`.
-
-        :returns:
-            - layer_output : theano.TensorType
-                Symbolic output variable
-        '''
+        Parameters
+        ----------
+        input : theano.TensorType
+            Symbolic input variable
+        mask : theano.TensorType
+            Theano variable denoting whether each time step in each
+            sequence in the batch is part of the sequence or not.  If None,
+            then it assumed that all sequences are of the same length.  If
+            not all sequences are of the same length, then it must be
+            supplied as a matrix of shape (n_batch, n_time_steps) where
+            `mask[i, j] = 1` when `j <= (length of sequence i)` and
+            `mask[i, j] = 0` when `j > (length of sequence i)`.
+        """
         # Treat all layers after the first as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
@@ -568,13 +581,13 @@ class LSTMLayer(Layer):
         # (n_time_steps, n_batch, 4*num_units).
         input_dot_W = T.dot(input, self.W_in_to_gates) + self.b_gates
 
-        # input_dot_w is (n_batch, n_time_steps, 4*num_units). We define a
+        # input_dot_W is (n_batch, n_time_steps, 4*num_units). We define a
         # slicing function that extract the input to each LSTM gate
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
 
         # Create single recurrent computation step function
-        # input_dot_W_n is the n'th timestep of the input, dotted with W
+        # input_dot_W_n is the nth timestep of the input, dotted with W
         # The step function calculates the following:
         #
         # i_t = \sigma(W_{xi}x_t + W_{hi}h_{t-1} + W_{ci}c_{t-1} + b_i)
@@ -582,10 +595,22 @@ class LSTMLayer(Layer):
         # c_t = f_tc_{t - 1} + i_t\tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c)
         # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
         # h_t = o_t \tanh(c_t)
-        def step(input_dot_W_n, cell_previous, hid_previous):
+        def step(input_dot_W_n, cell_previous, hid_previous, W_hid_to_gates,
+                 *args):
+
+            if self.peepholes:
+                [W_cell_to_ingate,
+                 W_cell_to_forgetgate,
+                 W_cell_to_outgate] = args
 
             # Calculate gates pre-activations and slice
-            gates = input_dot_W_n + T.dot(hid_previous, self.W_hid_to_gates)
+            gates = input_dot_W_n + T.dot(hid_previous, W_hid_to_gates)
+
+            # clip gradients
+            if self.grad_clipping is not False:
+                gates = theano.gradient.grad_clip(
+                    gates, -self.grad_clipping, self.grad_clipping)
+
             # Extract the pre-activation gate values
             ingate = slice_w(gates, 0)
             forgetgate = slice_w(gates, 1)
@@ -594,8 +619,8 @@ class LSTMLayer(Layer):
 
             if self.peepholes:
                 # Compute peephole connections
-                ingate += cell_previous*self.W_cell_to_ingate
-                forgetgate += cell_previous*self.W_cell_to_forgetgate
+                ingate += cell_previous*W_cell_to_ingate
+                forgetgate += cell_previous*W_cell_to_forgetgate
 
             # Apply nonlinearities
             ingate = self.nonlinearity_ingate(ingate)
@@ -606,25 +631,28 @@ class LSTMLayer(Layer):
             # Compute new cell value
             cell = forgetgate*cell_previous + ingate*cell_input
             if self.peepholes:
-                outgate += cell*self.W_cell_to_outgate
+                outgate += cell*W_cell_to_outgate
+
             # Compute new hidden unit activation
             hid = outgate*self.nonlinearity_out(cell)
             return [cell, hid]
 
-        def step_masked(input_dot_W_n, mask, cell_previous, hid_previous):
+        def step_masked(input_dot_W_n, mask_n, cell_previous, hid_previous,
+                        W_hid_to_gates, *args):
 
-            cell, hid = step(input_dot_W_n, cell_previous, hid_previous)
+            cell, hid = step(input_dot_W_n, cell_previous, hid_previous,
+                             W_hid_to_gates, *args)
 
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
             # until the end of the sequence is found.
-            not_mask = 1 - mask
-            cell = cell*mask + cell_previous*not_mask
-            hid = hid*mask + hid_previous*not_mask
+            not_mask = 1 - mask_n
+            cell = cell*mask_n + cell_previous*not_mask
+            hid = hid*mask_n + hid_previous*not_mask
 
             return [cell, hid]
 
-        if self.backwards and mask is not None:
+        if mask is not None:
             # mask is given as (batch_size, seq_len). Because scan iterates
             # over first dimension, we dimshuffle to (seq_len, batch_size) and
             # add a broadcastable dimension
@@ -635,18 +663,45 @@ class LSTMLayer(Layer):
             sequences = input_dot_W
             step_fun = step
 
+        ones = T.ones((self.num_batch, 1))
+        if isinstance(self.cell_init, T.TensorVariable):
+            cell_init = self.cell_init
+        else:
+            cell_init = T.dot(ones, self.cell_init)  # repeat num_batch times
+
+        if isinstance(self.hid_init, T.TensorVariable):
+            hid_init = self.hid_init
+        else:
+            hid_init = T.dot(ones, self.hid_init)  # repeat num_batch times
+
+        non_seqs = [self.W_hid_to_gates]
+
+        if self.peepholes:
+            non_seqs += [self.W_cell_to_ingate,
+                         self.W_cell_to_forgetgate,
+                         self.W_cell_to_outgate]
+
         # Scan op iterates over first dimension of input and repeatedly
         # applies the step function
-        output = theano.scan(step_fun, sequences=sequences,
-                             outputs_info=[self.cell_init, self.hid_init],
-                             go_backwards=self.backwards,
-                             truncate_gradient=self.gradient_steps)[0][1]
+        cell_out, hid_out = theano.scan(
+            step_fun,
+            sequences=sequences,
+            outputs_info=[cell_init, hid_init],
+            go_backwards=self.backwards,
+            truncate_gradient=self.gradient_steps,
+            non_sequences=non_seqs,
+            strict=True)[0]
 
-        # Now, dimshuffle back to (n_batch, n_time_steps, n_features))
-        output = output.dimshuffle(1, 0, 2)
+        # dimshuffle back to (n_batch, n_time_steps, n_features))
+        hid_out = hid_out.dimshuffle(1, 0, 2)
+        cell_out = cell_out.dimshuffle(1, 0, 2)
 
         # if scan is backward reverse the output
         if self.backwards:
-            output = output[:, ::-1, :]
+            hid_out = hid_out[:, ::-1]
+            cell_out = cell_out[:, ::-1]
 
-        return output
+        self.hid_out = hid_out
+        self.cell_out = cell_out
+
+        return hid_out

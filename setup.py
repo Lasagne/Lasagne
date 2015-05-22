@@ -1,8 +1,7 @@
 import os
 from setuptools import find_packages
 from setuptools import setup
-
-version = '0.1dev'
+import versioneer
 
 here = os.path.abspath(os.path.dirname(__file__))
 try:
@@ -30,7 +29,8 @@ docs_require = [
 
 setup(
     name="Lasagne",
-    version=version,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     description="neural network tools for Theano",
     long_description="\n\n".join([README, CHANGES]),
     classifiers=[

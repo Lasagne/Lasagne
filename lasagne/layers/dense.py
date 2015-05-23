@@ -187,11 +187,13 @@ class NINLayer(Layer):
         self.W = self.add_param(W, (num_input_channels, num_units), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_units,) + self.output_shape[2:]
         else:
-            biases_shape = (num_units,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_units,) + self.output_shape[2:]
+            else:
+                biases_shape = (num_units,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units) + input_shape[2:]

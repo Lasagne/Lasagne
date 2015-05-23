@@ -99,8 +99,8 @@ class TestDenseLayer:
         # Check that the input to the nonlinearity was what we expect
         # from dense layer, i.e. the dot product plus bias
         nonlinearity_arg = nonlinearity.call_args[0][0]
-        assert (nonlinearity_arg.eval() ==
-                np.dot(input.get_value().reshape(2, -1), W) + b).all()
+        assert np.allclose(nonlinearity_arg.eval(),
+                           np.dot(input.get_value().reshape(2, -1), W) + b)
 
     def test_param_names(self, layer):
         assert layer.W.name == "W"
@@ -270,7 +270,7 @@ class TestNINLayer:
             else:
                 X += layer.b.get_value()
         X = np.rollaxis(X.T, 0, 2)
-        assert (nonlinearity_arg.eval() == X).all()
+        assert np.allclose(nonlinearity_arg.eval(), X)
 
     def test_param_names(self, layer):
         assert layer.W.name == "W"

@@ -236,9 +236,6 @@ class DimshuffleLayer(Layer):
             elif p == 'x':
                 # Broadcast; will be of size 1
                 o = 1
-            else:  # pragma no cover
-                raise RuntimeError("invalid pattern entry, should have "
-                                   "caught in the constructor")
             output_shape.append(o)
 
         for i, (dim_size, used) in enumerate(zip(input_shape, dims_used)):

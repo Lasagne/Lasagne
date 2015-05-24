@@ -4,6 +4,35 @@ import numpy as np
 import theano
 
 
+def test_shared_empty():
+    from lasagne.utils import shared_empty
+
+    X = shared_empty(3)
+    assert (np.zeros((1, 1, 1)) == X.eval()).all()
+
+
+def test_as_theano_expression_fails():
+    from lasagne.utils import as_theano_expression
+    with pytest.raises(TypeError):
+        as_theano_expression({})
+
+
+def test_one_hot():
+    from lasagne.utils import one_hot
+    a = np.random.randint(0, 10, 20)
+    b = np.zeros((a.size, a.max()+1))
+    b[np.arange(a.size), a] = 1
+
+    result = one_hot(a).eval()
+    assert (result == b).all()
+
+
+def test_as_tuple_fails():
+    from lasagne.utils import as_tuple
+    with pytest.raises(ValueError):
+        as_tuple([1, 2, 3], 4)
+
+
 def test_compute_norms():
     from lasagne.utils import compute_norms
 
@@ -35,6 +64,22 @@ def test_compute_norms_ndim6_raises():
         compute_norms(array)
 
     assert "Unsupported tensor dimensionality" in str(excinfo.value)
+
+
+def test_create_param_bad_callable_raises():
+    from lasagne.utils import create_param
+
+    with pytest.raises(RuntimeError):
+        create_param(lambda x: {}, (1, 2, 3))
+    with pytest.raises(RuntimeError):
+        create_param(lambda x: np.array(1), (1, 2, 3))
+
+
+def test_create_param_bad_spec_raises():
+    from lasagne.utils import create_param
+
+    with pytest.raises(RuntimeError):
+        create_param({}, (1, 2, 3))
 
 
 def test_create_param_numpy_bad_shape_raises_error():

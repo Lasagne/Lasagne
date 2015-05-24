@@ -124,8 +124,7 @@ class TestNonlinearityLayer:
         return NonlinearityLayer
 
     @pytest.fixture
-    def layer_vars(self, dummy_input_layer):
-        from lasagne.layers.dense import NonlinearityLayer
+    def layer_vars(self, NonlinearityLayer, dummy_input_layer):
         nonlinearity = Mock()
 
         layer = NonlinearityLayer(
@@ -154,8 +153,9 @@ class TestNonlinearityLayer:
         layer = layer_vars['layer']
         nonlinearity = layer_vars['nonlinearity']
 
-        input = theano.shared(np.random.uniform(-1, 1, (2, 12)))
+        input = theano.tensor.matrix()
         result = layer.get_output_for(input)
+        nonlinearity.assert_called_with(input)
         assert result is nonlinearity.return_value
 
 
@@ -176,8 +176,7 @@ class TestNINLayer:
         return NINLayer
 
     @pytest.fixture
-    def layer_vars(self, dummy_input_layer):
-        from lasagne.layers.dense import NINLayer
+    def layer_vars(self, NINLayer, dummy_input_layer):
         W = Mock()
         b = Mock()
         nonlinearity = Mock()

@@ -559,7 +559,7 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
         t = t_prev + 1
         m_t = beta1*m_prev + (1-beta1)*g_t
         v_t = beta2*v_prev + (1-beta2)*g_t**2
-        a_t = learning_rate*T.sqrt(1-beta2**2)/(1-beta1**2)
+        a_t = learning_rate*T.sqrt(1-beta2**t)/(1-beta1**t)
         step = a_t*m_t/(T.sqrt(v_t) + epsilon)
 
         updates.append((m_prev, m_t))

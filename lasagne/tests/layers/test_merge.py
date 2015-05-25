@@ -10,6 +10,11 @@ class TestConcatLayer:
         from lasagne.layers.merge import ConcatLayer
         return ConcatLayer([Mock(), Mock()], axis=1)
 
+    def test_get_output_shape_for(self, layer):
+        input_shapes = [(3, 2), (3, 5)]
+        result = layer.get_output_shape_for(input_shapes)
+        assert result == (3, 7)
+
     def test_get_output_for(self, layer):
         inputs = [theano.shared(numpy.ones((3, 3))),
                   theano.shared(numpy.ones((3, 2)))]
@@ -34,3 +39,13 @@ class TestElemwiseSumLayer:
         result_eval = result.eval()
         desired_result = 2*a - b
         assert (result_eval == desired_result).all()
+
+    def test_bad_coeffs_fails(self, layer):
+        from lasagne.layers.merge import ElemwiseSumLayer
+        with pytest.raises(ValueError):
+            ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, 3, -1])
+
+    def test_get_output_shape_for_fails(self, layer):
+        input_shapes = [(3, 2), (3, 5)]
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for(input_shapes)

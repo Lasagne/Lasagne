@@ -1,6 +1,44 @@
-import numpy
+import numpy as np
 import pytest
 import theano
+
+from mock import Mock
+
+
+class TestFlattenLayer:
+    @pytest.fixture
+    def layer(self):
+        from lasagne.layers.shape import FlattenLayer
+        return FlattenLayer(Mock())
+
+    def test_get_output_shape_for(self, layer):
+        input_shape = (2, 3, 4, 5)
+        assert layer.get_output_shape_for(input_shape) == (2, 3 * 4 * 5)
+
+    def test_get_output_for(self, layer):
+        input = np.random.random((2, 3, 4, 5))
+        result = layer.get_output_for(theano.shared(input)).eval()
+        assert (result == input.reshape((input.shape[0], -1))).all()
+
+
+class TestPadLayer:
+    @pytest.fixture
+    def layer(self):
+        from lasagne.layers.shape import PadLayer
+        return PadLayer(Mock(), width=2)
+
+    def test_get_output_shape_for(self, layer):
+        input_shape = (2, 3, 4, 5)
+        output_shape = (2, 3, 8, 9)
+
+        assert layer.get_output_shape_for(input_shape) == output_shape
+
+    def test_get_output_for(self, layer):
+        input = np.zeros((1, 2, 10))
+        trimmed = theano.shared(input[:, :, 2:-2])
+        result = layer.get_output_for(trimmed).eval()
+
+        assert (result == input).all()
 
 
 class TestReshapeLayer:
@@ -14,7 +52,7 @@ class TestReshapeLayer:
         from lasagne.layers.input import InputLayer
         shape = (16, 3, None, None, 10)
         return (InputLayer(shape),
-                theano.shared(numpy.ones((16, 3, 5, 7, 10))))
+                theano.shared(np.ones((16, 3, 5, 7, 10))))
 
     def test_no_reference(self, layerclass, two_unknown):
         inputlayer, inputdata = two_unknown
@@ -102,25 +140,13 @@ class TestDimshuffleLayer:
         return (2, 3, None, 5, 7)
 
     @pytest.fixture
-    def input_var(self):
-        InputTensorType = theano.tensor.TensorType(
-            'float64', broadcastable=(False, False, True, False, False),
-            name='DimShuffleTestTensor')
-        return InputTensorType(name='x')
-
-    @pytest.fixture
-    def input_layer(self, input_shape, input_var):
-        from lasagne.layers.input import InputLayer
-        return InputLayer(input_shape, input_var)
-
-    @pytest.fixture
     def input_layer_with_None(self, input_shape_with_None, input_var):
         from lasagne.layers.input import InputLayer
         return InputLayer(input_shape_with_None, input_var)
 
     @pytest.fixture
     def input_data(self, input_shape):
-        return numpy.ones(input_shape)
+        return np.ones(input_shape)
 
     def test_rearrange(self, input_data, input_var, input_layer):
         from lasagne.layers.shape import DimshuffleLayer
@@ -175,7 +201,7 @@ def test_slice_layer():
     l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=slice(3, 5))
     l_slice_ax2 = SliceLayer(l_inp, axis=-1, indices=-1)
 
-    x = numpy.arange(numpy.prod(in_shp)).reshape(in_shp).astype('float32')
+    x = np.arange(np.prod(in_shp)).reshape(in_shp).astype('float32')
     x1 = x[0]
     x2 = x[:, 3:5]
     x3 = x[:, :, -1]

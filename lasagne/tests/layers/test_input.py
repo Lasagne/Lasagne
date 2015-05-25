@@ -1,4 +1,3 @@
-import numpy
 import pytest
 import theano
 
@@ -25,3 +24,10 @@ class TestInputLayer:
 
     def test_get_params(self, layer):
         assert layer.get_params() == []
+
+    def test_bad_shape_fails(self):
+        from lasagne.layers.input import InputLayer
+        input_var = theano.tensor.tensor4()
+
+        with pytest.raises(ValueError):
+            InputLayer((3, 2), input_var)

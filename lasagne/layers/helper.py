@@ -116,7 +116,7 @@ def get_all_layers(layer, treat_as_input=None):
     return result
 
 
-def get_all_layers_old(layer):
+def get_all_layers_old(layer):  # pragma no cover
     """
     Earlier implementation of `get_all_layers()` that does a breadth-first
     search. Kept here to ease converting old models that rely on the order of
@@ -358,7 +358,7 @@ def get_all_params(layer, **tags):
     return utils.unique(params)
 
 
-def get_all_bias_params(layer):
+def get_all_bias_params(layer):  # pragma no cover
     import warnings
     warnings.warn("get_all_bias_params(layer) is deprecated and will be "
                   "removed for the first release of Lasagne. Please use "
@@ -366,7 +366,7 @@ def get_all_bias_params(layer):
     return get_all_params(layer, regularizable=False)
 
 
-def get_all_non_bias_params(layer):
+def get_all_non_bias_params(layer):  # pragma no cover
     import warnings
     warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
                   "removed for the first release of Lasagne. Please use "

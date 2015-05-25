@@ -98,7 +98,7 @@ class Layer(object):
         import warnings
         warnings.warn("layer.get_output_shape() is deprecated and will be "
                       "removed for the first release of Lasagne. Please use "
-                      "layer.output_shape instead.")
+                      "layer.output_shape instead.", stacklevel=2)
         return self.output_shape
 
     def get_output(self, input=None, **kwargs):  # pragma: no cover
@@ -108,7 +108,8 @@ class Layer(object):
         import warnings
         warnings.warn("layer.get_output(...) is deprecated and will be "
                       "removed for the first release of Lasagne. Please use "
-                      "lasagne.layers.get_output(layer, ...) instead.")
+                      "lasagne.layers.get_output(layer, ...) instead.",
+                      stacklevel=2)
         from .helper import get_output
         return get_output(self, input, **kwargs)
 
@@ -237,7 +238,8 @@ class Layer(object):
         import warnings
         warnings.warn("layer.get_bias_params() is deprecated and will be "
                       "removed for the first release of Lasagne. Please use "
-                      "layer.get_params(regularizable=False) instead.")
+                      "layer.get_params(regularizable=False) instead.",
+                      stacklevel=2)
         return self.get_params(regularizable=False)
 
 

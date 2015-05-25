@@ -88,6 +88,12 @@ class TestFeaturePoolLayer:
             axis=axis,
         )
 
+    def test_init_raises(self):
+        input_layer = self.input_layer((2, 3, 4))
+
+        with pytest.raises(ValueError):
+            self.layer(input_layer, pool_size=2, axis=1)
+
     @pytest.mark.parametrize(
         "pool_size, axis", list(pool_test_sets()))
     def test_layer(self, pool_size, axis):
@@ -143,17 +149,19 @@ class TestMaxPool1DLayer:
 
     @pytest.mark.parametrize(
         "pool_size, stride", list(pool_test_sets()))
-    def test_get_output_for(self, pool_size, stride):
+    def test_get_output_and_shape_for(self, pool_size, stride):
         input = floatX(np.random.randn(8, 16, 23))
         input_layer = self.input_layer(input.shape)
         input_theano = theano.shared(input)
-        layer_output = self.layer(
-            input_layer, pool_size, stride).get_output_for(input_theano)
 
+        layer = self.layer(input_layer, pool_size, stride)
+        layer_output_shape = layer.get_output_shape_for(input.shape)
+        layer_output = layer.get_output_for(input_theano)
         layer_result = layer_output.eval()
+
         numpy_result = max_pool_1d(input, pool_size, stride)
 
-        assert np.all(numpy_result.shape == layer_result.shape)
+        assert numpy_result.shape == layer_output_shape
         assert np.allclose(numpy_result, layer_result)
 
     @pytest.mark.parametrize(
@@ -177,6 +185,7 @@ class TestMaxPool1DLayer:
         input_layer = self.input_layer(input_shape)
         layer = self.layer_ignoreborder(input_layer, pool_size=2)
         assert layer.get_output_shape_for((None, 64, 128)) == (None, 64, 64)
+        assert layer.get_output_shape_for((32, 64, None)) == (32, 64, None)
         assert layer.get_output_shape_for((32, 64, 128)) == (32, 64, 64)
 
 
@@ -395,3 +404,55 @@ class TestMaxPool2DNNLayer:
         except NotImplementedError:
             raise
         #    pytest.skip()
+
+
+class TestFeatureWTALayer(object):
+    @pytest.fixture
+    def FeatureWTALayer(self):
+        from lasagne.layers.pool import FeatureWTALayer
+        return FeatureWTALayer
+
+    @pytest.fixture
+    def input_layer(self):
+        from lasagne.layers.input import InputLayer
+        return InputLayer((2, 4, 8))
+
+    @pytest.fixture
+    def layer(self, FeatureWTALayer, input_layer):
+        return FeatureWTALayer(input_layer, pool_size=2)
+
+    def test_init_raises(self, FeatureWTALayer, input_layer):
+        with pytest.raises(ValueError):
+            FeatureWTALayer(input_layer, pool_size=3)
+
+    def test_get_output_for(self, layer):
+        input = theano.shared(np.random.uniform(-1, 1, (2, 4, 8)))
+        result = layer.get_output_for(input).eval()
+
+        reshaped = input.get_value().reshape((2, 2, 2, 8))
+        np_result = reshaped * (reshaped == reshaped.max(2, keepdims=True))
+        np_result = np_result.reshape((2, 4, 8))
+
+        assert np.allclose(result, np_result)
+
+
+class TestGlobalPoolLayer(object):
+    @pytest.fixture
+    def GlobalPoolLayer(self):
+        from lasagne.layers.pool import GlobalPoolLayer
+        return GlobalPoolLayer
+
+    @pytest.fixture
+    def layer(self, GlobalPoolLayer):
+        return GlobalPoolLayer(Mock())
+
+    def test_get_output_shape_for(self, layer):
+        assert layer.get_output_shape_for((2, 3, 4, 5)) == (2, 3)
+
+    def test_get_output_for(self, layer):
+        input = theano.shared(np.random.uniform(-1, 1, (2, 3, 4, 5)))
+        result = layer.get_output_for(input).eval()
+
+        np_result = input.get_value().reshape((2, 3, -1)).mean(-1)
+
+        assert np.allclose(result, np_result)

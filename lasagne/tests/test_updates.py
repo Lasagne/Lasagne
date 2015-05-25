@@ -1,14 +1,16 @@
 import pytest
 import numpy as np
 import theano
+import theano.tensor as T
 import lasagne
 
 PCT_TOLERANCE = 1E-5
 
 
 class TestUpdateFunctions(object):
-    # These tests compare results on a toy problem
-    # to values calculated by the torch.optim package
+    # These tests compare results on a toy problem to values
+    # calculated by the torch.optim package, using this script:
+    # https://gist.github.com/ebenolson/931e879ed38f257253d2
     torch_values = {'sgd': [0.81707280688755,
                             0.6648326359915,
                             0.5386151140949],
@@ -60,7 +62,23 @@ class TestUpdateFunctions(object):
         assert np.allclose(A.get_value(), self.torch_values[method])
 
 
-def test_norm_constraint():
+def test_get_or_compute_grads_raises():
+
+    from lasagne.updates import get_or_compute_grads
+
+    A = T.scalar()
+    B = T.scalar()
+    loss = A + B
+    grads = get_or_compute_grads(loss, [A, B])
+
+    assert get_or_compute_grads(grads, [A, B]) is grads
+
+    with pytest.raises(ValueError):
+        get_or_compute_grads(grads, [A])
+
+
+@pytest.mark.parametrize('ndim', [2, 3])
+def test_norm_constraint(ndim):
     import numpy as np
     import theano
     from lasagne.updates import norm_constraint
@@ -69,7 +87,7 @@ def test_norm_constraint():
     max_norm = 0.01
 
     param = theano.shared(
-        np.random.randn(100, 200).astype(theano.config.floatX)
+        np.random.randn(*((25,) * ndim)).astype(theano.config.floatX)
     )
 
     update = norm_constraint(param, max_norm)
@@ -79,7 +97,7 @@ def test_norm_constraint():
 
     assert param.dtype == update.dtype
     assert (np.max(compute_norms(param.get_value())) <=
-            max_norm*(1 + PCT_TOLERANCE))
+            max_norm * (1 + PCT_TOLERANCE))
 
 
 def test_norm_constraint_norm_axes():
@@ -121,7 +139,7 @@ def test_norm_constraint_dim6_raises():
     assert "Unsupported tensor dimensionality" in str(excinfo.value)
 
 
-def total_norm_constraint():
+def test_total_norm_constraint():
     import numpy as np
     import theano
     import theano.tensor as T

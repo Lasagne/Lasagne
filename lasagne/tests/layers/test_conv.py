@@ -124,7 +124,7 @@ class TestConv1DLayer:
         with pytest.raises(RuntimeError) as exc:
             layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
                                 border_mode='_nonexistent_mode')
-        assert "Invalid border mode" in exc.value.message
+        assert "Invalid border mode" in exc.value.args[0]
 
 
 class TestConv2DLayerImplementations:
@@ -221,7 +221,7 @@ class TestConv2DLayerImplementations:
         with pytest.raises(RuntimeError) as exc:
             layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
                                border_mode='_nonexistent_mode')
-        assert "Invalid border mode" in exc.value.message
+        assert "Invalid border mode" in exc.value.args[0]
 
 
 class TestConvOutputLength:
@@ -229,4 +229,4 @@ class TestConvOutputLength:
         from lasagne.layers.conv import conv_output_length
         with pytest.raises(RuntimeError) as exc:
             conv_output_length(5, 3, 1, border_mode='_nonexistent_mode')
-        assert "Invalid border mode" in exc.value.message
+        assert "Invalid border mode" in exc.value.args[0]

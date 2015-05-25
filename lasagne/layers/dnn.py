@@ -244,8 +244,7 @@ class Conv2DDNNLayer(DNNLayer):
                             (self.filter_size[1] - 1) // 2)
                 self.border_mode = None
             else:
-                raise RuntimeError("Unsupported border_mode for "
-                                   "Conv2DDNNLayer: %s" % border_mode)
+                raise RuntimeError("Invalid border mode: '%s'" % border_mode)
         else:
             self.pad = as_tuple(pad, 2)
             self.border_mode = None
@@ -253,12 +252,14 @@ class Conv2DDNNLayer(DNNLayer):
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_filters, self.output_shape[2],
-                            self.output_shape[3])
         else:
-            biases_shape = (num_filters,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_filters, self.output_shape[2],
+                                self.output_shape[3])
+            else:
+                biases_shape = (num_filters,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]

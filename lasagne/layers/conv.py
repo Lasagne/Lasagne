@@ -203,14 +203,19 @@ class Conv1DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
+        if self.border_mode not in ['valid', 'full', 'same']:
+            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_filters, self.output_shape[2])
         else:
-            biases_shape = (num_filters,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_filters, self.output_shape[2])
+            else:
+                biases_shape = (num_filters,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
     def get_W_shape(self):
         """Get the shape of the weight matrix `W`.
@@ -256,8 +261,6 @@ class Conv1DLayer(Layer):
                                       border_mode='full')
             shift = (self.filter_size[0] - 1) // 2
             conved = conved[:, :, shift:input.shape[2] + shift]
-        else:
-            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
         if self.b is None:
             activation = conved
@@ -382,15 +385,20 @@ class Conv2DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
+        if self.border_mode not in ['valid', 'full', 'same']:
+            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
+
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_filters, self.output_shape[2], self.
-                            output_shape[3])
         else:
-            biases_shape = (num_filters,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_filters, self.output_shape[2], self.
+                                output_shape[3])
+            else:
+                biases_shape = (num_filters,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
     def get_W_shape(self):
         """Get the shape of the weight matrix `W`.
@@ -444,8 +452,6 @@ class Conv2DLayer(Layer):
             shift_y = (self.filter_size[1] - 1) // 2
             conved = conved[:, :, shift_x:input.shape[2] + shift_x,
                             shift_y:input.shape[3] + shift_y]
-        else:
-            raise RuntimeError("Invalid border mode: '%s'" % self.border_mode)
 
         if self.b is None:
             activation = conved

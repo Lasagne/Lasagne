@@ -3,8 +3,10 @@ import numpy as np
 import pytest
 import importlib
 import theano
+import theano.tensor as T
 from theano.tensor.nnet import conv2d
 
+import lasagne
 from lasagne.utils import floatX
 
 
@@ -108,6 +110,22 @@ class TestConv1DLayer:
         except NotImplementedError:
             pass
 
+    def test_init_none_nonlinearity_bias(self, DummyInputLayer):
+        from lasagne.layers.conv import Conv1DLayer
+        input_layer = DummyInputLayer((1, 2, 3))
+        layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
+                            nonlinearity=None, b=None)
+        assert layer.nonlinearity == lasagne.nonlinearities.identity
+        assert layer.b is None
+
+    def test_invalid_border_mode(self, DummyInputLayer):
+        from lasagne.layers.conv import Conv1DLayer
+        input_layer = DummyInputLayer((1, 2, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
+                                border_mode='_nonexistent_mode')
+        assert "Invalid border mode" in exc.value.message
+
 
 class TestConv2DLayerImplementations:
 
@@ -190,3 +208,25 @@ class TestConv2DLayerImplementations:
 
         except NotImplementedError:
             pytest.skip()
+
+    def test_init_none_nonlinearity_bias(self, Conv2DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((1, 2, 3, 3))
+        layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
+                           nonlinearity=None, b=None)
+        assert layer.nonlinearity == lasagne.nonlinearities.identity
+        assert layer.b is None
+
+    def test_invalid_border_mode(self, Conv2DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((1, 2, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
+                               border_mode='_nonexistent_mode')
+        assert "Invalid border mode" in exc.value.message
+
+
+class TestConvOutputLength:
+    def test_invalid_border_mode(self):
+        from lasagne.layers.conv import conv_output_length
+        with pytest.raises(RuntimeError) as exc:
+            conv_output_length(5, 3, 1, border_mode='_nonexistent_mode')
+        assert "Invalid border mode" in exc.value.message

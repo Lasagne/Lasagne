@@ -254,8 +254,7 @@ class Conv2DCCLayer(CCLayer):
                 # is probably not worth supporting.
                 self.pad = (self.filter_size - 1) // 2
             else:
-                raise RuntimeError("Unsupported border_mode for "
-                                   "Conv2DCCLayer: %s" % border_mode)
+                raise RuntimeError("Invalid border mode: '%s'" % border_mode)
         else:
             self.pad = pad
 
@@ -268,16 +267,18 @@ class Conv2DCCLayer(CCLayer):
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            if self.dimshuffle:
-                biases_shape = (num_filters, self.output_shape[2],
-                                self.output_shape[3])
-            else:
-                biases_shape = (num_filters, self.output_shape[1],
-                                self.output_shape[2])
         else:
-            biases_shape = (num_filters,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                if self.dimshuffle:
+                    biases_shape = (num_filters, self.output_shape[2],
+                                    self.output_shape[3])
+                else:
+                    biases_shape = (num_filters, self.output_shape[1],
+                                    self.output_shape[2])
+            else:
+                biases_shape = (num_filters,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
         self.filter_acts_op = FilterActs(
             stride=self.stride, partial_sum=self.partial_sum, pad=self.pad)

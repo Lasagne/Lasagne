@@ -167,20 +167,21 @@ class Conv2DMMLayer(MMLayer):
                 self.pad = ((self.filter_size[0] - 1) // 2,
                             (self.filter_size[1] - 1) // 2)
             else:
-                raise RuntimeError("Unsupported border_mode for "
-                                   "Conv2DMMLayer: %s" % border_mode)
+                raise RuntimeError("Invalid border mode: '%s'" % border_mode)
         else:
             self.pad = as_tuple(pad, 2)
 
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_filters, self.output_shape[2],
-                            self.output_shape[3])
         else:
-            biases_shape = (num_filters,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_filters, self.output_shape[2],
+                                self.output_shape[3])
+            else:
+                biases_shape = (num_filters,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
         self.corr_mm_op = GpuCorrMM(subsample=self.stride, pad=self.pad)
 

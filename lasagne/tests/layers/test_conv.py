@@ -249,8 +249,19 @@ class TestConvOutputLength:
 
 
 class TestConv2DMMLayer:
+    def test_import_without_gpu_raises(self):
+        if theano.config.device.startswith("gpu"):
+            pytest.skip()
+        else:
+            with pytest.raises(ImportError):
+                import lasagne.layers.corrmm
+
     def test_pad(self, DummyInputLayer):
-        from lasagne.layers.corrmm import Conv2DMMLayer
+        try:
+            from lasagne.layers.corrmm import Conv2DMMLayer
+        except ImportError:
+            pytest.skip("corrmm not available")
+
         input_layer = DummyInputLayer((1, 2, 3, 3))
         with pytest.raises(RuntimeError) as exc:
             layer = Conv2DMMLayer(input_layer, num_filters=1,
@@ -262,3 +273,62 @@ class TestConv2DMMLayer:
         layer = Conv2DMMLayer(input_layer, num_filters=4, filter_size=(3, 3),
                               pad=(3, 3))
         assert layer.output_shape == (1, 4, 7, 7)
+
+
+class TestConv2DCCLayer:
+    def test_import_without_gpu_raises(self):
+        if theano.config.device.startswith("gpu"):
+            pytest.skip()
+        else:
+            with pytest.raises(ImportError):
+                import lasagne.layers.cuda_convnet
+
+    def test_unsupported_settings(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((128, 3, 32, 32))
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 5))
+        assert ("Conv2DCCLayer only supports square filters" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3), stride=(1, 2))
+        assert ("Conv2DCCLayer only supports square strides" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=15,
+                                  filter_size=(3, 3))
+        assert ("Conv2DCCLayer requires num_filters to be a multiple of 16" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3), pad=(1, 2))
+        assert ("Conv2DCCLayer only supports square padding" in
+                exc.value.args[0])
+
+    def test_pad(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((128, 3, 32, 32))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3), border_mode='valid',
+                                  pad=(1, 1))
+        assert ("You cannot specify both 'border_mode' and 'pad'" in
+                exc.value.args[0])
+
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              pad=(3, 3))
+        assert layer.output_shape == (128, 16, 36, 36)

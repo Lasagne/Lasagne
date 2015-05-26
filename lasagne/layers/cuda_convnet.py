@@ -256,7 +256,11 @@ class Conv2DCCLayer(CCLayer):
             else:
                 raise RuntimeError("Invalid border mode: '%s'" % border_mode)
         else:
-            self.pad = pad
+            pad = as_tuple(pad, 2)
+            if pad[0] != pad[1]:
+                raise RuntimeError("Conv2DCCLayer only supports square "
+                                   "padding, but pad=(%d, %d)" % pad)
+            self.pad = pad[0]
 
         if W is None:
             if dimshuffle:

@@ -239,6 +239,17 @@ class TestConv2DLayerImplementations:
                                border_mode='_nonexistent_mode')
         assert "Invalid border mode" in exc.value.args[0]
 
+    def test_get_params(self, Conv2DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((128, 3, 32, 32))
+        layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3))
+        assert layer.get_params() == [layer.W, layer.b]
+        assert layer.get_params(regularizable=False) == [layer.b]
+        assert layer.get_params(regularizable=True) == [layer.W]
+        assert layer.get_params(trainable=True) == [layer.W, layer.b]
+        assert layer.get_params(trainable=False) == []
+        assert layer.get_params(_nonexistent_tag=True) == []
+        assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
+
 
 class TestConvOutputLength:
     def test_invalid_border_mode(self):
@@ -332,3 +343,46 @@ class TestConv2DCCLayer:
         layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
                               pad=(3, 3))
         assert layer.output_shape == (128, 16, 36, 36)
+
+    def test_dimshuffle_false_shapes(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((4, 32, 32, 128))  # c01b instead of bc01
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              dimshuffle=False)
+        assert layer.W.get_value().shape == (4, 3, 3, 16)
+        assert layer.b.get_value().shape == (16,)
+
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              dimshuffle=False, untie_biases=True)
+        assert layer.W.get_value().shape == (4, 3, 3, 16)
+        assert layer.b.get_value().shape == (16, 30, 30)
+
+    def test_dimshuffle_false_get_output_for(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        # this implementation needs to be
+        from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
+        filter_acts = FilterActs(stride=1, pad=0, partial_sum=1)
+
+        input = theano.shared(floatX(np.random.random((4, 5, 5, 8))))
+        kernel = theano.shared(floatX(np.random.random((4, 3, 3, 16))))
+
+        input_layer = DummyInputLayer((4, 5, 5, 8))  # c01b instead of bc01
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              dimshuffle=False, W=kernel, b=None,
+                              nonlinearity=None)
+
+        output = np.array(filter_acts(input, kernel).eval())
+
+        actual = layer.get_output_for(input).eval()
+        actual = np.array(actual)
+        assert actual.shape == output.shape
+        assert actual.shape == layer.output_shape
+        assert np.allclose(actual, output)

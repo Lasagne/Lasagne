@@ -293,18 +293,11 @@ def get_output_shape(layer_or_layers, input_shapes=None):
     # update layer-to-shape mapping by propagating the input shapes
     for layer in all_layers:
         if layer not in all_shapes:
-            try:
-                if isinstance(layer, MergeLayer):
-                    input_shapes = [all_shapes[input_layer]
-                                    for input_layer in layer.input_layers]
-                else:
-                    input_shapes = all_shapes[layer.input_layer]
-            except KeyError:
-                raise ValueError("get_output() was called without giving an "
-                                 "input shape for the free-floating layer %r. "
-                                 "Please call it with a dictionary mapping "
-                                 "this layer to an input shape."
-                                 % layer)
+            if isinstance(layer, MergeLayer):
+                input_shapes = [all_shapes[input_layer]
+                                for input_layer in layer.input_layers]
+            else:
+                input_shapes = all_shapes[layer.input_layer]
             all_shapes[layer] = layer.get_output_shape_for(input_shapes)
     # return the output shape(s) of the requested layer(s) only
     try:

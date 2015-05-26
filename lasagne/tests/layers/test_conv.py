@@ -48,6 +48,23 @@ def conv2d_test_sets():
                                                    'stride': stride
                                                    })
 
+    # bias-less case
+    input = np.random.random((3, 1, 16, 23))
+    kernel = np.random.random((16, 1, 3, 3))
+    output = conv2d(input, kernel, border_mode='valid').eval()
+    yield _convert(input, kernel, output, {'b': None})
+
+
+def conv1d(input, kernel, border_mode='valid'):
+    output = []
+    for b in input:
+        temp = []
+        for c in kernel:
+            temp.append(
+                np.convolve(b[0, :], c[0, :], mode=border_mode))
+        output.append(temp)
+    return np.array(output)
+
 
 def conv1d_test_sets():
     def _convert(input, kernel, output, kwargs):
@@ -57,18 +74,17 @@ def conv1d_test_sets():
         for stride in [1, 2, 3]:
             input = np.random.random((3, 1, 23))
             kernel = np.random.random((16, 1, 3))
-            output = []
-            for b in input:
-                temp = []
-                for c in kernel:
-                    temp.append(
-                        np.convolve(b[0, :], c[0, :], mode=border_mode))
-                output.append(temp)
-            output = np.array(output)
+            output = conv1d(input, kernel, border_mode)
             output = output[:, :, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
                                                    'stride': stride,
                                                    })
+
+    # bias-less case
+    input = np.random.random((3, 1, 23))
+    kernel = np.random.random((16, 1, 3))
+    output = conv1d(input, kernel, border_mode='valid')
+    yield _convert(input, kernel, output, {'b': None})
 
 
 @pytest.fixture
@@ -230,3 +246,19 @@ class TestConvOutputLength:
         with pytest.raises(RuntimeError) as exc:
             conv_output_length(5, 3, 1, border_mode='_nonexistent_mode')
         assert "Invalid border mode" in exc.value.args[0]
+
+
+class TestConv2DMMLayer:
+    def test_pad(self, DummyInputLayer):
+        from lasagne.layers.corrmm import Conv2DMMLayer
+        input_layer = DummyInputLayer((1, 2, 3, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DMMLayer(input_layer, num_filters=1,
+                                  filter_size=(3, 3), border_mode='valid',
+                                  pad=(1, 1))
+        assert ("You cannot specify both 'border_mode' and 'pad'" in
+                exc.value.args[0])
+
+        layer = Conv2DMMLayer(input_layer, num_filters=4, filter_size=(3, 3),
+                              pad=(3, 3))
+        assert layer.output_shape == (1, 4, 7, 7)

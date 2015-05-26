@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 
-if not theano.config.device.startswith("gpu"):
+if not theano.config.device.startswith("gpu"):  # pragma: no cover
     raise ImportError("requires a GPU to work")
 
 

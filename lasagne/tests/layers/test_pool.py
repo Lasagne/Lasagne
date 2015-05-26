@@ -126,7 +126,7 @@ class TestMaxPool1DLayer:
                     yield (pool_size, stride, pad)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape)
+        return Mock(output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride=None, pad=0):
         from lasagne.layers.pool import MaxPool1DLayer
@@ -202,7 +202,8 @@ class TestMaxPool2DLayer:
                     yield (pool_size, stride, pad)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape)
+        return Mock(get_output_shape=lambda: output_shape,
+                    output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride=None,
               pad=(0, 0), ignore_border=False):
@@ -288,7 +289,8 @@ class TestMaxPool2DCCLayer:
                 yield (pool_size, stride)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape)
+        return Mock(get_output_shape=lambda: output_shape,
+                    output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride):
         try:
@@ -398,7 +400,8 @@ class TestMaxPool2DNNLayer:
                     yield (pool_size, stride, pad)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape)
+        return Mock(get_output_shape=lambda: output_shape,
+                    output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride, pad):
         try:
@@ -494,7 +497,7 @@ class TestGlobalPoolLayer(object):
 
     @pytest.fixture
     def layer(self, GlobalPoolLayer):
-        return GlobalPoolLayer(Mock())
+        return GlobalPoolLayer(Mock(output_shape=(None,)))
 
     def test_get_output_shape_for(self, layer):
         assert layer.get_output_shape_for((2, 3, 4, 5)) == (2, 3)

@@ -122,13 +122,13 @@ class TestGetOutput_Layer:
         from lasagne.layers.base import Layer
         from lasagne.layers.input import InputLayer
         # create a mock that has the same attributes as an InputLayer instance
-        l1 = Mock(InputLayer((None,)))
+        l1 = Mock(InputLayer((None,)), output_shape=(None,))
         # create a mock that has the same attributes as a Layer instance
-        l2 = Mock(Layer(l1))
+        l2 = Mock(Layer(l1), output_shape=(None,))
         # link it to the InputLayer mock
         l2.input_layer = l1
         # create another mock that has the same attributes as a Layer instance
-        l3 = Mock(Layer(l2))
+        l3 = Mock(Layer(l2), output_shape=(None,))
         # link it to the first mock, to get an "l1 --> l2 --> l3" chain
         l3.input_layer = l2
         return l1, l2, l3
@@ -263,9 +263,11 @@ class TestGetOutput_MergeLayer:
         from lasagne.layers.base import Layer, MergeLayer
         from lasagne.layers.input import InputLayer
         # create two mocks of the same attributes as an InputLayer instance
-        l1 = [Mock(InputLayer((None,))), Mock(InputLayer((None,)))]
+        l1 = [Mock(InputLayer((None,)), output_shape=(None,)),
+              Mock(InputLayer((None,)), output_shape=(None,))]
         # create two mocks of the same attributes as a Layer instance
-        l2 = [Mock(Layer(l1[0])), Mock(Layer(l1[1]))]
+        l2 = [Mock(Layer(l1[0]), output_shape=(None,)),
+              Mock(Layer(l1[1]), output_shape=(None,))]
         # link them to the InputLayer mocks
         l2[0].input_layer = l1[0]
         l2[1].input_layer = l1[1]
@@ -397,7 +399,9 @@ class TestGetOutput_MergeLayer:
     def layer_from_shape(self):
         from lasagne.layers.input import InputLayer
         from lasagne.layers.base import MergeLayer
-        return MergeLayer([(None, 20), Mock(InputLayer((None,)))])
+        return MergeLayer([
+            (None, 20),
+            Mock(InputLayer((None,)), output_shape=(None,))])
 
     def test_layer_from_shape_invalid_get_output(self, layer_from_shape,
                                                  get_output):
@@ -456,13 +460,13 @@ class TestGetOutputShape_Layer:
         from lasagne.layers.base import Layer
         from lasagne.layers.input import InputLayer
         # create a mock that has the same attributes as an InputLayer instance
-        l1 = Mock(InputLayer((None,)))
+        l1 = Mock(InputLayer((None,)), output_shape=(None,))
         # create a mock that has the same attributes as a Layer instance
-        l2 = Mock(Layer(l1))
+        l2 = Mock(Layer(l1), output_shape=(None,))
         # link it to the InputLayer mock
         l2.input_layer = l1
         # create another mock that has the same attributes as a Layer instance
-        l3 = Mock(Layer(l2))
+        l3 = Mock(Layer(l2), output_shape=(None,))
         # link it to the first mock, to get an "l1 --> l2 --> l3" chain
         l3.input_layer = l2
         return l1, l2, l3
@@ -562,9 +566,11 @@ class TestGetOutputShape_MergeLayer:
         from lasagne.layers.base import Layer, MergeLayer
         from lasagne.layers.input import InputLayer
         # create two mocks of the same attributes as an InputLayer instance
-        l1 = [Mock(InputLayer((None,))), Mock(InputLayer((None,)))]
+        l1 = [Mock(InputLayer((None,)), output_shape=(None,)),
+              Mock(InputLayer((None,)), output_shape=(None,))]
         # create two mocks of the same attributes as a Layer instance
-        l2 = [Mock(Layer(l1[0])), Mock(Layer(l1[1]))]
+        l2 = [Mock(Layer(l1[0]), output_shape=(None,)),
+              Mock(Layer(l1[1]), output_shape=(None,))]
         # link them to the InputLayer mocks
         l2[0].input_layer = l1[0]
         l2[1].input_layer = l1[1]
@@ -656,7 +662,9 @@ class TestGetOutputShape_MergeLayer:
     def layer_from_shape(self):
         from lasagne.layers.input import InputLayer
         from lasagne.layers.base import MergeLayer
-        return MergeLayer([(None, 20), Mock(InputLayer((None,)))])
+        return MergeLayer([
+            (None, 20),
+            Mock(InputLayer((None,)), output_shape=(None,))])
 
     def test_layer_from_shape_valid_get_output_shape(self, layer_from_shape,
                                                      get_output_shape):

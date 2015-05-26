@@ -177,8 +177,8 @@ class TestObjectives:
         from lasagne.objectives import Objective
         from lasagne.layers.input import Layer, InputLayer
 
-        input_layer = mock.Mock(InputLayer((None,)))
-        layer = mock.Mock(Layer(input_layer))
+        input_layer = mock.Mock(InputLayer((None,)), output_shape=(None,))
+        layer = mock.Mock(Layer(input_layer), output_shape=(None,))
         layer.input_layer = input_layer
         loss_function = mock.Mock()
         input, target, kwarg1 = theano.tensor.vector(), object(), object()
@@ -200,8 +200,8 @@ class TestObjectives:
         from lasagne.objectives import Objective
         from lasagne.layers.input import Layer, InputLayer
 
-        input_layer = mock.Mock(InputLayer((None,)))
-        layer = mock.Mock(Layer(input_layer))
+        input_layer = mock.Mock(InputLayer((None,)), output_shape=(None,))
+        layer = mock.Mock(Layer(input_layer), output_shape=(None,))
         layer.input_layer = input_layer
         loss_function = mock.Mock()
         input = theano.tensor.vector()

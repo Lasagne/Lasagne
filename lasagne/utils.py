@@ -249,6 +249,10 @@ def create_param(spec, shape, name=None):
     variables, and callables for generating initial parameter values.
     """
     shape = tuple(shape)  # convert to tuple if needed
+    if any(d <= 0 for d in shape):
+        raise ValueError((
+            "Cannot create param with a non-positive shape dimension. "
+            "Tried to create param with shape=%r, name=%r") % (shape, name))
 
     if isinstance(spec, theano.compile.SharedVariable):
         # We cannot check the shape here, the shared variable might not be

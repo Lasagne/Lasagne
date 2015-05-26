@@ -8,12 +8,12 @@ class TestLayer:
     @pytest.fixture
     def layer(self):
         from lasagne.layers.base import Layer
-        return Layer(Mock())
+        return Layer(Mock(output_shape=(None,)))
 
     @pytest.fixture
     def named_layer(self):
         from lasagne.layers.base import Layer
-        return Layer(Mock(), name='layer_name')
+        return Layer(Mock(output_shape=(None,)), name='layer_name')
 
     def test_input_shape(self, layer):
         assert layer.input_shape == layer.input_layer.output_shape
@@ -97,6 +97,17 @@ class TestLayer:
         with pytest.raises(NotImplementedError):
             layer.get_output_for(Mock())
 
+    def test_nonpositive_input_dims_raises_value_error(self, layer):
+        from lasagne.layers.base import Layer
+        neg_input_layer = Mock(output_shape=(None, -1, -1))
+        zero_input_layer = Mock(output_shape=(None, 0, 0))
+        pos_input_layer = Mock(output_shape=(None, 1, 1))
+        with pytest.raises(ValueError):
+            Layer(neg_input_layer)
+        with pytest.raises(ValueError):
+            Layer(zero_input_layer)
+        Layer(pos_input_layer)
+
 
 class TestMergeLayer:
     @pytest.fixture
@@ -112,7 +123,10 @@ class TestMergeLayer:
     def layer_from_shape(self):
         from lasagne.layers.input import InputLayer
         from lasagne.layers.base import MergeLayer
-        return MergeLayer([(None, 20), Mock(InputLayer((None,)))])
+        return MergeLayer(
+            [(None, 20),
+             Mock(InputLayer((None,)), output_shape=(None,))]
+        )
 
     def test_layer_from_shape(self, layer_from_shape):
         layer = layer_from_shape

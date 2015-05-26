@@ -82,6 +82,13 @@ def test_create_param_bad_spec_raises():
         create_param({}, (1, 2, 3))
 
 
+def test_create_param_accepts_iterable_shape():
+    from lasagne.utils import create_param
+    factory = np.empty
+    create_param(factory, [2, 3])
+    create_param(factory, (x for x in [2, 3]))
+
+
 def test_create_param_numpy_bad_shape_raises_error():
     from lasagne.utils import create_param
 

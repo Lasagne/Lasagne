@@ -214,9 +214,8 @@ def create_param(spec, shape, name=None):
 
     Parameters
     ----------
-
     spec : numpy array, Theano shared variable, or callable
-        One of three things:
+        Either of the following:
 
         * a numpy array with the initial parameter values
         * a Theano shared variable representing the parameters
@@ -224,9 +223,9 @@ def create_param(spec, shape, name=None):
           the parameter array as its single argument and returns
           a numpy array.
 
-    shape : tuple
-        a tuple of integers representing the desired shape of the
-        parameter array.
+    shape : iterable of int
+        a tuple or other iterable of integers representing the desired
+        shape of the parameter array.
 
     name : string, optional
         If a new variable is created, the name to give to the parameter
@@ -244,11 +243,13 @@ def create_param(spec, shape, name=None):
 
     Notes
     -----
-    This method should be used in the constructor when creating a
-    :class:`Layer` subclass that has parameters. This enables the layer to
+    This function is called by :meth:`Layer.add_param()` in the constructor
+    of most :class:`Layer` subclasses. This enables those layers to
     support initialization with numpy arrays, existing Theano shared
     variables, and callables for generating initial parameter values.
     """
+    shape = tuple(shape)  # convert to tuple if needed
+
     if isinstance(spec, theano.compile.SharedVariable):
         # We cannot check the shape here, the shared variable might not be
         # initialized correctly yet. We can check the dimensionality

@@ -355,7 +355,8 @@ def get_all_bias_params(layer):  # pragma no cover
     import warnings
     warnings.warn("get_all_bias_params(layer) is deprecated and will be "
                   "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=False) instead.")
+                  "get_all_params(layer, regularizable=False) instead.",
+                  stacklevel=2)
     return get_all_params(layer, regularizable=False)
 
 
@@ -363,7 +364,8 @@ def get_all_non_bias_params(layer):  # pragma no cover
     import warnings
     warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
                   "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=True) instead.")
+                  "get_all_params(layer, regularizable=True) instead.",
+                  stacklevel=2)
     return get_all_params(layer, regularizable=True)
 
 

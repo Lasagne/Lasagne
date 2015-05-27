@@ -116,7 +116,7 @@ def get_all_layers(layer, treat_as_input=None):
     return result
 
 
-def get_all_layers_old(layer):
+def get_all_layers_old(layer):  # pragma no cover
     """
     Earlier implementation of `get_all_layers()` that does a breadth-first
     search. Kept here to ease converting old models that rely on the order of
@@ -293,18 +293,11 @@ def get_output_shape(layer_or_layers, input_shapes=None):
     # update layer-to-shape mapping by propagating the input shapes
     for layer in all_layers:
         if layer not in all_shapes:
-            try:
-                if isinstance(layer, MergeLayer):
-                    input_shapes = [all_shapes[input_layer]
-                                    for input_layer in layer.input_layers]
-                else:
-                    input_shapes = all_shapes[layer.input_layer]
-            except KeyError:
-                raise ValueError("get_output() was called without giving an "
-                                 "input shape for the free-floating layer %r. "
-                                 "Please call it with a dictionary mapping "
-                                 "this layer to an input shape."
-                                 % layer)
+            if isinstance(layer, MergeLayer):
+                input_shapes = [all_shapes[input_layer]
+                                for input_layer in layer.input_layers]
+            else:
+                input_shapes = all_shapes[layer.input_layer]
             all_shapes[layer] = layer.get_output_shape_for(input_shapes)
     # return the output shape(s) of the requested layer(s) only
     try:
@@ -358,19 +351,21 @@ def get_all_params(layer, **tags):
     return utils.unique(params)
 
 
-def get_all_bias_params(layer):
+def get_all_bias_params(layer):  # pragma no cover
     import warnings
     warnings.warn("get_all_bias_params(layer) is deprecated and will be "
                   "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=False) instead.")
+                  "get_all_params(layer, regularizable=False) instead.",
+                  stacklevel=2)
     return get_all_params(layer, regularizable=False)
 
 
-def get_all_non_bias_params(layer):
+def get_all_non_bias_params(layer):  # pragma no cover
     import warnings
     warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
                   "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=True) instead.")
+                  "get_all_params(layer, regularizable=True) instead.",
+                  stacklevel=2)
     return get_all_params(layer, regularizable=True)
 
 

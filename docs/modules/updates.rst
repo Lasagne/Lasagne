@@ -13,6 +13,7 @@ Update functions
 .. autofunction:: adagrad
 .. autofunction:: rmsprop
 .. autofunction:: adadelta
+.. autofunction:: adam
 
 
 Update modification functions

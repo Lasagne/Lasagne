@@ -16,6 +16,10 @@ __all__ = [
 
 class DenseLayer(Layer):
     """
+    lasagne.layers.DenseLayer(incoming, num_units,
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
     A fully connected layer.
 
     Parameters
@@ -89,6 +93,9 @@ class DenseLayer(Layer):
 
 class NonlinearityLayer(Layer):
     """
+    lasagne.layers.NonlinearityLayer(incoming,
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
     A layer that just applies a nonlinearity.
 
     Parameters
@@ -112,6 +119,10 @@ class NonlinearityLayer(Layer):
 
 class NINLayer(Layer):
     """
+    lasagne.layers.NINLayer(incoming, num_units, untie_biases=False,
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
     Network-in-network layer [1]_.
     Like DenseLayer, but broadcasting across all trailing dimensions beyond the
     2nd.  This results in a convolution operation with filter size 1 on all
@@ -176,11 +187,13 @@ class NINLayer(Layer):
         self.W = self.add_param(W, (num_input_channels, num_units), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_units,) + self.output_shape[2:]
         else:
-            biases_shape = (num_units,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_units,) + self.output_shape[2:]
+            else:
+                biases_shape = (num_units,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.num_units) + input_shape[2:]

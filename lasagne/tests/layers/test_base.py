@@ -93,6 +93,10 @@ class TestLayer:
         A = named_layer.add_param(a, a_shape, name='A')
         assert A.name == 'layer_name.A'
 
+    def test_get_output_for_notimplemented(self, layer):
+        with pytest.raises(NotImplementedError):
+            layer.get_output_for(Mock())
+
 
 class TestMergeLayer:
     @pytest.fixture
@@ -119,3 +123,11 @@ class TestMergeLayer:
 
     def test_get_params(self, layer):
         assert layer.get_params() == []
+
+    def test_get_output_shape_for_notimplemented(self, layer):
+        with pytest.raises(NotImplementedError):
+            layer.get_output_shape_for(Mock())
+
+    def test_get_output_for_notimplemented(self, layer):
+        with pytest.raises(NotImplementedError):
+            layer.get_output_for(Mock())

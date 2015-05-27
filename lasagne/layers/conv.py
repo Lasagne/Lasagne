@@ -90,6 +90,11 @@ def conv_output_length(input_length, filter_size,
 
 class Conv1DLayer(Layer):
     """
+    lasagne.layers.Conv1DLayer(incoming, num_filters, filter_size, stride=1,
+    border_mode="valid", untie_biases=False, W=lasagne.init.GlorotUniform(),
+    b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
+    convolution=lasagne.theano_extensions.conv.conv1d_mc0, **kwargs)
+
     1D convolutional layer
 
     Performs a 1D convolution on its input and optionally adds a bias and
@@ -266,6 +271,12 @@ class Conv1DLayer(Layer):
 
 class Conv2DLayer(Layer):
     """
+    lasagne.layers.Conv2DLayer(incoming, num_filters, filter_size,
+    stride=(1, 1), border_mode="valid", untie_biases=False,
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
+    nonlinearity=lasagne.nonlinearities.rectify,
+    convolution=theano.tensor.nnet.conv2d, **kwargs)
+
     2D convolutional layer
 
     Performs a 2D convolution on its input and optionally adds a bias and

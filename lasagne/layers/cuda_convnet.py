@@ -36,6 +36,11 @@ class CCLayer(Layer):
 
 class Conv2DCCLayer(CCLayer):
     """
+    lasagne.layers.Conv2DCCLayer(incoming, num_filters, filter_size,
+    stride=(1, 1), border_mode=None, untie_biases=False, W=None,
+    b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
+    pad=None, dimshuffle=True, flip_filters=False, partial_sum=1, **kwargs)
+
     2D convolutional layer
 
     Performs a 2D convolution on its input and optionally adds a bias and
@@ -568,6 +573,10 @@ c01b_to_bc01 = ShuffleC01BToBC01Layer  # shortcut
 
 class NINLayer_c01b(Layer):
     """
+    lasagne.layers.NINLayer_c01b(incoming, num_units, untie_biases=False,
+    W=lasagne.init.GlorotUniform(c01b=True), b=lasagne.init.Constant(0.),
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
     Network-in-network layer with c01b axis ordering.
 
     This is a c01b version of :class:`lasagne.layers.NINLayer`.

@@ -259,6 +259,34 @@ class TestConvOutputLength:
         assert "Invalid border mode" in exc.value.args[0]
 
 
+class TestConv2DDNNLayer:
+    def test_import_without_gpu_or_cudnn_raises(self):
+        from theano.sandbox.cuda import dnn
+        if theano.config.device.startswith("gpu") and dnn.dnn_available():
+            pytest.skip()
+        else:
+            with pytest.raises(ImportError):
+                import lasagne.layers.dnn
+
+    def test_pad(self, DummyInputLayer):
+        try:
+            from lasagne.layers.dnn import Conv2DDNNLayer
+        except ImportError:
+            pytest.skip("dnn not available")
+
+        input_layer = DummyInputLayer((1, 2, 3, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DDNNLayer(input_layer, num_filters=1,
+                                   filter_size=(3, 3), border_mode='valid',
+                                   pad=(1, 1))
+        assert ("You cannot specify both 'border_mode' and 'pad'" in
+                exc.value.args[0])
+
+        layer = Conv2DDNNLayer(input_layer, num_filters=4, filter_size=(3, 3),
+                               pad=(3, 3))
+        assert layer.output_shape == (1, 4, 7, 7)
+
+
 class TestConv2DMMLayer:
     def test_import_without_gpu_raises(self):
         if theano.config.device.startswith("gpu"):

@@ -1,10 +1,9 @@
 import theano
+import numpy as np
 
 from .base import Layer
 
-# from theano.tensor.shared_randomstreams import RandomStreams
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-_srng = RandomStreams()
 
 
 __all__ = [
@@ -14,7 +13,15 @@ __all__ = [
 ]
 
 
-class DropoutLayer(Layer):
+class NoiseLayer(Layer):
+    """Base class for stochastic layers"""
+    def __init__(self, incoming, **kwargs):
+        super(NoiseLayer, self).__init__(incoming, **kwargs)
+
+        self._srng = RandomStreams(np.random.randint(1, 2147462579))
+
+
+class DropoutLayer(NoiseLayer):
     """Dropout layer [1]_,[2]_.
 
     Sets values to zero with probability p. See notes for disabling dropout
@@ -79,13 +86,13 @@ class DropoutLayer(Layer):
             if any(s is None for s in input_shape):
                 input_shape = input.shape
 
-            return input * _srng.binomial(input_shape, p=retain_prob,
-                                          dtype=theano.config.floatX)
+            return input * self._srng.binomial(input_shape, p=retain_prob,
+                                               dtype=theano.config.floatX)
 
 dropout = DropoutLayer  # shortcut
 
 
-class GaussianNoiseLayer(Layer):
+class GaussianNoiseLayer(NoiseLayer):
     """Gaussian noise layer [1]_.
 
     Add zero Gaussian noise with mean 0 and std sigma to the input
@@ -126,4 +133,6 @@ class GaussianNoiseLayer(Layer):
         if deterministic or self.sigma == 0:
             return input
         else:
-            return input + _srng.normal(input.shape, avg=0.0, std=self.sigma)
+            return input + self._srng.normal(input.shape,
+                                             avg=0.0,
+                                             std=self.sigma)

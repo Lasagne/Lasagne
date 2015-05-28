@@ -388,46 +388,29 @@ class TestConv2DCCLayer:
         assert np.allclose(actual, output)
 
 
-class TestMaxPool2DCCLayer:
-    def test_not_implemented(self, DummyInputLayer):
-        try:
-            from lasagne.layers.cuda_convnet import MaxPool2DCCLayer
-        except ImportError:
-            pytest.skip("cuda_convnet not available")
+class TestShuffleLayers:
+    def test_bc01_to_c01b(self):
+        from lasagne.layers.input import InputLayer
+        from lasagne.layers.cuda_convnet import ShuffleBC01ToC01BLayer
 
-        input_layer = DummyInputLayer((128, 4, 12, 12))
+        input_layer = InputLayer((1, 2, 3, 4))
+        layer = ShuffleBC01ToC01BLayer(input_layer)
+        assert layer.output_shape == (2, 3, 4, 1)
 
-        with pytest.raises(RuntimeError) as exc:
-            layer = MaxPool2DCCLayer(input_layer, pool_size=2, pad=2)
-        assert "MaxPool2DCCLayer does not support padding" in exc.value.args[0]
+        input = floatX(np.random.random((1, 2, 3, 4)))
+        output = input.transpose(1, 2, 3, 0)
+        actual = layer.get_output_for(theano.shared(input)).eval()
+        assert np.allclose(output, actual)
 
-        with pytest.raises(RuntimeError) as exc:
-            layer = MaxPool2DCCLayer(input_layer, pool_size=(2, 3))
-        assert ("MaxPool2DCCLayer only supports square pooling regions" in
-                exc.value.args[0])
+    def test_c01b_to_bc01(self):
+        from lasagne.layers.input import InputLayer
+        from lasagne.layers.cuda_convnet import ShuffleC01BToBC01Layer
 
-        with pytest.raises(RuntimeError) as exc:
-            layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=(1, 2))
-        assert (("MaxPool2DCCLayer only supports using the same stride in "
-                 "both directions") in exc.value.args[0])
+        input_layer = InputLayer((1, 2, 3, 4))
+        layer = ShuffleC01BToBC01Layer(input_layer)
+        assert layer.output_shape == (4, 1, 2, 3)
 
-        with pytest.raises(RuntimeError) as exc:
-            layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=3)
-        assert ("MaxPool2DCCLayer only supports stride <= pool_size" in
-                exc.value.args[0])
-
-        with pytest.raises(RuntimeError) as exc:
-            layer = MaxPool2DCCLayer(input_layer, pool_size=2,
-                                     ignore_border=True)
-        assert ("MaxPool2DCCLayer does not support ignore_border" in
-                exc.value.args[0])
-
-    def test_dimshuffle_false(self, DummyInputLayer):
-        try:
-            from lasagne.layers.cuda_convnet import MaxPool2DCCLayer
-        except ImportError:
-            pytest.skip("cuda_convnet not available")
-
-        input_layer = DummyInputLayer((4, 12, 12, 128))  # c01b order
-        layer = MaxPool2DCCLayer(input_layer, pool_size=2, dimshuffle=False)
-        assert layer.output_shape == (4, 6, 6, 128)
+        input = floatX(np.random.random((1, 2, 3, 4)))
+        output = input.transpose(3, 0, 1, 2)
+        actual = layer.get_output_for(theano.shared(input)).eval()
+        assert np.allclose(output, actual)

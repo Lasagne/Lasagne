@@ -391,7 +391,10 @@ class TestConv2DCCLayer:
 class TestShuffleLayers:
     def test_bc01_to_c01b(self):
         from lasagne.layers.input import InputLayer
-        from lasagne.layers.cuda_convnet import ShuffleBC01ToC01BLayer
+        try:
+            from lasagne.layers.cuda_convnet import ShuffleBC01ToC01BLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
 
         input_layer = InputLayer((1, 2, 3, 4))
         layer = ShuffleBC01ToC01BLayer(input_layer)
@@ -404,7 +407,10 @@ class TestShuffleLayers:
 
     def test_c01b_to_bc01(self):
         from lasagne.layers.input import InputLayer
-        from lasagne.layers.cuda_convnet import ShuffleC01BToBC01Layer
+        try:
+            from lasagne.layers.cuda_convnet import ShuffleC01BToBC01Layer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
 
         input_layer = InputLayer((1, 2, 3, 4))
         layer = ShuffleC01BToBC01Layer(input_layer)

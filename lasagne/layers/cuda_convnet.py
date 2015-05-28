@@ -622,7 +622,7 @@ class NINLayer_c01b(Layer):
         Any additional keyword arguments are passed to the `Layer` superclass.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
-                 W=init.GlorotUniform(c01b=True), b=init.Constant(0.),
+                 W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, **kwargs):
         super(NINLayer_c01b, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
@@ -638,11 +638,13 @@ class NINLayer_c01b(Layer):
         self.W = self.add_param(W, (num_units, num_input_channels), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_units,) + self.output_shape[1:-1]
         else:
-            biases_shape = (num_units,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_units,) + self.output_shape[1:-1]
+            else:
+                biases_shape = (num_units,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (self.num_units,) + input_shape[1:]

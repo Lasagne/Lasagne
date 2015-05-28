@@ -284,3 +284,120 @@ class TestNINLayer:
 
         assert layer.W.name == "foo.W"
         assert layer.b.name == "foo.b"
+
+
+class TestNINLayer_c01b:
+    @pytest.fixture
+    def dummy_input_layer(self):
+        from lasagne.layers.input import InputLayer
+        input_layer = InputLayer((3, 4, 5, 2))
+        mock = Mock(input_layer)
+        mock.shape = input_layer.shape
+        mock.input_var = input_layer.input_var
+        mock.output_shape = input_layer.output_shape
+        return mock
+
+    @pytest.fixture
+    def NINLayer_c01b(self):
+        try:
+            from lasagne.layers.cuda_convnet import NINLayer_c01b
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+        return NINLayer_c01b
+
+    @pytest.fixture
+    def layer_vars(self, NINLayer_c01b, dummy_input_layer):
+        W = Mock()
+        b = Mock()
+        nonlinearity = Mock()
+
+        W.return_value = np.ones((5, 3))
+        b.return_value = np.ones((5,))
+        layer = NINLayer_c01b(
+            dummy_input_layer,
+            num_units=5,
+            W=W,
+            b=b,
+            nonlinearity=nonlinearity,
+            )
+
+        return {
+            'W': W,
+            'b': b,
+            'nonlinearity': nonlinearity,
+            'layer': layer,
+            }
+
+    @pytest.fixture
+    def layer(self, layer_vars):
+        return layer_vars['layer']
+
+    def test_init(self, layer_vars):
+        layer = layer_vars['layer']
+        assert (layer.W.get_value() == layer_vars['W'].return_value).all()
+        assert (layer.b.get_value() == layer_vars['b'].return_value).all()
+        layer_vars['W'].assert_called_with((5, 3))
+        layer_vars['b'].assert_called_with((5,))
+
+    def test_init_none_nonlinearity_bias(self, NINLayer_c01b,
+                                         dummy_input_layer):
+        layer = NINLayer_c01b(
+            dummy_input_layer,
+            num_units=3,
+            nonlinearity=None,
+            b=None,
+            )
+        assert layer.nonlinearity == lasagne.nonlinearities.identity
+        assert layer.b is None
+
+    def test_init_untie_biases(self, NINLayer_c01b, dummy_input_layer):
+        layer = NINLayer_c01b(
+            dummy_input_layer,
+            num_units=5,
+            untie_biases=True,
+            )
+        assert (layer.b.shape.eval() == (5, 4, 5)).all()
+
+    def test_get_params(self, layer):
+        assert layer.get_params() == [layer.W, layer.b]
+        assert layer.get_params(regularizable=False) == [layer.b]
+        assert layer.get_params(regularizable=True) == [layer.W]
+        assert layer.get_params(trainable=True) == [layer.W, layer.b]
+        assert layer.get_params(trainable=False) == []
+        assert layer.get_params(_nonexistent_tag=True) == []
+        assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
+
+    def test_get_output_shape_for(self, layer):
+        assert layer.get_output_shape_for((6, 7, 8, 5)) == (5, 7, 8, 5)
+
+    @pytest.mark.parametrize("extra_kwargs", [
+        {},
+        {'untie_biases': True},
+        {'b': None},
+    ])
+    def test_get_output_for(self, dummy_input_layer, NINLayer_c01b,
+                            extra_kwargs):
+        nonlinearity = Mock()
+
+        layer = NINLayer_c01b(
+            dummy_input_layer,
+            num_units=6,
+            nonlinearity=nonlinearity,
+            **extra_kwargs
+            )
+
+        input = theano.shared(np.random.uniform(-1, 1, (3, 4, 5, 2)))
+        result = layer.get_output_for(input)
+        assert result is nonlinearity.return_value
+
+        nonlinearity_arg = nonlinearity.call_args[0][0]
+        X = input.get_value()
+        W = layer.W.get_value()
+        out = np.dot(W, X.reshape(X.shape[0], -1))
+        out = out.reshape(W.shape[0], X.shape[1], X.shape[2], X.shape[3])
+        if layer.b is not None:
+            if layer.untie_biases:
+                out += layer.b.get_value()[..., None]
+            else:
+                out += layer.b.get_value()[:, None, None, None]
+        assert np.allclose(nonlinearity_arg.eval(), out)

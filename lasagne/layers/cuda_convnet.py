@@ -26,7 +26,7 @@ __all__ = [
 
 
 if not theano.config.device.startswith("gpu"):
-    raise ImportError("requires a GPU to work")
+    raise ImportError("requires a GPU to work")  # pragma: no cover
 
 
 # base class for all layers that use ops from pylearn2.sandbox.cuda_convnet

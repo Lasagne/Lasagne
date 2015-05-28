@@ -9,7 +9,7 @@ from .conv import conv_output_length
 from ..utils import as_tuple
 
 if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
-    raise ImportError("dnn not available")
+    raise ImportError("dnn not available")  # pragma: no cover
 
 
 __all__ = [

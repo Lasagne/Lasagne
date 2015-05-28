@@ -386,3 +386,48 @@ class TestConv2DCCLayer:
         assert actual.shape == output.shape
         assert actual.shape == layer.output_shape
         assert np.allclose(actual, output)
+
+
+class TestMaxPool2DCCLayer:
+    def test_not_implemented(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import MaxPool2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((128, 4, 12, 12))
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2, pad=2)
+        assert "MaxPool2DCCLayer does not support padding" in exc.value.args[0]
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=(2, 3))
+        assert ("MaxPool2DCCLayer only supports square pooling regions" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=(1, 2))
+        assert (("MaxPool2DCCLayer only supports using the same stride in "
+                 "both directions") in exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=3)
+        assert ("MaxPool2DCCLayer only supports stride <= pool_size" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2,
+                                     ignore_border=True)
+        assert ("MaxPool2DCCLayer does not support ignore_border" in
+                exc.value.args[0])
+
+    def test_dimshuffle_false(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import MaxPool2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((4, 12, 12, 128))  # c01b order
+        layer = MaxPool2DCCLayer(input_layer, pool_size=2, dimshuffle=False)
+        assert layer.output_shape == (4, 6, 6, 128)

@@ -466,7 +466,7 @@ class MaxPool2DCCLayer(CCLayer):
             stride = as_tuple(stride, 2)
             if stride[0] != stride[1]:
                 raise NotImplementedError("MaxPool2DCCLayer only supports "
-                                          "using the same stride in both, "
+                                          "using the same stride in both "
                                           "directions but stride=(%d, %d)"
                                           % stride)
             self.stride = stride[0]

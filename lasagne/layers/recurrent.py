@@ -155,19 +155,21 @@ class CustomRecurrentLayer(Layer):
         # but scan requires the iterable dimension to be first
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
+        seq_len, num_batch, num_features = input.shape
 
         # Because the input is given for all time steps, we can precompute
         # the inputs to hidden before scanning. First we need to reshape
         # from (seq_len, batch_size, num_inputs) to
         # (seq_len*batch_size, num_inputs)
         input = T.reshape(input,
-                          (self.seq_len*self.num_batch, -1))
+                          (seq_len*num_batch, -1))
         input_dot_W = helper.get_output(
             self.input_to_hidden, input, **kwargs)
 
         # reshape to original (seq_len, batch_size, num_units)
+
         input_dot_W = T.reshape(input_dot_W,
-                                (self.seq_len, self.num_batch, -1))
+                                (seq_len, num_batch, -1))
 
         # Create single recurrent computation step function
         def step(input_dot_W_n, hid_previous, *args):
@@ -213,7 +215,7 @@ class CustomRecurrentLayer(Layer):
             hid_init = self.hid_init
         else:
             # repeat num_batch times
-            hid_init = T.dot(T.ones((self.num_batch, 1)), self.hid_init)
+            hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
         non_seqs = helper.get_all_params(self.hidden_to_hidden)
         hid_out = theano.scan(
@@ -573,6 +575,7 @@ class LSTMLayer(Layer):
         # Because scan iterates over the first dimension we dimshuffle to
         # (n_time_steps, n_batch, n_features)
         input = input.dimshuffle(1, 0, 2)
+        seq_len, num_batch, num_features = input.shape
 
         # Because the input is given for all time steps, we can precompute
         # the inputs to the gates before scanning.
@@ -663,7 +666,7 @@ class LSTMLayer(Layer):
             sequences = input_dot_W
             step_fun = step
 
-        ones = T.ones((self.num_batch, 1))
+        ones = T.ones((num_batch, 1))
         if isinstance(self.cell_init, T.TensorVariable):
             cell_init = self.cell_init
         else:

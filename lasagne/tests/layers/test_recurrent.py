@@ -164,6 +164,23 @@ def test_recurrent_self_outvars():
     np.testing.assert_almost_equal(f_out, f_out_self)
 
 
+def test_recurrent_variable_input_size():
+    # that seqlen and batchsize none works
+    num_batch, n_features1 = 6, 5
+    num_units = 13
+    x = T.tensor3()
+
+    in_shp = (None, None, n_features1)
+    l_inp = InputLayer(in_shp)
+    x_in2 = np.ones((num_batch, 15, n_features1)).astype('float32')
+    x_in1 = np.ones((num_batch+1, 10, n_features1)).astype('float32')
+    l_rec = RecurrentLayer(l_inp, num_units=num_units, backwards=False)
+    l_out = helper.get_output(l_rec, x)
+    f_rec = theano.function([x], l_out)
+    f_out1 = f_rec(x_in1)
+    f_out2 = f_rec(x_in2)
+
+
 def test_lstm_return_shape():
     num_batch, seq_len, n_features1, n_features2 = 5, 3, 10, 11
     num_units = 6
@@ -324,3 +341,20 @@ def test_lstm_self_outvars():
     f_out, f_out_self = f_lstm(x_in)
 
     np.testing.assert_almost_equal(f_out, f_out_self)
+
+
+def test_lstm_variable_input_size():
+    # that seqlen and batchsize none works
+    num_batch, n_features1 = 6, 5
+    num_units = 13
+    x = T.tensor3()
+
+    in_shp = (None, None, n_features1)
+    l_inp = InputLayer(in_shp)
+    x_in2 = np.ones((num_batch, 3, n_features1)).astype('float32')
+    x_in1 = np.ones((num_batch+1, 3+1, n_features1)).astype('float32')
+    l_rec = LSTMLayer(l_inp, num_units=num_units, backwards=False)
+    l_out = helper.get_output(l_rec, x)
+    f_rec = theano.function([x], l_out)
+    f_out1 = f_rec(x_in1)
+    f_out2 = f_rec(x_in2)

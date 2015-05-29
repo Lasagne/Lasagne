@@ -552,7 +552,8 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
     """
     all_grads = get_or_compute_grads(loss_or_grads, params)
     t_prev = theano.shared(utils.floatX(0.))
-    updates = []
+    updates = OrderedDict()
+
     for param, g_t in zip(params, all_grads):
         m_prev = theano.shared(param.get_value() * 0.)
         v_prev = theano.shared(param.get_value() * 0.)
@@ -562,11 +563,11 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
         a_t = learning_rate*T.sqrt(1-beta2**t)/(1-beta1**t)
         step = a_t*m_t/(T.sqrt(v_t) + epsilon)
 
-        updates.append((m_prev, m_t))
-        updates.append((v_prev, v_t))
-        updates.append((param, param - step))
+        updates[m_prev] = m_t
+        updates[v_prev] = v_t
+        updates[param] = param - step
 
-    updates.append((t_prev, t))
+    updates[t_prev] = t
     return updates
 
 

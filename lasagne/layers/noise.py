@@ -13,15 +13,7 @@ __all__ = [
 ]
 
 
-class NoiseLayer(Layer):
-    """Base class for stochastic layers"""
-    def __init__(self, incoming, **kwargs):
-        super(NoiseLayer, self).__init__(incoming, **kwargs)
-
-        self._srng = RandomStreams(np.random.randint(1, 2147462579))
-
-
-class DropoutLayer(NoiseLayer):
+class DropoutLayer(Layer):
     """Dropout layer [1]_,[2]_.
 
     Sets values to zero with probability p. See notes for disabling dropout
@@ -62,6 +54,7 @@ class DropoutLayer(NoiseLayer):
     """
     def __init__(self, incoming, p=0.5, rescale=True, **kwargs):
         super(DropoutLayer, self).__init__(incoming, **kwargs)
+        self._srng = RandomStreams(np.random.randint(1, 2147462579))
         self.p = p
         self.rescale = rescale
 
@@ -92,7 +85,7 @@ class DropoutLayer(NoiseLayer):
 dropout = DropoutLayer  # shortcut
 
 
-class GaussianNoiseLayer(NoiseLayer):
+class GaussianNoiseLayer(Layer):
     """Gaussian noise layer [1]_.
 
     Add zero Gaussian noise with mean 0 and std sigma to the input
@@ -119,6 +112,7 @@ class GaussianNoiseLayer(NoiseLayer):
     """
     def __init__(self, incoming, sigma=0.1, **kwargs):
         super(GaussianNoiseLayer, self).__init__(incoming, **kwargs)
+        self._srng = RandomStreams(np.random.randint(1, 2147462579))
         self.sigma = sigma
 
     def get_output_for(self, input, deterministic=False, **kwargs):

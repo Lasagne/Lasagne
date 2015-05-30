@@ -130,6 +130,17 @@ Layer classes: embedding layers
 -------------------------------
 
 .. autoclass:: EmbeddingLayer
+
+Layer classes: recurrent layers
+-------------------------------
+
+.. autoclass:: CustomRecurrentLayer
+    :members:
+
+.. autoclass:: RecurrentLayer
+    :members:
+
+.. autoclass:: LSTMLayer
     :members:
 
 :mod:`lasagne.layers.corrmm`

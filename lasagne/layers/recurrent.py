@@ -7,9 +7,11 @@ flattened.
 
 The following recurrent layers are implemented:
 
-* :func:`CustomRecurrentLayer()`
-* :func:`RecurrentLayer()`
-* :func:`LSTMLayer()`
+.. autosummary::
+
+    CustomRecurrentLayer
+    RecurrentLayer
+    LSTMLayer
 
 Recurrent layers and feed-forward layers can be combined in the same network
 by using a few reshape operations, please refer to the recurrent examples for
@@ -35,8 +37,7 @@ __all__ = [
 
 
 class CustomRecurrentLayer(Layer):
-    """
-    A layer which implements a recurrent connection.
+    """A layer which implements a recurrent connection.
 
     Parameters
     ----------
@@ -238,7 +239,8 @@ class CustomRecurrentLayer(Layer):
 
 
 class RecurrentLayer(CustomRecurrentLayer):
-    """
+    """Dense recurrent neural network (RNN) layer
+
     A "vanilla" RNN layer, which has dense input-to-hidden and
     hidden-to-hidden connections.
 
@@ -310,8 +312,9 @@ class RecurrentLayer(CustomRecurrentLayer):
 
 
 class LSTMLayer(Layer):
-    """
-    A long short-term memory (LSTM) layer.  Includes "peephole connections" and
+    """A long short-term memory (LSTM) layer
+
+    Includes "peephole connections" and
     forget gate.  Based on the definition in [1]_, which is
     the current common definition.
 

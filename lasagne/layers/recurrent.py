@@ -41,23 +41,24 @@ class CustomRecurrentLayer(Layer):
     Parameters
     ----------
     incoming : a :class:`lasagne.layers.Layer` instance or a tuple
-        The layer feeding into this layer, or the expected input shape
+        The layer feeding into this layer, or the expected input shape.
     input_to_hidden : :class:`lasagne.layers.Layer`
-        Layer which connects input to the hidden state
+        Layer which connects input to the hidden state.
     hidden_to_hidden : :class:`lasagne.layers.Layer`
-        Layer which connects the previous hidden state to the new state
-    nonlinearity : function or theano.tensor.elemwise.Elemwise
-        Nonlinearity to apply when computing new state
+        Layer which connects the previous hidden state to the new state.
+    nonlinearity : function
+        Nonlinearity to apply when computing new state.
     hid_init : function, np.ndarray, theano.shared or TensorVariable
-        :math:`h_0`. Passing in a TensorVariable allows the user to specify
-        the value of hid_init. In this mode learn_init is ignored.
+        Passing in a TensorVariable allows the user to specify
+        the value of hid_init (:math:`h_0`). In this mode learn_init is
+        ignored.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
-        from x_1 to x_n.
+        from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If hid_init or cell_init
-        are TensorVariables learn_init is ignored.
+        If True, initial hidden values are learned. If hid_init is a
+        TensorVariable then learn_init is ignored.
     gradient_steps : int
         Number of timesteps to include in backpropagated gradient
         If -1, backpropagate through the entire sequence
@@ -67,8 +68,8 @@ class CustomRecurrentLayer(Layer):
 
     References
     ----------
-    .. [1] Alex Graves : Generating Sequences With Recurrent Neural
-           Networks
+    .. [1] Graves, Alex: "Generating sequences with recurrent neural networks."
+           arXiv preprint arXiv:1308.0850 (2013).
     """
     def __init__(self, incoming, input_to_hidden, hidden_to_hidden,
                  nonlinearity=nonlinearities.rectify,
@@ -143,7 +144,7 @@ class CustomRecurrentLayer(Layer):
         Returns
         -------
         layer_output : theano.TensorType
-            Symbolic output variable
+            Symbolic output variable.
         """
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
@@ -244,27 +245,28 @@ class RecurrentLayer(CustomRecurrentLayer):
     Parameters
     ----------
     incoming : a :class:`lasagne.layers.Layer` instance or a tuple
-        The layer feeding into this layer, or the expected input shape
+        The layer feeding into this layer, or the expected input shape.
     num_units : int
-        Number of hidden units in the layer
+        Number of hidden units in the layer.
     W_in_to_hid : function or np.ndarray or theano.shared
-        Initializer for input-to-hidden weight matrix
+        Initializer for input-to-hidden weight matrix.
     W_hid_to_hid : function or np.ndarray or theano.shared
-        Initializer for hidden-to-hidden weight matrix
+        Initializer for hidden-to-hidden weight matrix.
     b : function or np.ndarray or theano.shared
-        Initializer for bias vector
-    nonlinearity : function or theano.tensor.elemwise.Elemwise
-        Nonlinearity to apply when computing new state
+        Initializer for bias vector.
+    nonlinearity : function
+        Nonlinearity to apply when computing new state.
     hid_init : function, np.ndarray, theano.shared or TensorVariable
-        :math:`h_0`. Passing in a TensorVariable allows the user to specify
-        the value of hid_init. In this mode learn_init is ignored.
+        Passing in a TensorVariable allows the user to specify
+        the value of hid_init (:math:`h_0`). In this mode learn_init is
+        ignored.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
-        from x_1 to x_n.
+        from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If hid_init or cell_init
-        are TensorVariables learn_init is ignored.
+        If True, initial hidden values are learned. If hid_init is a
+        TensorVariable then learn_init is ignored.
     gradient_steps : int
         Number of timesteps to include in backpropagated gradient
         If -1, backpropagate through the entire sequence
@@ -274,8 +276,8 @@ class RecurrentLayer(CustomRecurrentLayer):
 
     References
     ----------
-    .. [1] Alex Graves : Generating Sequences With Recurrent Neural
-           Networks
+    .. [1] Graves, Alex: "Generating sequences with recurrent neural networks."
+           arXiv preprint arXiv:1308.0850 (2013).
     """
     def __init__(self, incoming, num_units,
                  W_in_to_hid=init.Uniform(),
@@ -320,73 +322,76 @@ class LSTMLayer(Layer):
     num_units : int
         Number of hidden units in the layer
     W_in_to_ingate : function or np.ndarray or theano.shared
-        :math:`W_{xi}`
+        :math:`W_{xi}`.
     W_hid_to_ingate : function or np.ndarray or theano.shared
-        :math:`W_{hi}`
+        :math:`W_{hi}`.
     W_cell_to_ingate : function or np.ndarray or theano.shared
-        :math:`W_{ci}`
+        :math:`W_{ci}`.
     b_ingate : function or np.ndarray or theano.shared
-        :math:`b_i`
+        :math:`b_i`.
     nonlinearity_ingate : function
-        :math:`\sigma`
+        :math:`\sigma`.
     W_in_to_forgetgate : function or np.ndarray or theano.shared
-        :math:`W_{xf}`
+        :math:`W_{xf}`.
     W_hid_to_forgetgate : function or np.ndarray or theano.shared
-        :math:`W_{hf}`
+        :math:`W_{hf}`.
     W_cell_to_forgetgate : function or np.ndarray or theano.shared
-        :math:`W_{cf}`
+        :math:`W_{cf}`.
     b_forgetgate : function or np.ndarray or theano.shared
-        :math:`b_f`
+        :math:`b_f`.
     nonlinearity_forgetgate : function
-        :math:`\sigma`
+        :math:`\sigma`.
     W_in_to_cell : function or np.ndarray or theano.shared
-        :math:`W_{ic}`
+        :math:`W_{ic}`.
     W_hid_to_cell : function or np.ndarray or theano.shared
-        :math:`W_{hc}`
+        :math:`W_{hc}`.
     b_cell : function or np.ndarray or theano.shared
-        :math:`b_c`
+        :math:`b_c`.
     nonlinearity_cell : function or np.ndarray or theano.shared
-        :math:`\tanh`
+        :math:`tanh`.
     W_in_to_outgate : function or np.ndarray or theano.shared
-        :math:`W_{io}`
+        :math:`W_{io}`.
     W_hid_to_outgate : function or np.ndarray or theano.shared
-        :math:`W_{ho}`
+        :math:`W_{ho}`.
     W_cell_to_outgate : function or np.ndarray or theano.shared
-        :math:`W_{co}`
+        :math:`W_{co}`.
     b_outgate : function or np.ndarray or theano.shared
-        :math:`b_o`
+        :math:`b_o`.
     nonlinearity_outgate : function
-        :math:`\sigma`
+        :math:`\sigma`.
     nonlinearity_out : function or np.ndarray or theano.shared
-        :math:`\tanh`
+        :math:`tanh`.
     cell_init : function, np.ndarray, theano.shared or TensorVariable
-        :math:`c_0`. Passing in a TensorVariable allows the user to specify
-        the value of cell_init. In this mode learn_init is ignored.
+        Passing in a TensorVariable allows the user to specify
+        the value of cell_init (:math:`c_0`). In this mode learn_init is
+        ignored.
     hid_init : function, np.ndarray, theano.shared or TensorVariable
-        :math:`h_0`. Passing in a TensorVariable allows the user to specify
-        the value of hid_init. In this mode learn_init is ignored.
+        Passing in a TensorVariable allows the user to specify
+        the value of hid_init (:math:`h_0`). In this mode learn_init is
+        ignored.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
-        from x_1 to x_n.
+        from :math:`x_1` to :math:`x_n`.
     learn_init : bool
         If True, initial hidden values are learned. If hid_init or cell_init
-        are TensorVariables learn_init is ignored.
+        are TensorVariables then the TensorVariable is used and learn_init is
+        ignored for that initial state.
     peepholes : bool
         If True, the LSTM uses peephole connections.
         When False, W_cell_to_ingate, W_cell_to_forgetgate and
         W_cell_to_outgate are ignored.
     gradient_steps : int
         Number of timesteps to include in backpropagated gradient
-        If -1, backpropagate through the entire sequence
+        If -1, backpropagate through the entire sequence.
     grad_clipping: False or float
         If float the gradient messages are clipped during the backward pass.
         See [1]_ (p. 6) for further explanation.
 
     References
     ----------
-    .. [1] Alex Graves : Generating Sequences With Recurrent Neural
-           Networks
+    .. [1] Graves, Alex: "Generating sequences with recurrent neural networks."
+           arXiv preprint arXiv:1308.0850 (2013).
     """
     def __init__(self, incoming, num_units,
                  W_in_to_ingate=init.Normal(0.1),

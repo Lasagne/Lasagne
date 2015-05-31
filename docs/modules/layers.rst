@@ -112,6 +112,11 @@ Layer classes: merge layers
 .. autoclass:: ElemwiseSumLayer
     :members:
 
+Layer classes: embedding layers
+---------------------------
+
+.. autoclass:: EmbeddingLayer
+    :members:
 
 :mod:`lasagne.layers.corrmm`
 ============================

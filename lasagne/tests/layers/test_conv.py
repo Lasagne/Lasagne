@@ -1,13 +1,29 @@
-from mock import Mock
 import numpy as np
 import pytest
 import importlib
 import theano
-import theano.tensor as T
-from theano.tensor.nnet import conv2d
 
 import lasagne
 from lasagne.utils import floatX
+
+
+def conv2d(input, kernel, border_mode):
+    output = np.zeros((input.shape[0],
+                       kernel.shape[0],
+                       input.shape[2] + kernel.shape[2] - 1,
+                       input.shape[3] + kernel.shape[3] - 1,
+                       ))
+    for i in range(kernel.shape[2]):
+        for j in range(kernel.shape[3]):
+            k = kernel[:, :, i, j][:, :, np.newaxis, np.newaxis]
+            output[:, :, i:i + input.shape[2],
+                   j:j + input.shape[3]] += (input[:, np.newaxis] * k).sum(2)
+
+    if border_mode == 'valid':
+        trim = (kernel.shape[2] - 1, kernel.shape[3] - 1)
+        output = output[:, :, trim[0]:-trim[0], trim[1]:-trim[1]]
+
+    return output
 
 
 def conv2d_test_sets():
@@ -20,9 +36,7 @@ def conv2d_test_sets():
         for stride in [1, 2, 3]:
             input = np.random.random((3, 1, 16, 23))
             kernel = np.random.random((16, 1, 3, 3))
-            output = conv2d(input, kernel,
-                            border_mode=conv_mode,
-                            ).eval()
+            output = conv2d(input, kernel, border_mode=conv_mode)
             if border_mode == 'same':
                 shift_x = (kernel.shape[2] - 1) // 2
                 shift_y = (kernel.shape[3] - 1) // 2
@@ -35,9 +49,7 @@ def conv2d_test_sets():
 
             input = np.random.random((3, 3, 16, 23))
             kernel = np.random.random((16, 3, 3, 3))
-            output = conv2d(input, kernel,
-                            border_mode=conv_mode,
-                            ).eval()
+            output = conv2d(input, kernel, border_mode=conv_mode)
             if border_mode == 'same':
                 shift_x = (kernel.shape[2] - 1) // 2
                 shift_y = (kernel.shape[3] - 1) // 2
@@ -51,7 +63,7 @@ def conv2d_test_sets():
     # bias-less case
     input = np.random.random((3, 1, 16, 23))
     kernel = np.random.random((16, 1, 3, 3))
-    output = conv2d(input, kernel, border_mode='valid').eval()
+    output = conv2d(input, kernel, border_mode='valid')
     yield _convert(input, kernel, output, {'b': None})
 
 

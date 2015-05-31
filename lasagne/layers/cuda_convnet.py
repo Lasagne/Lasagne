@@ -237,6 +237,12 @@ class Conv2DCCLayer(CCLayer):
         self.flip_filters = flip_filters
         self.partial_sum = partial_sum
 
+        if not (self.num_input_channels < 4 or
+                self.num_input_channels % 4 == 0):
+            raise RuntimeError("Conv2DCCLayer requires the number of input "
+                               "channels to be 1, 2, 3 or a multiple of 4, "
+                               "but it is %d" % self.num_input_channels)
+
         if border_mode is not None and pad is not None:
             raise RuntimeError("You cannot specify both 'border_mode' and "
                                "'pad'. To avoid ambiguity, please specify "
@@ -287,15 +293,20 @@ class Conv2DCCLayer(CCLayer):
         self.filter_acts_op = FilterActs(
             stride=self.stride, partial_sum=self.partial_sum, pad=self.pad)
 
+    @property
+    def num_input_channels(self):
+        if self.dimshuffle:
+            return self.input_shape[1]
+        else:
+            return self.input_shape[0]
+
     def get_W_shape(self):
         if self.dimshuffle:
-            num_input_channels = self.input_shape[1]
-            return (self.num_filters, num_input_channels, self.filter_size,
-                    self.filter_size)
+            return (self.num_filters, self.num_input_channels,
+                    self.filter_size, self.filter_size)
         else:
-            num_input_channels = self.input_shape[0]
-            return (num_input_channels, self.filter_size, self.filter_size,
-                    self.num_filters)
+            return (self.num_input_channels, self.filter_size,
+                    self.filter_size, self.num_filters)
 
     def get_output_shape_for(self, input_shape):
         if self.dimshuffle:
@@ -579,7 +590,7 @@ c01b_to_bc01 = ShuffleC01BToBC01Layer  # shortcut
 class NINLayer_c01b(Layer):
     """
     lasagne.layers.NINLayer_c01b(incoming, num_units, untie_biases=False,
-    W=lasagne.init.GlorotUniform(c01b=True), b=lasagne.init.Constant(0.),
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
     nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
 
     Network-in-network layer with c01b axis ordering.

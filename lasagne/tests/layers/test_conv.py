@@ -354,6 +354,14 @@ class TestConv2DCCLayer:
         assert ("Conv2DCCLayer only supports square padding" in
                 exc.value.args[0])
 
+        input_layer = DummyInputLayer((128, 7, 32, 32))
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3))
+        assert ("Conv2DCCLayer requires the number of input channels to be "
+                "1, 2, 3 or a multiple of 4" in exc.value.args[0])
+
     def test_pad(self, DummyInputLayer):
         try:
             from lasagne.layers.cuda_convnet import Conv2DCCLayer
@@ -395,7 +403,9 @@ class TestConv2DCCLayer:
         except ImportError:
             pytest.skip("cuda_convnet not available")
 
-        # this implementation needs to be
+        # this implementation is tested against FilterActs instead of
+        # theano.tensor.nnet.conv.conv2d because using the latter leads to
+        # numerical precision errors.
         from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
         filter_acts = FilterActs(stride=1, pad=0, partial_sum=1)
 

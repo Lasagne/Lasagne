@@ -18,7 +18,7 @@ class EmbeddingLayer(Layer):
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
-        The layer feeding into this layer, or the expected input shape
+        The layer feeding into this layer, or the expected input shape.
 
     input_size: int
         The Number of different embeddings. The last embedding will have index

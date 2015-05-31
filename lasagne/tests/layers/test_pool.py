@@ -339,6 +339,56 @@ class TestMaxPool2DCCLayer:
         except NotImplementedError:
             pytest.skip()
 
+    def test_not_implemented(self):
+        try:
+            from lasagne.layers.cuda_convnet import MaxPool2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = self.input_layer((128, 4, 12, 12))
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2, pad=2)
+        assert "MaxPool2DCCLayer does not support padding" in exc.value.args[0]
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=(2, 3))
+        assert ("MaxPool2DCCLayer only supports square pooling regions" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=(1, 2))
+        assert (("MaxPool2DCCLayer only supports using the same stride in "
+                 "both directions") in exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=3)
+        assert ("MaxPool2DCCLayer only supports stride <= pool_size" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = MaxPool2DCCLayer(input_layer, pool_size=2,
+                                     ignore_border=True)
+        assert ("MaxPool2DCCLayer does not support ignore_border" in
+                exc.value.args[0])
+
+    def test_dimshuffle_false(self):
+        try:
+            from lasagne.layers.cuda_convnet import MaxPool2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+        from lasagne.layers.input import InputLayer
+
+        input_layer = InputLayer((4, 12, 12, 16))  # c01b order
+        layer = MaxPool2DCCLayer(input_layer, pool_size=2, dimshuffle=False)
+        assert layer.output_shape == (4, 6, 6, 16)
+
+        input = floatX(np.random.randn(4, 12, 12, 16))
+        output = max_pool_2d(input.transpose(3, 0, 1, 2), (2, 2), (2, 2))
+        output = output.transpose(1, 2, 3, 0)
+        actual = layer.get_output_for(input).eval()
+        assert np.allclose(output, actual)
+
 
 class TestMaxPool2DNNLayer:
     def pool_test_sets_ignoreborder():

@@ -3,8 +3,10 @@ import numpy as np
 import pytest
 import importlib
 import theano
+import theano.tensor as T
 from theano.tensor.nnet import conv2d
 
+import lasagne
 from lasagne.utils import floatX
 
 
@@ -46,6 +48,23 @@ def conv2d_test_sets():
                                                    'stride': stride
                                                    })
 
+    # bias-less case
+    input = np.random.random((3, 1, 16, 23))
+    kernel = np.random.random((16, 1, 3, 3))
+    output = conv2d(input, kernel, border_mode='valid').eval()
+    yield _convert(input, kernel, output, {'b': None})
+
+
+def conv1d(input, kernel, border_mode='valid'):
+    output = []
+    for b in input:
+        temp = []
+        for c in kernel:
+            temp.append(
+                np.convolve(b[0, :], c[0, :], mode=border_mode))
+        output.append(temp)
+    return np.array(output)
+
 
 def conv1d_test_sets():
     def _convert(input, kernel, output, kwargs):
@@ -55,18 +74,17 @@ def conv1d_test_sets():
         for stride in [1, 2, 3]:
             input = np.random.random((3, 1, 23))
             kernel = np.random.random((16, 1, 3))
-            output = []
-            for b in input:
-                temp = []
-                for c in kernel:
-                    temp.append(
-                        np.convolve(b[0, :], c[0, :], mode=border_mode))
-                output.append(temp)
-            output = np.array(output)
+            output = conv1d(input, kernel, border_mode)
             output = output[:, :, ::stride]
             yield _convert(input, kernel, output, {'border_mode': border_mode,
                                                    'stride': stride,
                                                    })
+
+    # bias-less case
+    input = np.random.random((3, 1, 23))
+    kernel = np.random.random((16, 1, 3))
+    output = conv1d(input, kernel, border_mode='valid')
+    yield _convert(input, kernel, output, {'b': None})
 
 
 @pytest.fixture
@@ -107,6 +125,22 @@ class TestConv1DLayer:
 
         except NotImplementedError:
             pass
+
+    def test_init_none_nonlinearity_bias(self, DummyInputLayer):
+        from lasagne.layers.conv import Conv1DLayer
+        input_layer = DummyInputLayer((1, 2, 3))
+        layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
+                            nonlinearity=None, b=None)
+        assert layer.nonlinearity == lasagne.nonlinearities.identity
+        assert layer.b is None
+
+    def test_invalid_border_mode(self, DummyInputLayer):
+        from lasagne.layers.conv import Conv1DLayer
+        input_layer = DummyInputLayer((1, 2, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
+                                border_mode='_nonexistent_mode')
+        assert "Invalid border mode" in exc.value.args[0]
 
 
 class TestConv2DLayerImplementations:
@@ -190,3 +224,237 @@ class TestConv2DLayerImplementations:
 
         except NotImplementedError:
             pytest.skip()
+
+    def test_init_none_nonlinearity_bias(self, Conv2DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((1, 2, 3, 3))
+        layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
+                           nonlinearity=None, b=None)
+        assert layer.nonlinearity == lasagne.nonlinearities.identity
+        assert layer.b is None
+
+    def test_invalid_border_mode(self, Conv2DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((1, 2, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
+                               border_mode='_nonexistent_mode')
+        assert "Invalid border mode" in exc.value.args[0]
+
+    def test_get_params(self, Conv2DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((128, 3, 32, 32))
+        layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3))
+        assert layer.get_params() == [layer.W, layer.b]
+        assert layer.get_params(regularizable=False) == [layer.b]
+        assert layer.get_params(regularizable=True) == [layer.W]
+        assert layer.get_params(trainable=True) == [layer.W, layer.b]
+        assert layer.get_params(trainable=False) == []
+        assert layer.get_params(_nonexistent_tag=True) == []
+        assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
+
+
+class TestConvOutputLength:
+    def test_invalid_border_mode(self):
+        from lasagne.layers.conv import conv_output_length
+        with pytest.raises(RuntimeError) as exc:
+            conv_output_length(5, 3, 1, border_mode='_nonexistent_mode')
+        assert "Invalid border mode" in exc.value.args[0]
+
+
+class TestConv2DDNNLayer:
+    def test_import_without_gpu_or_cudnn_raises(self):
+        from theano.sandbox.cuda import dnn
+        if theano.config.device.startswith("gpu") and dnn.dnn_available():
+            pytest.skip()
+        else:
+            with pytest.raises(ImportError):
+                import lasagne.layers.dnn
+
+    def test_pad(self, DummyInputLayer):
+        try:
+            from lasagne.layers.dnn import Conv2DDNNLayer
+        except ImportError:
+            pytest.skip("dnn not available")
+
+        input_layer = DummyInputLayer((1, 2, 3, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DDNNLayer(input_layer, num_filters=1,
+                                   filter_size=(3, 3), border_mode='valid',
+                                   pad=(1, 1))
+        assert ("You cannot specify both 'border_mode' and 'pad'" in
+                exc.value.args[0])
+
+        layer = Conv2DDNNLayer(input_layer, num_filters=4, filter_size=(3, 3),
+                               pad=(3, 3))
+        assert layer.output_shape == (1, 4, 7, 7)
+
+
+class TestConv2DMMLayer:
+    def test_import_without_gpu_raises(self):
+        if theano.config.device.startswith("gpu"):
+            pytest.skip()
+        else:
+            with pytest.raises(ImportError):
+                import lasagne.layers.corrmm
+
+    def test_pad(self, DummyInputLayer):
+        try:
+            from lasagne.layers.corrmm import Conv2DMMLayer
+        except ImportError:
+            pytest.skip("corrmm not available")
+
+        input_layer = DummyInputLayer((1, 2, 3, 3))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DMMLayer(input_layer, num_filters=1,
+                                  filter_size=(3, 3), border_mode='valid',
+                                  pad=(1, 1))
+        assert ("You cannot specify both 'border_mode' and 'pad'" in
+                exc.value.args[0])
+
+        layer = Conv2DMMLayer(input_layer, num_filters=4, filter_size=(3, 3),
+                              pad=(3, 3))
+        assert layer.output_shape == (1, 4, 7, 7)
+
+
+class TestConv2DCCLayer:
+    def test_import_without_gpu_raises(self):
+        if theano.config.device.startswith("gpu"):
+            pytest.skip()
+        else:
+            with pytest.raises(ImportError):
+                import lasagne.layers.cuda_convnet
+
+    def test_unsupported_settings(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((128, 3, 32, 32))
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 5))
+        assert ("Conv2DCCLayer only supports square filters" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3), stride=(1, 2))
+        assert ("Conv2DCCLayer only supports square strides" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=15,
+                                  filter_size=(3, 3))
+        assert ("Conv2DCCLayer requires num_filters to be a multiple of 16" in
+                exc.value.args[0])
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3), pad=(1, 2))
+        assert ("Conv2DCCLayer only supports square padding" in
+                exc.value.args[0])
+
+        input_layer = DummyInputLayer((128, 7, 32, 32))
+
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3))
+        assert ("Conv2DCCLayer requires the number of input channels to be "
+                "1, 2, 3 or a multiple of 4" in exc.value.args[0])
+
+    def test_pad(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((128, 3, 32, 32))
+        with pytest.raises(RuntimeError) as exc:
+            layer = Conv2DCCLayer(input_layer, num_filters=16,
+                                  filter_size=(3, 3), border_mode='valid',
+                                  pad=(1, 1))
+        assert ("You cannot specify both 'border_mode' and 'pad'" in
+                exc.value.args[0])
+
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              pad=(3, 3))
+        assert layer.output_shape == (128, 16, 36, 36)
+
+    def test_dimshuffle_false_shapes(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = DummyInputLayer((4, 32, 32, 128))  # c01b instead of bc01
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              dimshuffle=False)
+        assert layer.W.get_value().shape == (4, 3, 3, 16)
+        assert layer.b.get_value().shape == (16,)
+
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              dimshuffle=False, untie_biases=True)
+        assert layer.W.get_value().shape == (4, 3, 3, 16)
+        assert layer.b.get_value().shape == (16, 30, 30)
+
+    def test_dimshuffle_false_get_output_for(self, DummyInputLayer):
+        try:
+            from lasagne.layers.cuda_convnet import Conv2DCCLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        # this implementation is tested against FilterActs instead of
+        # theano.tensor.nnet.conv.conv2d because using the latter leads to
+        # numerical precision errors.
+        from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
+        filter_acts = FilterActs(stride=1, pad=0, partial_sum=1)
+
+        input = theano.shared(floatX(np.random.random((4, 5, 5, 8))))
+        kernel = theano.shared(floatX(np.random.random((4, 3, 3, 16))))
+
+        input_layer = DummyInputLayer((4, 5, 5, 8))  # c01b instead of bc01
+        layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
+                              dimshuffle=False, W=kernel, b=None,
+                              nonlinearity=None)
+
+        output = np.array(filter_acts(input, kernel).eval())
+
+        actual = layer.get_output_for(input).eval()
+        actual = np.array(actual)
+        assert actual.shape == output.shape
+        assert actual.shape == layer.output_shape
+        assert np.allclose(actual, output)
+
+
+class TestShuffleLayers:
+    def test_bc01_to_c01b(self):
+        from lasagne.layers.input import InputLayer
+        try:
+            from lasagne.layers.cuda_convnet import ShuffleBC01ToC01BLayer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = InputLayer((1, 2, 3, 4))
+        layer = ShuffleBC01ToC01BLayer(input_layer)
+        assert layer.output_shape == (2, 3, 4, 1)
+
+        input = floatX(np.random.random((1, 2, 3, 4)))
+        output = input.transpose(1, 2, 3, 0)
+        actual = layer.get_output_for(theano.shared(input)).eval()
+        assert np.allclose(output, actual)
+
+    def test_c01b_to_bc01(self):
+        from lasagne.layers.input import InputLayer
+        try:
+            from lasagne.layers.cuda_convnet import ShuffleC01BToBC01Layer
+        except ImportError:
+            pytest.skip("cuda_convnet not available")
+
+        input_layer = InputLayer((1, 2, 3, 4))
+        layer = ShuffleC01BToBC01Layer(input_layer)
+        assert layer.output_shape == (4, 1, 2, 3)
+
+        input = floatX(np.random.random((1, 2, 3, 4)))
+        output = input.transpose(3, 0, 1, 2)
+        actual = layer.get_output_for(theano.shared(input)).eval()
+        assert np.allclose(output, actual)

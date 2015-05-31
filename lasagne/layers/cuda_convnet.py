@@ -26,7 +26,7 @@ __all__ = [
 
 
 if not theano.config.device.startswith("gpu"):
-    raise ImportError("requires a GPU to work")
+    raise ImportError("requires a GPU to work")  # pragma: no cover
 
 
 # base class for all layers that use ops from pylearn2.sandbox.cuda_convnet
@@ -237,6 +237,12 @@ class Conv2DCCLayer(CCLayer):
         self.flip_filters = flip_filters
         self.partial_sum = partial_sum
 
+        if not (self.num_input_channels < 4 or
+                self.num_input_channels % 4 == 0):
+            raise RuntimeError("Conv2DCCLayer requires the number of input "
+                               "channels to be 1, 2, 3 or a multiple of 4, "
+                               "but it is %d" % self.num_input_channels)
+
         if border_mode is not None and pad is not None:
             raise RuntimeError("You cannot specify both 'border_mode' and "
                                "'pad'. To avoid ambiguity, please specify "
@@ -254,10 +260,13 @@ class Conv2DCCLayer(CCLayer):
                 # is probably not worth supporting.
                 self.pad = (self.filter_size - 1) // 2
             else:
-                raise RuntimeError("Unsupported border_mode for "
-                                   "Conv2DCCLayer: %s" % border_mode)
+                raise RuntimeError("Invalid border mode: '%s'" % border_mode)
         else:
-            self.pad = pad
+            pad = as_tuple(pad, 2)
+            if pad[0] != pad[1]:
+                raise RuntimeError("Conv2DCCLayer only supports square "
+                                   "padding, but pad=(%d, %d)" % pad)
+            self.pad = pad[0]
 
         if W is None:
             if dimshuffle:
@@ -268,29 +277,36 @@ class Conv2DCCLayer(CCLayer):
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            if self.dimshuffle:
-                biases_shape = (num_filters, self.output_shape[2],
-                                self.output_shape[3])
-            else:
-                biases_shape = (num_filters, self.output_shape[1],
-                                self.output_shape[2])
         else:
-            biases_shape = (num_filters,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                if self.dimshuffle:
+                    biases_shape = (num_filters, self.output_shape[2],
+                                    self.output_shape[3])
+                else:
+                    biases_shape = (num_filters, self.output_shape[1],
+                                    self.output_shape[2])
+            else:
+                biases_shape = (num_filters,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
         self.filter_acts_op = FilterActs(
             stride=self.stride, partial_sum=self.partial_sum, pad=self.pad)
 
+    @property
+    def num_input_channels(self):
+        if self.dimshuffle:
+            return self.input_shape[1]
+        else:
+            return self.input_shape[0]
+
     def get_W_shape(self):
         if self.dimshuffle:
-            num_input_channels = self.input_shape[1]
-            return (self.num_filters, num_input_channels, self.filter_size,
-                    self.filter_size)
+            return (self.num_filters, self.num_input_channels,
+                    self.filter_size, self.filter_size)
         else:
-            num_input_channels = self.input_shape[0]
-            return (num_input_channels, self.filter_size, self.filter_size,
-                    self.num_filters)
+            return (self.num_input_channels, self.filter_size,
+                    self.filter_size, self.num_filters)
 
     def get_output_shape_for(self, input_shape):
         if self.dimshuffle:
@@ -461,7 +477,7 @@ class MaxPool2DCCLayer(CCLayer):
             stride = as_tuple(stride, 2)
             if stride[0] != stride[1]:
                 raise NotImplementedError("MaxPool2DCCLayer only supports "
-                                          "using the same stride in both, "
+                                          "using the same stride in both "
                                           "directions but stride=(%d, %d)"
                                           % stride)
             self.stride = stride[0]
@@ -574,7 +590,7 @@ c01b_to_bc01 = ShuffleC01BToBC01Layer  # shortcut
 class NINLayer_c01b(Layer):
     """
     lasagne.layers.NINLayer_c01b(incoming, num_units, untie_biases=False,
-    W=lasagne.init.GlorotUniform(c01b=True), b=lasagne.init.Constant(0.),
+    W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
     nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
 
     Network-in-network layer with c01b axis ordering.
@@ -617,7 +633,7 @@ class NINLayer_c01b(Layer):
         Any additional keyword arguments are passed to the `Layer` superclass.
     """
     def __init__(self, incoming, num_units, untie_biases=False,
-                 W=init.GlorotUniform(c01b=True), b=init.Constant(0.),
+                 W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, **kwargs):
         super(NINLayer_c01b, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
@@ -633,11 +649,13 @@ class NINLayer_c01b(Layer):
         self.W = self.add_param(W, (num_units, num_input_channels), name="W")
         if b is None:
             self.b = None
-        elif self.untie_biases:
-            biases_shape = (num_units,) + self.output_shape[1:-1]
         else:
-            biases_shape = (num_units,)
-        self.b = self.add_param(b, biases_shape, name="b", regularizable=False)
+            if self.untie_biases:
+                biases_shape = (num_units,) + self.output_shape[1:-1]
+            else:
+                biases_shape = (num_units,)
+            self.b = self.add_param(b, biases_shape, name="b",
+                                    regularizable=False)
 
     def get_output_shape_for(self, input_shape):
         return (self.num_units,) + input_shape[1:]

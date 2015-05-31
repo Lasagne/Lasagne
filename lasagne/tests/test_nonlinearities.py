@@ -44,7 +44,7 @@ class TestNonlinearities(object):
 
     def test_nonlinearity(self, nonlinearity):
         import lasagne.nonlinearities
-        print nonlinearity
+        
         if nonlinearity == 'leaky_rectify_0':
             from lasagne.nonlinearities import LeakyRectify
             theano_nonlinearity = LeakyRectify(leakiness=0)

@@ -170,7 +170,8 @@ very_leaky_rectify.__doc__ = """very_leaky_rectify(x)
 #temperature softmax
 class TemperatureSoftmax(object):
     """Temperature Softmax :math:`q_{i} = \\frac{e^{(z_i / T)}}{\\sum_j e^{(z_i / T)}}
-    Compared to the standard  softmax :func:`softmax`, it allows to change the difference in selection probability for outputs that differ in their value estimates.
+    Compared to the standard  softmax :func:`softmax`, allows to change the difference in selection probability for
+    outputs that differ in their value estimates.
 
     ----------
     temperature : float
@@ -197,10 +198,10 @@ class TemperatureSoftmax(object):
     See Also
     --------
     low_temperature_softmax: Instance with default temperature of 0.01, as in [1]_.
-    high_temperature_softmax: Instance with high temperature of 5, as in [2]_.
+    high_temperature_softmax: Instance with high temperature of 3, as in [2]_.
     References
     ----------
-    .. [1]
+    .. [1] TODO
     .. [2] Geoffrey Hinton, Oriol Vinyals, Jeff Dean:
        Distilling the Knowledge in a Neural Network
        http://arxiv.org/abs/1503.02531

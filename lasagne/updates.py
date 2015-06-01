@@ -7,28 +7,37 @@ rate for use with stochastic gradient descent.
 Update functions take a loss expression or a list of gradient expressions and
 a list of parameters as input and return an ordered dictionary of updates:
 
-* :func:`sgd()`
-* :func:`momentum()`
-* :func:`nesterov_momentum()`
-* :func:`adagrad()`
-* :func:`rmsprop()`
-* :func:`adadelta()`
-* :func:`adam()`
+.. autosummary::
+    :nosignatures:
+
+    sgd
+    momentum
+    nesterov_momentum
+    adagrad
+    rmsprop
+    adadelta
+    adam
 
 Two functions can be used to further modify the updates to include momentum:
 
-* :func:`apply_momentum()`
-* :func:`apply_nesterov_momentum()`
+.. autosummary::
+    :nosignatures:
+
+    apply_momentum
+    apply_nesterov_momentum
 
 Finally, we provide two helper functions to constrain the norm of tensors:
 
-* :func:`norm_constraint()`
-* :func:`total_norm_constraint()`
+.. autosummary::
+    :nosignatures:
+
+    norm_constraint
+    total_norm_constraint
 
 :func:`norm_constraint()` can be used to constrain the norm of parameters
 (as an alternative to weight decay), or for a form of gradient clipping.
-:func:`total_norm_constraint() constrain the total norm of a list of tensors.
-This is often used when training recurrent neural networks.`
+:func:`total_norm_constraint()` constrain the total norm of a list of tensors.
+This is often used when training recurrent neural networks.
 
 Examples
 --------
@@ -74,7 +83,7 @@ __all__ = [
 
 
 def get_or_compute_grads(loss_or_grads, params):
-    """Helper function returning a list of gradients.
+    """Helper function returning a list of gradients
 
     Parameters
     ----------
@@ -102,7 +111,7 @@ def get_or_compute_grads(loss_or_grads, params):
 
 
 def sgd(loss_or_grads, params, learning_rate):
-    """Stochastic Gradient Descent (SGD) updates.
+    """Stochastic Gradient Descent (SGD) updates
 
     Generates update expressions of the form:
 
@@ -132,7 +141,7 @@ def sgd(loss_or_grads, params, learning_rate):
 
 
 def apply_momentum(updates, params=None, momentum=0.9):
-    """Returns a modified update dictionary that includes momentum terms.
+    """Returns a modified update dictionary including momentum
 
     Generates update expressions of the form:
 
@@ -180,7 +189,7 @@ def apply_momentum(updates, params=None, momentum=0.9):
 
 
 def momentum(loss_or_grads, params, learning_rate, momentum=0.9):
-    """Stochastic Gradient Descent (SGD) updates with momentum.
+    """Stochastic Gradient Descent (SGD) updates with momentum
 
     Generates update expressions of the form:
 
@@ -219,7 +228,7 @@ def momentum(loss_or_grads, params, learning_rate, momentum=0.9):
 
 
 def apply_nesterov_momentum(updates, params=None, momentum=0.9):
-    """Returns a modified update dictionary including Nesterov momentum.
+    """Returns a modified update dictionary including Nesterov momentum
 
     Generates update expressions of the form:
 
@@ -273,7 +282,7 @@ def apply_nesterov_momentum(updates, params=None, momentum=0.9):
 
 
 def nesterov_momentum(loss_or_grads, params, learning_rate, momentum=0.9):
-    """Stochastic Gradient Descent (SGD) updates with Nesterov momentum.
+    """Stochastic Gradient Descent (SGD) updates with Nesterov momentum
 
     Generates update expressions of the form:
 
@@ -317,10 +326,10 @@ def nesterov_momentum(loss_or_grads, params, learning_rate, momentum=0.9):
 
 
 def adagrad(loss_or_grads, params, learning_rate=1.0, epsilon=1e-6):
-    """Adagrad updates [1]_.
+    """Adagrad updates
 
     Scale learning rates by dividing with the square root of accumulated
-    squared gradients.
+    squared gradients. See [1]_ for further description.
 
     Parameters
     ----------
@@ -376,10 +385,10 @@ def adagrad(loss_or_grads, params, learning_rate=1.0, epsilon=1e-6):
 
 
 def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
-    """RMSProp updates [1]_.
+    """RMSProp updates
 
     Scale learning rates by dividing with the moving average of the root mean
-    squared (RMS) gradients.
+    squared (RMS) gradients. See [1]_ for further description.
 
     Parameters
     ----------
@@ -434,10 +443,10 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
 
 
 def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
-    """ Adadelta updates [1]_.
+    """ Adadelta updates
 
     Scale learning rates by a the ratio of accumulated gradients to accumulated
-    step sizes, see notes for further description.
+    step sizes, see [1]_ and notes for further description.
 
     Parameters
     ----------
@@ -516,7 +525,9 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
 
 def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
          beta2=0.999, epsilon=1e-8):
-    """Adam updates [1]_.
+    """Adam updates
+
+    Adam updates implemented as in [1]_.
 
     Parameters
     ----------
@@ -651,7 +662,7 @@ def norm_constraint(tensor_var, max_norm, norm_axes=None, epsilon=1e-7):
     return constrained_output
 
 
-def total_norm_constraint(tensor_var, max_norm, epsilon=1e-7,
+def total_norm_constraint(tensor_vars, max_norm, epsilon=1e-7,
                           return_norm=False):
     """Rescales a list of tensors based on their combined norm
 
@@ -663,7 +674,7 @@ def total_norm_constraint(tensor_var, max_norm, epsilon=1e-7,
 
     Parameters
     ----------
-    tensor_var : TensorVariable
+    tensor_vars : List of TensorVariables.
         Tensors to be rescaled.
     threshold : float
         Threshold value for total norm.
@@ -671,15 +682,15 @@ def total_norm_constraint(tensor_var, max_norm, epsilon=1e-7,
         Value used to prevent numerical instability when dividing by
         very small or zero norms.
     return_norm : bool
-        If true the total norm is also returned
+        If true the total norm is also returned.
 
     Returns
     -------
-    tensor_vars : list of TensorVariables
-        The scaled tensor variables
+    tensor_vars_scaled : list of TensorVariables
+        The scaled tensor variables.
     norm : Theano scalar
         The combined norms of the input variables prior to rescaling,
-        only returned if ``return_norms=True``
+        only returned if ``return_norms=True``.
 
     Examples
     --------
@@ -707,11 +718,11 @@ def total_norm_constraint(tensor_var, max_norm, epsilon=1e-7,
        learning with neural networks. In Advances in Neural Information
        Processing Systems (pp. 3104-3112).
     """
-    norm = T.sqrt(sum(T.sum(tensor**2) for tensor in tensor_var))
+    norm = T.sqrt(sum(T.sum(tensor**2) for tensor in tensor_vars))
     dtype = np.dtype(theano.config.floatX).type
     target_norm = T.clip(norm, 0, dtype(max_norm))
     multiplier = target_norm / (dtype(epsilon) + norm)
-    tensor_vars_scaled = [step*multiplier for step in tensor_var]
+    tensor_vars_scaled = [step*multiplier for step in tensor_vars]
 
     if return_norm:
         return tensor_vars_scaled, norm

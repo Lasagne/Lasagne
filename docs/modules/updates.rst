@@ -27,3 +27,4 @@ Helper functions
 ----------------
 
 .. autofunction:: norm_constraint
+.. autofunction:: total_norm_constraint

@@ -1,9 +1,9 @@
 """
 Layers to construct recurrent networks. Recurrent layers can be used similarly
 to feed-forward layers except that the input shape is expected to be
-``(batch_size, sequence_length, num_inputs)``. The input is allowed to have more
-than three dimensions in which case dimensions trailing the third dimension are
-flattened.
+``(batch_size, sequence_length, num_inputs)``. The input is allowed to have
+more than three dimensions in which case dimensions trailing the third
+dimension are flattened.
 
 The following recurrent layers are implemented:
 
@@ -23,6 +23,7 @@ import theano
 import theano.tensor as T
 from .. import nonlinearities
 from .. import init
+from ..utils import unroll_scan
 
 from .base import Layer
 from .input import InputLayer
@@ -66,6 +67,10 @@ class CustomRecurrentLayer(Layer):
     grad_clipping: False or float
         If a float is provided, the gradient messages are clipped during the
         backward pass.  See [1]_ (p. 6) for further explanation.
+    unroll_scan : bool
+        If True the recursion is unrolled instead of using scan. For some
+        graphs this gives a significant speed up but it might also consume
+        more memory.
 
     References
     ----------
@@ -78,7 +83,8 @@ class CustomRecurrentLayer(Layer):
                  backwards=False,
                  learn_init=False,
                  gradient_steps=-1,
-                 grad_clipping=False):
+                 grad_clipping=False,
+                 unroll_scan=False):
 
         super(CustomRecurrentLayer, self).__init__(incoming)
 
@@ -88,6 +94,7 @@ class CustomRecurrentLayer(Layer):
         self.backwards = backwards
         self.gradient_steps = gradient_steps
         self.grad_clipping = grad_clipping
+        self.unroll_scan = unroll_scan
 
         # check that output shapes match
         if input_to_hidden.output_shape != hidden_to_hidden.output_shape:
@@ -218,14 +225,26 @@ class CustomRecurrentLayer(Layer):
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
         non_seqs = helper.get_all_params(self.hidden_to_hidden)
-        hid_out = theano.scan(
-            step_fun,
-            sequences=sequences,
-            go_backwards=self.backwards,
-            outputs_info=[hid_init],
-            non_sequences=non_seqs,
-            truncate_gradient=self.gradient_steps,
-            strict=True)[0]
+        if self.unroll_scan:
+            # use for loop to unroll recursion.
+            hid_out = unroll_scan(
+                fn=step_fun,
+                sequences=sequences,
+                outputs_info=[hid_init],
+                go_backwards=self.backwards,
+                non_sequences=non_seqs,
+                n_steps=self.input_shape[1])[0]
+        else:
+            # Scan op iterates over first dimension of input and repeatedly
+            # applies the step function
+            hid_out = theano.scan(
+                fn=step_fun,
+                sequences=sequences,
+                go_backwards=self.backwards,
+                outputs_info=[hid_init],
+                non_sequences=non_seqs,
+                truncate_gradient=self.gradient_steps,
+                strict=True)[0]
 
         # dimshuffle back to (n_batch, n_time_steps, n_features))
         hid_out = hid_out.dimshuffle(1, 0, 2)
@@ -275,6 +294,10 @@ class RecurrentLayer(CustomRecurrentLayer):
     grad_clipping: False or float
         If float the gradient messages are clipped during the backward pass.
         See [1]_ (p. 6) for further explanation.
+    unroll_scan : bool
+        If True the recursion is unrolled instead of using scan. For some
+        graphs this gives a significant speed up but it might also consume
+        more memory.
 
     References
     ----------
@@ -290,7 +313,8 @@ class RecurrentLayer(CustomRecurrentLayer):
                  backwards=False,
                  learn_init=False,
                  gradient_steps=-1,
-                 grad_clipping=False):
+                 grad_clipping=False,
+                 unroll_scan=False):
         input_shape = helper.get_output_shape(incoming)
         num_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
@@ -308,7 +332,7 @@ class RecurrentLayer(CustomRecurrentLayer):
             incoming, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
             hid_init=hid_init, backwards=backwards, learn_init=learn_init,
             gradient_steps=gradient_steps,
-            grad_clipping=grad_clipping)
+            grad_clipping=grad_clipping, unroll_scan=unroll_scan)
 
 
 class LSTMLayer(Layer):
@@ -376,9 +400,9 @@ class LSTMLayer(Layer):
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If `hid_init` or `cell_init`
-        are TensorVariables then the TensorVariable is used and `learn_init` is
-        ignored for that initial state.
+        If True, initial hidden values are learned. If `hid_init` or
+        `cell_init` are TensorVariables then the TensorVariable is used and
+        `learn_init` is ignored for that initial state.
     peepholes : bool
         If True, the LSTM uses peephole connections.
         When False, `W_cell_to_ingate`, `W_cell_to_forgetgate` and
@@ -389,6 +413,10 @@ class LSTMLayer(Layer):
     grad_clipping: False or float
         If float the gradient messages are clipped during the backward pass.
         See [1]_ (p. 6) for further explanation.
+    unroll_scan : bool
+        If True the recursion is unrolled instead of using scan. For some
+        graphs this gives a significant speed up but it might also consume
+        more memory.
 
     References
     ----------
@@ -422,7 +450,8 @@ class LSTMLayer(Layer):
                  learn_init=False,
                  peepholes=True,
                  gradient_steps=-1,
-                 grad_clipping=False):
+                 grad_clipping=False,
+                 unroll_scan=False):
 
         # Initialize parent layer
         super(LSTMLayer, self).__init__(incoming)
@@ -459,6 +488,7 @@ class LSTMLayer(Layer):
         self.peepholes = peepholes
         self.gradient_steps = gradient_steps
         self.grad_clipping = grad_clipping
+        self.unroll_scan = unroll_scan
 
         num_inputs = np.prod(self.input_shape[2:])
 
@@ -693,16 +723,26 @@ class LSTMLayer(Layer):
                          self.W_cell_to_forgetgate,
                          self.W_cell_to_outgate]
 
-        # Scan op iterates over first dimension of input and repeatedly
-        # applies the step function
-        cell_out, hid_out = theano.scan(
-            step_fun,
-            sequences=sequences,
-            outputs_info=[cell_init, hid_init],
-            go_backwards=self.backwards,
-            truncate_gradient=self.gradient_steps,
-            non_sequences=non_seqs,
-            strict=True)[0]
+        if self.unroll_scan:
+            # use for loop to unroll recursion.
+            cell_out, hid_out = unroll_scan(
+                fn=step_fun,
+                sequences=sequences,
+                outputs_info=[cell_init, hid_init],
+                go_backwards=self.backwards,
+                non_sequences=non_seqs,
+                n_steps=self.input_shape[1])
+        else:
+            # Scan op iterates over first dimension of input and repeatedly
+            # applies the step function
+            cell_out, hid_out = theano.scan(
+                fn=step_fun,
+                sequences=sequences,
+                outputs_info=[cell_init, hid_init],
+                go_backwards=self.backwards,
+                truncate_gradient=self.gradient_steps,
+                non_sequences=non_seqs,
+                strict=True)[0]
 
         # dimshuffle back to (n_batch, n_time_steps, n_features))
         hid_out = hid_out.dimshuffle(1, 0, 2)

@@ -181,6 +181,58 @@ def test_recurrent_variable_input_size():
     f_out2 = f_rec(x_in2)
 
 
+def test_recurrent_unroll_scan_fwd():
+    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_units = 2
+    x = T.tensor3()
+    mask = T.matrix()
+    in_shp = (num_batch, seq_len, n_features1)
+    l_inp = InputLayer(in_shp)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    mask_in = np.ones(in_shp[:2]).astype('float32')
+
+    # need to set random seed.
+    np.random.seed(1234)
+    l_rec_scan = RecurrentLayer(l_inp, num_units=num_units, backwards=False,
+                                unroll_scan=False)
+    np.random.seed(1234)
+    l_rec_unroll = RecurrentLayer(l_inp, num_units=num_units, backwards=False,
+                                  unroll_scan=True)
+    l_out_scan = helper.get_output(l_rec_scan, x, mask=mask)
+    l_out_unroll = helper.get_output(l_rec_unroll, x, mask=mask)
+    f_rec = theano.function([x, mask], [l_out_scan, l_out_unroll])
+    f_out_scan, f_out_unroll = f_rec(x_in, mask_in)
+
+    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+
+
+def test_recurrent_unroll_scan_bck():
+    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_units = 2
+    x = T.tensor3()
+    mask = T.matrix()
+    in_shp = (num_batch, seq_len, n_features1)
+    l_inp = InputLayer(in_shp)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    mask_in = np.ones(in_shp[:2]).astype('float32')
+
+    # need to set random seed.
+    np.random.seed(1234)
+    l_rec_scan = RecurrentLayer(l_inp, num_units=num_units, backwards=True,
+                                unroll_scan=False)
+    np.random.seed(1234)
+    l_rec_unroll = RecurrentLayer(l_inp, num_units=num_units, backwards=True,
+                                  unroll_scan=True)
+    l_out_scan = helper.get_output(l_rec_scan, x, mask=mask)
+    l_out_unroll = helper.get_output(l_rec_unroll, x, mask=mask)
+    f_rec = theano.function([x, mask], [l_out_scan, l_out_unroll])
+    f_out_scan, f_out_unroll = f_rec(x_in, mask_in)
+
+    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+
+
 def test_lstm_return_shape():
     num_batch, seq_len, n_features1, n_features2 = 5, 3, 10, 11
     num_units = 6
@@ -358,3 +410,62 @@ def test_lstm_variable_input_size():
     f_rec = theano.function([x], l_out)
     f_out1 = f_rec(x_in1)
     f_out2 = f_rec(x_in2)
+
+
+def test_lstm_unroll_scan_fwd():
+    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_units = 2
+    x = T.tensor3()
+    mask = T.matrix()
+    in_shp = (num_batch, seq_len, n_features1)
+    l_inp = InputLayer(in_shp)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    mask_in = np.ones(in_shp[:2]).astype('float32')
+
+    # need to set random seed.
+    np.random.seed(1234)
+    l_lstm_scan = LSTMLayer(l_inp, num_units=num_units, backwards=False,
+                            unroll_scan=False)
+    np.random.seed(1234)
+    l_lstm_unrolled = LSTMLayer(l_inp, num_units=num_units, backwards=False,
+                                unroll_scan=True)
+    l_out_scan = helper.get_output(l_lstm_scan, x, mask=mask)
+    l_out_unrolled = helper.get_output(l_lstm_unrolled, x, mask=mask)
+    f_lstm = theano.function([x, mask], [l_out_scan, l_out_unrolled])
+    f_out_scan, f_out_unroll = f_lstm(x_in, mask_in)
+
+    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+
+
+def test_lstm_unroll_scan_bck():
+    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_units = 2
+    x = T.tensor3()
+    mask = T.matrix()
+    in_shp = (num_batch, seq_len, n_features1)
+    l_inp = InputLayer(in_shp)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    mask_in = np.ones(in_shp[:2]).astype('float32')
+
+    # need to set random seed.
+    np.random.seed(1234)
+    l_lstm_scan = LSTMLayer(l_inp, num_units=num_units, backwards=True,
+                            unroll_scan=False, nonlinearity_cell=None,
+                            nonlinearity_forgetgate=None,
+                            nonlinearity_ingate=None, nonlinearity_out=None,
+                            nonlinearity_outgate=None)
+    np.random.seed(1234)
+    l_lstm_unrolled = LSTMLayer(l_inp, num_units=num_units, backwards=True,
+                                unroll_scan=True, nonlinearity_cell=None,
+                                nonlinearity_forgetgate=None,
+                                nonlinearity_ingate=None,
+                                nonlinearity_out=None,
+                                nonlinearity_outgate=None)
+    l_out_scan = helper.get_output(l_lstm_scan, x, mask=mask)
+    l_out_unrolled = helper.get_output(l_lstm_unrolled, x, mask=mask)
+    f_lstm = theano.function([x, mask], [l_out_scan, l_out_unrolled])
+    f_out_scan, f_out_unroll = f_lstm(x_in, mask_in)
+
+    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)

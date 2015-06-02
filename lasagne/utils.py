@@ -312,3 +312,69 @@ def create_param(spec, shape, name=None):
         raise RuntimeError("cannot initialize parameters: 'spec' is not "
                            "a numpy array, a Theano shared variable, or a "
                            "callable")
+
+
+def unroll_scan(fn, sequences, outputs_info, non_sequences, n_steps,
+                go_backwards=False):
+        """
+        Helper function to unroll for loops. Can be used to unroll theano.scan.
+        The parameter names are identical to theano.scan, please refer to here
+        for more information.
+
+        Note that this function does not support the truncate_gradient
+        setting from theano.scan.
+
+        Parameters
+        ----------
+
+        fun : function
+            Function that defines calculations at each step.
+
+        sequences : TensorVariable or list of TensorVariables
+            List of TensorVariable with sequence data. The function iterates
+            over the first dimension of each TensorVariable.
+
+        outputs_info : list of TensorVariables
+            List of tensors specifying the initial values for each recurrent
+            value.
+
+        non_sequences: list of TensorVariables
+            List of theano.shared variables that are used in the step function.
+
+        n_steps: int
+            Number of steps to unroll.
+
+        go_backwards: bool
+            If true the recursion starts at sequences[-1] and iterates
+            backwards.
+
+        Returns
+        -------
+        List of TensorVariables. Each element in the list gives the recurrent
+        values at each time step.
+
+        """
+        if not isinstance(sequences, (list, tuple)):
+            sequences = [sequences]
+
+        # When backwards reverse the recursion direction
+        counter = range(n_steps)
+        if go_backwards:
+            counter = counter[::-1]
+
+        output = []
+        init = outputs_info
+        for i in counter:
+            step_input = [s[i] for s in sequences] + init + non_sequences
+            output.append(fn(*step_input))
+            init = output[-1]
+
+        # iterate over each scan output and convert it to same format as scan:
+        # [[output11, output12,...output1n],
+        # [output21, output22,...output2n],...]
+        output_scan = []
+        for i in range(len(output[0])):
+            l = map(lambda x: x[i], output)
+            output_scan.append(T.stack(*l))
+
+        return output_scan

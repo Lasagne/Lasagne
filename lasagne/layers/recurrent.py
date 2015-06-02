@@ -1,7 +1,7 @@
 """
 Layers to construct recurrent networks. Recurrent layers can be used similarly
 to feed-forward layers except that the input shape is expected to be
-(batch_size, sequence_length, num_inputs). The input is allowed to have more
+``(batch_size, sequence_length, num_inputs)``. The input is allowed to have more
 than three dimensions in which case dimensions trailing the third dimension are
 flattened.
 
@@ -14,7 +14,7 @@ The following recurrent layers are implemented:
     LSTMLayer
 
 Recurrent layers and feed-forward layers can be combined in the same network
-by using a few reshape operations, please refer to the recurrent examples for
+by using a few reshape operations; please refer to the recurrent examples for
 further explanations.
 
 """
@@ -51,21 +51,21 @@ class CustomRecurrentLayer(Layer):
         Nonlinearity to apply when computing new state.
     hid_init : function, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
-        the value of hid_init (:math:`h_0`). In this mode learn_init is
+        the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
         ignored.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If hid_init is a
-        TensorVariable then learn_init is ignored.
+        If True, initial hidden values are learned. If `hid_init` is a
+        TensorVariable then `learn_init` is ignored.
     gradient_steps : int
-        Number of timesteps to include in backpropagated gradient
-        If -1, backpropagate through the entire sequence
+        Number of timesteps to include in backpropagated gradient.
+        If -1, backpropagate through the entire sequence.
     grad_clipping: False or float
-        If float the gradient messages are clipped during the backward pass.
-        See [1]_ (p. 6) for further explanation.
+        If a float is provided, the gradient messages are clipped during the
+        backward pass.  See [1]_ (p. 6) for further explanation.
 
     References
     ----------
@@ -127,20 +127,20 @@ class CustomRecurrentLayer(Layer):
 
     def get_output_for(self, input, mask=None, **kwargs):
         """
-        Compute this layer's output function given a symbolic input variable
+        Compute this layer's output function given a symbolic input variable.
 
         Parameters
         ----------
         input : theano.TensorType
-            Symbolic input variable
+            Symbolic input variable.
         mask : theano.TensorType
             Theano variable denoting whether each time step in each
-            sequence in the batch is part of the sequence or not.  If None,
+            sequence in the batch is part of the sequence or not.  If ``None``,
             then it assumed that all sequences are of the same length.  If
             not all sequences are of the same length, then it must be
-            supplied as a matrix of shape (n_batch, n_time_steps) where
-            `mask[i, j] = 1` when `j <= (length of sequence i)` and
-            `mask[i, j] = 0` when `j > (length of sequence i)`.
+            supplied as a matrix of shape ``(n_batch, n_time_steps)`` where
+            ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
+            ``mask[i, j] = 0`` when ``j > (length of sequence i)``.
 
         Returns
         -------
@@ -260,18 +260,18 @@ class RecurrentLayer(CustomRecurrentLayer):
         Nonlinearity to apply when computing new state.
     hid_init : function, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
-        the value of hid_init (:math:`h_0`). In this mode learn_init is
+        the value of `hid_init` (:math:`h_0`). In this mode `learn_init` is
         ignored.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If hid_init is a
-        TensorVariable then learn_init is ignored.
+        If True, initial hidden values are learned. If `hid_init` is a
+        TensorVariable then `learn_init` is ignored.
     gradient_steps : int
-        Number of timesteps to include in backpropagated gradient
-        If -1, backpropagate through the entire sequence
+        Number of timesteps to include in backpropagated gradient.
+        If -1, backpropagate through the entire sequence.
     grad_clipping: False or float
         If float the gradient messages are clipped during the backward pass.
         See [1]_ (p. 6) for further explanation.
@@ -312,18 +312,17 @@ class RecurrentLayer(CustomRecurrentLayer):
 
 
 class LSTMLayer(Layer):
-    """A long short-term memory (LSTM) layer
+    """A long short-term memory (LSTM) layer.
 
-    Includes "peephole connections" and
-    forget gate.  Based on the definition in [1]_, which is
-    the current common definition.
+    Includes optional "peephole connections" and a forget gate.  Based on the
+    definition in [1]_, which is the current common definition.
 
     Parameters
     ----------
-    incoming : a :class:`:class:`lasagne.layers.Layer`` instance or a tuple
+    incoming : a :class:`lasagne.layers.Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
     num_units : int
-        Number of hidden units in the layer
+        Number of hidden units in the layer.
     W_in_to_ingate : function or np.ndarray or theano.shared
         :math:`W_{xi}`.
     W_hid_to_ingate : function or np.ndarray or theano.shared
@@ -366,26 +365,26 @@ class LSTMLayer(Layer):
         :math:`tanh`.
     cell_init : function, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
-        the value of cell_init (:math:`c_0`). In this mode learn_init is
-        ignored.
+        the value of `cell_init` (:math:`c_0`). In this mode `learn_init` is
+        ignored for the cell state.
     hid_init : function, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
-        the value of hid_init (:math:`h_0`). In this mode learn_init is
-        ignored.
+        the value of `hid_init` (:math:`h_0`). In this mode `learn_init` is
+        ignored for the hidden state.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If hid_init or cell_init
-        are TensorVariables then the TensorVariable is used and learn_init is
+        If True, initial hidden values are learned. If `hid_init` or `cell_init`
+        are TensorVariables then the TensorVariable is used and `learn_init` is
         ignored for that initial state.
     peepholes : bool
         If True, the LSTM uses peephole connections.
-        When False, W_cell_to_ingate, W_cell_to_forgetgate and
-        W_cell_to_outgate are ignored.
+        When False, `W_cell_to_ingate`, `W_cell_to_forgetgate` and
+        `W_cell_to_outgate` are ignored.
     gradient_steps : int
-        Number of timesteps to include in backpropagated gradient
+        Number of timesteps to include in backpropagated gradient.
         If -1, backpropagate through the entire sequence.
     grad_clipping: False or float
         If float the gradient messages are clipped during the backward pass.
@@ -563,15 +562,20 @@ class LSTMLayer(Layer):
         Parameters
         ----------
         input : theano.TensorType
-            Symbolic input variable
+            Symbolic input variable.
         mask : theano.TensorType
             Theano variable denoting whether each time step in each
-            sequence in the batch is part of the sequence or not.  If None,
+            sequence in the batch is part of the sequence or not.  If ``None``,
             then it assumed that all sequences are of the same length.  If
             not all sequences are of the same length, then it must be
-            supplied as a matrix of shape (n_batch, n_time_steps) where
-            `mask[i, j] = 1` when `j <= (length of sequence i)` and
-            `mask[i, j] = 0` when `j > (length of sequence i)`.
+            supplied as a matrix of shape ``(n_batch, n_time_steps)`` where
+            ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
+            ``mask[i, j] = 0`` when ``j > (length of sequence i)``.
+
+        Returns
+        -------
+        layer_output : theano.TensorType
+            Symblic output variable.
         """
         # Treat all layers after the first as flattened feature dimensions
         if input.ndim > 3:

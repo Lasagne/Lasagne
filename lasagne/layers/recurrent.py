@@ -460,7 +460,6 @@ class LSTMLayer(Layer):
         self.gradient_steps = gradient_steps
         self.grad_clipping = grad_clipping
 
-        num_batch = self.input_shape[0]
         num_inputs = np.prod(self.input_shape[2:])
 
         # Initialize parameters using the supplied args

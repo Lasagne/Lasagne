@@ -15,7 +15,7 @@ install:
   - travis_retry pip install -r requirements.txt
   - travis_retry pip install python-coveralls
   - travis_retry python setup.py dev
-script: py.test --runslow
+script: py.test --runslow --cov-config=.coveragerc-nogpu
 after_success:
   - coveralls
 cache: apt

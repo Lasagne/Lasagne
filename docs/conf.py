@@ -115,6 +115,8 @@ pygments_style = 'sphinx'
 
 ## Read the docs style:
 html_theme = 'sphinx_rtd_theme'
+def setup(app):
+    app.add_stylesheet("fix_rtd.css")
 
 ## Bootstrap style:
 #import sphinx_bootstrap_theme

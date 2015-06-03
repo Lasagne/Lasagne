@@ -8,10 +8,12 @@ dimension are flattened.
 The following recurrent layers are implemented:
 
 .. autosummary::
+    :nosignatures:
 
     CustomRecurrentLayer
     RecurrentLayer
     LSTMLayer
+    GRULayer
 
 Recurrent layers and feed-forward layers can be combined in the same network
 by using a few reshape operations; please refer to the recurrent examples for
@@ -33,7 +35,8 @@ from . import helper
 __all__ = [
     "CustomRecurrentLayer",
     "RecurrentLayer",
-    "LSTMLayer"
+    "LSTMLayer",
+    "GRULayer"
 ]
 
 
@@ -64,7 +67,7 @@ class CustomRecurrentLayer(Layer):
     gradient_steps : int
         Number of timesteps to include in backpropagated gradient.
         If -1, backpropagate through the entire sequence.
-    grad_clipping: False or float
+    grad_clipping : False or float
         If a float is provided, the gradient messages are clipped during the
         backward pass.  See [1]_ (p. 6) for further explanation.
     unroll_scan : bool
@@ -291,13 +294,14 @@ class RecurrentLayer(CustomRecurrentLayer):
     gradient_steps : int
         Number of timesteps to include in backpropagated gradient.
         If -1, backpropagate through the entire sequence.
-    grad_clipping: False or float
+    grad_clipping : False or float
         If float the gradient messages are clipped during the backward pass.
         See [1]_ (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
-        more memory.
+        more memory. When `unroll_scan` is true then the `gradient_steps`
+        setting is ignored.
 
     References
     ----------
@@ -416,7 +420,8 @@ class LSTMLayer(Layer):
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
-        more memory.
+        more memory. When `unroll_scan` is true then the `gradient_steps`
+        setting is ignored.
 
     References
     ----------
@@ -755,5 +760,308 @@ class LSTMLayer(Layer):
 
         self.hid_out = hid_out
         self.cell_out = cell_out
+
+        return hid_out
+
+
+class GRULayer(Layer):
+    """Gated Recurrent Layer (GRU)
+
+    Layer with gated recurrent units implemented as in [1]_, [2]_.
+
+    Parameters
+    ----------
+    incoming : a :class:`lasagne.layers.Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape.
+    num_units : int
+        Number of hidden units.
+    W_in_to_resetgate : function or np.ndarray or theano.shared
+    W_hid_to_resetgate : function or np.ndarray or theano.shared
+    b_resetgate : function or np.ndarray or theano.shared
+    W_in_to_updategate : function or np.ndarray or theano.shared
+    W_hid_to_updategate : function or np.ndarray or theano.shared
+    b_updategate : function or np.ndarray or theano.shared
+    W_in_to_cell : function or np.ndarray or theano.shared
+    W_hid_to_cell : function or np.ndarray or theano.shared
+    b_cell : function or np.ndarray or theano.shared
+    nonlinearity_resetgate : function
+    nonlinearity_updategate : function
+    nonlinearity_cell : function
+    hid_init : function, np.ndarray, theano.shared or TensorVariable
+        Passing in a TensorVariable allows the user to specify
+        the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
+        ignored.
+    backwards : boolean
+        If True, process the sequence backwards and then reverse the
+        output again such that the output from the layer is always
+        from :math:`x_1` to :math:`x_n`.
+    learn_init : bool
+        If True, initial hidden values are learned. If `hid_init` is a
+        TensorVariable then the TensorVariable is used and
+        `learn_init` is ignored.
+    gradient_steps : int
+        Number of timesteps to include in backpropagated gradient.
+        If -1, backpropagate through the entire sequence.
+    grad_clipping : False or float
+        If float the gradient messages are clipped during the backward pass.
+        See [3]_ (p. 6) for further explanation.
+    unroll_scan : bool
+        If True the recursion is unrolled instead of using scan. For some
+        graphs this gives a significant speed up but it might also consume
+        more memory. When `unroll_scan` is true then the `gradient_steps`
+        setting is ignored.
+
+    References
+    ----------
+    .. [1] Cho, Kyunghyun, et al: On the properties of neural
+       machine translation: Encoder-decoder approaches.
+       arXiv preprint arXiv:1409.1259 (2014).
+    .. [2] Chung, Junyoung, et al.: Empirical Evaluation of Gated
+       Recurrent Neural Networks on Sequence Modeling.
+       arXiv preprint arXiv:1412.3555 (2014).
+    .. [3] Alex Graves : Generating Sequences With Recurrent Neural
+       Networks.
+    """
+    def __init__(self, incoming, num_units,
+                 W_in_to_resetgate=init.Normal(0.1),
+                 W_hid_to_resetgate=init.Normal(0.1),
+                 b_resetgate=init.Normal(0.1),
+                 W_in_to_updategate=init.Normal(0.1),
+                 W_hid_to_updategate=init.Normal(0.1),
+                 b_updategate=init.Normal(0.1),
+                 W_in_to_cell=init.Normal(0.1),
+                 W_hid_to_cell=init.Normal(0.1),
+                 b_cell=init.Constant(0.),
+                 nonlinearity_resetgate=nonlinearities.sigmoid,
+                 nonlinearity_updategate=nonlinearities.sigmoid,
+                 nonlinearity_cell=nonlinearities.tanh,
+                 hid_init=init.Constant(0.),
+                 learn_init=True,
+                 backwards=False,
+                 gradient_steps=-1,
+                 grad_clipping=False,
+                 unroll_scan=False):
+
+        # Initialize parent layer
+        super(GRULayer, self).__init__(incoming)
+        # For any of the nonlinearities, if None is supplied, use identity
+        if nonlinearity_resetgate is None:
+            self.nonlinearity_resetgate = nonlinearities.identity
+        else:
+            self.nonlinearity_resetgate = nonlinearity_resetgate
+
+        if nonlinearity_updategate is None:
+            self.nonlinearity_updategate = nonlinearities.identity
+        else:
+            self.nonlinearity_updategate = nonlinearity_updategate
+
+        if nonlinearity_cell is None:
+            self.nonlinearity_cell = nonlinearities.identity
+        else:
+            self.nonlinearity_cell = nonlinearity_cell
+
+        self.learn_init = learn_init
+        self.num_units = num_units
+        self.grad_clipping = grad_clipping
+        self.backwards = backwards
+        self.gradient_steps = gradient_steps
+        self.unroll_scan = unroll_scan
+
+        # Input dimensionality is the output dimensionality of the input layer
+        num_batch = self.input_shape[0]
+        num_inputs = np.prod(self.input_shape[2:])
+        self.num_inputs = num_inputs
+
+        self.W_in_to_updategate = self.add_param(
+            W_in_to_updategate, (num_inputs, num_units),
+            name="W_in_to_updategate")
+
+        self.W_hid_to_updategate = self.add_param(
+            W_hid_to_updategate, (num_units, num_units),
+            name="W_hid_to_updategate")
+
+        self.b_updategate = self.add_param(
+            b_updategate, (num_units,),
+            name="b_updategate", regularizable=False)
+
+        self.W_in_to_resetgate = self.add_param(
+            W_in_to_resetgate, (num_inputs, num_units),
+            name="W_in_to_resetgate")
+
+        self.W_hid_to_resetgate = self.add_param(
+            W_hid_to_resetgate, (num_units, num_units),
+            name="W_hid_to_resetgate")
+
+        self.b_resetgate = self.add_param(
+            b_resetgate, (num_units,),
+            name="b_resetgate", regularizable=False)
+
+        self.W_in_to_cell = self.add_param(
+            W_in_to_cell, (num_inputs, num_units), name="W_in_to_cell")
+
+        self.W_hid_to_cell = self.add_param(
+            W_hid_to_cell, (num_units, num_units), name="W_hid_to_cell")
+
+        self.b_cell = self.add_param(
+            b_cell, (num_units,), name="b_cell", regularizable=False)
+
+        self.W_in_to_gates = T.concatenate(
+            [self.W_in_to_resetgate, self.W_in_to_updategate,
+             self.W_in_to_cell], axis=1)
+
+        # Same for hidden to gate weight matrices
+        self.W_hid_to_gates = T.concatenate(
+            [self.W_hid_to_resetgate, self.W_hid_to_updategate,
+             self.W_hid_to_cell], axis=1)
+
+        # Stack gate biases into a (4*num_units) vector
+        self.b_gates = T.concatenate(
+            [self.b_resetgate, self.b_updategate,
+             self.b_cell], axis=0)
+
+        # Initialize hidden state
+        if isinstance(hid_init, T.TensorVariable):
+            if hid_init.ndim != 2:
+                raise ValueError("When a tensor hid_init should be a matrix")
+            self.hid_init = hid_init
+        else:
+            self.hid_init = self.add_param(
+                hid_init, (1, self.num_units), name="hid_init",
+                trainable=learn_init, regularizable=False)
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape[0], input_shape[1], self.num_units
+
+    def get_output_for(self, input, mask=None, *args, **kwargs):
+        """
+        Compute this layer's output function given a symbolic input variable
+
+        Parameters
+        ----------
+        input : theano.TensorType
+            Symbolic input variable
+        mask : theano.TensorType
+            Theano variable denoting whether each time step in each
+            sequence in the batch is part of the sequence or not.  If None,
+            then it assumed that all sequences are of the same length.  If
+            not all sequences are of the same length, then it must be
+            supplied as a matrix of shape (n_batch, n_time_steps) where
+            `mask[i, j] = 1` when `j <= (length of sequence i)` and
+            `mask[i, j] = 0` when `j > (length of sequence i)`.
+        """
+
+        # Treat all layers after the first as flattened feature dimensions
+        if input.ndim > 3:
+            input = input.reshape((input.shape[0], input.shape[1],
+                                   T.prod(input.shape[2:])))
+
+        # Because scan iterates over the first dimension we dimshuffle to
+        # (n_time_steps, n_batch, n_features)
+        input = input.dimshuffle(1, 0, 2)
+        seq_len, num_batch, _ = input.shape
+
+        # precompute inputs*W and dimshuffle
+        # Input is provided as (n_batch, n_time_steps, n_features)
+        # W_in is (n_features, 3*num_units). input dot W is then
+        # (n_batch, n_time_steps, 3*num_units). Because scan iterate over the
+        # first dimension we dimshuffle to (n_time_steps, n_batch, n_features)
+        input_dot_w = T.dot(input, self.W_in_to_gates) + self.b_gates
+
+        # input_dow_w is (n_batch, n_time_steps, 2*num_units). We define a
+        # slicing function that extract the input to each GRU gate
+        def slice_w(x, n):
+            return x[:, n*self.num_units:(n+1)*self.num_units]
+
+        # Create single recurrent computation step function
+        # input_dot_W_n is the n'th row of the input dot W multiplication
+        def step(input_dot_w_n, hid_previous, W_hid_to_gates):
+            hid_input = T.dot(hid_previous, W_hid_to_gates)
+
+            if self.grad_clipping is not False:
+                input_dot_w_n = theano.gradient.grad_clip(
+                    input_dot_w_n, -self.grad_clipping, self.grad_clipping)
+                hid_input = theano.gradient.grad_clip(
+                    hid_input, -self.grad_clipping, self.grad_clipping)
+
+            # Reset and update gates
+            resetgate = slice_w(hid_input, 0) + slice_w(input_dot_w_n, 0)
+            updategate = slice_w(hid_input, 1) + slice_w(input_dot_w_n, 1)
+
+            # cell input
+            cell_in = slice_w(input_dot_w_n, 2)
+            cell_hid = slice_w(hid_input, 2)
+
+            resetgate = self.nonlinearity_resetgate(resetgate)
+            updategate = self.nonlinearity_updategate(updategate)
+
+            cell = cell_in + resetgate*cell_hid
+            if self.grad_clipping is not False:
+                cell = theano.gradient.grad_clip(
+                    cell, -self.grad_clipping, self.grad_clipping)
+            cell = self.nonlinearity_cell(cell)
+
+            hid = (1-updategate)*hid_previous + updategate*cell
+            return hid
+
+        def step_masked(input_dot_w_n, mask_n, hid_previous, W_hid_to_gates):
+
+            hid = step(input_dot_w_n, hid_previous, W_hid_to_gates)
+
+            # If mask is 0, use previous state until mask = 1 is found.
+            # This propagates the layer initial state when moving backwards
+            # until the end of the sequence is found.
+            not_mask = 1 - mask_n
+            hid = hid*mask_n + hid_previous*not_mask
+
+            return hid
+
+        if mask is not None:
+            # mask is given as (batch_size, seq_len). Because scan iterates
+            # over first dimension, we dimshuffle to (seq_len, batch_size) and
+            # add a broadcastable dimension
+            mask = mask.dimshuffle(1, 0, 'x')
+            sequences = [input_dot_w, mask]
+            step_fun = step_masked
+        else:
+            sequences = [input_dot_w]
+            step_fun = step
+
+        if isinstance(self.hid_init, T.TensorVariable):
+            hid_init = self.hid_init
+        else:
+            # repeat num_batch times
+            hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
+
+        # Scan op iterates over first dimension of input and repeatedly
+        # applied the step function
+        if self.unroll_scan:
+            # use for loop to unroll recursion.
+            hid_out = unroll_scan(
+                fn=step_fun,
+                sequences=sequences,
+                outputs_info=[hid_init],
+                go_backwards=self.backwards,
+                non_sequences=[self.W_hid_to_gates],
+                n_steps=self.input_shape[1])[0]
+        else:
+            # Scan op iterates over first dimension of input and repeatedly
+            # applies the step function
+            hid_out = theano.scan(
+                fn=step_fun,
+                sequences=sequences,
+                go_backwards=self.backwards,
+                outputs_info=[hid_init],
+                non_sequences=[self.W_hid_to_gates],
+                truncate_gradient=self.gradient_steps,
+                strict=True)[0]
+
+        # dimshuffle back to (n_batch, n_time_steps, n_features))
+        hid_out = hid_out.dimshuffle(1, 0, 2)
+
+        # if scan is backward reverse the output
+        if self.backwards:
+            hid_out = hid_out[:, ::-1, :]
+
+        self.hid_out = hid_out
 
         return hid_out

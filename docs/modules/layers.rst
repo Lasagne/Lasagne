@@ -145,6 +145,9 @@ Layer classes: recurrent layers
 .. autoclass:: LSTMLayer
     :members:
 
+.. autoclass:: GRULayer
+    :members:
+
 :mod:`lasagne.layers.corrmm`
 ============================
 

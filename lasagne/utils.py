@@ -363,11 +363,15 @@ def unroll_scan(fn, sequences, outputs_info, non_sequences, n_steps,
             counter = counter[::-1]
 
         output = []
-        init = outputs_info
+        prev_vals = outputs_info
         for i in counter:
-            step_input = [s[i] for s in sequences] + init + non_sequences
-            output.append(fn(*step_input))
-            init = output[-1]
+            step_input = [s[i] for s in sequences] + prev_vals + non_sequences
+            out_ = fn(*step_input)
+            if not isinstance(out_, (list, tuple)):
+                out_ = [out_]
+            output.append(out_)
+
+            prev_vals = output[-1]
 
         # iterate over each scan output and convert it to same format as scan:
         # [[output11, output12,...output1n],

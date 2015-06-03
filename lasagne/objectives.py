@@ -1,177 +1,303 @@
-import theano
-import theano.tensor as T
-from theano.tensor.nnet import binary_crossentropy, categorical_crossentropy
+"""
+Provides some minimal help with building loss expressions for training or
+validating a neural network.
+
+Three functions build element- or item-wise loss expressions from network
+predictions and targets:
+
+.. autosummary::
+    :nosignatures:
+
+    binary_crossentropy
+    categorical_crossentropy
+    squared_error
+
+Two functions aggregate such losses into a scalar expression suitable for
+differentiation:
+
+.. autosummary::
+    :nosignatures:
+
+    aggregate
+    weighted_aggregate
+
+Note that these functions only serve to write more readable code, but are
+completely optional. Essentially, any differentiable scalar Theano expression
+can be used as a training objective.
+
+Examples
+--------
+Assuming you have a simple neural network for 3-way classification:
+
+>>> from lasagne.layers import InputLayer, DenseLayer, get_output
+>>> from lasagne.nonlinearities import softmax, rectify
+>>> l_in = InputLayer((100, 20))
+>>> l_hid = DenseLayer(l_in, num_units=30, nonlinearity=rectify)
+>>> l_out = DenseLayer(l_hid, num_units=3, nonlinearity=softmax)
+
+And Theano variables representing your network input and targets:
+
+>>> import theano
+>>> data = theano.tensor.matrix('data')
+>>> targets = theano.tensor.matrix('targets')
+
+You'd first construct an element-wise loss expression:
+
+>>> from lasagne.objectives import categorical_crossentropy, aggregate
+>>> predictions = get_output(l_out, data)
+>>> loss = categorical_crossentropy(predictions, targets)
+
+Then aggregate it into a scalar (you could also just call ``mean()`` on it):
+
+>>> loss = aggregate(loss, mode='mean')
+
+Finally, this gives a loss expression you can pass to any of the update
+methods in :mod:`lasagne.updates`. For validation of a network, you will
+usually want to repeat these steps with deterministic network output, i.e.,
+without dropout or any other nondeterministic computation in between:
+
+>>> test_predictions = get_output(l_out, data, deterministic=True)
+>>> test_loss = categorical_crossentropy(test_predictions, targets)
+>>> test_loss = aggregate(test_loss)
+
+This gives a loss expression good for monitoring validation error.
+"""
+
+import theano.tensor.nnet
+
 from lasagne.layers import get_output
+
+__all__ = [
+    "binary_crossentropy",
+    "categorical_crossentropy",
+    "squared_error",
+    "aggregate",
+    "weighted_aggregate",
+    "mse", "Objective", "MaskedObjective",  # deprecated
+]
+
+
+def binary_crossentropy(predictions, targets):
+    """Computes the binary cross-entropy between predictions and targets.
+
+    .. math:: L = -t \\log(p) - (1 - t) \\log(1 - p)
+
+    Parameters
+    ----------
+    predictions : Theano tensor
+        Predictions in (0, 1), such as sigmoidal output of a neural network.
+    targets : Theano tensor
+        Targets in [0, 1], such as ground truth labels.
+
+    Returns
+    -------
+    Theano tensor
+        An expression for the element-wise binary cross-entropy.
+
+    Notes
+    -----
+    This is the loss function of choice for binary classification problems
+    and sigmoid output units.
+    """
+    return theano.tensor.nnet.binary_crossentropy(predictions, targets)
+
+
+def categorical_crossentropy(predictions, targets):
+    """Computes the categorical cross-entropy between predictions and targets.
+
+    .. math:: L_i = - \\sum_j{t_{i,j} \\log(p_{i,j})}
+
+    Parameters
+    ----------
+    predictions : Theano 2D tensor
+        Predictions in (0, 1), such as softmax output of a neural network,
+        with data points in rows and class probabilities in columns.
+    targets : Theano 2D tensor or 1D tensor
+        Either targets in [0, 1] matching the layout of `predictions`, or
+        a vector of int giving the correct class index per data point.
+
+    Returns
+    -------
+    Theano 1D tensor
+        An expression for the item-wise categorical cross-entropy.
+
+    Notes
+    -----
+    This is the loss function of choice for multi-class classification
+    problems and softmax output units. For hard targets, i.e., targets
+    that assign all of the probability to a single class per data point,
+    providing a vector of int for the targets is usually slightly more
+    efficient than providing a matrix with a single 1.0 per row.
+    """
+    return theano.tensor.nnet.categorical_crossentropy(predictions, targets)
+
+
+def squared_error(a, b):
+    """Computes the element-wise squared difference between two tensors.
+
+    .. math:: L = (p - t)^2
+
+    Parameters
+    ----------
+    a, b : Theano tensor
+        The tensors to compute the squared difference between.
+
+    Returns
+    -------
+    Theano tensor
+        An expression for the item-wise squared difference.
+
+    Notes
+    -----
+    This is the loss function of choice for many regression problems
+    or auto-encoders with linear output units.
+    """
+    return (a - b)**2
+
+
+def aggregate(loss, mode='mean'):
+    """Aggregates an element- or item-wise loss to a scalar loss.
+
+    Parameters
+    ----------
+    loss : Theano tensor
+        The loss expression to aggregate.
+    mode : {'mean', 'sum'}
+        Whether to aggregate by averaging or summing.
+
+    Returns
+    -------
+    Theano scalar
+        A scalar loss expression suitable for differentiation
+    """
+    if mode == 'mean':
+        return loss.mean()
+    elif mode == 'sum':
+        return loss.sum()
+    else:
+        raise ValueError("mode must be 'mean' or 'sum', got %r" % mode)
+
+
+def weighted_aggregate(loss, weights=None, mode='mean'):
+    """Weighted aggregation of an element- or item-wise loss to a scalar.
+
+    Parameters
+    ----------
+    loss : Theano tensor
+        The loss expression to aggregate.
+    weights : Theano tensor, optional
+        The weights for each element or item, must be broadcastable to
+        the same shape as `loss` if given.
+    mode : {'mean', 'sum', 'normalized_sum'}
+        Whether to aggregate by averaging, by summing or by summing and
+        dividing by the total weights.
+
+    Returns
+    -------
+    Theano scalar
+        A scalar loss expression suitable for differentiation.
+
+    Notes
+    -----
+    By supplying binary weights (i.e., only using values 0 and 1), this
+    function can also be used for masking out particular entries in the
+    loss expression. Note that masked entries still need to be valid
+    values, not-a-numbers (NaNs) will propagate through.
+
+    When applied to batch-wise loss expressions, setting `mode` to
+    ``'normalized_sum'`` ensures that the loss per batch is of a similar
+    magnitude, independent of associated weights. However, it means that
+    a given datapoint contributes more to the loss when it shares a batch
+    with low-weighted or masked datapoints than with high-weighted ones.
+    """
+    if weights is not None:
+        loss = loss * weights
+    if mode == 'mean':
+        return loss.mean()
+    elif mode == 'sum':
+        return loss.sum()
+    elif mode == 'normalized_sum':
+        if weights is None:
+            raise ValueError("require weights for mode='normalized_sum'")
+        return loss.sum() / weights.sum()
+    else:
+        raise ValueError("mode must be 'mean', 'sum' or 'normalized_sum', "
+                         "got %r" % mode)
 
 
 def mse(x, t):
-    """Calculates the MSE mean across all dimensions, i.e. feature
-     dimension AND minibatch dimension.
-
-    :parameters:
-        - x : predicted values
-        - t : target values
-
-    :returns:
-        - output : the mean square error across all dimensions
-    """
-    return (x - t) ** 2
+    """Deprecated. Use :func:`squared_error()` instead."""
+    import warnings
+    warnings.warn("lasagne.objectives.mse() is deprecated and will be removed "
+                  "for the first release of Lasagne. Use "
+                  "lasagne.objectives.squared_error() instead.", stacklevel=2)
+    return squared_error(x, t)
 
 
 class Objective(object):
-    _valid_aggregation = {None, 'mean', 'sum'}
-
     """
-    Training objective
-
-    The  `get_loss` method returns cost expression useful for training or
-    evaluating a network.
+    Deprecated. See docstring of :mod:`lasagne.objectives` for alternatives.
     """
-    def __init__(self, input_layer, loss_function=mse, aggregation='mean'):
-        """
-        Constructor
 
-        :parameters:
-            - input_layer : a `Layer` whose output is the networks prediction
-                given its input
-            - loss_function : a loss function of the form `f(x, t)` that
-                returns a scalar loss given tensors that represent the
-                predicted and true values as arguments..
-            - aggregation : either:
-                - `'mean'` or `None` : the mean of the the elements of the
-                loss will be returned
-                - `'sum'` : the sum of the the elements of the loss will be
-                returned
-        """
+    def __init__(self, input_layer, loss_function=squared_error,
+                 aggregation='mean'):
+        import warnings
+        warnings.warn("lasagne.objectives.Objective is deprecated and "
+                      "will be removed for the first release of Lasagne. For "
+                      "alternatives, please see: "
+                      "http://lasagne.readthedocs.org/en/latest/"
+                      "modules/objectives.html", stacklevel=2)
+        import theano.tensor as T
         self.input_layer = input_layer
         self.loss_function = loss_function
         self.target_var = T.matrix("target")
-        if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', '
-                             'or None, not {0}'.format(aggregation))
         self.aggregation = aggregation
 
     def get_loss(self, input=None, target=None, aggregation=None, **kwargs):
-        """
-        Get loss scalar expression
-
-        :parameters:
-            - input : (default `None`) an expression that results in the
-                input data that is passed to the network
-            - target : (default `None`) an expression that results in the
-                desired output that the network is being trained to generate
-                given the input
-            - aggregation : None to use the value passed to the
-                constructor or a value to override it
-            - kwargs : additional keyword arguments passed to `input_layer`'s
-                `get_output` method
-
-        :returns:
-            - output : loss expressions
-        """
+        from lasagne.layers import get_output
         network_output = get_output(self.input_layer, input, **kwargs)
+
         if target is None:
             target = self.target_var
-        if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', '
-                             'or None, not {0}'.format(aggregation))
         if aggregation is None:
             aggregation = self.aggregation
 
         losses = self.loss_function(network_output, target)
 
-        if aggregation is None or aggregation == 'mean':
-            return losses.mean()
-        elif aggregation == 'sum':
-            return losses.sum()
-        else:
-            raise RuntimeError('This should have been caught earlier')
+        return aggregate(losses, aggregation)
 
 
 class MaskedObjective(object):
-    _valid_aggregation = {None, 'sum', 'mean', 'normalized_sum'}
-
     """
-    Masked training objective
-
-    The  `get_loss` method returns an expression that can be used for
-    training with a gradient descent approach, with masking applied to weight
-    the contribution of samples to the final loss.
+    Deprecated. See docstring of :mod:`lasagne.objectives` for alternatives.
     """
+
     def __init__(self, input_layer, loss_function=mse, aggregation='mean'):
-        """
-        Constructor
-
-        :parameters:
-            - input_layer : a `Layer` whose output is the networks prediction
-                given its input
-            - loss_function : a loss function of the form `f(x, t, m)` that
-                returns a scalar loss given tensors that represent the
-                predicted values, true values and mask as arguments.
-            - aggregation : either:
-                - `None` or `'mean'` : the elements of the loss will be
-                multiplied by the mask and the mean returned
-                - `'sum'` : the elements of the loss will be multiplied by
-                the mask and the sum returned
-                - `'normalized_sum'` : the elements of the loss will be
-                multiplied by the mask, summed and divided by the sum of
-                the mask
-        """
+        import warnings
+        warnings.warn("lasagne.objectives.MaskedObjective is deprecated and "
+                      "will be removed for the first release of Lasagne. For "
+                      "alternatives, please see: "
+                      "http://lasagne.readthedocs.org/en/latest/"
+                      "modules/objectives.html", stacklevel=2)
+        import theano.tensor as T
         self.input_layer = input_layer
         self.loss_function = loss_function
         self.target_var = T.matrix("target")
         self.mask_var = T.matrix("mask")
-        if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', '
-                             '\'normalized_sum\' or None,'
-                             ' not {0}'.format(aggregation))
         self.aggregation = aggregation
 
     def get_loss(self, input=None, target=None, mask=None,
                  aggregation=None, **kwargs):
-        """
-        Get loss scalar expression
-
-        :parameters:
-            - input : (default `None`) an expression that results in the
-                input data that is passed to the network
-            - target : (default `None`) an expression that results in the
-                desired output that the network is being trained to generate
-                given the input
-            - mask : None for no mask, or a soft mask that is the same shape
-                as - or broadcast-able to the shape of - the result of
-                applying the loss function. It selects/weights the
-                contributions of the resulting loss values
-            - aggregation : None to use the value passed to the
-                constructor or a value to override it
-            - kwargs : additional keyword arguments passed to `input_layer`'s
-                `get_output` method
-
-        :returns:
-            - output : loss expressions
-        """
+        from lasagne.layers import get_output
         network_output = get_output(self.input_layer, input, **kwargs)
+
         if target is None:
             target = self.target_var
         if mask is None:
             mask = self.mask_var
-
-        if aggregation not in self._valid_aggregation:
-            raise ValueError('aggregation must be \'mean\', \'sum\', '
-                             '\'normalized_sum\' or None, '
-                             'not {0}'.format(aggregation))
-
-        # Get aggregation value passed to constructor if None
         if aggregation is None:
             aggregation = self.aggregation
 
-        masked_losses = self.loss_function(network_output, target) * mask
+        losses = self.loss_function(network_output, target)
 
-        if aggregation is None or aggregation == 'mean':
-            return masked_losses.mean()
-        elif aggregation == 'sum':
-            return masked_losses.sum()
-        elif aggregation == 'normalized_sum':
-            return masked_losses.sum() / mask.sum()
-        else:
-            raise RuntimeError('This should have been caught earlier')
+        return weighted_aggregate(losses, mask, aggregation)

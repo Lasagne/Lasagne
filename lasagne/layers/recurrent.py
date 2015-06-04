@@ -120,7 +120,8 @@ class CustomRecurrentLayer(Layer):
         # Initialize hidden state
         if isinstance(hid_init, T.TensorVariable):
             if hid_init.ndim != 2:
-                raise ValueError("When a tensor hid_init should be a matrix")
+                raise ValueError(
+                    "When a TensorVariable hid_init should be a matrix")
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -158,6 +159,8 @@ class CustomRecurrentLayer(Layer):
         layer_output : theano.TensorType
             Symbolic output variable.
         """
+
+        # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
                                    T.prod(input.shape[2:])))
@@ -545,19 +548,19 @@ class LSTMLayer(Layer):
         self.b_outgate = self.add_param(
             b_outgate, (num_units,), name="b_outgate", regularizable=False)
 
-        # Stack input to gate weight matrices into a (num_inputs, 4*num_units)
+        # Stack input weight matrices into a (num_inputs, 4*num_units)
         # matrix, which speeds up computation
-        self.W_in_to_gates = T.concatenate(
+        self.W_in_stacked = T.concatenate(
             [self.W_in_to_ingate, self.W_in_to_forgetgate,
              self.W_in_to_cell, self.W_in_to_outgate], axis=1)
 
-        # Same for hidden to gate weight matrices
-        self.W_hid_to_gates = T.concatenate(
+        # Same for hidden weight matrices
+        self.W_hid_stacked = T.concatenate(
             [self.W_hid_to_ingate, self.W_hid_to_forgetgate,
              self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
 
-        # Stack gate biases into a (4*num_units) vector
-        self.b_gates = T.concatenate(
+        # Stack biases into a (4*num_units) vector
+        self.b_stacked = T.concatenate(
             [self.b_ingate, self.b_forgetgate,
              self.b_cell, self.b_outgate], axis=0)
 
@@ -587,7 +590,8 @@ class LSTMLayer(Layer):
 
         if isinstance(hid_init, T.TensorVariable):
             if hid_init.ndim != 2:
-                raise ValueError("When a tensor hid_init should be a matrix")
+                raise ValueError(
+                    "When a TensorVariable hid_init should be a matrix")
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -619,7 +623,7 @@ class LSTMLayer(Layer):
         layer_output : theano.TensorType
             Symblic output variable.
         """
-        # Treat all layers after the first as flattened feature dimensions
+        # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
                                    T.prod(input.shape[2:])))
@@ -630,11 +634,10 @@ class LSTMLayer(Layer):
         seq_len, num_batch, _ = input.shape
 
         # Because the input is given for all time steps, we can precompute
-        # the inputs to the gates before scanning.
-        # input is dimshuffled to (n_time_steps, n_batch, n_features)
-        # W_in_to_gates is (n_features, 4*num_units). input_dot_W is then
+        # the inputs dot weight matrices before scanning.
+        # W_in_stacked is (n_features, 4*num_units). input_dot_W is then
         # (n_time_steps, n_batch, 4*num_units).
-        input_dot_W = T.dot(input, self.W_in_to_gates) + self.b_gates
+        input_dot_W = T.dot(input, self.W_in_stacked) + self.b_stacked
 
         # input_dot_W is (n_batch, n_time_steps, 4*num_units). We define a
         # slicing function that extract the input to each LSTM gate
@@ -650,7 +653,7 @@ class LSTMLayer(Layer):
         # c_t = f_tc_{t - 1} + i_t\tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c)
         # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
         # h_t = o_t \tanh(c_t)
-        def step(input_dot_W_n, cell_previous, hid_previous, W_hid_to_gates,
+        def step(input_dot_W_n, cell_previous, hid_previous, W_hid_stacked,
                  *args):
 
             if self.peepholes:
@@ -659,7 +662,7 @@ class LSTMLayer(Layer):
                  W_cell_to_outgate] = args
 
             # Calculate gates pre-activations and slice
-            gates = input_dot_W_n + T.dot(hid_previous, W_hid_to_gates)
+            gates = input_dot_W_n + T.dot(hid_previous, W_hid_stacked)
 
             # clip gradients
             if self.grad_clipping is not False:
@@ -693,10 +696,10 @@ class LSTMLayer(Layer):
             return [cell, hid]
 
         def step_masked(input_dot_W_n, mask_n, cell_previous, hid_previous,
-                        W_hid_to_gates, *args):
+                        W_hid_stacked, *args):
 
             cell, hid = step(input_dot_W_n, cell_previous, hid_previous,
-                             W_hid_to_gates, *args)
+                             W_hid_stacked, *args)
 
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
@@ -729,7 +732,7 @@ class LSTMLayer(Layer):
         else:
             hid_init = T.dot(ones, self.hid_init)  # repeat num_batch times
 
-        non_seqs = [self.W_hid_to_gates]
+        non_seqs = [self.W_hid_stacked]
 
         if self.peepholes:
             non_seqs += [self.W_cell_to_ingate,
@@ -789,9 +792,9 @@ class GRULayer(Layer):
     W_in_to_updategate : Theano shared variable, numpy array or callable
     W_hid_to_updategate : Theano shared variable, numpy array or callable
     b_updategate : Theano shared variable, numpy array or callable
-    W_in_to_cell : Theano shared variable, numpy array or callable
-    W_hid_to_cell : Theano shared variable, numpy array or callable
-    b_cell : Theano shared variable, numpy array or callable
+    W_in_to_hidden_update : Theano shared variable, numpy array or callable
+    W_hid_to_hidden_update : Theano shared variable, numpy array or callable
+    b_hidden_update : Theano shared variable, numpy array or callable
     nonlinearity_resetgate : callable or None
         The nonlinearity that is applied to the resetgate activations. If None
         is provided, the resetgate will be linear.
@@ -843,9 +846,9 @@ class GRULayer(Layer):
                  W_in_to_updategate=init.Normal(0.1),
                  W_hid_to_updategate=init.Normal(0.1),
                  b_updategate=init.Normal(0.1),
-                 W_in_to_cell=init.Normal(0.1),
-                 W_hid_to_cell=init.Normal(0.1),
-                 b_cell=init.Constant(0.),
+                 W_in_to_hidden_update=init.Normal(0.1),
+                 W_hid_to_hidden_update=init.Normal(0.1),
+                 b_hidden_update=init.Constant(0.),
                  nonlinearity_resetgate=nonlinearities.sigmoid,
                  nonlinearity_updategate=nonlinearities.sigmoid,
                  nonlinearity_hid=nonlinearities.tanh,
@@ -910,33 +913,35 @@ class GRULayer(Layer):
             b_resetgate, (num_units,),
             name="b_resetgate", regularizable=False)
 
-        self.W_in_to_cell = self.add_param(
-            W_in_to_cell, (num_inputs, num_units), name="W_in_to_cell")
+        self.W_in_to_hidden_update = self.add_param(
+            W_in_to_hidden_update, (num_inputs, num_units),
+            name="W_in_to_hidden_update")
 
-        self.W_hid_to_cell = self.add_param(
-            W_hid_to_cell, (num_units, num_units), name="W_hid_to_cell")
+        self.W_hid_to_hidden_update = self.add_param(
+            W_hid_to_hidden_update, (num_units, num_units),
+            name="W_hid_to_hidden_update")
 
-        self.b_cell = self.add_param(
-            b_cell, (num_units,), name="b_cell", regularizable=False)
+        self.b_hidden_update = self.add_param(
+            b_hidden_update, (num_units,), name="b_hidden_update", regularizable=False)
 
-        self.W_in_to_gates = T.concatenate(
+        self.W_in_stacked = T.concatenate(
             [self.W_in_to_resetgate, self.W_in_to_updategate,
-             self.W_in_to_cell], axis=1)
+             self.W_in_to_hidden_update], axis=1)
 
-        # Same for hidden to gate weight matrices
-        self.W_hid_to_gates = T.concatenate(
+        self.W_hid_stacked = T.concatenate(
             [self.W_hid_to_resetgate, self.W_hid_to_updategate,
-             self.W_hid_to_cell], axis=1)
+             self.W_hid_to_hidden_update], axis=1)
 
-        # Stack gate biases into a (4*num_units) vector
-        self.b_gates = T.concatenate(
+        # Stack gate biases into a (3*num_units) vector
+        self.b_stacked = T.concatenate(
             [self.b_resetgate, self.b_updategate,
-             self.b_cell], axis=0)
+             self.b_hidden_update], axis=0)
 
         # Initialize hidden state
         if isinstance(hid_init, T.TensorVariable):
             if hid_init.ndim != 2:
-                raise ValueError("When a tensor hid_init should be a matrix")
+                raise ValueError(
+                    "When a TensorVariable hid_init should be a matrix")
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -964,7 +969,7 @@ class GRULayer(Layer):
             `mask[i, j] = 0` when `j > (length of sequence i)`.
         """
 
-        # Treat all layers after the first as flattened feature dimensions
+        # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
                                    T.prod(input.shape[2:])))
@@ -975,11 +980,9 @@ class GRULayer(Layer):
         seq_len, num_batch, _ = input.shape
 
         # precompute inputs*W and dimshuffle
-        # Input is provided as (n_batch, n_time_steps, n_features)
-        # W_in is (n_features, 3*num_units). input dot W is then
-        # (n_batch, n_time_steps, 3*num_units). Because scan iterate over the
-        # first dimension we dimshuffle to (n_time_steps, n_batch, n_features)
-        input_dot_w = T.dot(input, self.W_in_to_gates) + self.b_gates
+        # W_in is (n_features, 3*num_units). input_dot_W is then
+        # (n_batch, n_time_steps, 3*num_units).
+        input_dot_W = T.dot(input, self.W_in_stacked) + self.b_stacked
 
         # input_dow_w is (n_batch, n_time_steps, 2*num_units). We define a
         # slicing function that extract the input to each GRU gate
@@ -988,8 +991,8 @@ class GRULayer(Layer):
 
         # Create single recurrent computation step function
         # input_dot_W_n is the n'th row of the input dot W multiplication
-        def step(input_dot_w_n, hid_previous, W_hid_to_gates):
-            hid_input = T.dot(hid_previous, W_hid_to_gates)
+        def step(input_dot_w_n, hid_previous, W_hid_stacked):
+            hid_input = T.dot(hid_previous, W_hid_stacked)
 
             if self.grad_clipping is not False:
                 input_dot_w_n = theano.gradient.grad_clip(
@@ -1000,26 +1003,25 @@ class GRULayer(Layer):
             # Reset and update gates
             resetgate = slice_w(hid_input, 0) + slice_w(input_dot_w_n, 0)
             updategate = slice_w(hid_input, 1) + slice_w(input_dot_w_n, 1)
-
-            # cell input
-            cell_in = slice_w(input_dot_w_n, 2)
-            cell_hid = slice_w(hid_input, 2)
-
             resetgate = self.nonlinearity_resetgate(resetgate)
             updategate = self.nonlinearity_updategate(updategate)
 
-            cell = cell_in + resetgate*cell_hid
-            if self.grad_clipping is not False:
-                cell = theano.gradient.grad_clip(
-                    cell, -self.grad_clipping, self.grad_clipping)
-            cell = self.nonlinearity_hid(cell)
+            # hidden_update input
+            hidden_update_in = slice_w(input_dot_w_n, 2)
+            hidden_update_hid = slice_w(hid_input, 2)
 
-            hid = (1-updategate)*hid_previous + updategate*cell
+            hidden_update = hidden_update_in + resetgate*hidden_update_hid
+            if self.grad_clipping is not False:
+                hidden_update = theano.gradient.grad_clip(
+                    hidden_update, -self.grad_clipping, self.grad_clipping)
+            hidden_update = self.nonlinearity_hid(hidden_update)
+
+            hid = (1-updategate)*hid_previous + updategate*hidden_update
             return hid
 
-        def step_masked(input_dot_w_n, mask_n, hid_previous, W_hid_to_gates):
+        def step_masked(input_dot_w_n, mask_n, hid_previous, W_hid_stacked):
 
-            hid = step(input_dot_w_n, hid_previous, W_hid_to_gates)
+            hid = step(input_dot_w_n, hid_previous, W_hid_stacked)
 
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
@@ -1034,10 +1036,10 @@ class GRULayer(Layer):
             # over first dimension, we dimshuffle to (seq_len, batch_size) and
             # add a broadcastable dimension
             mask = mask.dimshuffle(1, 0, 'x')
-            sequences = [input_dot_w, mask]
+            sequences = [input_dot_W, mask]
             step_fun = step_masked
         else:
-            sequences = [input_dot_w]
+            sequences = [input_dot_W]
             step_fun = step
 
         if isinstance(self.hid_init, T.TensorVariable):
@@ -1046,8 +1048,6 @@ class GRULayer(Layer):
             # repeat num_batch times
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
-        # Scan op iterates over first dimension of input and repeatedly
-        # applied the step function
         if self.unroll_scan:
             # use for loop to unroll recursion.
             hid_out = unroll_scan(
@@ -1055,7 +1055,7 @@ class GRULayer(Layer):
                 sequences=sequences,
                 outputs_info=[hid_init],
                 go_backwards=self.backwards,
-                non_sequences=[self.W_hid_to_gates],
+                non_sequences=[self.W_hid_stacked],
                 n_steps=self.input_shape[1])[0]
         else:
             # Scan op iterates over first dimension of input and repeatedly
@@ -1065,7 +1065,7 @@ class GRULayer(Layer):
                 sequences=sequences,
                 go_backwards=self.backwards,
                 outputs_info=[hid_init],
-                non_sequences=[self.W_hid_to_gates],
+                non_sequences=[self.W_hid_stacked],
                 truncate_gradient=self.gradient_steps,
                 strict=True)[0]
 

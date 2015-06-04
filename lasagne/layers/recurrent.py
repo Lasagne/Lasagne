@@ -51,9 +51,10 @@ class CustomRecurrentLayer(Layer):
         Layer which connects input to the hidden state.
     hidden_to_hidden : :class:`lasagne.layers.Layer`
         Layer which connects the previous hidden state to the new state.
-    nonlinearity : function
-        Nonlinearity to apply when computing new state.
-    hid_init : function, np.ndarray, theano.shared or TensorVariable
+    nonlinearity : callable or None
+        Nonlinearity to apply when computing new state. If None is provided,
+        the nonlinearity will be linear.
+    hid_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
         ignored.
@@ -272,15 +273,17 @@ class RecurrentLayer(CustomRecurrentLayer):
         The layer feeding into this layer, or the expected input shape.
     num_units : int
         Number of hidden units in the layer.
-    W_in_to_hid : function or np.ndarray or theano.shared
+    W_in_to_hid : Theano shared variable, numpy array or callable
         Initializer for input-to-hidden weight matrix.
-    W_hid_to_hid : function or np.ndarray or theano.shared
+    W_hid_to_hid : Theano shared variable, numpy array or callable
         Initializer for hidden-to-hidden weight matrix.
-    b : function or np.ndarray or theano.shared
-        Initializer for bias vector.
-    nonlinearity : function
-        Nonlinearity to apply when computing new state.
-    hid_init : function, np.ndarray, theano.shared or TensorVariable
+    b : Theano shared variable, numpy array, callable or None
+        Initializer for bias vector. If None is provided there will be no
+        biases.
+    nonlinearity : callable or None
+        Nonlinearity to apply when computing new state. If None is provided,
+        the nonlinearity will be linear.
+    hid_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `hid_init` (:math:`h_0`). In this mode `learn_init` is
         ignored.
@@ -351,51 +354,56 @@ class LSTMLayer(Layer):
         The layer feeding into this layer, or the expected input shape.
     num_units : int
         Number of hidden units in the layer.
-    W_in_to_ingate : function or np.ndarray or theano.shared
+    W_in_to_ingate : Theano shared variable, numpy array or callable
         :math:`W_{xi}`.
-    W_hid_to_ingate : function or np.ndarray or theano.shared
+    W_hid_to_ingate : Theano shared variable, numpy array or callable
         :math:`W_{hi}`.
-    W_cell_to_ingate : function or np.ndarray or theano.shared
+    W_cell_to_ingate : Theano shared variable, numpy array or callable
         :math:`W_{ci}`.
-    b_ingate : function or np.ndarray or theano.shared
+    b_ingate : Theano shared variable, numpy array or callable
         :math:`b_i`.
-    nonlinearity_ingate : function
-        :math:`\sigma`.
-    W_in_to_forgetgate : function or np.ndarray or theano.shared
+    nonlinearity_ingate : callable or None
+        The nonlinearity that is applied to the ingate activations. If None
+        is provided, the ingate will be linear.
+    W_in_to_forgetgate : Theano shared variable, numpy array or callable
         :math:`W_{xf}`.
-    W_hid_to_forgetgate : function or np.ndarray or theano.shared
+    W_hid_to_forgetgate : Theano shared variable, numpy array or callable
         :math:`W_{hf}`.
-    W_cell_to_forgetgate : function or np.ndarray or theano.shared
+    W_cell_to_forgetgate : Theano shared variable, numpy array or callable
         :math:`W_{cf}`.
-    b_forgetgate : function or np.ndarray or theano.shared
+    b_forgetgate : Theano shared variable, numpy array or callable
         :math:`b_f`.
-    nonlinearity_forgetgate : function
-        :math:`\sigma`.
-    W_in_to_cell : function or np.ndarray or theano.shared
+    nonlinearity_forgetgate : callable or None
+        The nonlinearity that is applied to the forgetgate activations. If None
+        is provided, the forgetgate will be linear.
+    W_in_to_cell : Theano shared variable, numpy array or callable
         :math:`W_{ic}`.
-    W_hid_to_cell : function or np.ndarray or theano.shared
+    W_hid_to_cell : Theano shared variable, numpy array or callable
         :math:`W_{hc}`.
-    b_cell : function or np.ndarray or theano.shared
+    b_cell : Theano shared variable, numpy array or callable
         :math:`b_c`.
-    nonlinearity_cell : function or np.ndarray or theano.shared
-        :math:`tanh`.
-    W_in_to_outgate : function or np.ndarray or theano.shared
+    nonlinearity_cell : callable or None
+        The nonlinearity that is applied to the cell activations. If None
+        is provided, the cell will use linear activations.
+    W_in_to_outgate : Theano shared variable, numpy array or callable
         :math:`W_{io}`.
-    W_hid_to_outgate : function or np.ndarray or theano.shared
+    W_hid_to_outgate : Theano shared variable, numpy array or callable
         :math:`W_{ho}`.
-    W_cell_to_outgate : function or np.ndarray or theano.shared
+    W_cell_to_outgate : Theano shared variable, numpy array or callable
         :math:`W_{co}`.
-    b_outgate : function or np.ndarray or theano.shared
+    b_outgate : Theano shared variable, numpy array or callable
         :math:`b_o`.
-    nonlinearity_outgate : function
-        :math:`\sigma`.
-    nonlinearity_out : function or np.ndarray or theano.shared
-        :math:`tanh`.
-    cell_init : function, np.ndarray, theano.shared or TensorVariable
+    nonlinearity_outgate : callable or None
+        The nonlinearity that is applied to the outgate activations. If None
+        is provided, the outgate will be linear.
+    nonlinearity_out : callable or None
+        The nonlinearity that is applied to the output. If None
+        is provided, the output will be linear.
+    cell_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `cell_init` (:math:`c_0`). In this mode `learn_init` is
         ignored for the cell state.
-    hid_init : function, np.ndarray, theano.shared or TensorVariable
+    hid_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `hid_init` (:math:`h_0`). In this mode `learn_init` is
         ignored for the hidden state.
@@ -775,23 +783,29 @@ class GRULayer(Layer):
         The layer feeding into this layer, or the expected input shape.
     num_units : int
         Number of hidden units.
-    W_in_to_resetgate : function or np.ndarray or theano.shared
-    W_hid_to_resetgate : function or np.ndarray or theano.shared
-    b_resetgate : function or np.ndarray or theano.shared
-    W_in_to_updategate : function or np.ndarray or theano.shared
-    W_hid_to_updategate : function or np.ndarray or theano.shared
-    b_updategate : function or np.ndarray or theano.shared
-    W_in_to_cell : function or np.ndarray or theano.shared
-    W_hid_to_cell : function or np.ndarray or theano.shared
-    b_cell : function or np.ndarray or theano.shared
-    nonlinearity_resetgate : function
-    nonlinearity_updategate : function
-    nonlinearity_cell : function
-    hid_init : function, np.ndarray, theano.shared or TensorVariable
+    W_in_to_resetgate : Theano shared variable, numpy array or callable
+    W_hid_to_resetgate : Theano shared variable, numpy array or callable
+    b_resetgate : Theano shared variable, numpy array or callable
+    W_in_to_updategate : Theano shared variable, numpy array or callable
+    W_hid_to_updategate : Theano shared variable, numpy array or callable
+    b_updategate : Theano shared variable, numpy array or callable
+    W_in_to_cell : Theano shared variable, numpy array or callable
+    W_hid_to_cell : Theano shared variable, numpy array or callable
+    b_cell : Theano shared variable, numpy array or callable
+    nonlinearity_resetgate : callable or None
+        The nonlinearity that is applied to the resetgate activations. If None
+        is provided, the resetgate will be linear.
+    nonlinearity_updategate : callable or None
+        The nonlinearity that is applied to the updategate activations. If None
+        is provided, the updategate will be linear.
+    nonlinearity_hid : callable or None
+        The nonlinearity that is applied to the hidden activations. If None
+        is provided, the hidden state will be linear.
+    hid_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
         ignored.
-    backwards : boolean
+    backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
@@ -834,7 +848,7 @@ class GRULayer(Layer):
                  b_cell=init.Constant(0.),
                  nonlinearity_resetgate=nonlinearities.sigmoid,
                  nonlinearity_updategate=nonlinearities.sigmoid,
-                 nonlinearity_cell=nonlinearities.tanh,
+                 nonlinearity_hid=nonlinearities.tanh,
                  hid_init=init.Constant(0.),
                  learn_init=True,
                  backwards=False,
@@ -855,10 +869,10 @@ class GRULayer(Layer):
         else:
             self.nonlinearity_updategate = nonlinearity_updategate
 
-        if nonlinearity_cell is None:
-            self.nonlinearity_cell = nonlinearities.identity
+        if nonlinearity_hid is None:
+            self.nonlinearity_hid = nonlinearities.identity
         else:
-            self.nonlinearity_cell = nonlinearity_cell
+            self.nonlinearity_hid = nonlinearity_hid
 
         self.learn_init = learn_init
         self.num_units = num_units
@@ -998,7 +1012,7 @@ class GRULayer(Layer):
             if self.grad_clipping is not False:
                 cell = theano.gradient.grad_clip(
                     cell, -self.grad_clipping, self.grad_clipping)
-            cell = self.nonlinearity_cell(cell)
+            cell = self.nonlinearity_hid(cell)
 
             hid = (1-updategate)*hid_previous + updategate*cell
             return hid

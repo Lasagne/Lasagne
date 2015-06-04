@@ -664,12 +664,12 @@ def test_gru_unroll_scan_bck():
     l_gru_scan = GRULayer(l_inp, num_units=num_units, backwards=True,
                           unroll_scan=False, nonlinearity_resetgate=None,
                           nonlinearity_updategate=None,
-                          nonlinearity_cell=None)
+                          nonlinearity_hid=None)
     np.random.seed(1234)
     l_gru_unrolled = GRULayer(l_inp, num_units=num_units, backwards=True,
                               unroll_scan=True, nonlinearity_resetgate=None,
                               nonlinearity_updategate=None,
-                              nonlinearity_cell=None)
+                              nonlinearity_hid=None)
     l_out_scan = helper.get_output(l_gru_scan, x)
     l_out_unrolled = helper.get_output(l_gru_unrolled, x)
     f_gru = theano.function([x], [l_out_scan, l_out_unrolled])

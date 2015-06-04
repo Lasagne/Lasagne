@@ -922,7 +922,8 @@ class GRULayer(Layer):
             name="W_hid_to_hidden_update")
 
         self.b_hidden_update = self.add_param(
-            b_hidden_update, (num_units,), name="b_hidden_update", regularizable=False)
+            b_hidden_update, (num_units,), name="b_hidden_update",
+            regularizable=False)
 
         self.W_in_stacked = T.concatenate(
             [self.W_in_to_resetgate, self.W_in_to_updategate,

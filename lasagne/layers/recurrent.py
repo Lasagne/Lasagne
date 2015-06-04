@@ -885,9 +885,7 @@ class GRULayer(Layer):
         self.unroll_scan = unroll_scan
 
         # Input dimensionality is the output dimensionality of the input layer
-        num_batch = self.input_shape[0]
         num_inputs = np.prod(self.input_shape[2:])
-        self.num_inputs = num_inputs
 
         self.W_in_to_updategate = self.add_param(
             W_in_to_updategate, (num_inputs, num_units),

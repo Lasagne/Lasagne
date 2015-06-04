@@ -787,14 +787,23 @@ class GRULayer(Layer):
     num_units : int
         Number of hidden units.
     W_in_to_resetgate : Theano shared variable, numpy array or callable
+        Initializer for input-to-reset gate weight matrix
     W_hid_to_resetgate : Theano shared variable, numpy array or callable
+        Initializer for hidden-to-reset gate weight matrix
     b_resetgate : Theano shared variable, numpy array or callable
+        Initializer for the reset gate bias vector
     W_in_to_updategate : Theano shared variable, numpy array or callable
+        Initializer for input-to-update gate weight matrix
     W_hid_to_updategate : Theano shared variable, numpy array or callable
+        Initializer for hidden-to-update gate weight matrix
     b_updategate : Theano shared variable, numpy array or callable
+        Initializer for the update gate bias vector
     W_in_to_hidden_update : Theano shared variable, numpy array or callable
+        Initializer for input-to-hidden update weight matrix
     W_hid_to_hidden_update : Theano shared variable, numpy array or callable
+        Initializer for hidden-to-hidden update weight matrix
     b_hidden_update : Theano shared variable, numpy array or callable
+        Initializer for the hidden update bias vector
     nonlinearity_resetgate : callable or None
         The nonlinearity that is applied to the resetgate activations. If None
         is provided, the resetgate will be linear.

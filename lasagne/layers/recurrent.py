@@ -838,6 +838,24 @@ class GRULayer(Layer):
        arXiv preprint arXiv:1412.3555 (2014).
     .. [3] Alex Graves : Generating Sequences With Recurrent Neural
        Networks.
+
+    Notes
+    -----
+    The GRU units is implemented slightly differently in [1]_ and in [2]_.
+    We use the following equation to calculate the hidden update:
+
+    .. math:: \hat{h}^j_t = tanh(W\mathbf{x}_t + \mathbf{r}_t
+              \odot (U\mathbf{h_{t-1}}))^j
+
+
+    An alternative formulation is:
+
+    .. math:: \hat{h}^j_t = tanh(W\mathbf{x}_t +
+              \odot U(\mathbf{r}_t\mathbf{h_{t-1}}))^j
+
+
+    We use the first formulation because it allows us to do all matrix
+    operations in a single dot product.
     """
     def __init__(self, incoming, num_units,
                  W_in_to_resetgate=init.Normal(0.1),

@@ -123,16 +123,17 @@ def create_iter_functions(dataset, output_layer,
     batch_slice = slice(batch_index * batch_size,
                         (batch_index + 1) * batch_size)
 
-    objective = lasagne.objectives.Objective(output_layer,
-        loss_function=lasagne.objectives.categorical_crossentropy)
+    output = lasagne.layers.get_output(output_layer, X_batch)
+    loss_train = lasagne.objectives.categorical_crossentropy(output, y_batch)
+    loss_train = loss_train.mean()
 
-    loss_train = objective.get_loss(X_batch, target=y_batch)
-    loss_eval = objective.get_loss(X_batch, target=y_batch,
-                                   deterministic=True)
+    output_test = lasagne.layers.get_output(output_layer, X_batch,
+                                            deterministic=True)
+    loss_eval = lasagne.objectives.categorical_crossentropy(output_test,
+                                                            y_batch)
+    loss_eval = loss_eval.mean()
 
-    pred = T.argmax(
-        lasagne.layers.get_output(output_layer, X_batch, deterministic=True),
-        axis=1)
+    pred = T.argmax(output_test, axis=1)
     accuracy = T.mean(T.eq(pred, y_batch), dtype=theano.config.floatX)
 
     all_params = lasagne.layers.get_all_params(output_layer)

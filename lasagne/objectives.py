@@ -225,7 +225,7 @@ def weighted_aggregate(loss, weights=None, mode='mean'):
                          "got %r" % mode)
 
 
-def mse(x, t):
+def mse(x, t):  # pragma no cover
     """Deprecated. Use :func:`squared_error()` instead."""
     import warnings
     warnings.warn("lasagne.objectives.mse() is deprecated and will be removed "
@@ -234,7 +234,7 @@ def mse(x, t):
     return squared_error(x, t)
 
 
-class Objective(object):
+class Objective(object):  # pragma no cover
     """
     Deprecated. See docstring of :mod:`lasagne.objectives` for alternatives.
     """
@@ -267,7 +267,7 @@ class Objective(object):
         return aggregate(losses, aggregation)
 
 
-class MaskedObjective(object):
+class MaskedObjective(object):  # pragma no cover
     """
     Deprecated. See docstring of :mod:`lasagne.objectives` for alternatives.
     """

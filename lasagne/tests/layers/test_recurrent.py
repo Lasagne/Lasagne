@@ -17,12 +17,11 @@ def test_recurrent_return_shape():
     l_rec = RecurrentLayer(l_inp, num_units=num_units)
 
     x_in = np.random.random(in_shp).astype('float32')
-    l_out = helper.get_output(l_rec, x)
-    f_rec = theano.function([x], l_out)
-    f_out = f_rec(x_in)
+    output = helper.get_output(l_rec, x)
+    output_val = output.eval({x: x_in})
 
-    assert helper.get_output_shape(l_rec, x_in.shape) == f_out.shape
-    assert f_out.shape == (num_batch, seq_len, num_units)
+    assert helper.get_output_shape(l_rec, x_in.shape) == output_val.shape
+    assert output_val.shape == (num_batch, seq_len, num_units)
 
 
 def test_recurrent_grad():
@@ -33,8 +32,8 @@ def test_recurrent_grad():
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_rec = RecurrentLayer(l_inp,
                            num_units=num_units)
-    l_out = helper.get_output(l_rec, x, mask=mask)
-    g = T.grad(T.mean(l_out), lasagne.layers.get_all_params(l_rec))
+    output = helper.get_output(l_rec, x, mask=mask)
+    g = T.grad(T.mean(output), lasagne.layers.get_all_params(l_rec))
     assert isinstance(g, (list, tuple))
 
 
@@ -61,7 +60,7 @@ def test_recurrent_nparams_learn_init():
 
 
 def test_recurrent_tensor_init():
-    # check if passing in TensorVariables to cell_init and hid_init works
+    # check if passing in a TensorVariable to hid_init works
     num_units = 5
     batch_size = 3
     seq_len = 2
@@ -84,11 +83,10 @@ def test_recurrent_tensor_init():
 
     # check that it compiles and runs
     output = lasagne.layers.get_output(l_rec, x)
-    f = theano.function([x, hid_init], output)
     x_test = np.ones(in_shp, dtype='float32')
-    hid_init = np.ones((batch_size, num_units), dtype='float32')
-    out = f(x_test, hid_init)
-    assert isinstance(out, np.ndarray)
+    hid_init_test = np.ones((batch_size, num_units), dtype='float32')
+    output_val = output.eval({x: x_test, hid_init: hid_init_test})
+    assert isinstance(output_val, np.ndarray)
 
 
 def test_recurrent_init_val_error():
@@ -110,7 +108,6 @@ def test_recurrent_init_shape_error():
 
 
 def test_recurrent_grad_clipping():
-    # check if passing in TensorVariables to cell_init and hid_init works
     num_units = 5
     batch_size = 3
     seq_len = 2
@@ -138,11 +135,12 @@ def test_recurrent_bck():
     l_rec_bck = RecurrentLayer(l_inp, num_units=num_units, backwards=True)
     l_out_fwd = helper.get_output(l_rec_fwd, x)
     l_out_bck = helper.get_output(l_rec_bck, x)
-    f_rec = theano.function([x], [l_out_fwd, l_out_bck])
-    f_out_fwd, f_out_bck = f_rec(x_in)
+
+    output_fwd = l_out_fwd.eval({l_out_fwd: x_in})
+    output_bck = l_out_bck.eval({l_out_bck: x_in})
 
     # test that the backwards model reverses its final input
-    np.testing.assert_almost_equal(f_out_fwd, f_out_bck[:, ::-1])
+    np.testing.assert_almost_equal(output_fwd, output_bck[:, ::-1])
 
 
 def test_recurrent_self_outvars():
@@ -155,30 +153,29 @@ def test_recurrent_self_outvars():
 
     x_in = np.ones(in_shp).astype('float32')
 
-    # need to set random seed.
     l_rec = RecurrentLayer(l_inp, num_units=num_units, backwards=True)
     l_out = helper.get_output(l_rec, x)
-    f_rec = theano.function([x], [l_out, l_rec.hid_out])
-    f_out, f_out_self = f_rec(x_in)
 
-    np.testing.assert_almost_equal(f_out, f_out_self)
+    output_hidout = l_rec.hid_out.eval({x: x_in})
+    output = l_out.eval({x: x_in})
+
+    np.testing.assert_almost_equal(output_hidout, output)
 
 
 def test_recurrent_variable_input_size():
-    # that seqlen and batchsize none works
+    # check that seqlen and batchsize None works
     num_batch, n_features1 = 6, 5
     num_units = 13
     x = T.tensor3()
 
     in_shp = (None, None, n_features1)
     l_inp = InputLayer(in_shp)
-    x_in2 = np.ones((num_batch, 15, n_features1)).astype('float32')
     x_in1 = np.ones((num_batch+1, 10, n_features1)).astype('float32')
+    x_in2 = np.ones((num_batch, 15, n_features1)).astype('float32')
     l_rec = RecurrentLayer(l_inp, num_units=num_units, backwards=False)
-    l_out = helper.get_output(l_rec, x)
-    f_rec = theano.function([x], l_out)
-    f_out1 = f_rec(x_in1)
-    f_out2 = f_rec(x_in2)
+    output = helper.get_output(l_rec, x)
+    output_val1 = output.eval({x: x_in1})
+    output_val2 = output.eval({x: x_in2})
 
 
 def test_recurrent_unroll_scan_fwd():
@@ -199,12 +196,12 @@ def test_recurrent_unroll_scan_fwd():
     np.random.seed(1234)
     l_rec_unroll = RecurrentLayer(l_inp, num_units=num_units, backwards=False,
                                   unroll_scan=True)
-    l_out_scan = helper.get_output(l_rec_scan, x, mask=mask)
-    l_out_unroll = helper.get_output(l_rec_unroll, x, mask=mask)
-    f_rec = theano.function([x, mask], [l_out_scan, l_out_unroll])
-    f_out_scan, f_out_unroll = f_rec(x_in, mask_in)
+    output_scan = helper.get_output(l_rec_scan, x, mask=mask)
+    output_unrolled = helper.get_output(l_rec_unroll, x, mask=mask)
 
-    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+    output_scan_val = output_scan.eval({x: x_in, mask: mask_in})
+    output_unrolled_val = output_unrolled.eval({x: x_in, mask: mask_in})
+    np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
 def test_recurrent_unroll_scan_bck():
@@ -222,12 +219,12 @@ def test_recurrent_unroll_scan_bck():
     np.random.seed(1234)
     l_rec_unroll = RecurrentLayer(l_inp, num_units=num_units, backwards=True,
                                   unroll_scan=True)
-    l_out_scan = helper.get_output(l_rec_scan, x)
-    l_out_unroll = helper.get_output(l_rec_unroll, x)
-    f_rec = theano.function([x], [l_out_scan, l_out_unroll])
-    f_out_scan, f_out_unroll = f_rec(x_in)
+    output_scan = helper.get_output(l_rec_scan, x)
+    output_unrolled = helper.get_output(l_rec_unroll, x)
+    output_scan_val = output_scan.eval({x: x_in})
+    output_unrolled_val = output_unrolled.eval({x: x_in})
 
-    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+    np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
 def test_lstm_return_shape():
@@ -240,12 +237,10 @@ def test_lstm_return_shape():
     x_in = np.random.random(in_shp).astype('float32')
 
     l_lstm = LSTMLayer(l_inp, num_units=num_units)
-    l_out = helper.get_output(l_lstm, x)
-    f_lstm = theano.function([x], l_out)
-    f_out = f_lstm(x_in)
-
-    assert helper.get_output_shape(l_lstm, x_in.shape) == f_out.shape
-    assert f_out.shape == (num_batch, seq_len, num_units)
+    output = helper.get_output(l_lstm, x)
+    output_val = output.eval({x: x_in})
+    assert helper.get_output_shape(l_lstm, x_in.shape) == output_val.shape
+    assert output_val.shape == (num_batch, seq_len, num_units)
 
 
 def test_lstm_grad():
@@ -255,8 +250,8 @@ def test_lstm_grad():
     mask = T.matrix()
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_lstm = LSTMLayer(l_inp, num_units=num_units)
-    l_out = helper.get_output(l_lstm, x, mask=mask)
-    g = T.grad(T.mean(l_out), lasagne.layers.get_all_params(l_lstm))
+    output = helper.get_output(l_lstm, x, mask=mask)
+    g = T.grad(T.mean(output), lasagne.layers.get_all_params(l_lstm))
     assert isinstance(g, (list, tuple))
 
 
@@ -324,12 +319,14 @@ def test_lstm_tensor_init():
 
     # check that it compiles and runs
     output = lasagne.layers.get_output(l_lstm, x)
-    f = theano.function([x, cell_init, hid_init], output)
+
     x_test = np.ones(in_shp, dtype='float32')
-    hid_init = np.ones((batch_size, num_units), dtype='float32')
-    cell_init = np.ones_like(hid_init)
-    out = f(x_test, cell_init, hid_init)
-    assert isinstance(out, np.ndarray)
+    hid_init_test = np.ones((batch_size, num_units), dtype='float32')
+    cell_init_test = np.ones_like(hid_init_test)
+    output_val = output.eval(
+        {x: x_test, cell_init: cell_init_test, hid_init: hid_init_test})
+
+    assert isinstance(output_val, np.ndarray)
 
 
 def test_lstm_init_val_error():
@@ -346,7 +343,7 @@ def test_lstm_grad_clipping():
     # test that you can set grad_clip variable
     x = T.tensor3()
     l_rec = LSTMLayer(InputLayer((2, 2, 3)), 5, grad_clipping=1)
-    l_out = lasagne.layers.get_output(l_rec, x)
+    output = lasagne.layers.get_output(l_rec, x)
 
 
 def test_lstm_bck():
@@ -363,13 +360,14 @@ def test_lstm_bck():
     l_lstm_fwd = LSTMLayer(l_inp, num_units=num_units, backwards=False)
     np.random.seed(1234)
     l_lstm_bck = LSTMLayer(l_inp, num_units=num_units, backwards=True)
-    l_out_fwd = helper.get_output(l_lstm_fwd, x)
-    l_out_bck = helper.get_output(l_lstm_bck, x)
-    f_lstm = theano.function([x], [l_out_fwd, l_out_bck])
-    f_out_fwd, f_out_bck = f_lstm(x_in)
+    output_fwd = helper.get_output(l_lstm_fwd, x)
+    output_bck = helper.get_output(l_lstm_bck, x)
+
+    output_fwd_val = output_fwd.eval({x: x_in})
+    output_bck_val = output_bck.eval({x: x_in})
 
     # test that the backwards model reverses its final input
-    np.testing.assert_almost_equal(f_out_fwd, f_out_bck[:, ::-1])
+    np.testing.assert_almost_equal(output_fwd_val, output_bck_val[:, ::-1])
 
 
 def test_lstm_self_outvars():
@@ -379,34 +377,34 @@ def test_lstm_self_outvars():
     x = T.tensor3()
     in_shp = (num_batch, seq_len, n_features1)
     l_inp = InputLayer(in_shp)
-
     x_in = np.ones(in_shp).astype('float32')
 
-    # need to set random seed.
     l_lstm = LSTMLayer(l_inp, num_units=num_units, backwards=True,
                        peepholes=True)
     l_out = helper.get_output(l_lstm, x)
-    f_lstm = theano.function([x], [l_out, l_lstm.hid_out])
-    f_out, f_out_self = f_lstm(x_in)
 
-    np.testing.assert_almost_equal(f_out, f_out_self)
+    output = l_out.eval({x: x_in})
+    output_hidout_val = l_lstm.hid_out.eval({x: x_in})
+    output_cellout_val = l_lstm.cell_out.eval({x: x_in})
+
+    np.testing.assert_almost_equal(output, output_hidout_val)
+    assert output_cellout_val.shape == output.shape
 
 
 def test_lstm_variable_input_size():
-    # that seqlen and batchsize none works
+    # that seqlen and batchsize None works
     num_batch, n_features1 = 6, 5
     num_units = 13
     x = T.tensor3()
 
     in_shp = (None, None, n_features1)
     l_inp = InputLayer(in_shp)
-    x_in2 = np.ones((num_batch, 3, n_features1)).astype('float32')
     x_in1 = np.ones((num_batch+1, 3+1, n_features1)).astype('float32')
+    x_in2 = np.ones((num_batch, 3, n_features1)).astype('float32')
     l_rec = LSTMLayer(l_inp, num_units=num_units, backwards=False)
-    l_out = helper.get_output(l_rec, x)
-    f_rec = theano.function([x], l_out)
-    f_out1 = f_rec(x_in1)
-    f_out2 = f_rec(x_in2)
+    output = helper.get_output(l_rec, x)
+    output_val1 = output.eval({x: x_in1})
+    output_val2 = output.eval({x: x_in2})
 
 
 def test_lstm_unroll_scan_fwd():
@@ -427,12 +425,13 @@ def test_lstm_unroll_scan_fwd():
     np.random.seed(1234)
     l_lstm_unrolled = LSTMLayer(l_inp, num_units=num_units, backwards=False,
                                 unroll_scan=True)
-    l_out_scan = helper.get_output(l_lstm_scan, x, mask=mask)
-    l_out_unrolled = helper.get_output(l_lstm_unrolled, x, mask=mask)
-    f_lstm = theano.function([x, mask], [l_out_scan, l_out_unrolled])
-    f_out_scan, f_out_unroll = f_lstm(x_in, mask_in)
+    output_scan = helper.get_output(l_lstm_scan, x, mask=mask)
+    output_unrolled = helper.get_output(l_lstm_unrolled, x, mask=mask)
 
-    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+    output_scan_val = output_scan.eval({x: x_in, mask: mask_in})
+    output_unrolled_val = output_unrolled.eval({x: x_in, mask: mask_in})
+
+    np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
 def test_lstm_unroll_scan_bck():
@@ -458,12 +457,13 @@ def test_lstm_unroll_scan_bck():
                                 nonlinearity_ingate=None,
                                 nonlinearity_out=None,
                                 nonlinearity_outgate=None)
-    l_out_scan = helper.get_output(l_lstm_scan, x)
-    l_out_unrolled = helper.get_output(l_lstm_unrolled, x)
-    f_lstm = theano.function([x], [l_out_scan, l_out_unrolled])
-    f_out_scan, f_out_unroll = f_lstm(x_in)
+    output_scan = helper.get_output(l_lstm_scan, x)
+    output_scan_unrolled = helper.get_output(l_lstm_unrolled, x)
 
-    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+    output_scan_val = output_scan.eval({x: x_in})
+    output_unrolled_val = output_scan_unrolled.eval({x: x_in})
+
+    np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
 def test_gru_return_shape():
@@ -475,12 +475,11 @@ def test_gru_return_shape():
     l_rec = GRULayer(l_inp, num_units=num_units)
 
     x_in = np.random.random(in_shp).astype('float32')
-    l_out = helper.get_output(l_rec, x)
-    f_rec = theano.function([x], l_out)
-    f_out = f_rec(x_in)
+    output = helper.get_output(l_rec, x)
+    output_val = output.eval({x: x_in})
 
-    assert helper.get_output_shape(l_rec, x_in.shape) == f_out.shape
-    assert f_out.shape == (num_batch, seq_len, num_units)
+    assert helper.get_output_shape(l_rec, x_in.shape) == output_val.shape
+    assert output_val.shape == (num_batch, seq_len, num_units)
 
 
 def test_gru_grad():
@@ -491,8 +490,8 @@ def test_gru_grad():
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_gru = GRULayer(l_inp,
                      num_units=num_units)
-    l_out = helper.get_output(l_gru, x, mask=mask)
-    g = T.grad(T.mean(l_out), lasagne.layers.get_all_params(l_gru))
+    output = helper.get_output(l_gru, x, mask=mask)
+    g = T.grad(T.mean(output), lasagne.layers.get_all_params(l_gru))
     assert isinstance(g, (list, tuple))
 
 
@@ -521,7 +520,7 @@ def test_gru_nparams_learn_init_true():
 
 
 def test_gru_tensor_init():
-    # check if passing in TensorVariables to cell_init and hid_init works
+    # check if passing in a TensorVariable to hid_init works
     num_units = 5
     batch_size = 3
     seq_len = 2
@@ -545,15 +544,15 @@ def test_gru_tensor_init():
 
     # check that it compiles and runs
     output = lasagne.layers.get_output(l_lstm, x)
-    f = theano.function([x, hid_init], output)
     x_test = np.ones(in_shp, dtype='float32')
-    hid_init = np.ones((batch_size, num_units), dtype='float32')
-    out = f(x_test, hid_init)
-    assert isinstance(out, np.ndarray)
+    hid_init_test = np.ones((batch_size, num_units), dtype='float32')
+
+    output_val = output.eval({x: x_test, hid_init: hid_init_test})
+    assert isinstance(output_val, np.ndarray)
 
 
 def test_gru_init_val_error():
-    # check if errors are raised when inits are non matrix tensor
+    # check if errors are raised when init is non matrix tensorVariable
     vector = T.vector()
     with pytest.raises(ValueError):
         l_rec = GRULayer(InputLayer((2, 2, 3)), 5, hid_init=vector)
@@ -563,7 +562,7 @@ def test_gru_grad_clipping():
     # test that you can set grad_clip variable
     x = T.tensor3()
     l_rec = GRULayer(InputLayer((2, 2, 3)), 5, grad_clipping=1)
-    l_out = lasagne.layers.get_output(l_rec, x)
+    output = lasagne.layers.get_output(l_rec, x)
 
 
 def test_gru_bck():
@@ -580,13 +579,14 @@ def test_gru_bck():
     l_gru_fwd = GRULayer(l_inp, num_units=num_units, backwards=False)
     np.random.seed(1234)
     l_gru_bck = GRULayer(l_inp, num_units=num_units, backwards=True)
-    l_out_fwd = helper.get_output(l_gru_fwd, x)
-    l_out_bck = helper.get_output(l_gru_bck, x)
-    f_lstm = theano.function([x], [l_out_fwd, l_out_bck])
-    f_out_fwd, f_out_bck = f_lstm(x_in)
+    output_fwd = helper.get_output(l_gru_fwd, x)
+    output_bck = helper.get_output(l_gru_bck, x)
+
+    output_fwd_val = output_fwd.eval({x: x_in})
+    output_bck_val = output_bck.eval({x: x_in})
 
     # test that the backwards model reverses its final input
-    np.testing.assert_almost_equal(f_out_fwd, f_out_bck[:, ::-1])
+    np.testing.assert_almost_equal(output_fwd_val, output_bck_val[:, ::-1])
 
 
 def test_gru_self_outvars():
@@ -599,30 +599,30 @@ def test_gru_self_outvars():
 
     x_in = np.ones(in_shp).astype('float32')
 
-    # need to set random seed.
     l_gru = GRULayer(l_inp, num_units=num_units, backwards=True)
-    l_out = helper.get_output(l_gru, x)
-    f_gru = theano.function([x], [l_out, l_gru.hid_out])
-    f_out, f_out_self = f_gru(x_in)
+    output = helper.get_output(l_gru, x)
 
-    np.testing.assert_almost_equal(f_out, f_out_self)
+    output_val = output.eval({x: x_in})
+    output_hidout_val = l_gru.hid_out.eval({x: x_in})
+
+    np.testing.assert_almost_equal(output_val, output_hidout_val)
 
 
 def test_gru_variable_input_size():
-    # that seqlen and batchsize none works
+    # that seqlen and batchsize None works
     num_batch, n_features1 = 6, 5
     num_units = 13
     x = T.tensor3()
 
     in_shp = (None, None, n_features1)
     l_inp = InputLayer(in_shp)
-    x_in2 = np.ones((num_batch, 15, n_features1)).astype('float32')
     x_in1 = np.ones((num_batch+1, 10, n_features1)).astype('float32')
+    x_in2 = np.ones((num_batch, 15, n_features1)).astype('float32')
     l_rec = GRULayer(l_inp, num_units=num_units, backwards=False)
-    l_out = helper.get_output(l_rec, x)
-    f_rec = theano.function([x], l_out)
-    f_out1 = f_rec(x_in1)
-    f_out2 = f_rec(x_in2)
+    output = helper.get_output(l_rec, x)
+
+    output.eval({x: x_in1})
+    output.eval({x: x_in2})
 
 
 def test_gru_unroll_scan_fwd():
@@ -643,12 +643,13 @@ def test_gru_unroll_scan_fwd():
     np.random.seed(1234)
     l_gru_unrolled = GRULayer(l_inp, num_units=num_units, backwards=False,
                               unroll_scan=True)
-    l_out_scan = helper.get_output(l_gru_scan, x, mask=mask)
-    l_out_unrolled = helper.get_output(l_gru_unrolled, x, mask=mask)
-    f_gru = theano.function([x, mask], [l_out_scan, l_out_unrolled])
-    f_out_scan, f_out_unroll = f_gru(x_in, mask_in)
+    output_scan = helper.get_output(l_gru_scan, x, mask=mask)
+    output_unrolled = helper.get_output(l_gru_unrolled, x, mask=mask)
 
-    np.testing.assert_almost_equal(f_out_scan, f_out_unroll)
+    output_scan_val = output_scan.eval({x: x_in, mask: mask_in})
+    output_unrolled_val = output_unrolled.eval({x: x_in, mask: mask_in})
+
+    np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
 def test_gru_unroll_scan_bck():
@@ -670,7 +671,10 @@ def test_gru_unroll_scan_bck():
                               unroll_scan=True, nonlinearity_resetgate=None,
                               nonlinearity_updategate=None,
                               nonlinearity_hid=None)
-    l_out_scan = helper.get_output(l_gru_scan, x)
-    l_out_unrolled = helper.get_output(l_gru_unrolled, x)
-    f_gru = theano.function([x], [l_out_scan, l_out_unrolled])
-    f_out_scan, f_out_unroll = f_gru(x_in)
+    output_scan = helper.get_output(l_gru_scan, x)
+    output_unrolled = helper.get_output(l_gru_unrolled, x)
+
+    output_scan_val = output_scan.eval({x: x_in})
+    output_unrolled_val = output_unrolled.eval({x: x_in})
+
+    np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)

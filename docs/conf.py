@@ -108,26 +108,27 @@ pygments_style = 'sphinx'
 
 # Resolve function for the linkcode extension.
 def linkcode_resolve(domain, info):
-    def find_line():
-        # try to find the correct line number, based on code from numpy:
+    def find_source():
+        # try to find the file and line number, based on code from numpy:
         # https://github.com/numpy/numpy/blob/master/doc/source/conf.py#L286
         obj = sys.modules[info['module']]
         for part in info['fullname'].split('.'):
             obj = getattr(obj, part)
         import inspect
+        import os
         fn = inspect.getsourcefile(obj)
-        source, lineno = inspect.findsource(obj)
-        return lineno + 1
+        fn = os.path.relpath(fn, start=os.path.dirname(lasagne.__file__))
+        source, lineno = inspect.getsourcelines(obj)
+        return fn, lineno, lineno + len(source) - 1
 
     if domain != 'py' or not info['module']:
         return None
-    filename = info['module'].replace('.', '/')
-    tag = 'master' if 'dev' in release else ('v' + release)
-    url = "https://github.com/Lasagne/Lasagne/blob/%s/%s.py" % (tag, filename)
     try:
-        return url + '#L%d' % find_line()
+        filename = 'lasagne/%s#L%d-L%d' % find_source()
     except Exception:
-        return url
+        filename = info['module'].replace('.', '/') + '.py'
+    tag = 'master' if 'dev' in release else ('v' + release)
+    return "https://github.com/Lasagne/Lasagne/blob/%s/%s" % (tag, filename)
 
 
 # -- Options for HTML output ----------------------------------------------

@@ -1,5 +1,0 @@
-Jinja2==2.7.3
-Sphinx==1.2.3
-#sphinx-bootstrap-theme
-numpydoc
-mock

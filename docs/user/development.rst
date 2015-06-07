@@ -41,7 +41,8 @@ Tools
 
 * `pytest <http://pytest.org/>`_ for unit testing
 
-* Install testing dependencies with: ``pip install -r requirements-dev.txt``
+* Install dependencies for testing and documentation with: ``pip
+  install -r requirements-dev.txt``
 
 * GitHub for hosting the source code
 
@@ -80,12 +81,6 @@ Documentation
 -------------
 
 The documentation is generated with `Sphinx <http://sphinx-doc.org/latest/index.html>`_.
-On Debian derivates it can be installed with
-
-.. code:: bash
-
-    $ sudo apt-get install python-sphinx
-    $ sudo -H pip install numpydoc
 
 Sphinx makes use of `reStructured Text <http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html>`_
 

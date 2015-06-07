@@ -12,7 +12,7 @@ before_install:
   - conda update --yes conda
 install:
   - travis_retry conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
-  - travis_retry pip install -r requirements.txt
+  - travis_retry pip install -r requirements-dev.txt
   - travis_retry pip install python-coveralls
   - travis_retry python setup.py dev
 script: py.test --runslow --cov-config=.coveragerc-nogpu

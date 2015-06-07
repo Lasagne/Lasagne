@@ -39,11 +39,12 @@ contribute.
 Tools
 -----
 
-* ``pytests`` for unit testing
+* `pytest <http://pytest.org/>`_ for unit testing
 
-  * Install with: ``pip install pytest pytest-cov pytest-pep8``
+* Install testing dependencies with: ``pip install -r requirements-dev.txt``
 
 * GitHub for hosting the source code
+
 * http://lasagne.readthedocs.org/ for hosting the documentation
 
 

@@ -39,7 +39,7 @@ def test_recurrent_grad():
 
 def test_recurrent_nparams():
     l_inp = InputLayer((2, 2, 3))
-    l_rec = RecurrentLayer(l_inp, 5, learn_init=False)
+    l_rec = RecurrentLayer(l_inp, 5, learn_init=False, nonlinearity=None)
 
     # b, W_hid_to_hid and W_in_to_hid
     assert len(lasagne.layers.get_all_params(l_rec, trainable=True)) == 3
@@ -227,6 +227,32 @@ def test_recurrent_unroll_scan_bck():
     np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
+def test_recurrent_precompute():
+    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_units = 2
+    x = T.tensor3()
+    mask = T.matrix()
+    in_shp = (num_batch, seq_len, n_features1)
+    l_inp = InputLayer(in_shp)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    mask_in = np.ones((num_batch, seq_len), dtype='float32')
+
+    # need to set random seed.
+    np.random.seed(1234)
+    l_rec_precompute = RecurrentLayer(l_inp, num_units=num_units,
+                                      precompute_input=True)
+    np.random.seed(1234)
+    l_rec_no_precompute = RecurrentLayer(l_inp, num_units=num_units,
+                                         precompute_input=False)
+    output_precompute = helper.get_output(
+        l_rec_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+    output_no_precompute = helper.get_output(
+        l_rec_no_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+
+    np.testing.assert_almost_equal(output_precompute, output_no_precompute)
+
+
 def test_lstm_return_shape():
     num_batch, seq_len, n_features1, n_features2 = 5, 3, 10, 11
     num_units = 6
@@ -368,6 +394,33 @@ def test_lstm_bck():
 
     # test that the backwards model reverses its final input
     np.testing.assert_almost_equal(output_fwd_val, output_bck_val[:, ::-1])
+
+
+def test_lstm_precompute():
+    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_units = 2
+    x = T.tensor3()
+    mask = T.matrix()
+    in_shp = (num_batch, seq_len, n_features1)
+    l_inp = InputLayer(in_shp)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    mask_in = np.ones((num_batch, seq_len), dtype='float32')
+
+    # need to set random seed.
+    np.random.seed(1234)
+    l_lstm_precompute = LSTMLayer(
+        l_inp, num_units=num_units, precompute_input=True)
+    np.random.seed(1234)
+    l_lstm_no_precompute = LSTMLayer(
+        l_inp, num_units=num_units, precompute_input=False)
+    output_precompute = helper.get_output(
+        l_lstm_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+    output_no_precompute = helper.get_output(
+        l_lstm_no_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+
+    # test that the backwards model reverses its final input
+    np.testing.assert_almost_equal(output_precompute, output_no_precompute)
 
 
 def test_lstm_self_outvars():
@@ -678,3 +731,44 @@ def test_gru_unroll_scan_bck():
     output_unrolled_val = output_unrolled.eval({x: x_in})
 
     np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
+
+
+def test_gru_precompute():
+    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_units = 2
+    x = T.tensor3()
+    mask = T.matrix()
+    in_shp = (num_batch, seq_len, n_features1)
+    l_inp = InputLayer(in_shp)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    mask_in = np.ones((num_batch, seq_len), dtype='float32')
+
+    # need to set random seed.
+    np.random.seed(1234)
+    l_gru_precompute = GRULayer(
+        l_inp, num_units=num_units, precompute_input=True)
+    np.random.seed(1234)
+    l_gru_no_precompute = GRULayer(
+        l_inp, num_units=num_units, precompute_input=False)
+    output_precompute = helper.get_output(
+        l_gru_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+    output_no_precompute = helper.get_output(
+        l_gru_no_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+
+    # test that the backwards model reverses its final input
+    np.testing.assert_almost_equal(output_precompute, output_no_precompute)
+
+
+def test_gradient_steps_error():
+    # Check that error is raised if gradient_steps is not -1 and scan_unroll
+    # is true
+    l_in = InputLayer((2, 2, 3))
+    with pytest.raises(ValueError):
+        RecurrentLayer(l_in, 5, gradient_steps=3, unroll_scan=True)
+
+    with pytest.raises(ValueError):
+        LSTMLayer(l_in, 5, gradient_steps=3, unroll_scan=True)
+
+    with pytest.raises(ValueError):
+        GRULayer(l_in, 5, gradient_steps=3, unroll_scan=True)

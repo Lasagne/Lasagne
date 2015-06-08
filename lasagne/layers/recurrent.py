@@ -75,6 +75,10 @@ class CustomRecurrentLayer(Layer):
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
         more memory.
+    precompute_input : bool
+        If True, precompute input_to_hid before iterating through
+        the sequence. This can result in a speedup at the expense of
+        an increase in memory usage.
 
     References
     ----------
@@ -88,7 +92,8 @@ class CustomRecurrentLayer(Layer):
                  learn_init=False,
                  gradient_steps=-1,
                  grad_clipping=False,
-                 unroll_scan=False):
+                 unroll_scan=False,
+                 precompute_input=True):
 
         super(CustomRecurrentLayer, self).__init__(incoming)
 
@@ -99,6 +104,11 @@ class CustomRecurrentLayer(Layer):
         self.gradient_steps = gradient_steps
         self.grad_clipping = grad_clipping
         self.unroll_scan = unroll_scan
+        self.precompute_input = precompute_input
+
+        if unroll_scan and gradient_steps != -1:
+            raise ValueError(
+                "Gradient steps must be -1 when unroll_scan is true.")
 
         # check that output shapes match
         if input_to_hidden.output_shape != hidden_to_hidden.output_shape:
@@ -171,58 +181,82 @@ class CustomRecurrentLayer(Layer):
         input = input.dimshuffle(1, 0, 2)
         seq_len, num_batch, _ = input.shape
 
-        # Because the input is given for all time steps, we can precompute
-        # the inputs to hidden before scanning. First we need to reshape
-        # from (seq_len, batch_size, num_inputs) to
-        # (seq_len*batch_size, num_inputs)
-        input = T.reshape(input,
-                          (seq_len*num_batch, -1))
-        input_dot_W = helper.get_output(
-            self.input_to_hidden, input, **kwargs)
+        if self.precompute_input:
+            # Because the input is given for all time steps, we can precompute
+            # the inputs to hidden before scanning. First we need to reshape
+            # from (seq_len, batch_size, num_inputs) to
+            # (seq_len*batch_size, num_inputs)
+            input = T.reshape(input,
+                              (seq_len*num_batch, -1))
+            input = helper.get_output(
+                self.input_to_hidden, input, **kwargs)
 
-        # reshape to original (seq_len, batch_size, num_units)
+            # reshape to original (seq_len, batch_size, num_units)
+            input = T.reshape(input, (seq_len, num_batch, -1))
 
-        input_dot_W = T.reshape(input_dot_W,
-                                (seq_len, num_batch, -1))
+        def clone_and_compute_output(network, network_input, new_params):
+            # Gets the output from the given network and calculate the output.
+            # The original parameters are replaced with the parameters given
+            # in new_params. Allows for use of the strict setting in scan.
+            original_hid_pre = helper.get_output(
+                network, network_input, **kwargs)
+            original_params = helper.get_all_params(network)
+            new_hid_pre = theano.clone(
+                original_hid_pre,
+                replace=dict(zip(original_params, new_params)))
+            return new_hid_pre
+
+        # We will always pass the hidden-to-hidden layer params to step
+        non_seqs = helper.get_all_params(self.hidden_to_hidden)
+        # This will allow us to keep track of how long the list of parameters
+        # are in hidden_to_hidden
+        num_params_hid_to_hid = len(non_seqs)
+        # When we are not precomputing the input, we also need to pass the
+        # input-to-hidden parameters to step
+        if not self.precompute_input:
+            non_seqs += helper.get_all_params(self.input_to_hidden)
 
         # Create single recurrent computation step function
-        def step(input_dot_W_n, hid_previous, *args):
+        def step(input_n, hid_previous, *args):
             # For optimization reasons we need to replace the calculation
             # performed by hidden_to_hidden with weight values that scan
             # knows. The weights are given in args. We use theano.clone to
             # replace the relevant variables. This allows us to use
             # strict=True when calling theano.scan(...)
-            original_hid_pre = helper.get_output(
-                self.hidden_to_hidden, hid_previous, **kwargs)
-            original_params = helper.get_all_params(self.hidden_to_hidden)
-            new_params = args
-            new_hid_pre = theano.clone(
-                original_hid_pre,
-                replace=dict(zip(original_params, new_params)))
+            hid_pre = clone_and_compute_output(
+                self.hidden_to_hidden, hid_previous,
+                args[:num_params_hid_to_hid])
 
-            new_hid_pre += input_dot_W_n
+            # if the dot product is precomputed then add it otherwise
+            # calculate the input_to_hidden values and add them
+            if self.precompute_input:
+                hid_pre += input_n
+            else:
+                hid_pre += clone_and_compute_output(
+                    self.input_to_hidden, input_n,
+                    args[num_params_hid_to_hid:])
 
             # clip gradients
             if self.grad_clipping is not False:
-                new_hid_pre = theano.gradient.grad_clip(
-                    new_hid_pre, -self.grad_clipping, self.grad_clipping)
+                hid_pre = theano.gradient.grad_clip(
+                    hid_pre, -self.grad_clipping, self.grad_clipping)
 
-            return self.nonlinearity(new_hid_pre)
+            return self.nonlinearity(hid_pre)
 
-        def step_masked(input_dot_W_n, mask_n, hid_previous, *args):
+        def step_masked(input_n, mask_n, hid_previous, *args):
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
             # until the end of the sequence is found.
-            hid = step(input_dot_W_n, hid_previous, *args)
+            hid = step(input_n, hid_previous, *args)
             hid_out = hid*mask_n + hid_previous*(1 - mask_n)
             return [hid_out]
 
         if mask is not None:
             mask = mask.dimshuffle(1, 0, 'x')
-            sequences = [input_dot_W, mask]
+            sequences = [input, mask]
             step_fun = step_masked
         else:
-            sequences = input_dot_W
+            sequences = input
             step_fun = step
 
         if isinstance(self.hid_init, T.TensorVariable):
@@ -231,7 +265,6 @@ class CustomRecurrentLayer(Layer):
             # repeat num_batch times
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
-        non_seqs = helper.get_all_params(self.hidden_to_hidden)
         if self.unroll_scan:
             # use for loop to unroll recursion.
             hid_out = unroll_scan(
@@ -308,6 +341,10 @@ class RecurrentLayer(CustomRecurrentLayer):
         graphs this gives a significant speed up but it might also consume
         more memory. When `unroll_scan` is true then the `gradient_steps`
         setting is ignored.
+    precompute_input : bool
+        If True, precompute input_to_hid before iterating through
+        the sequence. This can result in a speedup at the expense of
+        an increase in memory usage.
 
     References
     ----------
@@ -324,7 +361,8 @@ class RecurrentLayer(CustomRecurrentLayer):
                  learn_init=False,
                  gradient_steps=-1,
                  grad_clipping=False,
-                 unroll_scan=False):
+                 unroll_scan=False,
+                 precompute_input=True):
         input_shape = helper.get_output_shape(incoming)
         num_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
@@ -342,7 +380,8 @@ class RecurrentLayer(CustomRecurrentLayer):
             incoming, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
             hid_init=hid_init, backwards=backwards, learn_init=learn_init,
             gradient_steps=gradient_steps,
-            grad_clipping=grad_clipping, unroll_scan=unroll_scan)
+            grad_clipping=grad_clipping, unroll_scan=unroll_scan,
+            precompute_input=precompute_input)
 
 
 class LSTMLayer(Layer):
@@ -433,6 +472,10 @@ class LSTMLayer(Layer):
         graphs this gives a significant speed up but it might also consume
         more memory. When `unroll_scan` is true then the `gradient_steps`
         setting is ignored.
+    precompute_input : bool
+        If True, precompute input_to_hid before iterating through
+        the sequence. This can result in a speedup at the expense of
+        an increase in memory usage.
 
     References
     ----------
@@ -467,7 +510,8 @@ class LSTMLayer(Layer):
                  peepholes=True,
                  gradient_steps=-1,
                  grad_clipping=False,
-                 unroll_scan=False):
+                 unroll_scan=False,
+                 precompute_input=True):
 
         # Initialize parent layer
         super(LSTMLayer, self).__init__(incoming)
@@ -505,6 +549,11 @@ class LSTMLayer(Layer):
         self.gradient_steps = gradient_steps
         self.grad_clipping = grad_clipping
         self.unroll_scan = unroll_scan
+        self.precompute_input = precompute_input
+
+        if unroll_scan and gradient_steps != -1:
+            raise ValueError(
+                "Gradient steps must be -1 when unroll_scan is true.")
 
         num_inputs = np.prod(self.input_shape[2:])
 
@@ -633,13 +682,14 @@ class LSTMLayer(Layer):
         input = input.dimshuffle(1, 0, 2)
         seq_len, num_batch, _ = input.shape
 
-        # Because the input is given for all time steps, we can precompute
-        # the inputs dot weight matrices before scanning.
-        # W_in_stacked is (n_features, 4*num_units). input_dot_W is then
-        # (n_time_steps, n_batch, 4*num_units).
-        input_dot_W = T.dot(input, self.W_in_stacked) + self.b_stacked
+        if self.precompute_input:
+            # Because the input is given for all time steps, we can
+            # precompute_input the inputs dot weight matrices before scanning.
+            # W_in_stacked is (n_features, 4*num_units). input is then
+            # (n_time_steps, n_batch, 4*num_units).
+            input = T.dot(input, self.W_in_stacked) + self.b_stacked
 
-        # input_dot_W is (n_batch, n_time_steps, 4*num_units). We define a
+        # input is (n_batch, n_time_steps, 4*num_units). We define a
         # slicing function that extract the input to each LSTM gate
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
@@ -653,16 +703,15 @@ class LSTMLayer(Layer):
         # c_t = f_tc_{t - 1} + i_t\tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c)
         # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
         # h_t = o_t \tanh(c_t)
-        def step(input_dot_W_n, cell_previous, hid_previous, W_hid_stacked,
-                 *args):
+        def step(input_n, cell_previous, hid_previous, W_hid_stacked,
+                 W_cell_to_ingate, W_cell_to_forgetgate,
+                 W_cell_to_outgate, W_in_stacked, b_stacked):
 
-            if self.peepholes:
-                [W_cell_to_ingate,
-                 W_cell_to_forgetgate,
-                 W_cell_to_outgate] = args
+            if not self.precompute_input:
+                input_n = T.dot(input_n, W_in_stacked) + b_stacked
 
             # Calculate gates pre-activations and slice
-            gates = input_dot_W_n + T.dot(hid_previous, W_hid_stacked)
+            gates = input_n + T.dot(hid_previous, W_hid_stacked)
 
             # clip gradients
             if self.grad_clipping is not False:
@@ -695,11 +744,14 @@ class LSTMLayer(Layer):
             hid = outgate*self.nonlinearity_out(cell)
             return [cell, hid]
 
-        def step_masked(input_dot_W_n, mask_n, cell_previous, hid_previous,
-                        W_hid_stacked, *args):
+        def step_masked(input_n, mask_n, cell_previous, hid_previous,
+                        W_hid_stacked, W_cell_to_ingate, W_cell_to_forgetgate,
+                        W_cell_to_outgate, W_in_stacked, b_stacked):
 
-            cell, hid = step(input_dot_W_n, cell_previous, hid_previous,
-                             W_hid_stacked, *args)
+            cell, hid = step(input_n, cell_previous, hid_previous,
+                             W_hid_stacked, W_cell_to_ingate,
+                             W_cell_to_forgetgate, W_cell_to_outgate,
+                             W_in_stacked, b_stacked)
 
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
@@ -715,10 +767,10 @@ class LSTMLayer(Layer):
             # over first dimension, we dimshuffle to (seq_len, batch_size) and
             # add a broadcastable dimension
             mask = mask.dimshuffle(1, 0, 'x')
-            sequences = [input_dot_W, mask]
+            sequences = [input, mask]
             step_fun = step_masked
         else:
-            sequences = input_dot_W
+            sequences = input
             step_fun = step
 
         ones = T.ones((num_batch, 1))
@@ -732,12 +784,26 @@ class LSTMLayer(Layer):
         else:
             hid_init = T.dot(ones, self.hid_init)  # repeat num_batch times
 
+        # The hidden-to-hidden weight matrix is always used in step
         non_seqs = [self.W_hid_stacked]
-
+        # The "peephole" weight matrices are only used when self.peepholes=True
         if self.peepholes:
             non_seqs += [self.W_cell_to_ingate,
                          self.W_cell_to_forgetgate,
                          self.W_cell_to_outgate]
+        # theano.scan only allows for positional arguments, so when
+        # self.peepholes is False, we need to supply fake placeholder arguments
+        # for the three peephole matrices.
+        else:
+            non_seqs += [(), (), ()]
+        # When we aren't precomputing the input outside of scan, we need to
+        # provide the input weights and biases to the step function
+        if not self.precompute_input:
+            non_seqs += [self.W_in_stacked, self.b_stacked]
+        # As above, when we aren't providing these parameters, we need to
+        # supply placehold arguments
+        else:
+            non_seqs += [(), ()]
 
         if self.unroll_scan:
             # use for loop to unroll recursion.
@@ -836,6 +902,10 @@ class GRULayer(Layer):
         graphs this gives a significant speed up but it might also consume
         more memory. When `unroll_scan` is true then the `gradient_steps`
         setting is ignored.
+    precompute_input : bool
+        If True, precompute input_to_hid before iterating through
+        the sequence. This can result in a speedup at the expense of
+        an increase in memory usage.
 
     References
     ----------
@@ -884,7 +954,8 @@ class GRULayer(Layer):
                  backwards=False,
                  gradient_steps=-1,
                  grad_clipping=False,
-                 unroll_scan=False):
+                 unroll_scan=False,
+                 precompute_input=True):
 
         # Initialize parent layer
         super(GRULayer, self).__init__(incoming)
@@ -910,6 +981,11 @@ class GRULayer(Layer):
         self.backwards = backwards
         self.gradient_steps = gradient_steps
         self.unroll_scan = unroll_scan
+        self.precompute_input = precompute_input
+
+        if unroll_scan and gradient_steps != -1:
+            raise ValueError(
+                "Gradient steps must be -1 when unroll_scan is true.")
 
         # Input dimensionality is the output dimensionality of the input layer
         num_inputs = np.prod(self.input_shape[2:])
@@ -1005,10 +1081,10 @@ class GRULayer(Layer):
         input = input.dimshuffle(1, 0, 2)
         seq_len, num_batch, _ = input.shape
 
-        # precompute inputs*W and dimshuffle
-        # W_in is (n_features, 3*num_units). input_dot_W is then
-        # (n_batch, n_time_steps, 3*num_units).
-        input_dot_W = T.dot(input, self.W_in_stacked) + self.b_stacked
+        if self.precompute_input:
+            # precompute_input inputs*W. W_in is (n_features, 3*num_units).
+            # input is then (n_batch, n_time_steps, 3*num_units).
+            input = T.dot(input, self.W_in_stacked) + self.b_stacked
 
         # input_dow_w is (n_batch, n_time_steps, 2*num_units). We define a
         # slicing function that extract the input to each GRU gate
@@ -1017,23 +1093,27 @@ class GRULayer(Layer):
 
         # Create single recurrent computation step function
         # input_dot_W_n is the n'th row of the input dot W multiplication
-        def step(input_dot_w_n, hid_previous, W_hid_stacked):
+        def step(input_n, hid_previous, W_hid_stacked, W_in_stacked,
+                 b_stacked):
             hid_input = T.dot(hid_previous, W_hid_stacked)
 
             if self.grad_clipping is not False:
-                input_dot_w_n = theano.gradient.grad_clip(
-                    input_dot_w_n, -self.grad_clipping, self.grad_clipping)
+                input_n = theano.gradient.grad_clip(
+                    input_n, -self.grad_clipping, self.grad_clipping)
                 hid_input = theano.gradient.grad_clip(
                     hid_input, -self.grad_clipping, self.grad_clipping)
 
+            if not self.precompute_input:
+                input_n = T.dot(input_n, W_in_stacked) + b_stacked
+
             # Reset and update gates
-            resetgate = slice_w(hid_input, 0) + slice_w(input_dot_w_n, 0)
-            updategate = slice_w(hid_input, 1) + slice_w(input_dot_w_n, 1)
+            resetgate = slice_w(hid_input, 0) + slice_w(input_n, 0)
+            updategate = slice_w(hid_input, 1) + slice_w(input_n, 1)
             resetgate = self.nonlinearity_resetgate(resetgate)
             updategate = self.nonlinearity_updategate(updategate)
 
             # hidden_update input
-            hidden_update_in = slice_w(input_dot_w_n, 2)
+            hidden_update_in = slice_w(input_n, 2)
             hidden_update_hid = slice_w(hid_input, 2)
 
             hidden_update = hidden_update_in + resetgate*hidden_update_hid
@@ -1045,9 +1125,11 @@ class GRULayer(Layer):
             hid = (1-updategate)*hid_previous + updategate*hidden_update
             return hid
 
-        def step_masked(input_dot_w_n, mask_n, hid_previous, W_hid_stacked):
+        def step_masked(input_n, mask_n, hid_previous, W_hid_stacked,
+                        W_in_stacked, b_stacked):
 
-            hid = step(input_dot_w_n, hid_previous, W_hid_stacked)
+            hid = step(input_n, hid_previous, W_hid_stacked, W_in_stacked,
+                       b_stacked)
 
             # If mask is 0, use previous state until mask = 1 is found.
             # This propagates the layer initial state when moving backwards
@@ -1062,10 +1144,10 @@ class GRULayer(Layer):
             # over first dimension, we dimshuffle to (seq_len, batch_size) and
             # add a broadcastable dimension
             mask = mask.dimshuffle(1, 0, 'x')
-            sequences = [input_dot_W, mask]
+            sequences = [input, mask]
             step_fun = step_masked
         else:
-            sequences = [input_dot_W]
+            sequences = [input]
             step_fun = step
 
         if isinstance(self.hid_init, T.TensorVariable):
@@ -1074,6 +1156,18 @@ class GRULayer(Layer):
             # repeat num_batch times
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
+        # The hidden-to-hidden weight matrix is always used in step
+        non_seqs = [self.W_hid_stacked]
+        # When we aren't precomputing the input outside of scan, we need to
+        # provide the input weights and biases to the step function
+        if not self.precompute_input:
+            non_seqs += [self.W_in_stacked, self.b_stacked]
+        # theano.scan only allows for positional arguments, so when
+        # self.precompute_input is True, we need to supply fake placeholder
+        # arguments for the input weights and biases.
+        else:
+            non_seqs += [(), ()]
+
         if self.unroll_scan:
             # use for loop to unroll recursion.
             hid_out = unroll_scan(
@@ -1081,7 +1175,7 @@ class GRULayer(Layer):
                 sequences=sequences,
                 outputs_info=[hid_init],
                 go_backwards=self.backwards,
-                non_sequences=[self.W_hid_stacked],
+                non_sequences=non_seqs,
                 n_steps=self.input_shape[1])[0]
         else:
             # Scan op iterates over first dimension of input and repeatedly
@@ -1091,7 +1185,7 @@ class GRULayer(Layer):
                 sequences=sequences,
                 go_backwards=self.backwards,
                 outputs_info=[hid_init],
-                non_sequences=[self.W_hid_stacked],
+                non_sequences=non_seqs,
                 truncate_gradient=self.gradient_steps,
                 strict=True)[0]
 

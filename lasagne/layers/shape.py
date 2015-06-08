@@ -55,6 +55,7 @@ class ReshapeLayer(Layer):
         * ``-1``, denoting to infer the size for this dimension to match
           the total number of elements in the input tensor (cannot be used
           more than once in a specification)
+        * TensorVariable directly giving the size of the dimension
 
     Examples
     --------
@@ -88,6 +89,11 @@ class ReshapeLayer(Layer):
                 if len(s) != 1 or not isinstance(s[0], int) or s[0] < 0:
                     raise ValueError("`shape` input references must be "
                                      "single-element lists of int >= 0")
+            elif isinstance(s, T.TensorVariable):
+                if s.ndim != 0:
+                    raise ValueError(
+                        "A symbolic variable in a shape specification must be "
+                        "a scalar, but had %i dimensions" % s.ndim)
             else:
                 raise ValueError("`shape` must be a tuple of int and/or [int]")
         if sum(s == -1 for s in shape) > 1:
@@ -119,6 +125,12 @@ class ReshapeLayer(Layer):
                         # it is unknown.
                         masked_input_shape[o[0]] = 1
                         masked_output_shape[dim] = 1
+        # Secondly, replace all symbolic shapes with `None`, as we cannot
+        # infer their size here.
+        for dim, o in enumerate(output_shape):
+            if isinstance(o, T.TensorVariable):
+                output_shape[dim] = None
+                masked_output_shape[dim] = None
         # From the shapes, compute the sizes of the input and output tensor
         input_size = (None if any(x is None for x in masked_input_shape)
                       else np.prod(masked_input_shape))

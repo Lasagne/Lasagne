@@ -116,6 +116,27 @@ class TestReshapeLayer:
             layerclass(inputlayer, (None, 3, 5, 7, 10))
         with pytest.raises(ValueError):
             layerclass(inputlayer, (16, 3, 5, 7, [5]))
+        with pytest.raises(ValueError):
+            layerclass(inputlayer, (16, 3, theano.tensor.vector(), 7, 10))
+
+    def test_symbolic_shape(self):
+        from lasagne.layers import InputLayer, ReshapeLayer, get_output
+        x = theano.tensor.tensor3()
+        batch_size, seq_len, num_features = x.shape
+        l_inp = InputLayer((None, None, None))
+        l_rshp2 = ReshapeLayer(l_inp, (batch_size*seq_len, [2]))
+
+        # we cannot infer any of the output shapes because they are symbolic.
+        output_shape = l_rshp2.get_output_shape_for(
+            (batch_size, seq_len, num_features))
+        assert output_shape == (None, None)
+
+        output = get_output(l_rshp2, x)
+        out1 = output.eval({x: np.ones((3, 5, 6), dtype='float32')})
+        out2 = output.eval({x: np.ones((4, 5, 7), dtype='float32')})
+
+        assert out1.shape == (3*5, 6)
+        assert out2.shape == (4*5, 7)
 
 
 class TestDimshuffleLayer:

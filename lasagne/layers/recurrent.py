@@ -43,17 +43,28 @@ __all__ = [
 class CustomRecurrentLayer(Layer):
     """A layer which implements a recurrent connection.
 
+    This layer allows you to specify custom input-to-hidden and
+    hidden-to-hidden connections by instantiating layer instances and passing
+    them on initialization.  The output shape for the provided layers must be
+    the same.  If you are looking for a standard, densely-connected recurrent
+    layer, please see :class:`RecurrentLayer`.  The output is computed
+    by
+
+    .. math ::
+        h_t = \sigma(f_i(x_t) + f_h(h_{t-1}))
+
     Parameters
     ----------
     incoming : a :class:`lasagne.layers.Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
     input_to_hidden : :class:`lasagne.layers.Layer`
-        Layer which connects input to the hidden state.
+        Layer which connects input to the hidden state (:math:`f_i`).
     hidden_to_hidden : :class:`lasagne.layers.Layer`
-        Layer which connects the previous hidden state to the new state.
+        Layer which connects the previous hidden state to the new state
+        (:math:`f_h`).
     nonlinearity : callable or None
-        Nonlinearity to apply when computing new state. If None is provided,
-        the nonlinearity will be linear.
+        Nonlinearity to apply when computing new state (:math:`\sigma`). If
+        None is provided, no nonlinearity will be applied.
     hid_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
@@ -64,17 +75,20 @@ class CustomRecurrentLayer(Layer):
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
         If True, initial hidden values are learned. If `hid_init` is a
-        TensorVariable then `learn_init` is ignored.
+        TensorVariable then the TensorVariable is used and
+        `learn_init` is ignored.
     gradient_steps : int
-        Number of timesteps to include in backpropagated gradient.
+        Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
     grad_clipping : False or float
         If a float is provided, the gradient messages are clipped during the
-        backward pass.  See [1]_ (p. 6) for further explanation.
+        backward pass.  If False, the gradients will not be clipped.  See [1]_
+        (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
-        more memory.
+        more memory. When `unroll_scan` is true then the `gradient_steps`
+        setting is ignored.
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -110,20 +124,22 @@ class CustomRecurrentLayer(Layer):
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
 
-        # check that output shapes match
+        # Check that output shapes match
         if input_to_hidden.output_shape != hidden_to_hidden.output_shape:
             raise ValueError("The output shape for input_to_hidden and "
-                             "input_to_hidden must be equal was, ",
-                             input_to_hidden.output_shape,
-                             hidden_to_hidden.output_shape)
+                             "input_to_hidden must be equal, but "
+                             "input_to_hidden.output_shape={} and "
+                             "hidden_to_hidden.output_shape={}".format(
+                                 input_to_hidden.output_shape,
+                                 hidden_to_hidden.output_shape))
 
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
             self.nonlinearity = nonlinearity
 
-        # Get the batch size and number of units based on the expected output
-        # of the input-to-hidden layer
+        # Get the input dimensionality and number of units based on the
+        # expected output of the input-to-hidden layer
         self.num_inputs = np.prod(self.input_shape[2:])
         self.num_units = input_to_hidden.output_shape[-1]
 
@@ -131,7 +147,8 @@ class CustomRecurrentLayer(Layer):
         if isinstance(hid_init, T.TensorVariable):
             if hid_init.ndim != 2:
                 raise ValueError(
-                    "When a TensorVariable hid_init should be a matrix")
+                    "When hid_init is provided as a TensorVariable, it should "
+                    "have 2 dimensions and have shape (num_batch, num_units)")
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -139,7 +156,9 @@ class CustomRecurrentLayer(Layer):
                 trainable=learn_init, regularizable=False)
 
     def get_params(self, **tags):
+        # Get all parameters from this layer, the master layer
         params = super(CustomRecurrentLayer, self).get_params(**tags)
+        # Combine with all parameters from the child layers
         params += helper.get_all_params(self.input_to_hidden, **tags)
         params += helper.get_all_params(self.hidden_to_hidden, **tags)
         return params
@@ -158,7 +177,7 @@ class CustomRecurrentLayer(Layer):
         mask : theano.TensorType
             Theano variable denoting whether each time step in each
             sequence in the batch is part of the sequence or not.  If ``None``,
-            then it assumed that all sequences are of the same length.  If
+            then it is assumed that all sequences are of the same length.  If
             not all sequences are of the same length, then it must be
             supplied as a matrix of shape ``(n_batch, n_time_steps)`` where
             ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
@@ -191,7 +210,7 @@ class CustomRecurrentLayer(Layer):
             input = helper.get_output(
                 self.input_to_hidden, input, **kwargs)
 
-            # reshape to original (seq_len, batch_size, num_units)
+            # Reshape back to (seq_len, batch_size, num_units)
             input = T.reshape(input, (seq_len, num_batch, -1))
 
         def clone_and_compute_output(network, network_input, new_params):
@@ -259,14 +278,15 @@ class CustomRecurrentLayer(Layer):
             sequences = input
             step_fun = step
 
+        # When hid_init is provided as a TensorVariable, use it as-is
         if isinstance(self.hid_init, T.TensorVariable):
             hid_init = self.hid_init
         else:
-            # repeat num_batch times
+            # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
         if self.unroll_scan:
-            # use for loop to unroll recursion.
+            # Explicitly unroll the recurrence instead of using scan
             hid_out = unroll_scan(
                 fn=step_fun,
                 sequences=sequences,
@@ -301,7 +321,10 @@ class RecurrentLayer(CustomRecurrentLayer):
     """Dense recurrent neural network (RNN) layer
 
     A "vanilla" RNN layer, which has dense input-to-hidden and
-    hidden-to-hidden connections.
+    hidden-to-hidden connections.  The output is computed as
+
+    .. math ::
+        h_t = \sigma(W_x x_t + W_h h_{t-1} + b)
 
     Parameters
     ----------
@@ -310,15 +333,15 @@ class RecurrentLayer(CustomRecurrentLayer):
     num_units : int
         Number of hidden units in the layer.
     W_in_to_hid : Theano shared variable, numpy array or callable
-        Initializer for input-to-hidden weight matrix.
+        Initializer for input-to-hidden weight matrix (:math:`W_x`).
     W_hid_to_hid : Theano shared variable, numpy array or callable
-        Initializer for hidden-to-hidden weight matrix.
+        Initializer for hidden-to-hidden weight matrix (:math:`W_h`).
     b : Theano shared variable, numpy array, callable or None
-        Initializer for bias vector. If None is provided there will be no
-        biases.
+        Initializer for bias vector (:math:`b`). If None is provided there will
+        be no bias.
     nonlinearity : callable or None
-        Nonlinearity to apply when computing new state. If None is provided,
-        the nonlinearity will be linear.
+        Nonlinearity to apply when computing new state (:math:`\sigma`). If
+        None is provided, no nonlinearity will be applied.
     hid_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `hid_init` (:math:`h_0`). In this mode `learn_init` is
@@ -331,11 +354,12 @@ class RecurrentLayer(CustomRecurrentLayer):
         If True, initial hidden values are learned. If `hid_init` is a
         TensorVariable then `learn_init` is ignored.
     gradient_steps : int
-        Number of timesteps to include in backpropagated gradient.
+        Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
     grad_clipping : False or float
-        If float the gradient messages are clipped during the backward pass.
-        See [1]_ (p. 6) for further explanation.
+        If a float is provided, the gradient messages are clipped during the
+        backward pass.  If False, the gradients will not be clipped.  See [1]_
+        (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
@@ -376,6 +400,7 @@ class RecurrentLayer(CustomRecurrentLayer):
                                 num_units, W=W_hid_to_hid, b=None,
                                 nonlinearity=None)
 
+        # Just use the CustomRecurrentLayer with the DenseLayers we created
         super(RecurrentLayer, self).__init__(
             incoming, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,
             hid_init=hid_init, backwards=backwards, learn_init=learn_init,
@@ -385,62 +410,77 @@ class RecurrentLayer(CustomRecurrentLayer):
 
 
 class LSTMLayer(Layer):
-    """A long short-term memory (LSTM) layer.
+    r"""A long short-term memory (LSTM) layer.
 
     Includes optional "peephole connections" and a forget gate.  Based on the
-    definition in [1]_, which is the current common definition.
+    definition in [1]_, which is the current common definition.  The output is
+    computed by
+
+    .. math ::
+
+        i_t &= \sigma_i(W_{xi}x_t + W_{hi}h_{t-1} + w_{ci}\odot c_{t-1} + b_i)\\
+        f_t &= \sigma_f(W_{xf}x_t + W_{hf}h_{t-1}
+               + w_{cf}\odot c_{t-1} + b_f)\\
+        c_t &= f_t \odot c_{t - 1}
+               + i_t\sigma_c(W_{xc}x_t + W_{hc} h_{t-1} + b_c)\\
+        o_t &= \sigma_o(W_{xo}x_t + W_{ho}h_{t-1} + w_{co}\odot c_t + b_o)\\
+        h_t &= o_t \odot \sigma_h(c_t)
 
     Parameters
     ----------
     incoming : a :class:`lasagne.layers.Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
     num_units : int
-        Number of hidden units in the layer.
+        Number of hidden/cell units in the layer.
     W_in_to_ingate : Theano shared variable, numpy array or callable
-        :math:`W_{xi}`.
+        Initializer for input-to-input gate weight matrix (:math:`W_{xi}`).
     W_hid_to_ingate : Theano shared variable, numpy array or callable
-        :math:`W_{hi}`.
+        Initializer for hidden-to-input gate weight matrix (:math:`W_{hi}`).
     W_cell_to_ingate : Theano shared variable, numpy array or callable
-        :math:`W_{ci}`.
+        Initializer for cell-to-input gate weight vector (:math:`w_{ci}`).
     b_ingate : Theano shared variable, numpy array or callable
-        :math:`b_i`.
+        Initializer for input gate bias vector (:math:`b_i`).
     nonlinearity_ingate : callable or None
-        The nonlinearity that is applied to the ingate activations. If None
-        is provided, the ingate will be linear.
+        The nonlinearity that is applied to the input gate activation
+        (:math:`\sigma_i`). If None is provided, no nonlinearity will be
+        applied.
     W_in_to_forgetgate : Theano shared variable, numpy array or callable
-        :math:`W_{xf}`.
+        Initializer for input-to-forget gate weight matrix (:math:`W_{xf}`).
     W_hid_to_forgetgate : Theano shared variable, numpy array or callable
-        :math:`W_{hf}`.
+        Initializer for hidden-to-forget gate weight matrix (:math:`W_{hf}`).
     W_cell_to_forgetgate : Theano shared variable, numpy array or callable
-        :math:`W_{cf}`.
+        Initializer for cell-to-forget gate weight vector (:math:`w_{cf}`).
     b_forgetgate : Theano shared variable, numpy array or callable
-        :math:`b_f`.
+        Initializer for forget gate bias vector (:math:`b_f`).
     nonlinearity_forgetgate : callable or None
-        The nonlinearity that is applied to the forgetgate activations. If None
-        is provided, the forgetgate will be linear.
+        The nonlinearity that is applied to the forget gate activation
+        (:math:`\sigma_f`). If None is provided, no nonlinearity will be
+        applied.
     W_in_to_cell : Theano shared variable, numpy array or callable
-        :math:`W_{ic}`.
+        Initializer for input-to-cell weight matrix (:math:`W_{ic}`).
     W_hid_to_cell : Theano shared variable, numpy array or callable
-        :math:`W_{hc}`.
+        Initializer for hidden-to-cell weight matrix (:math:`W_{hc}`).
     b_cell : Theano shared variable, numpy array or callable
-        :math:`b_c`.
+        Initializer for cell bias vector (:math:`b_c`).
     nonlinearity_cell : callable or None
-        The nonlinearity that is applied to the cell activations. If None
-        is provided, the cell will use linear activations.
+        The nonlinearity that is applied to the cell activation
+        (;math:`\sigma_c`). If None is provided, no nonlinearity will be
+        applied.
     W_in_to_outgate : Theano shared variable, numpy array or callable
-        :math:`W_{io}`.
+        Initializer for input-to-output gate weight matrix (:math:`W_{io}`).
     W_hid_to_outgate : Theano shared variable, numpy array or callable
-        :math:`W_{ho}`.
+        Initializer for hidden-to-output gate weight matrix (:math:`W_{ho}`).
     W_cell_to_outgate : Theano shared variable, numpy array or callable
-        :math:`W_{co}`.
+        Initializer for cell-to-output gate weight vector (:math:`w_{co}`).
     b_outgate : Theano shared variable, numpy array or callable
-        :math:`b_o`.
+        Initializer for hidden-to-input gate weight matrix (:math:`b_o`).
     nonlinearity_outgate : callable or None
-        The nonlinearity that is applied to the outgate activations. If None
-        is provided, the outgate will be linear.
+        The nonlinearity that is applied to the output gate activation
+        (:math:`\sigma_o`). If None is provided, no nonlinearity will be
+        applied.
     nonlinearity_out : callable or None
-        The nonlinearity that is applied to the output. If None
-        is provided, the output will be linear.
+        The nonlinearity that is applied to the output (:math:`\sigma_h`). If
+        None is provided, no nonlinearity will be applied.
     cell_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `cell_init` (:math:`c_0`). In this mode `learn_init` is
@@ -462,11 +502,12 @@ class LSTMLayer(Layer):
         When False, `W_cell_to_ingate`, `W_cell_to_forgetgate` and
         `W_cell_to_outgate` are ignored.
     gradient_steps : int
-        Number of timesteps to include in backpropagated gradient.
+        Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
     grad_clipping: False or float
-        If float the gradient messages are clipped during the backward pass.
-        See [1]_ (p. 6) for further explanation.
+        If a float is provided, the gradient messages are clipped during the
+        backward pass.  If False, the gradients will not be clipped.  See [1]_
+        (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
@@ -613,9 +654,9 @@ class LSTMLayer(Layer):
             [self.b_ingate, self.b_forgetgate,
              self.b_cell, self.b_outgate], axis=0)
 
-        # Initialize peephole (cell to gate) connections.  These are
-        # elementwise products with the cell state, so they are represented as
-        # vectors.
+        # If peephole (cell to gate) connections were enabled, initialize
+        # peephole connections.  These are elementwise products with the cell
+        # state, so they are represented as vectors.
         if self.peepholes:
             self.W_cell_to_ingate = self.add_param(
                 W_cell_to_ingate, (num_units, ), name="W_cell_to_ingate")
@@ -630,7 +671,9 @@ class LSTMLayer(Layer):
         # Setup initial values for the cell and the hidden units
         if isinstance(cell_init, T.TensorVariable):
             if cell_init.ndim != 2:
-                raise ValueError("When a tensor cell_init should be a matrix")
+                raise ValueError(
+                    "When cell_init is provided as a TensorVariable, it should"
+                    " have 2 dimensions and have shape (num_batch, num_units)")
             self.cell_init = cell_init
         else:
             self.cell_init = self.add_param(
@@ -640,7 +683,8 @@ class LSTMLayer(Layer):
         if isinstance(hid_init, T.TensorVariable):
             if hid_init.ndim != 2:
                 raise ValueError(
-                    "When a TensorVariable hid_init should be a matrix")
+                    "When hid_init is provided as a TensorVariable, it should "
+                    "have 2 dimensions and have shape (num_batch, num_units)")
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -661,7 +705,7 @@ class LSTMLayer(Layer):
         mask : theano.TensorType
             Theano variable denoting whether each time step in each
             sequence in the batch is part of the sequence or not.  If ``None``,
-            then it assumed that all sequences are of the same length.  If
+            then it is assumed that all sequences are of the same length.  If
             not all sequences are of the same length, then it must be
             supplied as a matrix of shape ``(n_batch, n_time_steps)`` where
             ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
@@ -689,20 +733,13 @@ class LSTMLayer(Layer):
             # (n_time_steps, n_batch, 4*num_units).
             input = T.dot(input, self.W_in_stacked) + self.b_stacked
 
-        # input is (n_batch, n_time_steps, 4*num_units). We define a
-        # slicing function that extract the input to each LSTM gate
+        # At each call to scan, input_n will be (n_time_steps, 4*num_units).
+        # We define a slicing function that extract the input to each LSTM gate
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
 
         # Create single recurrent computation step function
-        # input_dot_W_n is the nth timestep of the input, dotted with W
-        # The step function calculates the following:
-        #
-        # i_t = \sigma(W_{xi}x_t + W_{hi}h_{t-1} + W_{ci}c_{t-1} + b_i)
-        # f_t = \sigma(W_{xf}x_t + W_{hf}h_{t-1} + W_{cf}c_{t-1} + b_f)
-        # c_t = f_tc_{t - 1} + i_t\tanh(W_{xc}x_t + W_{hc}h_{t-1} + b_c)
-        # o_t = \sigma(W_{xo}x_t + W_{ho}h_{t-1} + W_{co}c_t + b_o)
-        # h_t = o_t \tanh(c_t)
+        # input_n is the n'th vector of the input
         def step(input_n, cell_previous, hid_previous, W_hid_stacked,
                  W_cell_to_ingate, W_cell_to_forgetgate,
                  W_cell_to_outgate, W_in_stacked, b_stacked):
@@ -713,7 +750,7 @@ class LSTMLayer(Layer):
             # Calculate gates pre-activations and slice
             gates = input_n + T.dot(hid_previous, W_hid_stacked)
 
-            # clip gradients
+            # Clip gradients
             if self.grad_clipping is not False:
                 gates = theano.gradient.grad_clip(
                     gates, -self.grad_clipping, self.grad_clipping)
@@ -737,6 +774,7 @@ class LSTMLayer(Layer):
 
             # Compute new cell value
             cell = forgetgate*cell_previous + ingate*cell_input
+
             if self.peepholes:
                 outgate += cell*W_cell_to_outgate
 
@@ -777,12 +815,14 @@ class LSTMLayer(Layer):
         if isinstance(self.cell_init, T.TensorVariable):
             cell_init = self.cell_init
         else:
-            cell_init = T.dot(ones, self.cell_init)  # repeat num_batch times
+            # Dot against a 1s vector to repeat to shape (num_batch, num_units)
+            cell_init = T.dot(ones, self.cell_init)
 
         if isinstance(self.hid_init, T.TensorVariable):
             hid_init = self.hid_init
         else:
-            hid_init = T.dot(ones, self.hid_init)  # repeat num_batch times
+            # Dot against a 1s vector to repeat to shape (num_batch, num_units)
+            hid_init = T.dot(ones, self.hid_init)
 
         # The hidden-to-hidden weight matrix is always used in step
         non_seqs = [self.W_hid_stacked]
@@ -806,7 +846,7 @@ class LSTMLayer(Layer):
             non_seqs += [(), ()]
 
         if self.unroll_scan:
-            # use for loop to unroll recursion.
+            # Explicitly unroll the recurrence instead of using scan
             cell_out, hid_out = unroll_scan(
                 fn=step_fun,
                 sequences=sequences,
@@ -842,43 +882,52 @@ class LSTMLayer(Layer):
 
 
 class GRULayer(Layer):
-    """Gated Recurrent Layer (GRU)
+    r"""Gated Recurrent Unit (GRU) Layer
 
-    Layer with gated recurrent units implemented as in [1]_, [2]_.
+    Implements the updates proposed in [1]_, which computes the output by
+
+    .. math ::
+        r_t &= \sigma_r(W_{xr} x_t + W_{hr} h_{t - 1} + b_r)\\
+        u_t &= \sigma_u(W_{xu} x_t + W_{hu} h_{t - 1} + b_u)\\
+        c_t &= \sigma_c(W_{xc} x_t + r_t \odot (W_{hc} h_{t - 1}) + b_c)\\
+        h_t &= (1 - u_t) \odot h_{t - 1} + u_t \odot c_t
 
     Parameters
     ----------
     incoming : a :class:`lasagne.layers.Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
     num_units : int
-        Number of hidden units.
+        Number of hidden units in the layer.
     W_in_to_resetgate : Theano shared variable, numpy array or callable
-        Initializer for input-to-reset gate weight matrix
+        Initializer for input-to-reset gate weight matrix (:math:`W_{xr}`).
     W_hid_to_resetgate : Theano shared variable, numpy array or callable
-        Initializer for hidden-to-reset gate weight matrix
+        Initializer for hidden-to-reset gate weight matrix (:math:`W_{hr}`).
     b_resetgate : Theano shared variable, numpy array or callable
-        Initializer for the reset gate bias vector
+        Initializer for the reset gate bias vector (:math:`b_r`).
     W_in_to_updategate : Theano shared variable, numpy array or callable
-        Initializer for input-to-update gate weight matrix
+        Initializer for input-to-update gate weight matrix (:math:`W_{xu}`).
     W_hid_to_updategate : Theano shared variable, numpy array or callable
-        Initializer for hidden-to-update gate weight matrix
+        Initializer for hidden-to-update gate weight matrix (:math:`W_{hu}`).
     b_updategate : Theano shared variable, numpy array or callable
-        Initializer for the update gate bias vector
+        Initializer for the update gate bias vector (:math:`b_u`).
     W_in_to_hidden_update : Theano shared variable, numpy array or callable
-        Initializer for input-to-hidden update weight matrix
+        Initializer for input-to-hidden update weight matrix (:math:`W_{xc}`).
     W_hid_to_hidden_update : Theano shared variable, numpy array or callable
-        Initializer for hidden-to-hidden update weight matrix
+        Initializer for hidden-to-hidden update weight matrix (:math:`W_{hc}`).
     b_hidden_update : Theano shared variable, numpy array or callable
-        Initializer for the hidden update bias vector
+        Initializer for the hidden update bias vector (:math:`b_c`}.
     nonlinearity_resetgate : callable or None
-        The nonlinearity that is applied to the resetgate activations. If None
-        is provided, the resetgate will be linear.
+        The nonlinearity that is applied to the reset gate activation
+        (:math:`\sigma_r`). If None is provided, no nonlinearity will be
+        applied.
     nonlinearity_updategate : callable or None
-        The nonlinearity that is applied to the updategate activations. If None
-        is provided, the updategate will be linear.
+        The nonlinearity that is applied to the update gate activation
+        (:math:`\sigma_u`). If None is provided, no nonlinearity will be
+        applied.
     nonlinearity_hid : callable or None
-        The nonlinearity that is applied to the hidden activations. If None
-        is provided, the hidden state will be linear.
+        The nonlinearity that is applied to the hidden update activation
+        (:math:`\sigma_c`). If None is provided, no nonlinearity will be
+        applied.
     hid_init : callable, np.ndarray, theano.shared or TensorVariable
         Passing in a TensorVariable allows the user to specify
         the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
@@ -892,11 +941,12 @@ class GRULayer(Layer):
         TensorVariable then the TensorVariable is used and
         `learn_init` is ignored.
     gradient_steps : int
-        Number of timesteps to include in backpropagated gradient.
+        Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
     grad_clipping : False or float
-        If float the gradient messages are clipped during the backward pass.
-        See [3]_ (p. 6) for further explanation.
+        If a float is provided, the gradient messages are clipped during the
+        backward pass.  If False, the gradients will not be clipped.  See [1]_
+        (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
@@ -915,25 +965,17 @@ class GRULayer(Layer):
     .. [2] Chung, Junyoung, et al.: Empirical Evaluation of Gated
        Recurrent Neural Networks on Sequence Modeling.
        arXiv preprint arXiv:1412.3555 (2014).
-    .. [3] Alex Graves : Generating Sequences With Recurrent Neural
-       Networks.
+    .. [3] Graves, Alex: "Generating sequences with recurrent neural networks."
+           arXiv preprint arXiv:1308.0850 (2013).
 
     Notes
     -----
-    The GRU units is implemented slightly differently in [1]_ and in [2]_.
-    We use the following equation to calculate the hidden update:
+    An alternate update for the candidate hidden state is proposed in [2]_:
 
-    .. math:: \hat{h}^j_t = tanh(W\mathbf{x}_t + \mathbf{r}_t
-              \odot (U\mathbf{h_{t-1}}))^j
+    .. math::
+        c_t &= \sigma_c(W_{ic} x_t + W_{hc}(r_t \odot h_{t - 1}) + b_c)\\
 
-
-    An alternative formulation is:
-
-    .. math:: \hat{h}^j_t = tanh(W\mathbf{x}_t +
-              \odot U(\mathbf{r}_t\mathbf{h_{t-1}}))^j
-
-
-    We use the first formulation because it allows us to do all matrix
+    We use the formulation from [1]_ because it allows us to do all matrix
     operations in a single dot product.
     """
     def __init__(self, incoming, num_units,
@@ -1043,7 +1085,8 @@ class GRULayer(Layer):
         if isinstance(hid_init, T.TensorVariable):
             if hid_init.ndim != 2:
                 raise ValueError(
-                    "When a TensorVariable hid_init should be a matrix")
+                    "When hid_init is provided as a TensorVariable, it should "
+                    "have 2 dimensions and have shape (num_batch, num_units)")
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -1064,11 +1107,11 @@ class GRULayer(Layer):
         mask : theano.TensorType
             Theano variable denoting whether each time step in each
             sequence in the batch is part of the sequence or not.  If None,
-            then it assumed that all sequences are of the same length.  If
+            then it is assumed that all sequences are of the same length.  If
             not all sequences are of the same length, then it must be
             supplied as a matrix of shape (n_batch, n_time_steps) where
-            `mask[i, j] = 1` when `j <= (length of sequence i)` and
-            `mask[i, j] = 0` when `j > (length of sequence i)`.
+            ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
+            ``mask[i, j] = 0`` when ``j > (length of sequence i)``.
         """
 
         # Treat all dimensions after the second as flattened feature dimensions
@@ -1086,15 +1129,16 @@ class GRULayer(Layer):
             # input is then (n_batch, n_time_steps, 3*num_units).
             input = T.dot(input, self.W_in_stacked) + self.b_stacked
 
-        # input_dow_w is (n_batch, n_time_steps, 2*num_units). We define a
-        # slicing function that extract the input to each GRU gate
+        # At each call to scan, input_n will be (n_time_steps, 3*num_units).
+        # We define a slicing function that extract the input to each GRU gate
         def slice_w(x, n):
             return x[:, n*self.num_units:(n+1)*self.num_units]
 
         # Create single recurrent computation step function
-        # input_dot_W_n is the n'th row of the input dot W multiplication
+        # input__n is the n'th vector of the input
         def step(input_n, hid_previous, W_hid_stacked, W_in_stacked,
                  b_stacked):
+            # Compute W_{hr} h_{t - 1}, W_{hu} h_{t - 1}, and W_{hc} h_{t - 1}
             hid_input = T.dot(hid_previous, W_hid_stacked)
 
             if self.grad_clipping is not False:
@@ -1104,6 +1148,7 @@ class GRULayer(Layer):
                     hid_input, -self.grad_clipping, self.grad_clipping)
 
             if not self.precompute_input:
+                # Compute W_{xr}x_t + b_r, W_{xu}x_t + b_u, and W_{xc}x_t + b_c
                 input_n = T.dot(input_n, W_in_stacked) + b_stacked
 
             # Reset and update gates
@@ -1112,17 +1157,17 @@ class GRULayer(Layer):
             resetgate = self.nonlinearity_resetgate(resetgate)
             updategate = self.nonlinearity_updategate(updategate)
 
-            # hidden_update input
+            # Compute W_{xc}x_t + r_t \odot (W_{hc} h_{t - 1})
             hidden_update_in = slice_w(input_n, 2)
             hidden_update_hid = slice_w(hid_input, 2)
-
             hidden_update = hidden_update_in + resetgate*hidden_update_hid
             if self.grad_clipping is not False:
                 hidden_update = theano.gradient.grad_clip(
                     hidden_update, -self.grad_clipping, self.grad_clipping)
             hidden_update = self.nonlinearity_hid(hidden_update)
 
-            hid = (1-updategate)*hid_previous + updategate*hidden_update
+            # Compute (1 - u_t)h_{t - 1} + u_t c_t
+            hid = (1 - updategate)*hid_previous + updategate*hidden_update
             return hid
 
         def step_masked(input_n, mask_n, hid_previous, W_hid_stacked,
@@ -1153,7 +1198,7 @@ class GRULayer(Layer):
         if isinstance(self.hid_init, T.TensorVariable):
             hid_init = self.hid_init
         else:
-            # repeat num_batch times
+            # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
         # The hidden-to-hidden weight matrix is always used in step
@@ -1169,7 +1214,7 @@ class GRULayer(Layer):
             non_seqs += [(), ()]
 
         if self.unroll_scan:
-            # use for loop to unroll recursion.
+            # Explicitly unroll the recurrence instead of using scan
             hid_out = unroll_scan(
                 fn=step_fun,
                 sequences=sequences,

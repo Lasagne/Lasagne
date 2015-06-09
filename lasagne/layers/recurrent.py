@@ -904,26 +904,26 @@ class GRULayer(Layer):
         Initializer for hidden-to-reset gate weight matrix (:math:`W_{hr}`).
     b_resetgate : Theano shared variable, numpy array or callable
         Initializer for the reset gate bias vector (:math:`b_r`).
+    nonlinearity_resetgate : callable or None
+        The nonlinearity that is applied to the reset gate activation
+        (:math:`\sigma_r`). If None is provided, no nonlinearity will be
+        applied.
     W_in_to_updategate : Theano shared variable, numpy array or callable
         Initializer for input-to-update gate weight matrix (:math:`W_{xu}`).
     W_hid_to_updategate : Theano shared variable, numpy array or callable
         Initializer for hidden-to-update gate weight matrix (:math:`W_{hu}`).
     b_updategate : Theano shared variable, numpy array or callable
         Initializer for the update gate bias vector (:math:`b_u`).
+    nonlinearity_updategate : callable or None
+        The nonlinearity that is applied to the update gate activation
+        (:math:`\sigma_u`). If None is provided, no nonlinearity will be
+        applied.
     W_in_to_hidden_update : Theano shared variable, numpy array or callable
         Initializer for input-to-hidden update weight matrix (:math:`W_{xc}`).
     W_hid_to_hidden_update : Theano shared variable, numpy array or callable
         Initializer for hidden-to-hidden update weight matrix (:math:`W_{hc}`).
     b_hidden_update : Theano shared variable, numpy array or callable
         Initializer for the hidden update bias vector (:math:`b_c`}.
-    nonlinearity_resetgate : callable or None
-        The nonlinearity that is applied to the reset gate activation
-        (:math:`\sigma_r`). If None is provided, no nonlinearity will be
-        applied.
-    nonlinearity_updategate : callable or None
-        The nonlinearity that is applied to the update gate activation
-        (:math:`\sigma_u`). If None is provided, no nonlinearity will be
-        applied.
     nonlinearity_hid : callable or None
         The nonlinearity that is applied to the hidden update activation
         (:math:`\sigma_c`). If None is provided, no nonlinearity will be
@@ -982,14 +982,14 @@ class GRULayer(Layer):
                  W_in_to_resetgate=init.Normal(0.1),
                  W_hid_to_resetgate=init.Normal(0.1),
                  b_resetgate=init.Normal(0.1),
+                 nonlinearity_resetgate=nonlinearities.sigmoid,
                  W_in_to_updategate=init.Normal(0.1),
                  W_hid_to_updategate=init.Normal(0.1),
                  b_updategate=init.Normal(0.1),
+                 nonlinearity_updategate=nonlinearities.sigmoid,
                  W_in_to_hidden_update=init.Normal(0.1),
                  W_hid_to_hidden_update=init.Normal(0.1),
                  b_hidden_update=init.Constant(0.),
-                 nonlinearity_resetgate=nonlinearities.sigmoid,
-                 nonlinearity_updategate=nonlinearities.sigmoid,
                  nonlinearity_hid=nonlinearities.tanh,
                  hid_init=init.Constant(0.),
                  learn_init=True,

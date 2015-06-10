@@ -9,7 +9,7 @@ class TestFlattenLayer:
     @pytest.fixture
     def layer(self):
         from lasagne.layers.shape import FlattenLayer
-        return FlattenLayer(Mock())
+        return FlattenLayer(Mock(output_shape=(None,)))
 
     def test_get_output_shape_for(self, layer):
         input_shape = (2, 3, 4, 5)
@@ -25,7 +25,7 @@ class TestPadLayer:
     @pytest.fixture
     def layer(self):
         from lasagne.layers.shape import PadLayer
-        return PadLayer(Mock(), width=2)
+        return PadLayer(Mock(output_shape=(None,)), width=2)
 
     def test_get_output_shape_for(self, layer):
         input_shape = (2, 3, 4, 5)

@@ -41,6 +41,12 @@ class Layer(object):
         self.name = name
         self.params = OrderedDict()
 
+        if any(d is not None and d <= 0 for d in self.input_shape):
+            raise ValueError((
+                "Cannot create Layer with a non-positive input_shape "
+                "dimension. input_shape=%r, self.name=%r") % (
+                    self.input_shape, self.name))
+
     @property
     def output_shape(self):
         return self.get_output_shape_for(self.input_shape)

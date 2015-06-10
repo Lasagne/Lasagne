@@ -132,3 +132,16 @@ def test_create_param_callable_returns_return_value():
     result = create_param(factory, (2, 3))
     assert (result.get_value() == array).all()
     factory.assert_called_with((2, 3))
+
+
+def test_nonpositive_dims_raises_value_error():
+    from lasagne.utils import create_param
+    neg_shape = (-1, -1)
+    zero_shape = (0, 0)
+    pos_shape = (1, 1)
+    spec = np.empty
+    with pytest.raises(ValueError):
+        create_param(spec, neg_shape)
+    with pytest.raises(ValueError):
+        create_param(spec, zero_shape)
+    create_param(spec, pos_shape)

@@ -57,7 +57,7 @@ class TestGaussianNoiseLayer:
     @pytest.fixture
     def layer(self):
         from lasagne.layers.noise import GaussianNoiseLayer
-        return GaussianNoiseLayer(Mock())
+        return GaussianNoiseLayer(Mock(output_shape=(None,)))
 
     def test_get_output_for_non_deterministic(self, layer):
         input = theano.shared(numpy.ones((100, 100)))

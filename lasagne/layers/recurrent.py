@@ -16,9 +16,24 @@ The following recurrent layers are implemented:
     GRULayer
 
 Recurrent layers and feed-forward layers can be combined in the same network
-by using a few reshape operations; please refer to the recurrent examples for
-further explanations.
+by using a few reshape operations; please refer to the example below.
 
+Examples
+--------
+We set up a bidirectional LSTM with :func:`lasagne.updates.adam` updates.
+In the example the reshapes dimensions are determined based on the size of the
+input. This allows for varying both the batch size and sequence length at
+runtime.
+
+>>> from lasagne.layers import *
+>>> x = T.tensor3()
+>>> batchsize, seqlen, _ = x.shape
+>>> num_inputs, num_units, num_classes = 10, 12, 5
+>>> l_inp = InputLayer((None, None, num_inputs))
+>>> l_lstm = LSTMLayer(l_inp, num_units=num_units)
+>>> l_shp = ReshapeLayer(l_lstm, (-1, num_units))
+>>> l_dense = DenseLayer(l_shp, num_units=num_classes)
+>>> l_out = ReshapeLayer(l_dense, (batchsize, seqlen, num_classes))
 """
 import numpy as np
 import theano
@@ -395,7 +410,8 @@ class LSTMLayer(Layer):
 
     .. math ::
 
-        i_t &= \sigma_i(W_{xi}x_t + W_{hi}h_{t-1} + w_{ci}\odot c_{t-1} + b_i)\\
+        i_t &= \sigma_i(W_{xi}x_t + W_{hi}h_{t-1} + w_{ci}\odot
+        c_{t-1} + b_i)\\
         f_t &= \sigma_f(W_{xf}x_t + W_{hf}h_{t-1}
                + w_{cf}\odot c_{t-1} + b_f)\\
         c_t &= f_t \odot c_{t - 1}

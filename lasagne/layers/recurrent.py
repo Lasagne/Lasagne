@@ -213,23 +213,8 @@ class CustomRecurrentLayer(Layer):
             # Reshape back to (seq_len, batch_size, num_units)
             input = T.reshape(input, (seq_len, num_batch, -1))
 
-        def clone_and_compute_output(network, network_input, new_params):
-            # Gets the output from the given network and calculate the output.
-            # The original parameters are replaced with the parameters given
-            # in new_params. Allows for use of the strict setting in scan.
-            original_hid_pre = helper.get_output(
-                network, network_input, **kwargs)
-            original_params = helper.get_all_params(network)
-            new_hid_pre = theano.clone(
-                original_hid_pre,
-                replace=dict(zip(original_params, new_params)))
-            return new_hid_pre
-
         # We will always pass the hidden-to-hidden layer params to step
         non_seqs = helper.get_all_params(self.hidden_to_hidden)
-        # This will allow us to keep track of how long the list of parameters
-        # are in hidden_to_hidden
-        num_params_hid_to_hid = len(non_seqs)
         # When we are not precomputing the input, we also need to pass the
         # input-to-hidden parameters to step
         if not self.precompute_input:
@@ -237,25 +222,17 @@ class CustomRecurrentLayer(Layer):
 
         # Create single recurrent computation step function
         def step(input_n, hid_previous, *args):
-            # For optimization reasons we need to replace the calculation
-            # performed by hidden_to_hidden with weight values that scan
-            # knows. The weights are given in args. We use theano.clone to
-            # replace the relevant variables. This allows us to use
-            # strict=True when calling theano.scan(...)
-            hid_pre = clone_and_compute_output(
-                self.hidden_to_hidden, hid_previous,
-                args[:num_params_hid_to_hid])
+            # Compute the hidden-to-hidden activation
+            hid_pre = helper.get_output(self.hidden_to_hidden, hid_previous)
 
-            # if the dot product is precomputed then add it otherwise
+            # If the dot product is precomputed then add it, otherwise
             # calculate the input_to_hidden values and add them
             if self.precompute_input:
                 hid_pre += input_n
             else:
-                hid_pre += clone_and_compute_output(
-                    self.input_to_hidden, input_n,
-                    args[num_params_hid_to_hid:])
+                hid_pre += helper.get_output(self.input_to_hidden, input_n)
 
-            # clip gradients
+            # Clip gradients
             if self.grad_clipping is not False:
                 hid_pre = theano.gradient.grad_clip(
                     hid_pre, -self.grad_clipping, self.grad_clipping)

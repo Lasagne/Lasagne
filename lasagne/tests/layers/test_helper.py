@@ -733,13 +733,19 @@ class TestSetAllParamValues:
         l2 = DenseLayer(l1, 30)
         l3 = DenseLayer(l2, 40)
 
-        a = floatX(numpy.random.normal(0, 1, (1, 1)))
-        b = floatX(numpy.random.normal(0, 1, (1,)))
-        set_all_param_values(l3, [a, b, a, b])
-        assert numpy.allclose(l3.W.get_value(), a)
-        assert numpy.allclose(l3.b.get_value(), b)
-        assert numpy.allclose(l2.W.get_value(), a)
-        assert numpy.allclose(l2.b.get_value(), b)
+        a2 = floatX(numpy.random.normal(0, 1, (20, 30)))
+        b2 = floatX(numpy.random.normal(0, 1, (30,)))
+        a3 = floatX(numpy.random.normal(0, 1, (30, 40)))
+        b3 = floatX(numpy.random.normal(0, 1, (40,)))
+        set_all_param_values(l3, [a2, b2, a3, b3])
+        assert numpy.allclose(l3.W.get_value(), a3)
+        assert numpy.allclose(l3.b.get_value(), b3)
+        assert numpy.allclose(l2.W.get_value(), a2)
+        assert numpy.allclose(l2.b.get_value(), b2)
 
         with pytest.raises(ValueError):
-            set_all_param_values(l3, [a, b, a])
+            set_all_param_values(l3, [a3, b3, a2])
+
+        with pytest.raises(ValueError):
+            a3_bad = floatX(numpy.random.normal(0, 1, (25, 40)))
+            set_all_param_values(l3, [a2, b2, a3_bad, b3])

@@ -474,6 +474,7 @@ def set_all_param_values(layer, values, **tags):
     values : list of numpy.array
         A list of numpy arrays representing the parameter values, must match
         the number of parameters.
+        Every parameter's shape must match the shape of its new value.
 
     **tags (optional)
         tags can be specified to filter the list of parameters to be set.
@@ -486,7 +487,8 @@ def set_all_param_values(layer, values, **tags):
     Raises
     ------
     ValueError
-        If the number of values is not equal to the number of params.
+        If the number of values is not equal to the number of params, or
+        if a parameter's shape does not match the shape of its new value.
 
     Examples
     --------
@@ -503,5 +505,11 @@ def set_all_param_values(layer, values, **tags):
     if len(params) != len(values):
         raise ValueError("mismatch: got %d values to set %d parameters" %
                          (len(values), len(params)))
+
     for p, v in zip(params, values):
-        p.set_value(v)
+        if p.get_value().shape != v.shape:
+            raise ValueError("mismatch: parameter has shape %r but value to "
+                             "set has shape %r" %
+                             (p.get_value().shape, v.shape))
+        else:
+            p.set_value(v)

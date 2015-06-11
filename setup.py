@@ -24,10 +24,6 @@ tests_require = [
     'pytest-pep8',
     ]
 
-docs_require = [
-    'Sphinx',
-    ]
-
 setup(
     name="Lasagne",
     version=version,
@@ -54,6 +50,5 @@ setup(
     install_requires=install_requires,
     extras_require={
         'testing': tests_require,
-        'docs': docs_require,
         },
     )

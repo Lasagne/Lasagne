@@ -119,9 +119,3 @@ for n in range(N_ITERATIONS):
     if not n % 100:
         cost_val = compute_cost(X_val, y_val)
         print "Iteration {} validation cost = {}".format(n, cost_val)
-
-import matplotlib.pyplot as plt
-plt.plot(costs)
-plt.xlabel('Iteration')
-plt.ylabel('Cost')
-plt.show()

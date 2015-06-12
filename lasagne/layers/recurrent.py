@@ -131,9 +131,10 @@ class CustomRecurrentLayer(Layer):
                  gradient_steps=-1,
                  grad_clipping=False,
                  unroll_scan=False,
-                 precompute_input=True):
+                 precompute_input=True,
+                 **kwargs):
 
-        super(CustomRecurrentLayer, self).__init__(incoming)
+        super(CustomRecurrentLayer, self).__init__(incoming, **kwargs)
 
         self.input_to_hidden = input_to_hidden
         self.hidden_to_hidden = hidden_to_hidden
@@ -387,7 +388,8 @@ class RecurrentLayer(CustomRecurrentLayer):
                  gradient_steps=-1,
                  grad_clipping=False,
                  unroll_scan=False,
-                 precompute_input=True):
+                 precompute_input=True,
+                 **kwargs):
         input_shape = helper.get_output_shape(incoming)
         num_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
@@ -407,7 +409,7 @@ class RecurrentLayer(CustomRecurrentLayer):
             hid_init=hid_init, backwards=backwards, learn_init=learn_init,
             gradient_steps=gradient_steps,
             grad_clipping=grad_clipping, unroll_scan=unroll_scan,
-            precompute_input=precompute_input)
+            precompute_input=precompute_input, **kwargs)
 
 
 class LSTMLayer(Layer):
@@ -554,10 +556,11 @@ class LSTMLayer(Layer):
                  gradient_steps=-1,
                  grad_clipping=False,
                  unroll_scan=False,
-                 precompute_input=True):
+                 precompute_input=True,
+                 **kwargs):
 
         # Initialize parent layer
-        super(LSTMLayer, self).__init__(incoming)
+        super(LSTMLayer, self).__init__(incoming, **kwargs)
 
         # For any of the nonlinearities, if None is supplied, use identity
         if nonlinearity_ingate is None:
@@ -999,10 +1002,11 @@ class GRULayer(Layer):
                  gradient_steps=-1,
                  grad_clipping=False,
                  unroll_scan=False,
-                 precompute_input=True):
+                 precompute_input=True,
+                 **kwargs):
 
         # Initialize parent layer
-        super(GRULayer, self).__init__(incoming)
+        super(GRULayer, self).__init__(incoming, **kwargs)
         # For any of the nonlinearities, if None is supplied, use identity
         if nonlinearity_resetgate is None:
             self.nonlinearity_resetgate = nonlinearities.identity

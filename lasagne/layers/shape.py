@@ -358,7 +358,7 @@ class SliceLayer(Layer):
                 range(*self.slice.indices(input_shape[self.axis])))
         return tuple(output_shape)
 
-    def get_output_for(self, input):
+    def get_output_for(self, input, **kwargs):
         axis = self.axis
         if axis < 0:
             axis += input.ndim

@@ -1098,7 +1098,7 @@ class GRULayer(Layer):
     def get_output_shape_for(self, input_shape):
         return input_shape[0], input_shape[1], self.num_units
 
-    def get_output_for(self, input, mask=None, *args, **kwargs):
+    def get_output_for(self, input, mask=None, **kwargs):
         """
         Compute this layer's output function given a symbolic input variable
 

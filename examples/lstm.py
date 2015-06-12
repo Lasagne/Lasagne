@@ -2,7 +2,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-theano.config.compute_test_value = 'raise'
 # Sequence length (number of time steps)
 LENGTH = 10
 # Number of units in the hidden (recurrent) layer
@@ -91,12 +90,6 @@ l_out = lasagne.layers.ReshapeLayer(
 
 input = T.tensor3('input')
 target_output = T.tensor3('target_output')
-
-# add test values
-input.tag.test_value = np.random.rand(
-    *X_val.shape).astype(theano.config.floatX)
-target_output.tag.test_value = np.random.rand(
-    *y_val.shape).astype(theano.config.floatX)
 
 # Cost = mean squared error, starting from delay point
 cost = T.mean((lasagne.layers.get_output(l_out, input)[:, DELAY:, :]

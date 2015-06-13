@@ -21,17 +21,35 @@ __all__ = [
 
 class FlattenLayer(Layer):
     """
-    Flatten all but the first dimension.
+    A layer that flattens its input. The leading ``outdim-1`` dimensions of
+    the output will have the same shape as the input. The remaining dimensions
+    are collapsed into the last dimension.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape.
+    outdim : int
+        The number of dimensions in the output.
 
     See Also
     --------
     flatten  : Shortcut
     """
+    def __init__(self, incoming, outdim=2, **kwargs):
+        super(FlattenLayer, self).__init__(incoming, **kwargs)
+        self.outdim = outdim
+
+        if outdim < 1:
+            raise ValueError('Dim must be >0, was %i', outdim)
+
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], int(np.prod(input_shape[1:])))
+        shp = [input_shape[i] for i in range(self.outdim-1)]
+        shp += [int(np.prod(input_shape[(self.outdim-1):]))]
+        return tuple(shp)
 
     def get_output_for(self, input, **kwargs):
-        return input.flatten(2)
+        return input.flatten(self.outdim)
 
 flatten = FlattenLayer  # shortcut
 

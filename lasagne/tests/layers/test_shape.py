@@ -11,6 +11,16 @@ class TestFlattenLayer:
         from lasagne.layers.shape import FlattenLayer
         return FlattenLayer(Mock(output_shape=(None,)))
 
+    @pytest.fixture
+    def layer_outdim3(self):
+        from lasagne.layers.shape import FlattenLayer
+        return FlattenLayer(Mock(output_shape=(None,)), outdim=3)
+
+    @pytest.fixture
+    def layer_outdim1(self):
+        from lasagne.layers.shape import FlattenLayer
+        return FlattenLayer(Mock(output_shape=(None,)), outdim=1)
+
     def test_get_output_shape_for(self, layer):
         input_shape = (2, 3, 4, 5)
         assert layer.get_output_shape_for(input_shape) == (2, 3 * 4 * 5)
@@ -19,6 +29,31 @@ class TestFlattenLayer:
         input = np.random.random((2, 3, 4, 5))
         result = layer.get_output_for(theano.shared(input)).eval()
         assert (result == input.reshape((input.shape[0], -1))).all()
+
+    def test_get_output_shape_for_outdim3(self, layer_outdim3):
+        input_shape = (2, 3, 4, 5)
+        assert layer_outdim3.get_output_shape_for(input_shape) == (2, 3, 4 * 5)
+
+    def test_get_output_for_outdim3(self, layer_outdim3):
+        input = np.random.random((2, 3, 4, 5))
+        result = layer_outdim3.get_output_for(theano.shared(input)).eval()
+        assert (result == input.reshape(
+            (input.shape[0], input.shape[1], -1))).all()
+
+    def test_get_output_shape_for_outdim1(self, layer_outdim1):
+        input_shape = (2, 3, 4, 5)
+        assert layer_outdim1.get_output_shape_for(input_shape) == (
+            2 * 3 * 4 * 5, )
+
+    def test_get_output_for_outdim1(self, layer_outdim1):
+        input = np.random.random((2, 3, 4, 5))
+        result = layer_outdim1.get_output_for(theano.shared(input)).eval()
+        assert (result == input.reshape(-1)).all()
+
+    def test_dim0_raises(self):
+        from lasagne.layers.shape import FlattenLayer
+        with pytest.raises(ValueError):
+            FlattenLayer((2, 3, 4), outdim=0)
 
 
 class TestPadLayer:

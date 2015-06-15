@@ -4,6 +4,8 @@ sum of two numbers in a sequence of random numbers sampled uniformly from
 [0, 1] based on a separate marker sequence.
 '''
 
+from __future__ import print_function
+
 
 import numpy as np
 import theano
@@ -22,10 +24,10 @@ N_BATCH = 100
 LEARNING_RATE = .001
 # All gradients above this will be clipped
 GRAD_CLIP = 100
-# Number of batches to train the net
-N_ITERATIONS = 1000
 # How often should we check the output?
-CHECK_FREQUENCY = 100
+EPOCH_SIZE = 100
+# Number of epochs to train the net
+NUM_EPOCHS = 10
 
 
 def gen_data(min_length=MIN_LENGTH, max_length=MAX_LENGTH, n_batch=N_BATCH):
@@ -76,7 +78,7 @@ def gen_data(min_length=MIN_LENGTH, max_length=MAX_LENGTH, n_batch=N_BATCH):
     mask = np.zeros((n_batch, max_length))
     y = np.zeros((n_batch,))
     # Compute masks and correct values
-    for n in xrange(n_batch):
+    for n in range(n_batch):
         # Randomly choose the sequence length
         length = np.random.randint(min_length, max_length)
         # Make the mask for this sample 1 within the range of length
@@ -95,8 +97,8 @@ def gen_data(min_length=MIN_LENGTH, max_length=MAX_LENGTH, n_batch=N_BATCH):
             mask.astype(theano.config.floatX))
 
 
-def main():
-    print "Building network ..."
+def main(num_epochs=NUM_EPOCHS):
+    print("Building network ...")
     # First, we build the network, starting with an input layer
     # Recurrent layers expect input of shape
     # (batch size, max sequence length, number of features)
@@ -141,10 +143,10 @@ def main():
     # Retrieve all parameters from the network
     all_params = lasagne.layers.get_all_params(l_out)
     # Compute SGD updates for training
-    print "Computing updates ..."
+    print("Computing updates ...")
     updates = lasagne.updates.adagrad(cost, all_params, LEARNING_RATE)
     # Theano functions for training and computing cost
-    print "Compiling functions ..."
+    print("Compiling functions ...")
     train = theano.function(
         [l_in.input_var, target_values, mask], cost, updates=updates)
     compute_cost = theano.function([l_in.input_var, target_values, mask], cost)
@@ -152,19 +154,16 @@ def main():
     # We'll use this "validation set" to periodically check progress
     X_val, y_val, mask_val = gen_data()
 
-    print "Training ..."
+    print("Training ...")
     try:
-        for n in range(N_ITERATIONS):
-            X, y, m = gen_data()
-            train(X, y, m)
-            if not n % CHECK_FREQUENCY:
-                cost_val = compute_cost(X_val, y_val, mask_val)
-                print "Iteration {} validation cost = {}".format(n, cost_val)
+        for epoch in range(num_epochs):
+            for _ in range(EPOCH_SIZE):
+                X, y, m = gen_data()
+                train(X, y, m)
+            cost_val = compute_cost(X_val, y_val, mask_val)
+            print("Epoch {} validation cost = {}".format(epoch, cost_val))
     except KeyboardInterrupt:
         pass
-
-    final_cost = compute_cost(X_val, y_val, mask_val)
-    print "Final validation cost = {}".format(final_cost)
 
 if __name__ == '__main__':
     main()

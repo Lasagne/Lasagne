@@ -1,93 +1,170 @@
+'''
+Recurrent network example.  Trains a bidirectional vanilla RNN to output the
+sum of two numbers in a sequence of random numbers sampled uniformly from
+[0, 1] based on a separate marker sequence.
+'''
+
+
 import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
 
-# Sequence length
-LENGTH = 10
+
+# Min/max sequence length
+MIN_LENGTH = 50
+MAX_LENGTH = 55
 # Number of units in the hidden (recurrent) layer
-N_HIDDEN = 4
+N_HIDDEN = 100
 # Number of training sequences in each batch
-N_BATCH = 30
-# Delay used to generate artificial training data
-DELAY = 2
-# SGD learning rate
-LEARNING_RATE = 1e-5
-# Number of iterations to train the net
+N_BATCH = 100
+# Optimization learning rate
+LEARNING_RATE = .001
+# All gradients above this will be clipped
+GRAD_CLIP = 100
+# Number of batches to train the net
 N_ITERATIONS = 1000
+# How often should we check the output?
+CHECK_FREQUENCY = 100
 
 
-def gen_data(length=LENGTH, n_batch=N_BATCH, delay=DELAY):
-    """
-    Generate a simple lag sequence
+def gen_data(min_length=MIN_LENGTH, max_length=MAX_LENGTH, n_batch=N_BATCH):
+    '''
+    Generate a batch of sequences for the "add" task, e.g. the target for the
+    following
+
+    ``| 0.5 | 0.7 | 0.3 | 0.1 | 0.2 | ... | 0.5 | 0.9 | ... | 0.8 | 0.2 |
+      |  0  |  0  |  1  |  0  |  0  |     |  0  |  1  |     |  0  |  0  |``
+
+    would be 0.3 + .9 = 1.2.  This task was proposed in [1]_ and explored in
+    e.g. [2]_.
 
     Parameters
     ----------
-    length : int
-        Length of sequences to generate
+    min_length : int
+        Minimum sequence length.
+    max_length : int
+        Maximum sequence length.
     n_batch : int
-        Number of training sequences per batch
-    delay : int
-        How much to delay one feature dimension in the target
+        Number of samples in the batch.
 
     Returns
     -------
-    X : np.ndarray, shape=(n_batch, length, 2)
-        Input sequence
-    y : np.ndarray, shape=(n_batch, length, 1)
-        Target sequence, where
-        y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
-    """
-    X = np.random.rand(n_batch, length, 2)
-    y = X[:, :, 0].reshape((n_batch, length, 1))
-    # Compute y[n] = X[:, n, 0] - X[:, n - delay, 1] + noise
-    y[:, delay:, 0] -= (X[:, :-delay, 1]
-                        + .01*np.random.randn(n_batch, length - delay))
-    return X, y
+    X : np.ndarray
+        Input to the network, of shape (n_batch, max_length, 2), where the last
+        dimension corresponds to the two sequences shown above.
+    y : np.ndarray
+        Correct output for each sample, shape (n_batch,).
+    mask : np.ndarray
+        A binary matrix of shape (n_batch, max_length) where ``mask[i, j] = 1``
+        when ``j <= (length of sequence i)`` and ``mask[i, j] = 0`` when ``j >
+        (length of sequence i)``.
+
+    References
+    ----------
+    .. [1] Hochreiter, Sepp, and Jurgen Schmidhuber. "Long short-term memory."
+    Neural computation 9.8 (1997): 1735-1780.
+
+    .. [2] Sutskever, Ilya, et al. "On the importance of initialization and
+    momentum in deep learning." Proceedings of the 30th international
+    conference on machine learning (ICML-13). 2013.
+    '''
+    # Generate X - we'll fill the last dimension later
+    X = np.concatenate([np.random.uniform(size=(n_batch, max_length, 1)),
+                        np.zeros((n_batch, max_length, 1))],
+                       axis=-1)
+    mask = np.zeros((n_batch, max_length))
+    y = np.zeros((n_batch,))
+    # Compute masks and correct values
+    for n in xrange(n_batch):
+        # Randomly choose the sequence length
+        length = np.random.randint(min_length, max_length)
+        # Make the mask for this sample 1 within the range of length
+        mask[n, :length] = 1
+        # Zero out X after the end of the sequence
+        X[n, length:, 0] = 0
+        # Set the second dimension to 1 at the indices to add
+        X[n, np.random.randint(length/10), 1] = 1
+        X[n, np.random.randint(length/2, length), 1] = 1
+        # Multiply and sum the dimensions of X to get the target value
+        y[n] = np.sum(X[n, :, 0]*X[n, :, 1])
+    # Center the inputs and outputs
+    X -= X.reshape(-1, 2).mean(axis=0)
+    y -= y.mean()
+    return (X.astype(theano.config.floatX), y.astype(theano.config.floatX),
+            mask.astype(theano.config.floatX))
 
 
-# Generate a "validation" sequence whose cost we will periodically compute
-X_val, y_val = gen_data()
+def main():
+    print "Building network ..."
+    # First, we build the network, starting with an input layer
+    # Recurrent layers expect input of shape
+    # (batch size, max sequence length, number of features)
+    l_in = lasagne.layers.InputLayer(shape=(N_BATCH, MAX_LENGTH, 2))
+    # We're using a bidirectional network, which means we will combine two
+    # RecurrentLayers, one with the backwards=True keyword argument.
+    # Setting a value for grad_clipping will clip the gradients in the layer
+    l_forward = lasagne.layers.RecurrentLayer(
+        l_in, N_HIDDEN, grad_clipping=GRAD_CLIP,
+        W_in_to_hid=lasagne.init.HeUniform(),
+        W_hid_to_hid=lasagne.init.HeUniform(),
+        nonlinearity=lasagne.nonlinearities.tanh)
+    l_backward = lasagne.layers.RecurrentLayer(
+        l_in, N_HIDDEN, grad_clipping=GRAD_CLIP,
+        W_in_to_hid=lasagne.init.HeUniform(),
+        W_hid_to_hid=lasagne.init.HeUniform(),
+        nonlinearity=lasagne.nonlinearities.tanh, backwards=True)
+    # We'll use an elementwise sum to combine the forward/backward layers
+    l_sum = lasagne.layers.ElemwiseSumLayer([l_forward, l_backward])
+    # We need a reshape layer which combines the first (batch size) and second
+    # (number of timesteps) dimensions, otherwise the DenseLayer will treat the
+    # number of time steps as a feature dimension
+    l_reshape = lasagne.layers.ReshapeLayer(
+        l_sum, (N_BATCH*MAX_LENGTH, N_HIDDEN))
+    # Our output layer is a simple dense connection, with 1 output unit
+    l_recurrent_out = lasagne.layers.DenseLayer(
+        l_reshape, num_units=1, nonlinearity=lasagne.nonlinearities.tanh)
+    # Now, reshape the output back to the RNN format
+    l_out = lasagne.layers.ReshapeLayer(
+        l_recurrent_out, (N_BATCH, MAX_LENGTH))
 
-# Construct vanilla RNN
-l_in = lasagne.layers.InputLayer(shape=(N_BATCH, LENGTH, X_val.shape[-1]))
+    target_values = T.vector('target_output')
+    mask = T.matrix('mask')
 
-l_recurrent = lasagne.layers.RecurrentLayer(l_in, N_HIDDEN, nonlinearity=None)
-# We need a reshape layer which combines the first (batch size) and second
-# (number of timesteps) dimensions, otherwise the DenseLayer will treat the
-# number of time steps as a feature dimension
-l_reshape = lasagne.layers.ReshapeLayer(l_recurrent,
-                                        (N_BATCH*LENGTH, N_HIDDEN))
+    # lasagne.layers.get_output produces a variable for the output of the net
+    network_output = lasagne.layers.get_output(
+        l_out, l_in.input_var, mask=mask)
+    # The value we care about is the final value produced for each sequence
+    predicted_values = network_output[:, -1]
+    # Our cost will be mean-squared error
+    cost = T.mean((predicted_values - target_values)**2)
+    # Retrieve all parameters from the network
+    all_params = lasagne.layers.get_all_params(l_out)
+    # Compute SGD updates for training
+    print "Computing updates ..."
+    updates = lasagne.updates.adagrad(cost, all_params, LEARNING_RATE)
+    # Theano functions for training and computing cost
+    print "Compiling functions ..."
+    train = theano.function(
+        [l_in.input_var, target_values, mask], cost, updates=updates)
+    compute_cost = theano.function([l_in.input_var, target_values, mask], cost)
 
-l_recurrent_out = lasagne.layers.DenseLayer(l_reshape,
-                                            num_units=y_val.shape[-1],
-                                            nonlinearity=None)
-l_out = lasagne.layers.ReshapeLayer(l_recurrent_out,
-                                    (N_BATCH, LENGTH, y_val.shape[-1]))
+    # We'll use this "validation set" to periodically check progress
+    X_val, y_val, mask_val = gen_data()
 
-print "Total parameters: {}".format(
-    sum([p.get_value().size for p in lasagne.layers.get_all_params(l_out)]))
+    print "Training ..."
+    try:
+        for n in range(N_ITERATIONS):
+            X, y, m = gen_data()
+            train(X, y, m)
+            if not n % CHECK_FREQUENCY:
+                cost_val = compute_cost(X_val, y_val, mask_val)
+                print "Iteration {} validation cost = {}".format(n, cost_val)
+    except KeyboardInterrupt:
+        pass
 
-# Cost function is mean squared error
-input = T.tensor3('input')
-target_output = T.tensor3('target_output')
+    final_cost = compute_cost(X_val, y_val, mask_val)
+    print "Final validation cost = {}".format(final_cost)
 
-# Cost = mean squared error, starting from delay point
-cost = T.mean((lasagne.layers.get_output(l_out, input)[:, DELAY:, :]
-               - target_output[:, DELAY:, :])**2)
-# Use NAG for training
-all_params = lasagne.layers.get_all_params(l_out)
-updates = lasagne.updates.nesterov_momentum(cost, all_params, LEARNING_RATE)
-# Theano functions for training, getting output, and computing cost
-train = theano.function([input, target_output], cost, updates=updates)
-y_pred = theano.function([input], lasagne.layers.get_output(l_out, input))
-compute_cost = theano.function([input, target_output], cost)
-
-# Train the net
-costs = np.zeros(N_ITERATIONS)
-for n in range(N_ITERATIONS):
-    X, y = gen_data()
-    costs[n] = train(X, y)
-    if not n % 100:
-        cost_val = compute_cost(X_val, y_val)
-        print "Iteration {} validation cost = {}".format(n, cost_val)
+if __name__ == '__main__':
+    main()

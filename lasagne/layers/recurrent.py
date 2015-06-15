@@ -403,6 +403,11 @@ class RecurrentLayer(CustomRecurrentLayer):
                                 num_units, W=W_hid_to_hid, b=None,
                                 nonlinearity=None)
 
+        # Make child layer parameters intuitively accessible
+        self.W_in_to_hid = in_to_hid.W
+        self.W_hid_to_hid = hid_to_hid.W
+        self.b = in_to_hid.b
+
         # Just use the CustomRecurrentLayer with the DenseLayers we created
         super(RecurrentLayer, self).__init__(
             incoming, in_to_hid, hid_to_hid, nonlinearity=nonlinearity,

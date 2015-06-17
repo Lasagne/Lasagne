@@ -79,7 +79,7 @@ def conv_output_length(input_length, filter_size,
     elif border_mode == 'pad':
         output_length = input_length + 2 * pad - filter_size + 1
     else:
-        raise RuntimeError('Invalid border mode: {0}'.format(border_mode))
+        raise ValueError('Invalid border mode: {0}'.format(border_mode))
 
     # This is the integer arithmetic equivalent to
     # np.ceil(output_length / stride)

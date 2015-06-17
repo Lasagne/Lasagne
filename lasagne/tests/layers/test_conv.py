@@ -92,6 +92,19 @@ def conv1d_test_sets():
     yield _convert(input, kernel, output, {'b': None})
 
 
+def test_conv_output_length():
+    from lasagne.layers.conv import conv_output_length
+
+    assert conv_output_length(13, 5, 3, 'valid', 2) == 3
+    assert conv_output_length(13, 5, 3, 'full', 2) == 6
+    assert conv_output_length(13, 5, 3, 'same', 2) == 5
+    assert conv_output_length(13, 5, 3, 'pad', 2) == 5
+
+    with pytest.raises(ValueError) as exc:
+        conv_output_length(13, 5, 3, '_nonexistent_mode', 2)
+    assert "Invalid border mode" in exc.value.args[0]
+
+
 @pytest.fixture
 def DummyInputLayer():
     def factory(shape):
@@ -253,14 +266,6 @@ class TestConv2DLayerImplementations:
         assert layer.get_params(trainable=False) == []
         assert layer.get_params(_nonexistent_tag=True) == []
         assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
-
-
-class TestConvOutputLength:
-    def test_invalid_border_mode(self):
-        from lasagne.layers.conv import conv_output_length
-        with pytest.raises(RuntimeError) as exc:
-            conv_output_length(5, 3, 1, border_mode='_nonexistent_mode')
-        assert "Invalid border mode" in exc.value.args[0]
 
 
 class TestConv2DDNNLayer:

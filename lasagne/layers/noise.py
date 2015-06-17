@@ -14,7 +14,7 @@ __all__ = [
 
 
 class DropoutLayer(Layer):
-    """Dropout layer [1]_,[2]_.
+    """Dropout layer [1]_, [2]_
 
     Sets values to zero with probability p. See notes for disabling dropout
     during testing.

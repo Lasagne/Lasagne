@@ -23,11 +23,6 @@ class ConcatLayer(MergeLayer):
 
     axis : int
         Axis which inputs are joined over
-
-    See Also
-    ---------
-    concat : Shortcut
-
     """
     def __init__(self, incomings, axis=1, **kwargs):
         super(ConcatLayer, self).__init__(incomings, **kwargs)

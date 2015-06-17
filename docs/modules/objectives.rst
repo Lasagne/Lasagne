@@ -3,6 +3,24 @@
 
 .. automodule:: lasagne.objectives
 
+
+Loss functions
+--------------
+
+.. autofunction:: binary_crossentropy
+.. autofunction:: categorical_crossentropy
+.. autofunction:: squared_error
+
+
+Aggregation functions
+---------------------
+
+.. autofunction:: aggregate
+
+
+Deprecated
+----------
+
 .. autofunction:: mse
 
 .. autoclass:: Objective

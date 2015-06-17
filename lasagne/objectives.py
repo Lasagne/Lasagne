@@ -12,14 +12,13 @@ predictions and targets:
     categorical_crossentropy
     squared_error
 
-Two functions aggregate such losses into a scalar expression suitable for
-differentiation:
+A convenience function aggregates such losses into a scalar expression
+suitable for differentiation:
 
 .. autosummary::
     :nosignatures:
 
     aggregate
-    weighted_aggregate
 
 Note that these functions only serve to write more readable code, but are
 completely optional. Essentially, any differentiable scalar Theano expression
@@ -72,7 +71,6 @@ __all__ = [
     "categorical_crossentropy",
     "squared_error",
     "aggregate",
-    "weighted_aggregate",
     "mse", "Objective", "MaskedObjective",  # deprecated
 ]
 
@@ -155,31 +153,8 @@ def squared_error(a, b):
     return (a - b)**2
 
 
-def aggregate(loss, mode='mean'):
+def aggregate(loss, weights=None, mode='mean'):
     """Aggregates an element- or item-wise loss to a scalar loss.
-
-    Parameters
-    ----------
-    loss : Theano tensor
-        The loss expression to aggregate.
-    mode : {'mean', 'sum'}
-        Whether to aggregate by averaging or summing.
-
-    Returns
-    -------
-    Theano scalar
-        A scalar loss expression suitable for differentiation
-    """
-    if mode == 'mean':
-        return loss.mean()
-    elif mode == 'sum':
-        return loss.sum()
-    else:
-        raise ValueError("mode must be 'mean' or 'sum', got %r" % mode)
-
-
-def weighted_aggregate(loss, weights=None, mode='mean'):
-    """Weighted aggregation of an element- or item-wise loss to a scalar.
 
     Parameters
     ----------
@@ -187,10 +162,11 @@ def weighted_aggregate(loss, weights=None, mode='mean'):
         The loss expression to aggregate.
     weights : Theano tensor, optional
         The weights for each element or item, must be broadcastable to
-        the same shape as `loss` if given.
+        the same shape as `loss` if given. If omitted, all elements will
+        be weighted the same.
     mode : {'mean', 'sum', 'normalized_sum'}
         Whether to aggregate by averaging, by summing or by summing and
-        dividing by the total weights.
+        dividing by the total weights (which requires `weights` to be given).
 
     Returns
     -------
@@ -264,7 +240,7 @@ class Objective(object):  # pragma no cover
 
         losses = self.loss_function(network_output, target)
 
-        return aggregate(losses, aggregation)
+        return aggregate(losses, mode=aggregation)
 
 
 class MaskedObjective(object):  # pragma no cover
@@ -300,4 +276,4 @@ class MaskedObjective(object):  # pragma no cover
 
         losses = self.loss_function(network_output, target)
 
-        return weighted_aggregate(losses, mask, aggregation)
+        return aggregate(losses, mask, mode=aggregation)

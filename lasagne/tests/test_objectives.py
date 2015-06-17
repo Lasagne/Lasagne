@@ -68,60 +68,45 @@ def test_aggregate_mean():
     from lasagne.objectives import aggregate
     x = theano.tensor.matrix('x')
     assert theano.gof.graph.is_same_graph(aggregate(x), x.mean())
-    assert theano.gof.graph.is_same_graph(aggregate(x, 'mean'), x.mean())
+    assert theano.gof.graph.is_same_graph(aggregate(x, mode='mean'), x.mean())
 
 
 def test_aggregate_sum():
     from lasagne.objectives import aggregate
     x = theano.tensor.matrix('x')
-    assert theano.gof.graph.is_same_graph(aggregate(x, 'sum'), x.sum())
+    assert theano.gof.graph.is_same_graph(aggregate(x, mode='sum'), x.sum())
+
+
+def test_aggregate_weighted_mean():
+    from lasagne.objectives import aggregate
+    x = theano.tensor.matrix('x')
+    w = theano.tensor.matrix('w')
+    assert theano.gof.graph.is_same_graph(aggregate(x, w), (x * w).mean())
+    assert theano.gof.graph.is_same_graph(aggregate(x, w, mode='mean'),
+                                          (x * w).mean())
+
+
+def test_aggregate_weighted_sum():
+    from lasagne.objectives import aggregate
+    x = theano.tensor.matrix('x')
+    w = theano.tensor.matrix('w')
+    assert theano.gof.graph.is_same_graph(aggregate(x, w, mode='sum'),
+                                          (x * w).sum())
+
+
+def test_aggregate_weighted_normalized_sum():
+    from lasagne.objectives import aggregate
+    x = theano.tensor.matrix('x')
+    w = theano.tensor.matrix('w')
+    assert theano.gof.graph.is_same_graph(aggregate(x, w, 'normalized_sum'),
+                                          (x * w).sum() / w.sum())
 
 
 def test_aggregate_invalid():
     from lasagne.objectives import aggregate
     with pytest.raises(ValueError) as exc:
-        aggregate(theano.tensor.matrix(), 'asdf')
-    assert 'mode must be' in exc.value.args[0]
-
-
-def test_weighted_aggregate_mean():
-    from lasagne.objectives import weighted_aggregate
-    x = theano.tensor.matrix('x')
-    assert theano.gof.graph.is_same_graph(weighted_aggregate(x),
-                                          x.mean())
-    assert theano.gof.graph.is_same_graph(weighted_aggregate(x, mode='mean'),
-                                          x.mean())
-    w = theano.tensor.matrix('w')
-    assert theano.gof.graph.is_same_graph(weighted_aggregate(x, w),
-                                          (x * w).mean())
-    assert theano.gof.graph.is_same_graph(weighted_aggregate(x, w, 'mean'),
-                                          (x * w).mean())
-
-
-def test_weighted_aggregate_sum():
-    from lasagne.objectives import weighted_aggregate
-    x = theano.tensor.matrix('x')
-    assert theano.gof.graph.is_same_graph(weighted_aggregate(x, mode='sum'),
-                                          x.sum())
-    w = theano.tensor.matrix('w')
-    assert theano.gof.graph.is_same_graph(weighted_aggregate(x, w, 'sum'),
-                                          (x * w).sum())
-
-
-def test_weighted_aggregate_normalized_sum():
-    from lasagne.objectives import weighted_aggregate
-    x = theano.tensor.matrix('x')
-    w = theano.tensor.matrix('w')
-    assert theano.gof.graph.is_same_graph(weighted_aggregate(x, w,
-                                                             'normalized_sum'),
-                                          (x * w).sum() / w.sum())
-
-
-def test_weighted_aggregate_invalid():
-    from lasagne.objectives import weighted_aggregate
-    with pytest.raises(ValueError) as exc:
-        weighted_aggregate(theano.tensor.matrix(), mode='asdf')
+        aggregate(theano.tensor.matrix(), mode='asdf')
     assert 'mode must be' in exc.value.args[0]
     with pytest.raises(ValueError) as exc:
-        weighted_aggregate(theano.tensor.matrix(), mode='normalized_sum')
+        aggregate(theano.tensor.matrix(), mode='normalized_sum')
     assert 'require weights' in exc.value.args[0]

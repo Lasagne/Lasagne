@@ -16,7 +16,6 @@ Aggregation functions
 ---------------------
 
 .. autofunction:: aggregate
-.. autofunction:: weighted_aggregate
 
 
 Deprecated

@@ -78,7 +78,7 @@ Layer classes: noise layers
 .. autoclass:: DropoutLayer
     :members:
 
-.. autofunction:: dropout
+.. autoclass:: dropout
 
 .. autoclass:: GaussianNoiseLayer
     :members:
@@ -89,17 +89,25 @@ Layer classes: shape layers
 .. autoclass:: ReshapeLayer
     :members:
 
-.. autofunction:: reshape
+.. autoclass:: reshape
 
 .. autoclass:: FlattenLayer
     :members:
 
-.. autofunction:: flatten
+.. autoclass:: flatten
+
+.. autoclass:: DimshuffleLayer
+    :members:
+
+.. autoclass:: dimshuffle
 
 .. autoclass:: PadLayer
     :members:
 
-.. autofunction:: pad
+.. autoclass:: pad
+
+.. autoclass:: SliceLayer
+
 
 Layer classes: merge layers
 ---------------------------
@@ -107,13 +115,13 @@ Layer classes: merge layers
 .. autoclass:: ConcatLayer
     :members:
 
-.. autofunction:: concat
+.. autoclass:: concat
 
 .. autoclass:: ElemwiseSumLayer
     :members:
 
 Layer classes: embedding layers
----------------------------
+-------------------------------
 
 .. autoclass:: EmbeddingLayer
     :members:
@@ -137,4 +145,3 @@ Layer classes: embedding layers
 
 .. automodule:: lasagne.layers.dnn
     :members:
-

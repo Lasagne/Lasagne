@@ -1,5 +1,5 @@
 :mod:`lasagne.regularization`
-======================
+=============================
 
 .. automodule:: lasagne.regularization
 

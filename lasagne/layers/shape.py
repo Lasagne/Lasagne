@@ -220,10 +220,6 @@ class DimshuffleLayer(Layer):
     >>> l2 = DimshuffleLayer(l1, (4, 2, 1, 0))
     >>> l2.output_shape
     (2, 3, 5, 7)
-
-    See Also
-    --------
-    dimshuffle : Shortcut
     """
     def __init__(self, incoming, pattern, **kwargs):
         super(DimshuffleLayer, self).__init__(incoming, **kwargs)
@@ -304,10 +300,6 @@ class PadLayer(Layer):
         Dimensions up to this value are not padded. For padding convolutional
         layers this should be set to 2 so the sample and filter dimensions are
         not padded
-
-    See Also
-    --------
-    pad : Shortcut
     """
     def __init__(self, incoming, width, val=0, batch_ndim=2, **kwargs):
         super(PadLayer, self).__init__(incoming, **kwargs)

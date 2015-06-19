@@ -499,17 +499,10 @@ def test_lstm_unroll_scan_bck():
     # need to set random seed.
     np.random.seed(1234)
     l_lstm_scan = LSTMLayer(l_inp, num_units=num_units, backwards=True,
-                            unroll_scan=False, nonlinearity_cell=None,
-                            nonlinearity_forgetgate=None,
-                            nonlinearity_ingate=None, nonlinearity_out=None,
-                            nonlinearity_outgate=None)
+                            unroll_scan=False)
     np.random.seed(1234)
     l_lstm_unrolled = LSTMLayer(l_inp, num_units=num_units, backwards=True,
-                                unroll_scan=True, nonlinearity_cell=None,
-                                nonlinearity_forgetgate=None,
-                                nonlinearity_ingate=None,
-                                nonlinearity_out=None,
-                                nonlinearity_outgate=None)
+                                unroll_scan=True)
     output_scan = helper.get_output(l_lstm_scan, x)
     output_scan_unrolled = helper.get_output(l_lstm_unrolled, x)
 
@@ -716,14 +709,10 @@ def test_gru_unroll_scan_bck():
     # need to set random seed.
     np.random.seed(1234)
     l_gru_scan = GRULayer(l_inp, num_units=num_units, backwards=True,
-                          unroll_scan=False, nonlinearity_resetgate=None,
-                          nonlinearity_updategate=None,
-                          nonlinearity_hid=None)
+                          unroll_scan=False)
     np.random.seed(1234)
     l_gru_unrolled = GRULayer(l_inp, num_units=num_units, backwards=True,
-                              unroll_scan=True, nonlinearity_resetgate=None,
-                              nonlinearity_updategate=None,
-                              nonlinearity_hid=None)
+                              unroll_scan=True)
     output_scan = helper.get_output(l_gru_scan, x)
     output_unrolled = helper.get_output(l_gru_unrolled, x)
 

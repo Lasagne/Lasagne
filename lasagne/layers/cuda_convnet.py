@@ -8,6 +8,7 @@ from .. import nonlinearities
 from .base import Layer
 
 from .conv import conv_output_length
+from .pool import pool_output_length
 from ..utils import as_tuple
 
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
@@ -506,10 +507,18 @@ class MaxPool2DCCLayer(CCLayer):
             num_input_channels = input_shape[0]
             input_rows, input_columns = input_shape[1:3]
 
-        output_rows = int(np.ceil(float(input_rows - self.pool_size +
-                                        self.stride) / self.stride))
-        output_columns = int(np.ceil(float(input_columns - self.pool_size +
-                                           self.stride) / self.stride))
+        output_rows = pool_output_length(input_rows,
+                                         pool_size=self.pool_size,
+                                         stride=self.stride,
+                                         ignore_border=False,
+                                         pad=0,
+                                         )
+        output_columns = pool_output_length(input_columns,
+                                            pool_size=self.pool_size,
+                                            stride=self.stride,
+                                            ignore_border=False,
+                                            pad=0,
+                                            )
 
         if self.dimshuffle:
             return (batch_size, num_input_channels, output_rows,

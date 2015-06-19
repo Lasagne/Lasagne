@@ -180,7 +180,8 @@ class TestMaxPool1DLayer:
         assert np.allclose(numpy_result, layer_result)
 
     @pytest.mark.parametrize(
-        "input_shape", [(32, 64, 128), (None, 64, 128), (32, None, 128)])
+        "input_shape", [(32, 64, 128), (None, 64, 128), (32, None, 128),
+                        (32, 64, None)])
     def test_get_output_shape_for(self, input_shape):
         input_layer = self.input_layer(input_shape)
         layer = self.layer_ignoreborder(input_layer, pool_size=2)
@@ -266,18 +267,21 @@ class TestMaxPool2DLayer:
             pytest.skip()
 
     @pytest.mark.parametrize(
-        "input_shape",
-        [(32, 64, 24, 24), (None, 64, 24, 24), (32, None, 24, 24)],
+        "input_shape,output_shape",
+        [((32, 64, 24, 24), (32, 64, 12, 12)),
+         ((None, 64, 24, 24), (None, 64, 12, 12)),
+         ((32, None, 24, 24), (32, None, 12, 12)),
+         ((32, 64, None, 24), (32, 64, None, 12)),
+         ((32, 64, 24, None), (32, 64, 12, None)),
+         ((32, 64, None, None), (32, 64, None, None))],
     )
-    def test_get_output_shape_for(self, input_shape):
+    def test_get_output_shape_for(self, input_shape, output_shape):
         try:
             input_layer = self.input_layer(input_shape)
             layer = self.layer(input_layer,
                                pool_size=(2, 2), stride=None)
             assert layer.get_output_shape_for(
-                (None, 64, 24, 24)) == (None, 64, 12, 12)
-            assert layer.get_output_shape_for(
-                (32, 64, 24, 24)) == (32, 64, 12, 12)
+                input_shape) == output_shape
         except NotImplementedError:
             pytest.skip()
 
@@ -326,18 +330,21 @@ class TestMaxPool2DCCLayer:
             pytest.skip()
 
     @pytest.mark.parametrize(
-        "input_shape",
-        [(32, 64, 24, 24), (None, 64, 24, 24), (32, None, 24, 24)],
+        "input_shape,output_shape",
+        [((32, 64, 24, 24), (32, 64, 12, 12)),
+         ((None, 64, 24, 24), (None, 64, 12, 12)),
+         ((32, None, 24, 24), (32, None, 12, 12)),
+         ((32, 64, None, 24), (32, 64, None, 12)),
+         ((32, 64, 24, None), (32, 64, 12, None)),
+         ((32, 64, None, None), (32, 64, None, None))],
     )
-    def test_get_output_shape_for(self, input_shape):
+    def test_get_output_shape_for(self, input_shape, output_shape):
         try:
             input_layer = self.input_layer(input_shape)
             layer = self.layer(input_layer,
                                pool_size=(2, 2), stride=None)
             assert layer.get_output_shape_for(
-                (None, 64, 24, 24)) == (None, 64, 12, 12)
-            assert layer.get_output_shape_for(
-                (32, 64, 24, 24)) == (32, 64, 12, 12)
+                input_shape) == output_shape
         except NotImplementedError:
             pytest.skip()
 
@@ -442,18 +449,21 @@ class TestMaxPool2DNNLayer:
             pytest.skip()
 
     @pytest.mark.parametrize(
-        "input_shape",
-        [(32, 64, 24, 24), (None, 64, 24, 24), (32, None, 24, 24)],
+        "input_shape,output_shape",
+        [((32, 64, 24, 24), (32, 64, 12, 12)),
+         ((None, 64, 24, 24), (None, 64, 12, 12)),
+         ((32, None, 24, 24), (32, None, 12, 12)),
+         ((32, 64, None, 24), (32, 64, None, 12)),
+         ((32, 64, 24, None), (32, 64, 12, None)),
+         ((32, 64, None, None), (32, 64, None, None))],
     )
-    def test_get_output_shape_for(self, input_shape):
+    def test_get_output_shape_for(self, input_shape, output_shape):
         try:
             input_layer = self.input_layer(input_shape)
             layer = self.layer(input_layer,
                                pool_size=(2, 2), stride=None, pad=(0, 0))
             assert layer.get_output_shape_for(
-                (None, 64, 24, 24)) == (None, 64, 12, 12)
-            assert layer.get_output_shape_for(
-                (32, 64, 24, 24)) == (32, 64, 12, 12)
+                input_shape) == output_shape
         except NotImplementedError:
             raise
         #    pytest.skip()

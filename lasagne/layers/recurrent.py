@@ -59,6 +59,7 @@ from . import helper
 __all__ = [
     "CustomRecurrentLayer",
     "RecurrentLayer",
+    "Gate",
     "LSTMLayer",
     "GRULayer"
 ]
@@ -973,7 +974,7 @@ class GRULayer(Layer):
 
         (self.W_in_to_hidden_update, self.W_hid_to_hidden_update,
          self.b_hidden_update, self.nonlinearity_hid) = add_gate_params(
-             updategate, 'hidden_update')
+             hidden_update, 'hidden_update')
 
         self.W_in_stacked = T.concatenate(
             [self.W_in_to_resetgate, self.W_in_to_updategate,

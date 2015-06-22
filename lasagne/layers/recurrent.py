@@ -539,7 +539,7 @@ class LSTMLayer(Layer):
     def __init__(self, incoming, num_units,
                  ingate=Gate(),
                  forgetgate=Gate(),
-                 cell=Gate(W_cell=False, nonlinearity=nonlinearities.tanh),
+                 cell=Gate(W_cell=None, nonlinearity=nonlinearities.tanh),
                  outgate=Gate(),
                  nonlinearity_out=nonlinearities.tanh,
                  cell_init=init.Constant(0.),

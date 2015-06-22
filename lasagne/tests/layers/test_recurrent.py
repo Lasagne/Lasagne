@@ -1,6 +1,6 @@
 import pytest
 from lasagne.layers import RecurrentLayer, LSTMLayer, CustomRecurrentLayer
-from lasagne.layers import InputLayer, DenseLayer, GRULayer
+from lasagne.layers import InputLayer, DenseLayer, GRULayer, Gate
 from lasagne.layers import helper
 import theano
 import theano.tensor as T
@@ -512,6 +512,22 @@ def test_lstm_unroll_scan_bck():
     np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
+def test_lstm_passthrough():
+    # Tests that the LSTM can simply pass through its input
+    l_in = InputLayer((4, 5, 6))
+    zero = lasagne.init.Constant(0.)
+    one = lasagne.init.Constant(1.)
+    pass_gate = Gate(zero, zero, zero, one, None)
+    no_gate = Gate(zero, zero, zero, zero, None)
+    in_pass_gate = Gate(
+        np.eye(6).astype(theano.config.floatX), zero, zero, zero, None)
+    l_rec = LSTMLayer(
+        l_in, 6, pass_gate, no_gate, in_pass_gate, pass_gate, None)
+    out = lasagne.layers.get_output(l_rec)
+    inp = np.arange(4*5*6).reshape(4, 5, 6).astype(theano.config.floatX)
+    np.testing.assert_almost_equal(out.eval({l_in.input_var: inp}), inp)
+
+
 def test_gru_return_shape():
     num_batch, seq_len, n_features1, n_features2 = 5, 3, 10, 11
     num_units = 6
@@ -747,6 +763,21 @@ def test_gru_precompute():
 
     # test that the backwards model reverses its final input
     np.testing.assert_almost_equal(output_precompute, output_no_precompute)
+
+
+def test_gru_passthrough():
+    # Tests that the LSTM can simply pass through its input
+    l_in = InputLayer((4, 5, 6))
+    zero = lasagne.init.Constant(0.)
+    one = lasagne.init.Constant(1.)
+    pass_gate = Gate(zero, zero, None, one, None)
+    no_gate = Gate(zero, zero, None, zero, None)
+    in_pass_gate = Gate(
+        np.eye(6).astype(theano.config.floatX), zero, None, zero, None)
+    l_rec = GRULayer(l_in, 6, no_gate, pass_gate, in_pass_gate)
+    out = lasagne.layers.get_output(l_rec)
+    inp = np.arange(4*5*6).reshape(4, 5, 6).astype(theano.config.floatX)
+    np.testing.assert_almost_equal(out.eval({l_in.input_var: inp}), inp)
 
 
 def test_gradient_steps_error():

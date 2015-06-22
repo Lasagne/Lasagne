@@ -117,6 +117,9 @@ Layer classes: merge layers
 
 .. autoclass:: concat
 
+.. autoclass:: ElemwiseMergeLayer
+    :members:
+
 .. autoclass:: ElemwiseSumLayer
     :members:
 

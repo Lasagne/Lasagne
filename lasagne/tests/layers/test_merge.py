@@ -49,3 +49,39 @@ class TestElemwiseSumLayer:
         input_shapes = [(3, 2), (3, 5)]
         with pytest.raises(ValueError):
             layer.get_output_shape_for(input_shapes)
+
+
+class TestElemwiseMergeLayerMul:
+    @pytest.fixture
+    def layer(self):
+        import theano.tensor as T
+        from lasagne.layers.merge import ElemwiseMergeLayer
+        return ElemwiseMergeLayer([Mock(), Mock()], merge_function=T.mul)
+
+    def test_get_output_for(self, layer):
+        a = numpy.array([[0, 1], [2, 3]])
+        b = numpy.array([[1, 2], [4, 5]])
+        inputs = [theano.shared(a),
+                  theano.shared(b)]
+        result = layer.get_output_for(inputs)
+        result_eval = result.eval()
+        desired_result = a*b
+        assert (result_eval == desired_result).all()
+
+
+class TestElemwiseMergeLayerMaximum:
+    @pytest.fixture
+    def layer(self):
+        import theano.tensor as T
+        from lasagne.layers.merge import ElemwiseMergeLayer
+        return ElemwiseMergeLayer([Mock(), Mock()], merge_function=T.maximum)
+
+    def test_get_output_for(self, layer):
+        a = numpy.array([[0, 1], [2, 3]])
+        b = numpy.array([[1, 2], [4, 5]])
+        inputs = [theano.shared(a),
+                  theano.shared(b)]
+        result = layer.get_output_for(inputs)
+        result_eval = result.eval()
+        desired_result = numpy.maximum(a, b)
+        assert (result_eval == desired_result).all()

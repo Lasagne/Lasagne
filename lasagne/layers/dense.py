@@ -135,11 +135,11 @@ class NINLayer(Layer):
         The layer feeding into this layer, or the expected input shape
 
     num_units : int
-        The number of units of the layer
+        The number of units of the layer.
 
-    untie_biases : bool
-        If false the network has a single bias vector similar to a dense
-        layer. If true a separate bias vector is used for each trailing
+    untie_biases : bool (default: False)
+        If False the network has a single bias vector similar to a dense
+        layer. If True a separate bias vector is used for each trailing
         dimension beyond the 2nd.
 
     W : Theano shared variable, numpy array or callable

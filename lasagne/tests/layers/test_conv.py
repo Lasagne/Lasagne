@@ -7,7 +7,19 @@ import lasagne
 from lasagne.utils import floatX
 
 
-def conv2d(input, kernel, border_mode):
+def conv2d(input, kernel, pad):
+    """Execute a 2D convolution.
+
+    Parameters
+    ----------
+    input : numpy array
+    kernel : numpy array
+    pad : {0, 'valid', 'same', 'full'}
+
+    Returns
+    -------
+    numpy array
+    """
     output = np.zeros((input.shape[0],
                        kernel.shape[0],
                        input.shape[2] + kernel.shape[2] - 1,
@@ -19,11 +31,11 @@ def conv2d(input, kernel, border_mode):
             output[:, :, i:i + input.shape[2],
                    j:j + input.shape[3]] += (input[:, np.newaxis] * k).sum(2)
 
-    if border_mode == 'valid':
+    if pad in ['valid', 0]:
         trim = (kernel.shape[2] - 1, kernel.shape[3] - 1)
         output = output[:, :, trim[0]:-trim[0], trim[1]:-trim[1]]
 
-    elif border_mode == 'same':
+    elif pad == 'same':
         shift_x = (kernel.shape[2] - 1) // 2
         shift_y = (kernel.shape[3] - 1) // 2
         output = output[:, :, shift_x:input.shape[2] + shift_x,
@@ -35,38 +47,38 @@ def conv2d_test_sets():
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
-    for border_mode in ['valid', 'full', 'same']:
+    for pad in ['valid', 'full', 'same']:
         for stride in [1, 2, 3]:
             input = np.random.random((3, 1, 16, 23))
             kernel = np.random.random((16, 1, 3, 3))
-            output = conv2d(input, kernel, border_mode=border_mode)
+            output = conv2d(input, kernel, pad=pad)
             output = output[:, :, ::stride, ::stride]
-            yield _convert(input, kernel, output, {'border_mode': border_mode,
+            yield _convert(input, kernel, output, {'pad': pad,
                                                    'stride': stride
                                                    })
 
             input = np.random.random((3, 3, 16, 23))
             kernel = np.random.random((16, 3, 3, 3))
-            output = conv2d(input, kernel, border_mode=border_mode)
+            output = conv2d(input, kernel, pad=pad)
             output = output[:, :, ::stride, ::stride]
-            yield _convert(input, kernel, output, {'border_mode': border_mode,
+            yield _convert(input, kernel, output, {'pad': pad,
                                                    'stride': stride
                                                    })
 
     # bias-less case
     input = np.random.random((3, 1, 16, 23))
     kernel = np.random.random((16, 1, 3, 3))
-    output = conv2d(input, kernel, border_mode='valid')
+    output = conv2d(input, kernel, pad='valid')
     yield _convert(input, kernel, output, {'b': None})
 
 
-def conv1d(input, kernel, border_mode='valid'):
+def conv1d(input, kernel, pad='valid'):
     output = []
     for b in input:
         temp = []
         for c in kernel:
             temp.append(
-                np.convolve(b[0, :], c[0, :], mode=border_mode))
+                np.convolve(b[0, :], c[0, :], mode=pad))
         output.append(temp)
     return np.array(output)
 
@@ -75,34 +87,35 @@ def conv1d_test_sets():
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
-    for border_mode in ['valid', 'full', 'same']:
+    for pad in [0, 'valid', 'full', 'same']:
         for stride in [1, 2, 3]:
             input = np.random.random((3, 1, 23))
             kernel = np.random.random((16, 1, 3))
-            output = conv1d(input, kernel, border_mode)
+            output = conv1d(input, kernel, pad)
             output = output[:, :, ::stride]
-            yield _convert(input, kernel, output, {'border_mode': border_mode,
+            yield _convert(input, kernel, output, {'pad': pad,
                                                    'stride': stride,
                                                    })
 
     # bias-less case
     input = np.random.random((3, 1, 23))
     kernel = np.random.random((16, 1, 3))
-    output = conv1d(input, kernel, border_mode='valid')
+    output = conv1d(input, kernel, pad='valid')
     yield _convert(input, kernel, output, {'b': None})
 
 
 def test_conv_output_length():
     from lasagne.layers.conv import conv_output_length
 
-    assert conv_output_length(13, 5, 3, 'valid', 2) == 3
-    assert conv_output_length(13, 5, 3, 'full', 2) == 6
-    assert conv_output_length(13, 5, 3, 'same', 2) == 5
-    assert conv_output_length(13, 5, 3, 'pad', 2) == 5
+    assert conv_output_length(13, 5, 3, 'valid') == 3
+    assert conv_output_length(13, 5, 3, 0) == 3
+    assert conv_output_length(13, 5, 3, 'full') == 6
+    assert conv_output_length(13, 5, 3, 'same') == 5
+    assert conv_output_length(13, 5, 3, 2) == 5
 
     with pytest.raises(ValueError) as exc:
-        conv_output_length(13, 5, 3, '_nonexistent_mode', 2)
-    assert "Invalid border mode" in exc.value.args[0]
+        conv_output_length(13, 5, 3, '_nonexistent_mode')
+    assert "Invalid pad" in exc.value.args[0]
 
 
 @pytest.fixture
@@ -151,13 +164,13 @@ class TestConv1DLayer:
         assert layer.nonlinearity == lasagne.nonlinearities.identity
         assert layer.b is None
 
-    def test_invalid_border_mode(self, DummyInputLayer):
+    def test_invalid_pad(self, DummyInputLayer):
         from lasagne.layers.conv import Conv1DLayer
         input_layer = DummyInputLayer((1, 2, 3))
         with pytest.raises(RuntimeError) as exc:
             layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
-                                border_mode='_nonexistent_mode')
-        assert "Invalid border mode" in exc.value.args[0]
+                                pad='_nonexistent_mode')
+        assert "Invalid pad" in exc.value.args[0]
 
 
 class TestConv2DLayerImplementations:
@@ -249,12 +262,12 @@ class TestConv2DLayerImplementations:
         assert layer.nonlinearity == lasagne.nonlinearities.identity
         assert layer.b is None
 
-    def test_invalid_border_mode(self, Conv2DImpl, DummyInputLayer):
+    def test_invalid_pad(self, Conv2DImpl, DummyInputLayer):
         input_layer = DummyInputLayer((1, 2, 3))
         with pytest.raises(RuntimeError) as exc:
             layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
-                               border_mode='_nonexistent_mode')
-        assert "Invalid border mode" in exc.value.args[0]
+                               pad='_nonexistent_mode')
+        assert "Invalid pad" in exc.value.args[0]
 
     def test_get_params(self, Conv2DImpl, DummyInputLayer):
         input_layer = DummyInputLayer((128, 3, 32, 32))
@@ -284,12 +297,6 @@ class TestConv2DDNNLayer:
             pytest.skip("dnn not available")
 
         input_layer = DummyInputLayer((1, 2, 3, 3))
-        with pytest.raises(RuntimeError) as exc:
-            layer = Conv2DDNNLayer(input_layer, num_filters=1,
-                                   filter_size=(3, 3), border_mode='valid',
-                                   pad=(1, 1))
-        assert ("You cannot specify both 'border_mode' and 'pad'" in
-                exc.value.args[0])
 
         layer = Conv2DDNNLayer(input_layer, num_filters=4, filter_size=(3, 3),
                                pad=(3, 3))
@@ -311,12 +318,6 @@ class TestConv2DMMLayer:
             pytest.skip("corrmm not available")
 
         input_layer = DummyInputLayer((1, 2, 3, 3))
-        with pytest.raises(RuntimeError) as exc:
-            layer = Conv2DMMLayer(input_layer, num_filters=1,
-                                  filter_size=(3, 3), border_mode='valid',
-                                  pad=(1, 1))
-        assert ("You cannot specify both 'border_mode' and 'pad'" in
-                exc.value.args[0])
 
         layer = Conv2DMMLayer(input_layer, num_filters=4, filter_size=(3, 3),
                               pad=(3, 3))
@@ -378,13 +379,6 @@ class TestConv2DCCLayer:
             pytest.skip("cuda_convnet not available")
 
         input_layer = DummyInputLayer((128, 3, 32, 32))
-        with pytest.raises(RuntimeError) as exc:
-            layer = Conv2DCCLayer(input_layer, num_filters=16,
-                                  filter_size=(3, 3), border_mode='valid',
-                                  pad=(1, 1))
-        assert ("You cannot specify both 'border_mode' and 'pad'" in
-                exc.value.args[0])
-
         layer = Conv2DCCLayer(input_layer, num_filters=16, filter_size=(3, 3),
                               pad=(3, 3))
         assert layer.output_shape == (128, 16, 36, 36)

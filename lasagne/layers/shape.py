@@ -29,7 +29,7 @@ class FlattenLayer(Layer):
     ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
-    outdim : int
+    outdim : int (default: 2)
         The number of dimensions in the output.
 
     See Also
@@ -44,8 +44,8 @@ class FlattenLayer(Layer):
             raise ValueError('Dim must be >0, was %i', outdim)
 
     def get_output_shape_for(self, input_shape):
-        shp = [input_shape[i] for i in range(self.outdim-1)]
-        shp += [int(np.prod(input_shape[(self.outdim-1):]))]
+        shp = [input_shape[i] for i in range(self.outdim - 1)]
+        shp += [int(np.prod(input_shape[(self.outdim - 1):]))]
         return tuple(shp)
 
     def get_output_for(self, input, **kwargs):
@@ -193,7 +193,7 @@ class DimshuffleLayer(Layer):
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
-        the layer feeding into this layer, or the expected input shape
+        The layer feeding into this layer, or the expected input shape.
 
     pattern : tuple
         The new dimension order, with each element giving the index
@@ -293,10 +293,10 @@ class PadLayer(Layer):
     width : int
         Padding width
 
-    val : float
+    val : float (default: 0)
         Value used for padding
 
-    batch_ndim : int
+    batch_ndim : int (default: 2)
         Dimensions up to this value are not padded. For padding convolutional
         layers this should be set to 2 so the sample and filter dimensions are
         not padded
@@ -337,7 +337,7 @@ class SliceLayer(Layer):
         the axis. If a slice, selects all elements in the given range, keeping
         the axis.
 
-    axis : int
+    axis : int (default: -1)
         Specifies the axis from which the indices are selected.
 
     Examples

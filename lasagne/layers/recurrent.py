@@ -397,12 +397,12 @@ class RecurrentLayer(CustomRecurrentLayer):
         # so we need to remove the second dimension (the time dimension)
         in_to_hid = DenseLayer(InputLayer((num_batch,) + input_shape[2:]),
                                num_units, W=W_in_to_hid, b=b,
-                               nonlinearity=None)
+                               nonlinearity=None, **kwargs)
         # The hidden-to-hidden layer expects its inputs to have num_units
         # features because it recycles the previous hidden state
         hid_to_hid = DenseLayer(InputLayer((num_batch, num_units)),
                                 num_units, W=W_hid_to_hid, b=None,
-                                nonlinearity=None)
+                                nonlinearity=None, **kwargs)
 
         # Make child layer parameters intuitively accessible
         self.W_in_to_hid = in_to_hid.W

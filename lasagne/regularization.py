@@ -1,3 +1,53 @@
+"""
+Functions to apply regularization to the weights in a network.
+
+We provide functions to calculate the L1 and L2 penalty. Penalty functions
+take a tensor as input and calculate the penalty contribution from that tensor:
+
+.. autosummary::
+    :nosignatures:
+
+    l1
+    l2
+
+A helper function can be used to apply a penalty function to a tensor or a
+list of tensors:
+
+.. autosummary::
+    :nosignatures:
+
+    apply_penalty
+
+Finally we provide two helper functions for applying a penalty function to the
+parameters in a layer or the parameters in a group of layers:
+
+.. autosummary::
+    :nosignatures:
+
+    regularize_layer_params_weighted
+    regularize_network_params
+
+Examples
+--------
+>>> import lasagne
+>>> import theano.tensor as T
+>>> import theano
+>>> from lasagne.nonlinearities import softmax
+>>> from lasagne.layers import InputLayer, DenseLayer, get_output
+>>> from lasagne.regularization import regularize_layer_params_weighted, l2, l1
+>>> from lasagne.regularization import regularize_layer_params
+>>> layer_in = InputLayer((100, 20))
+>>> layer1 = DenseLayer(layer_in, num_units=3)
+>>> layer2 = DenseLayer(layer1, num_units=5, nonlinearity=softmax)
+>>> x = T.matrix('x')  # shp: num_batch x num_features
+>>> y = T.ivector('y') # shp: num_batch
+>>> l_out = get_output(layer2, x)
+>>> loss = T.mean(T.nnet.categorical_crossentropy(l_out, y))
+>>> layers = {layer1: 0.1, layer2: 0.5}
+>>> l2_penalty = regularize_layer_params_weighted(layers, l2)
+>>> l1_penalty = regularize_layer_params(layer2, l1) * 1e-4
+>>> loss = loss + l2_penalty + l1_penalty
+"""
 import theano.tensor as T
 from .layers import Layer, get_all_params
 

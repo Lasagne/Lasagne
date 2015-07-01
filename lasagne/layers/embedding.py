@@ -12,6 +12,9 @@ __all__ = [
 
 class EmbeddingLayer(Layer):
     """
+    lasagne.layers.EmbeddingLayer(incoming, input_size, output_size,
+    W=lasagne.init.Normal(), **kwargs)
+
     A layer for word embeddings. The input should be an integer type
     Tensor variable.
 

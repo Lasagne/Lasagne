@@ -20,10 +20,9 @@ by using a few reshape operations; please refer to the example below.
 
 Examples
 --------
-We set up a bidirectional LSTM with :func:`lasagne.updates.adam` updates.
-In the example the reshapes dimensions are determined based on the size of the
-input. This allows for varying both the batch size and sequence length at
-runtime.
+The following example demonstrates how recurrent layers can be easily mixed
+with feed-forward layers using :class:`ReshapeLayer`s and how to build a
+network with variable batch size and number of time steps.
 
 >>> from lasagne.layers import *
 >>> num_inputs, num_units, num_classes = 10, 12, 5

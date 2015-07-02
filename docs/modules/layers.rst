@@ -148,6 +148,9 @@ Layer classes: recurrent layers
 .. autoclass:: GRULayer
     :members:
 
+.. autoclass:: Gate
+    :members:
+
 :mod:`lasagne.layers.corrmm`
 ============================
 

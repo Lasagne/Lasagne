@@ -15,13 +15,23 @@ The following recurrent layers are implemented:
     LSTMLayer
     GRULayer
 
+For recurrent layers with gates we use a helper class to setup the parameters
+in each gate:
+
+.. autosummary::
+    :nosignatures:
+
+    Gate
+
+Please refer to that class if you need to modify initial conditions of gates.
+
 Recurrent layers and feed-forward layers can be combined in the same network
 by using a few reshape operations; please refer to the example below.
 
 Examples
 --------
 The following example demonstrates how recurrent layers can be easily mixed
-with feed-forward layers using :class:`ReshapeLayer`s and how to build a
+with feed-forward layers using :class:`ReshapeLayer` and how to build a
 network with variable batch size and number of time steps.
 
 >>> from lasagne.layers import *
@@ -65,7 +75,14 @@ __all__ = [
 
 
 class CustomRecurrentLayer(Layer):
-    """A layer which implements a recurrent connection.
+    """
+    lasagne.layers.recurrent.CustomRecurrentLayer(incoming, input_to_hidden,
+    hidden_to_hidden, nonlinearity=lasagne.nonlinearities.rectify,
+    hid_init=lasagne.init.Constant(0.), backwards=False,
+    learn_init=False, gradient_steps=-1, grad_clipping=False,
+    unroll_scan=False, precompute_input=True, **kwargs)
+
+    A layer which implements a recurrent connection.
 
     This layer allows you to specify custom input-to-hidden and
     hidden-to-hidden connections by instantiating layer instances and passing
@@ -325,7 +342,15 @@ class CustomRecurrentLayer(Layer):
 
 
 class RecurrentLayer(CustomRecurrentLayer):
-    """Dense recurrent neural network (RNN) layer
+    """
+    lasagne.layers.recurrent.RecurrentLayer(incoming, num_units,
+    W_in_to_hid=lasagne.init.Uniform(), W_hid_to_hid=lasagne.init.Uniform(),
+    b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
+    hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
+    gradient_steps=-1, grad_clipping=False, unroll_scan=False,
+    precompute_input=True, **kwargs)
+
+    Dense recurrent neural network (RNN) layer
 
     A "vanilla" RNN layer, which has dense input-to-hidden and
     hidden-to-hidden connections.  The output is computed as
@@ -424,7 +449,12 @@ class RecurrentLayer(CustomRecurrentLayer):
 
 
 class Gate(object):
-    """ Simple class to hold the parameters for a gate connection.  We define
+    """
+    lasagne.layers.recurrent.Gate(W_in=lasagne.init.Normal(0.1),
+    W_hid=lasagne.init.Normal(0.1), W_cell=lasagne.init.Normal(0.1),
+    b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.sigmoid)
+
+    Simple class to hold the parameters for a gate connection.  We define
     a gate loosely as something which compute the linear mix of two inputs,
     optionally computes an element-wise product with a third, adds a bias, and
     applies a nonlinearity.
@@ -443,6 +473,24 @@ class Gate(object):
     nonlinearity : callable or None
         The nonlinearity that is applied to the input gate activation. If None
         is provided, no nonlinearity will be applied.
+
+    Examples
+    --------
+    For :class:`LSTMLayer` the bias of the forget gate is often initialized to
+    a large positive value to encourage the layer initially remember the cell
+    value, see e.g. [1]_ page 15.
+
+    >>> import lasagne
+    >>> forget_gate = Gate(b=lasagne.init.Constant(5.0))
+    >>> l_lstm = LSTMLayer((10, 20, 30), num_units=10,
+    ...                    forgetgate=forget_gate)
+
+    References
+    ----------
+    .. [1] Gers, Felix A., Jurgen Schmidhuber, and Fred Cummins. "Learning to
+           forget: Continual prediction with LSTM." Neural computation 12.10
+           (2000): 2451-2471.
+
     """
     def __init__(self, W_in=init.Normal(0.1), W_hid=init.Normal(0.1),
                  W_cell=init.Normal(0.1), b=init.Constant(0.),
@@ -461,7 +509,19 @@ class Gate(object):
 
 
 class LSTMLayer(Layer):
-    r"""A long short-term memory (LSTM) layer.
+    r"""
+    lasagne.layers.recurrent.LSTMLayer(incoming, num_units,
+    ingate=lasagne.layers.Gate(), forgetgate=lasagne.layers.Gate(),
+    cell=lasagne.layers.Gate(
+    W_cell=None, nonlinearity=lasagne.nonlinearities.tanh),
+    outgate=lasagne.layers.Gate(),
+    nonlinearity_out=lasagne.nonlinearities.tanh,
+    cell_init=b=lasagne.init.Constant(0.),
+    hid_init=b=lasagne.init.Constant(0.), backwards=False, learn_init=False,
+    peepholes=True, gradient_steps=-1, grad_clipping=False, unroll_scan=False,
+    precompute_input=True, **kwargs)
+
+    A long short-term memory (LSTM) layer.
 
     Includes optional "peephole connections" and a forget gate.  Based on the
     definition in [1]_, which is the current common definition.  The output is
@@ -856,7 +916,17 @@ class LSTMLayer(Layer):
 
 
 class GRULayer(Layer):
-    r"""Gated Recurrent Unit (GRU) Layer
+    r"""
+    lasagne.layers.recurrent.GRULayer(incoming, num_units,
+    resetgate=lasagne.layers.Gate(W_cell=None),
+    updategate=lasagne.layers.Gate(W_cell=None),
+    hidden_update=lasagne.layers.Gate(
+    W_cell=None, lasagne.nonlinearities.tanh),
+    hid_init=lasagne.init.Constant(0.), learn_init=True, backwards=False,
+    gradient_steps=-1, grad_clipping=False, unroll_scan=False,
+    precompute_input=True, **kwargs)
+
+    Gated Recurrent Unit (GRU) Layer
 
     Implements the updates proposed in [1]_, which computes the output by
 

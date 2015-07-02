@@ -112,7 +112,8 @@ class CustomRecurrentLayer(Layer):
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
         more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored.
+        setting is ignored. The input sequence length cannot be specified as
+        None when `unroll_scan` is True.
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -148,6 +149,10 @@ class CustomRecurrentLayer(Layer):
         if unroll_scan and gradient_steps != -1:
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
+
+        if unroll_scan and self.input_shape[1] is None:
+            raise ValueError("Input sequence length cannot be specified as "
+                             "None when unroll_scan is True")
 
         # Check that output shapes match
         if input_to_hidden.output_shape != hidden_to_hidden.output_shape:
@@ -366,7 +371,8 @@ class RecurrentLayer(CustomRecurrentLayer):
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
         more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored.
+        setting is ignored. The input sequence length cannot be specified as
+        None when `unroll_scan` is True.
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -524,7 +530,8 @@ class LSTMLayer(Layer):
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
         more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored.
+        setting is ignored. The input sequence length cannot be specified as
+        None when `unroll_scan` is True.
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -573,6 +580,10 @@ class LSTMLayer(Layer):
         if unroll_scan and gradient_steps != -1:
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
+
+        if unroll_scan and self.input_shape[1] is None:
+            raise ValueError("Input sequence length cannot be specified as "
+                             "None when unroll_scan is True")
 
         num_inputs = np.prod(self.input_shape[2:])
 
@@ -893,7 +904,8 @@ class GRULayer(Layer):
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
         more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored.
+        setting is ignored. The input sequence length cannot be specified as
+        None when `unroll_scan` is True.
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -948,6 +960,10 @@ class GRULayer(Layer):
         if unroll_scan and gradient_steps != -1:
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
+
+        if unroll_scan and self.input_shape[1] is None:
+            raise ValueError("Input sequence length cannot be specified as "
+                             "None when unroll_scan is True")
 
         # Input dimensionality is the output dimensionality of the input layer
         num_inputs = np.prod(self.input_shape[2:])

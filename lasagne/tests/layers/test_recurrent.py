@@ -792,3 +792,17 @@ def test_gradient_steps_error():
 
     with pytest.raises(ValueError):
         GRULayer(l_in, 5, gradient_steps=3, unroll_scan=True)
+
+
+def test_unroll_none_input_error():
+    # Test that a ValueError is raised if unroll scan is True and the input
+    # sequence length is specified as None.
+    l_in = InputLayer((2, None, 3))
+    with pytest.raises(ValueError):
+        RecurrentLayer(l_in, 5, unroll_scan=True)
+
+    with pytest.raises(ValueError):
+        LSTMLayer(l_in, 5, unroll_scan=True)
+
+    with pytest.raises(ValueError):
+        GRULayer(l_in, 5, unroll_scan=True)

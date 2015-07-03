@@ -60,6 +60,9 @@ Layer classes: pooling layers
 .. autoclass:: MaxPool1DLayer
     :members:
 
+.. autoclass:: Pool2DLayer
+    :members:
+
 .. autoclass:: MaxPool2DLayer
     :members:
 

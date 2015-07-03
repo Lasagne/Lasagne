@@ -58,17 +58,23 @@ class TestFlattenLayer:
 
 class TestPadLayer:
     @pytest.fixture
-    def layer(self):
+    def layerclass(self):
         from lasagne.layers.shape import PadLayer
-        return PadLayer(Mock(output_shape=(None,)), width=2)
+        return PadLayer
 
-    def test_get_output_shape_for(self, layer):
-        input_shape = (2, 3, 4, 5)
-        output_shape = (2, 3, 8, 9)
-
+    @pytest.mark.parametrize(
+        "width, input_shape, output_shape",
+        [(3, (2, 3, 4, 5), (2, 3, 10, 11)),
+         ((2, 3), (2, 3, 4, 5), (2, 3, 8, 11)),
+         (((1, 2), (3, 4)), (2, 3, 4, 5), (2, 3, 7, 12)),
+         ])
+    def test_get_output_shape_for(self, layerclass,
+                                  width, input_shape, output_shape):
+        layer = layerclass(Mock(output_shape=(None,)), width=width)
         assert layer.get_output_shape_for(input_shape) == output_shape
 
-    def test_get_output_for(self, layer):
+    def test_get_output_for(self, layerclass):
+        layer = layerclass(Mock(output_shape=(None,)), width=2)
         input = np.zeros((1, 2, 10))
         trimmed = theano.shared(input[:, :, 2:-2])
         result = layer.get_output_for(trimmed).eval()

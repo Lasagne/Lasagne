@@ -97,6 +97,16 @@ def one_hot(x, m=None):
     Theano tensor variable
         A Theano tensor variable of shape (``n``, `m`), where ``n`` is the
         length of `x`, with the one-hot representation of `x`.
+
+    Notes
+    -----
+
+    If your integer vector represents target class memberships, and you wish to
+    compute the cross-entropy between predictions and the target class
+    memberships, then there is no need to use this function, since the function
+    :func:`categorical_crossentropy()` can compute the cross-entropy from the
+    integer vector directly.
+
     """
     if m is None:
         m = T.cast(T.max(x) + 1, 'int32')

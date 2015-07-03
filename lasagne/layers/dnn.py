@@ -72,7 +72,10 @@ class Pool2DDNNLayer(DNNLayer):
                  mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.pool_size = as_tuple(pool_size, 2)
-        self.stride = as_tuple(stride, 2) if stride is not None else pool_size
+        if stride is None:
+            self.stride = self.pool_size
+        else:
+            self.stride = as_tuple(stride, 2)
         self.pad = as_tuple(pad, 2)
         self.mode = mode
 

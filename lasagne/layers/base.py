@@ -53,8 +53,12 @@ class Layer(object):
             Please do NOT override this method, or __repr__!
             To create a representation of the layer, override __layer_str.
             """
+        # TODO: this supports sequential networks, add support for networks with merge layer
         network = get_all_layers(self)
-        representation = ''
+        representation = 'input --> '
+        representation += ''.join(['[' + str(i) + '] --> ' for i in range(len(network))])
+        representation += 'output \n' \
+                          'Details:'
         for i in range(len(network)):
             try:
                 layer_repr = network[i].__layer_str()
@@ -62,7 +66,7 @@ class Layer(object):
                 layer_repr = type(network[i]).__name__
             except:
                 raise
-            representation += '\n[{0}]: {1}'.format(i, layer_repr)
+            representation += '\n\t[{0}]: {1}'.format(i, layer_repr)
         return representation
 
     def __layer_str(self):

@@ -6,6 +6,7 @@ from .. import nonlinearities
 from .base import Layer
 
 from .conv import conv_output_length
+from .pool import pool_output_length
 from ..utils import as_tuple
 
 if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
@@ -72,18 +73,30 @@ class Pool2DDNNLayer(DNNLayer):
                  mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.pool_size = as_tuple(pool_size, 2)
-        self.stride = as_tuple(stride, 2) if stride is not None else pool_size
+        if stride is None:
+            self.stride = self.pool_size
+        else:
+            self.stride = as_tuple(stride, 2)
         self.pad = as_tuple(pad, 2)
         self.mode = mode
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
-        output_shape[2] = (
-            output_shape[2] + 2 * self.pad[0] - self.pool_size[0]
-            ) // self.stride[0] + 1
-        output_shape[3] = (
-            output_shape[3] + 2 * self.pad[1] - self.pool_size[1]
-            ) // self.stride[1] + 1
+
+        output_shape[2] = pool_output_length(input_shape[2],
+                                             pool_size=self.pool_size[0],
+                                             stride=self.stride[0],
+                                             ignore_border=True,
+                                             pad=self.pad[0],
+                                             )
+
+        output_shape[3] = pool_output_length(input_shape[3],
+                                             pool_size=self.pool_size[1],
+                                             stride=self.stride[1],
+                                             ignore_border=True,
+                                             pad=self.pad[1],
+                                             )
+
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):

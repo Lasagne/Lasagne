@@ -7,29 +7,47 @@ import theano.tensor as T
 
 def pad(x, width, val=0, batch_ndim=1):
     """
-    pad all dimensions except the first 'batch_ndim' with 'width'
-    zeros on both sides, or with another value specified in 'val'.
+    Pad a tensor with a constant value.
+
+    Parameters
+    ----------
+    x : tensor
+
+    width : int, iterable of int, or iterable of tuple
+        Padding width. If an int, pads each axis symmetrically with the same
+        amount in the beginning and end. If an iterable of int, defines the
+        symmetric padding width separately for each axis. If an iterable of
+        tuples of two ints, defines a seperate padding width for each beginning
+        and end of each axis.
+
+    val : float
+        The constant value used for padding
+
+    batch_ndim : integer
+        Dimensions before the value will not be padded.
+
     """
-    in_ndim = x.ndim
-    in_shape = x.shape
+    input_shape = x.shape
+    input_ndim = x.ndim
 
-    out_shape = ()
-    for k in range(in_ndim):
-        if k < batch_ndim:
-            out_shape += (in_shape[k],)
-        else:
-            out_shape += (in_shape[k] + 2 * width,)
+    output_shape = list(input_shape)
+    indices = [slice(None) for _ in output_shape]
 
-    if val == 0:
-        out = T.zeros(out_shape)
+    if isinstance(width, int):
+        widths = [width] * (input_ndim - batch_ndim)
     else:
-        out = T.ones(out_shape) * val
+        widths = width
 
-    indices = ()
-    for k in range(0, in_ndim):
-        if k < batch_ndim:
-            indices += (slice(None),)
-        else:
-            indices += (slice(width, in_shape[k] + width),)
+    for k, w in enumerate(widths):
+        try:
+            l, r = w
+        except TypeError:
+            l = r = w
+        output_shape[k + batch_ndim] += l + r
+        indices[k + batch_ndim] = slice(l, l + input_shape[k + batch_ndim])
 
-    return T.set_subtensor(out[indices], x)
+    if val:
+        out = T.ones(output_shape) * val
+    else:
+        out = T.zeros(output_shape)
+    return T.set_subtensor(out[tuple(indices)], x)

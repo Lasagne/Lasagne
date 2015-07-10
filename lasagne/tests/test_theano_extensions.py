@@ -86,7 +86,8 @@ def test_conv_stride(impl):
 
 
 @pytest.mark.parametrize('val', [0, 7])
-def test_pad(val, width=3, batch_ndim=2):
+@pytest.mark.parametrize('batch_ndim', [1, 2])
+def test_pad(batch_ndim, val, width=3):
     from lasagne.theano_extensions.padding import pad
 
     X = T.tensor4()
@@ -95,6 +96,40 @@ def test_pad(val, width=3, batch_ndim=2):
 
     pads = tuple((width, width) if i >= batch_ndim else (0, 0)
                  for i, _ in enumerate(X0.shape))
+    X_pad_np = np.pad(X0, pads, mode='constant', constant_values=val)
+
+    assert (X_pad_theano == X_pad_np).all()
+
+
+@pytest.mark.parametrize('batch_ndim', [1, 2])
+def test_pad_width_per_axis(batch_ndim, val=0):
+    from lasagne.theano_extensions.padding import pad
+
+    width = (1, 2, 3, 4)
+
+    X = T.tensor4()
+    X0 = lasagne.utils.floatX(np.ones((2, 3, 4, 5)))
+    X_pad_theano = pad(X, width[batch_ndim:], val, batch_ndim).eval({X: X0})
+
+    pads = tuple((w, w) if i >= batch_ndim else (0, 0)
+                 for i, w in enumerate(width))
+    X_pad_np = np.pad(X0, pads, mode='constant', constant_values=val)
+
+    assert (X_pad_theano == X_pad_np).all()
+
+
+@pytest.mark.parametrize('batch_ndim', [1, 2])
+def test_pad_width_per_border(batch_ndim, val=0):
+    from lasagne.theano_extensions.padding import pad
+
+    width = [(1, 2), (3, 4), (1, 2), (3, 4)]
+
+    X = T.tensor4()
+    X0 = lasagne.utils.floatX(np.ones((2, 3, 4, 5)))
+    X_pad_theano = pad(X, width[batch_ndim:], val, batch_ndim).eval({X: X0})
+
+    pads = tuple(w if i >= batch_ndim else (0, 0)
+                 for i, w in enumerate(width))
     X_pad_np = np.pad(X0, pads, mode='constant', constant_values=val)
 
     assert (X_pad_theano == X_pad_np).all()

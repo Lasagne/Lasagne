@@ -282,16 +282,22 @@ dimshuffle = DimshuffleLayer  # shortcut
 
 class PadLayer(Layer):
     """
-    Pad all dimensions except the first 'batch_ndim' with 'width'
-    zeros on both sides, or with another value specified in 'val'.
+    Pad all dimensions except the first ``batch_ndim`` with ``width``
+    zeros on both sides, or with another value specified in ``val``.
+    Individual padding for each dimension or edge can be specified
+    using a tuple or list of tuples for ``width``.
 
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
-    width : int
-        Padding width
+    width : int, iterable of int, or iterable of tuple
+        Padding width. If an int, pads each axis symmetrically with the same
+        amount in the beginning and end. If an iterable of int, defines the
+        symmetric padding width separately for each axis. If an iterable of
+        tuples of two ints, defines a seperate padding width for each beginning
+        and end of each axis.
 
     val : float
         Value used for padding
@@ -308,14 +314,20 @@ class PadLayer(Layer):
         self.batch_ndim = batch_ndim
 
     def get_output_shape_for(self, input_shape):
-        output_shape = ()
-        for k, s in enumerate(input_shape):
-            if k < self.batch_ndim:
-                output_shape += (s,)
-            else:
-                output_shape += (s + 2 * self.width,)
+        output_shape = list(input_shape)
 
-        return output_shape
+        if isinstance(self.width, int):
+            widths = [self.width] * (len(input_shape) - self.batch_ndim)
+        else:
+            widths = self.width
+
+        for k, w in enumerate(widths):
+            try:
+                l, r = w
+            except TypeError:
+                l = r = w
+            output_shape[k + self.batch_ndim] += l + r
+        return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
         return padding.pad(input, self.width, self.val, self.batch_ndim)

@@ -116,19 +116,20 @@ def main(num_epochs=NUM_EPOCHS):
         W_in_to_hid=lasagne.init.HeUniform(),
         W_hid_to_hid=lasagne.init.HeUniform(),
         nonlinearity=lasagne.nonlinearities.tanh, backwards=True)
-    # We'll use an elementwise sum to combine the forward/backward layers
-    l_sum = lasagne.layers.ElemwiseSumLayer([l_forward, l_backward])
-    # We need a reshape layer which combines the first (batch size) and second
-    # (number of timesteps) dimensions, otherwise the DenseLayer will treat the
-    # number of time steps as a feature dimension
-    l_reshape = lasagne.layers.ReshapeLayer(
-        l_sum, (N_BATCH*MAX_LENGTH, N_HIDDEN))
+    # The objective of this task depends only on the final value produced by
+    # the network.  So, we'll use SliceLayers to extract the LSTM layer's
+    # output after processing the entire input sequence.  For the forward
+    # layer, this corresponds to the last value of the second (sequence length)
+    # dimension.
+    l_forward_slice = lasagne.layers.SliceLayer(l_forward, -1, 1)
+    # For the backwards layer, the first index actually corresponds to the
+    # final output of the network, as it processes the sequence backwards.
+    l_backward_slice = lasagne.layers.SliceLayer(l_backward, 0, 1)
+    # Now, we'll concatenate the outputs to combine them.
+    l_sum = lasagne.layers.ConcatLayer([l_forward_slice, l_backward_slice])
     # Our output layer is a simple dense connection, with 1 output unit
-    l_recurrent_out = lasagne.layers.DenseLayer(
-        l_reshape, num_units=1, nonlinearity=lasagne.nonlinearities.tanh)
-    # Now, reshape the output back to the RNN format
-    l_out = lasagne.layers.ReshapeLayer(
-        l_recurrent_out, (N_BATCH, MAX_LENGTH))
+    l_out = lasagne.layers.DenseLayer(
+        l_sum, num_units=1, nonlinearity=lasagne.nonlinearities.tanh)
 
     target_values = T.vector('target_output')
     mask = T.matrix('mask')

@@ -20,16 +20,13 @@ Install from PyPI
 .. note:: Lasagne hasn't been released as of now.  The only way to
           install it for now is from source.
 
-Simply run:
+To install release 0.1 of Lasagne from PyPI, run the following
+commands:
 
 .. code-block:: bash
 
-  pip install Lasagne
-
-It's also a good practice to install dependencies with exactly the
-same version numbers that the release was made with.  You can find the
-``requirements.txt`` that defines those version numbers in the top
-level directory of the Lasagne source tree.
+  pip install -r https://raw.githubusercontent.com/Lasagne/Lasagne/0.1/requirements.txt
+  pip install Lasagne==0.1
 
 Install from source
 ===================
@@ -42,10 +39,11 @@ copy is by cloning the git repository, for example:
   git clone https://github.com/Lasagne/Lasagne.git
 
 Once you have obtained a copy of the source, run the following command to
-install its dependencies:
+install Lasagne's dependencies:
 
 .. code-block:: bash
 
+  cd Lasagne
   pip install -r requirements.txt
 
 To install the Lasagne package itself, run:

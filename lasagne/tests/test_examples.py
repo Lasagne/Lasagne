@@ -35,4 +35,4 @@ def test_example(example, module_name):
         else:
             raise
 
-    main(1)  # run the example for one iteration
+    main(num_epochs=1)  # run the example for one iteration

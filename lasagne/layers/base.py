@@ -75,7 +75,7 @@ class Layer(object):
         Returns
         -------
         list of Theano shared variables
-            A list of variables that parameterize the layer
+            A list of variables that parameterize the layer.
 
         Notes
         -----

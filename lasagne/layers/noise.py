@@ -22,22 +22,22 @@ class DropoutLayer(Layer):
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
-        the layer feeding into this layer, or the expected input shape
+        The layer feeding into this layer, or the expected input shape.
     p : float or scalar tensor
-        The probability of setting a value to zero
-    rescale : bool
-        If true the input is rescaled with input / (1-p) when deterministic
+        The probability of setting a value to zero.
+    rescale : bool (default: True)
+        If True the input is rescaled with input / (1-p) when deterministic
         is False.
 
     Notes
     -----
     The dropout layer is a regularizer that randomly sets input values to
     zero, see references for why this might improve generalization.
-    During training you should set deterministic to false and during
-    testing you should set deterministic to true.
+    During training you should set deterministic to False and during
+    testing you should set deterministic to True.
 
-    If rescale is true the input is scaled with input / (1-p) when
-    deterministic is false, see references for further discussion. Note that
+    If rescale is True the input is scaled with input / (1-p) when
+    deterministic is False, see references for further discussion. Note that
     this implementation scales the input at training time.
 
     References
@@ -63,9 +63,9 @@ class DropoutLayer(Layer):
         Parameters
         ----------
         input : tensor
-            output from the previous layer
-        deterministic : bool
-            If true dropout and scaling is disabled, see notes
+            Output from the previous layer.
+        deterministic : bool (default: False)
+            If True dropout and scaling is disabled, see notes.
         """
         if deterministic or self.p == 0:
             return input
@@ -93,15 +93,15 @@ class GaussianNoiseLayer(Layer):
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
-            the layer feeding into this layer, or the expected input shape
+            The layer feeding into this layer, or the expected input shape.
     sigma : float or tensor scalar
-            Std of added Gaussian noise
+            Standard deviation of added Gaussian noise.
 
     Notes
     -----
     The Gaussian noise layer is a regularizer. During training you should set
-    deterministic to false and during testing you should set deterministic to
-    true.
+    deterministic to False and during testing you should set deterministic to
+    True.
 
     References
     ----------
@@ -120,9 +120,9 @@ class GaussianNoiseLayer(Layer):
         Parameters
         ----------
         input : tensor
-            output from the previous layer
-        deterministic : bool
-            If true noise is disabled, see notes
+            Output from the previous layer.
+        deterministic : bool (default: False)
+            If True noise is disabled, see notes.
         """
         if deterministic or self.sigma == 0:
             return input

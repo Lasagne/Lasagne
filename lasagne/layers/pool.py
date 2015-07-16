@@ -23,13 +23,13 @@ def pool_output_length(input_length, pool_size, stride,
 
     Parameters
     ----------
-    input_length : integer
+    input_length : int
         The length of the input in the pooling dimension
-    pool_size : integer
+    pool_size : int
         The length of the pooling region
-    stride : integer
+    stride : int
         The stride between successive pooling regions
-    pad : integer
+    pad : int
         The number of elements to be added to the input on each side.
     ignore_border: bool
         If ``True``, partial pooling regions will be ignored.
@@ -82,19 +82,19 @@ class MaxPool1DLayer(Layer):
     incoming : a :class:`Layer` instance or tuple
         The layer feeding into this layer, or the expected input shape.
 
-    pool_size : integer or iterable
+    pool_size : int or iterable
         The length of the pooling region. If an iterable, it should have a
         single element.
 
-    stride : integer, iterable or ``None``
+    stride : int, iterable or ``None`` (default: None)
         The stride between sucessive pooling regions.
         If ``None`` then ``stride == pool_size``.
 
-    pad : integer or iterable
+    pad : int or iterable (default: 0)
         The number of elements to be added to the input on each side.
         Must be less than stride.
 
-    ignore_border : bool
+    ignore_border : bool (default: False)
         If ``True``, partial pooling regions will be ignored.
         Must be ``True`` if ``pad != 0``.
 
@@ -152,21 +152,21 @@ class MaxPool2DLayer(Layer):
     incoming : a :class:`Layer` instance or tuple
         The layer feeding into this layer, or the expected input shape.
 
-    pool_size : integer or iterable
+    pool_size : int or iterable
         The length of the pooling region in each dimension.  If an integer, it
         is promoted to a square pooling region. If an iterable, it should have
         two elements.
 
-    stride : integer, iterable or ``None``
+    stride : int, iterable or ``None`` (default: None)
         The strides between sucessive pooling regions in each dimension.
         If ``None`` then ``stride = pool_size``.
 
-    pad : integer or iterable
+    pad : int or iterable (default: (0, 0))
         Number of elements to be added on each side of the input
         in each dimension. Each value must be less than
         the corresponding stride.
 
-    ignore_border : bool
+    ignore_border : bool (default: False)
         If ``True``, partial pooling regions will be ignored.
         Must be ``True`` if ``pad != (0, 0)``.
 
@@ -246,16 +246,16 @@ class FeaturePoolLayer(Layer):
     incoming : a :class:`Layer` instance or tuple
         The layer feeding into this layer, or the expected input shape.
 
-    pool_size : integer
-        the size of the pooling regions, i.e. the number of features / feature
+    pool_size : int
+        The size of the pooling regions, i.e. the number of features / feature
         maps to be pooled together.
 
-    axis : integer
-        the axis along which to pool. The default value of ``1`` works
+    axis : int (default: 1)
+        The axis along which to pool. The default value of ``1`` works
         for :class:`DenseLayer`, :class:`Conv1DLayer` and :class:`Conv2DLayer`.
 
     pool_function : callable
-        the pooling function to use. This defaults to `theano.tensor.max`
+        The pooling function to use. This defaults to `theano.tensor.max`
         (i.e. max-pooling) and can be replaced by any other aggregation
         function.
 
@@ -312,11 +312,11 @@ class FeatureWTALayer(Layer):
     incoming : a :class:`Layer` instance or tuple
         The layer feeding into this layer, or the expected input shape.
 
-    pool_size : integer
-        the number of feature maps per region.
+    pool_size : int
+        The number of feature maps per region.
 
-    axis : integer
-        the axis along which the regions are formed.
+    axis : int (default: 1)
+        The axis along which the regions are formed.
 
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
@@ -381,7 +381,7 @@ class GlobalPoolLayer(Layer):
         The layer feeding into this layer, or the expected input shape.
 
     pool_function : callable
-        the pooling function to use. This defaults to `theano.tensor.mean`
+        The pooling function to use. This defaults to `theano.tensor.mean`
         (i.e. mean-pooling) and can be replaced by any other aggregation
         function.
 

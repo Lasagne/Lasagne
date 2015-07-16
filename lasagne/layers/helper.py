@@ -176,7 +176,7 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     Returns
     -------
     output : Theano expression or list
-        the output of the given layer(s) for the given network input
+        The output of the given layer(s) for the given network input.
 
     Notes
     -----
@@ -240,7 +240,7 @@ def get_output_shape(layer_or_layers, input_shapes=None):
     Parameters
     ----------
     layer_or_layers : Layer or list
-        the :class:`Layer` instance for which to compute the output
+        The :class:`Layer` instance for which to compute the output
         shapes, or a list of :class:`Layer` instances.
 
     input_shapes : None, tuple, or dict

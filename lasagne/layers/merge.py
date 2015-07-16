@@ -22,8 +22,8 @@ class ConcatLayer(MergeLayer):
     incomings : a list of :class:`Layer` instances or tuples
         The layers feeding into this layer, or expected input shapes
 
-    axis : int
-        Axis which inputs are joined over
+    axis : int (default: 1)
+        Axis which inputs are joined over.
     """
     def __init__(self, incomings, axis=1, **kwargs):
         super(ConcatLayer, self).__init__(incomings, **kwargs)
@@ -49,11 +49,11 @@ class ElemwiseMergeLayer(MergeLayer):
     Parameters
     ----------
     incomings : a list of :class:`Layer` instances or tuples
-        the layers feeding into this layer, or expected input shapes,
-        with all incoming shapes being equal
+        The layers feeding into this layer, or expected input shapes,
+        with all incoming shapes being equal.
 
     merge_function : callable
-        the merge function to use. Should take two arguments and return the
+        The merge function to use. Should take two arguments and return the
         updated value. Some possible merge functions are ``theano.tensor``:
         ``mul``, ``add``, ``maximum`` and ``minimum``.
 
@@ -89,8 +89,8 @@ class ElemwiseSumLayer(ElemwiseMergeLayer):
     Parameters
     ----------
     incomings : a list of :class:`Layer` instances or tuples
-        the layers feeding into this layer, or expected input shapes,
-        with all incoming shapes being equal
+        The layers feeding into this layer, or expected input shapes,
+        with all incoming shapes being equal.
 
     coeffs: list or scalar
         A same-sized list of coefficients, or a single coefficient that

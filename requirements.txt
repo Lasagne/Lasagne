@@ -1,1 +1,1 @@
-Theano==0.7
+git+https://github.com/Theano/Theano.git@36d1eca8#egg=Theano==0.8.git

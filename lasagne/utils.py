@@ -100,12 +100,11 @@ def one_hot(x, m=None):
 
     Notes
     -----
-
     If your integer vector represents target class memberships, and you wish to
     compute the cross-entropy between predictions and the target class
     memberships, then there is no need to use this function, since the function
-    :func:`categorical_crossentropy()` can compute the cross-entropy from the
-    integer vector directly.
+    :func:`lasagne.objectives.categorical_crossentropy()` can compute the
+    cross-entropy from the integer vector directly.
 
     """
     if m is None:

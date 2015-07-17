@@ -9,6 +9,7 @@ from theano.tensor.signal import downsample
 __all__ = [
     "MaxPool1DLayer",
     "MaxPool2DLayer",
+    "Pool2DLayer",
     "FeaturePoolLayer",
     "FeatureWTALayer",
     "GlobalPoolLayer",
@@ -141,7 +142,102 @@ class MaxPool1DLayer(Layer):
         return pooled[:, :, :, 0]
 
 
-class MaxPool2DLayer(Layer):
+class Pool2DLayer(Layer):
+    """
+    2D pooling layer
+
+    Performs 2D mean or max-pooling over the two trailing axes
+    of a 4D input tensor.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_size : integer or iterable
+        The length of the pooling region in each dimension.  If an integer, it
+        is promoted to a square pooling region. If an iterable, it should have
+        two elements.
+
+    stride : integer, iterable or ``None``
+        The strides between sucessive pooling regions in each dimension.
+        If ``None`` then ``stride = pool_size``.
+
+    ignore_border : bool
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != (0, 0)``.
+
+    pad : integer or iterable
+        Number of elements to be added on each side of the input
+        in each dimension. Each value must be less than
+        the corresponding stride.
+
+    mode : {'max', 'average_inc_pad', 'average_exc_pad'}
+        Pooling mode: max-pooling or mean-pooling including/excluding zeros
+        from partially padded pooling regions. Default is 'max'.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    See Also
+    --------
+    MaxPool2DLayer : Shortcut for max pooling layer.
+
+    Notes
+    -----
+    The value used to pad the input is chosen to be less than
+    the minimum of the input, so that the output of each pooling region
+    always corresponds to some element in the unpadded input region.
+    """
+
+    def __init__(self, incoming, pool_size, stride=None,
+                 ignore_border=False, pad=(0, 0), mode='max', **kwargs):
+        super(Pool2DLayer, self).__init__(incoming, **kwargs)
+
+        self.pool_size = as_tuple(pool_size, 2)
+
+        if stride is None:
+            self.stride = self.pool_size
+        else:
+            self.stride = as_tuple(stride, 2)
+
+        self.pad = as_tuple(pad, 2)
+
+        self.ignore_border = ignore_border
+        self.mode = mode
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)  # copy / convert to mutable list
+
+        output_shape[2] = pool_output_length(input_shape[2],
+                                             pool_size=self.pool_size[0],
+                                             stride=self.stride[0],
+                                             ignore_border=self.ignore_border,
+                                             pad=self.pad[0],
+                                             )
+
+        output_shape[3] = pool_output_length(input_shape[3],
+                                             pool_size=self.pool_size[1],
+                                             stride=self.stride[1],
+                                             ignore_border=self.ignore_border,
+                                             pad=self.pad[1],
+                                             )
+
+        return tuple(output_shape)
+
+    def get_output_for(self, input, **kwargs):
+        pooled = downsample.max_pool_2d(input,
+                                        ds=self.pool_size,
+                                        st=self.stride,
+                                        ignore_border=self.ignore_border,
+                                        padding=self.pad,
+                                        mode=self.mode,
+                                        )
+        return pooled
+
+
+class MaxPool2DLayer(Pool2DLayer):
     """
     2D max-pooling layer
 
@@ -183,47 +279,13 @@ class MaxPool2DLayer(Layer):
 
     def __init__(self, incoming, pool_size, stride=None,
                  ignore_border=False, pad=(0, 0), **kwargs):
-        super(MaxPool2DLayer, self).__init__(incoming, **kwargs)
-
-        self.pool_size = as_tuple(pool_size, 2)
-
-        if stride is None:
-            self.stride = self.pool_size
-        else:
-            self.stride = as_tuple(stride, 2)
-
-        self.pad = as_tuple(pad, 2)
-
-        self.ignore_border = ignore_border
-
-    def get_output_shape_for(self, input_shape):
-        output_shape = list(input_shape)  # copy / convert to mutable list
-
-        output_shape[2] = pool_output_length(input_shape[2],
-                                             pool_size=self.pool_size[0],
-                                             stride=self.stride[0],
-                                             ignore_border=self.ignore_border,
-                                             pad=self.pad[0],
-                                             )
-
-        output_shape[3] = pool_output_length(input_shape[3],
-                                             pool_size=self.pool_size[1],
-                                             stride=self.stride[1],
-                                             ignore_border=self.ignore_border,
-                                             pad=self.pad[1],
-                                             )
-
-        return tuple(output_shape)
-
-    def get_output_for(self, input, **kwargs):
-        pooled = downsample.max_pool_2d(input,
-                                        ds=self.pool_size,
-                                        st=self.stride,
-                                        ignore_border=self.ignore_border,
-                                        padding=self.pad,
-                                        )
-        return pooled
-
+        super(MaxPool2DLayer, self).__init__(incoming,
+                                             pool_size,
+                                             stride,
+                                             ignore_border,
+                                             pad,
+                                             mode='max',
+                                             **kwargs)
 
 # TODO: add reshape-based implementation to MaxPool*DLayer
 # TODO: add MaxPool3DLayer

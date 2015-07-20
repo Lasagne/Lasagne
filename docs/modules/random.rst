@@ -1,5 +1,5 @@
 :mod:`lasagne.random`
-====================
+=====================
 
 .. automodule:: lasagne.random
 

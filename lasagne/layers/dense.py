@@ -123,7 +123,7 @@ class NINLayer(Layer):
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
     nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
 
-    Network-in-network layer [1]_.
+    Network-in-network layer.
     Like DenseLayer, but broadcasting across all trailing dimensions beyond the
     2nd.  This results in a convolution operation with filter size 1 on all
     trailing dimensions.  Any number of trailing dimensions is supported,

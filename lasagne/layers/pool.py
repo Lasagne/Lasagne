@@ -364,7 +364,7 @@ class FeaturePoolLayer(Layer):
 
 class FeatureWTALayer(Layer):
     """
-    'Winner Take' All layer
+    'Winner Take All' layer
 
     This layer performs 'Winner Take All' (WTA) across feature maps: zero out
     all but the maximal activation value within a region.

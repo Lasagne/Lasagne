@@ -375,7 +375,7 @@ class RecurrentLayer(CustomRecurrentLayer):
     hidden-to-hidden connections.  The output is computed as
 
     .. math ::
-        h_t = \sigma(W_x x_t + W_h h_{t-1} + b)
+        h_t = \sigma(x_t W_x + h_{t-1} W_h + b)
 
     Parameters
     ----------
@@ -549,13 +549,13 @@ class LSTMLayer(Layer):
 
     .. math ::
 
-        i_t &= \sigma_i(W_{xi}x_t + W_{hi}h_{t-1}
-               + w_{ci}\odot c_{t-1} + b_i)\\
-        f_t &= \sigma_f(W_{xf}x_t + W_{hf}h_{t-1}
-               + w_{cf}\odot c_{t-1} + b_f)\\
+        i_t &= \sigma_i(x_t W_{xi} + h_{t-1} W_{hi}
+               + w_{ci} \odot c_{t-1} + b_i)\\
+        f_t &= \sigma_f(x_t W_{xf} + h_{t-1} W_{hf}
+               + w_{cf} \odot c_{t-1} + b_f)\\
         c_t &= f_t \odot c_{t - 1}
-               + i_t\sigma_c(W_{xc}x_t + W_{hc} h_{t-1} + b_c)\\
-        o_t &= \sigma_o(W_{xo}x_t + W_{ho}h_{t-1} + w_{co}\odot c_t + b_o)\\
+               + i_t\sigma_c(x_t W_{xc} + h_{t-1} W_{hc} + b_c)\\
+        o_t &= \sigma_o(x_t W_{xo} + h_{t-1} W_{ho} + w_{co} \odot c_t + b_o)\\
         h_t &= o_t \odot \sigma_h(c_t)
 
     Parameters
@@ -952,9 +952,9 @@ class GRULayer(Layer):
     Implements the updates proposed in [1]_, which computes the output by
 
     .. math ::
-        r_t &= \sigma_r(W_{xr} x_t + W_{hr} h_{t - 1} + b_r)\\
-        u_t &= \sigma_u(W_{xu} x_t + W_{hu} h_{t - 1} + b_u)\\
-        c_t &= \sigma_c(W_{xc} x_t + r_t \odot (W_{hc} h_{t - 1}) + b_c)\\
+        r_t &= \sigma_r(x_t W_{xr} + h_{t - 1} W_{hr} + b_r)\\
+        u_t &= \sigma_u(x_t W_{xu} + h_{t - 1} W_{hu} + b_u)\\
+        c_t &= \sigma_c(x_t W_{xc} + r_t \odot (h_{t - 1} W_{hc}) + b_c)\\
         h_t &= (1 - u_t) \odot h_{t - 1} + u_t \odot c_t
 
     Parameters
@@ -1019,7 +1019,7 @@ class GRULayer(Layer):
     An alternate update for the candidate hidden state is proposed in [2]_:
 
     .. math::
-        c_t &= \sigma_c(W_{ic} x_t + W_{hc}(r_t \odot h_{t - 1}) + b_c)\\
+        c_t &= \sigma_c(x_t W_{ic} + (r_t \odot h_{t - 1})W_{hc} + b_c)\\
 
     We use the formulation from [1]_ because it allows us to do all matrix
     operations in a single dot product.

@@ -367,8 +367,12 @@ def unroll_scan(fn, sequences, outputs_info, non_sequences, n_steps,
         for i in counter:
             step_input = [s[i] for s in sequences] + prev_vals + non_sequences
             out_ = fn(*step_input)
-            if not isinstance(out_, (list, tuple)):
+            # The returned values from step can be either a TensorVariable,
+            # a list, or a tuple.  Below, we force it to always be a list.
+            if isinstance(out_, T.TensorVariable):
                 out_ = [out_]
+            if isinstance(out_, tuple):
+                out_ = list(out_)
             output.append(out_)
 
             prev_vals = output[-1]

@@ -130,6 +130,7 @@ Layer classes: embedding layers
 -------------------------------
 
 .. autoclass:: EmbeddingLayer
+    :members:
 
 Layer classes: recurrent layers
 -------------------------------

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
 Recurrent network example.  Trains a bidirectional vanilla RNN to output the
 sum of two numbers in a sequence of random numbers sampled uniformly from
@@ -64,7 +66,7 @@ def gen_data(min_length=MIN_LENGTH, max_length=MAX_LENGTH, n_batch=N_BATCH):
 
     References
     ----------
-    .. [1] Hochreiter, Sepp, and Jurgen Schmidhuber. "Long short-term memory."
+    .. [1] Hochreiter, Sepp, and Jürgen Schmidhuber. "Long short-term memory."
     Neural computation 9.8 (1997): 1735-1780.
 
     .. [2] Sutskever, Ilya, et al. "On the importance of initialization and

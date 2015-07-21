@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Layers to construct recurrent networks. Recurrent layers can be used similarly
 to feed-forward layers except that the input shape is expected to be
@@ -487,7 +488,7 @@ class Gate(object):
 
     References
     ----------
-    .. [1] Gers, Felix A., Jurgen Schmidhuber, and Fred Cummins. "Learning to
+    .. [1] Gers, Felix A., Jürgen Schmidhuber, and Fred Cummins. "Learning to
            forget: Continual prediction with LSTM." Neural computation 12.10
            (2000): 2451-2471.
 

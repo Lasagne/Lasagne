@@ -129,9 +129,10 @@ class CustomRecurrentLayer(Layer):
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
-        more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored. The input sequence length cannot be specified as
-        None when `unroll_scan` is True.
+        more memory. When `unroll_scan` is True, backpropagation always
+        includes the full sequence, so `gradient_steps` must be set to -1 and
+        the input sequence length must be known at compile time (i.e., cannot
+        be given as None).
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -413,9 +414,10 @@ class RecurrentLayer(CustomRecurrentLayer):
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
-        more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored. The input sequence length cannot be specified as
-        None when `unroll_scan` is True.
+        more memory. When `unroll_scan` is True, backpropagation always
+        includes the full sequence, so `gradient_steps` must be set to -1 and
+        the input sequence length must be known at compile time (i.e., cannot
+        be given as None).
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -607,9 +609,10 @@ class LSTMLayer(Layer):
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
-        more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored. The input sequence length cannot be specified as
-        None when `unroll_scan` is True.
+        more memory. When `unroll_scan` is True, backpropagation always
+        includes the full sequence, so `gradient_steps` must be set to -1 and
+        the input sequence length must be known at compile time (i.e., cannot
+        be given as None).
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
@@ -991,9 +994,10 @@ class GRULayer(Layer):
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
-        more memory. When `unroll_scan` is true then the `gradient_steps`
-        setting is ignored. The input sequence length cannot be specified as
-        None when `unroll_scan` is True.
+        more memory. When `unroll_scan` is True, backpropagation always
+        includes the full sequence, so `gradient_steps` must be set to -1 and
+        the input sequence length must be known at compile time (i.e., cannot
+        be given as None).
     precompute_input : bool
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of

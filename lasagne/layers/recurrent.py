@@ -137,6 +137,23 @@ class CustomRecurrentLayer(Layer):
         the sequence. This can result in a speedup at the expense of
         an increase in memory usage.
 
+    Examples
+    --------
+
+    The following example constructs a simple `CustomRecurrentLayer` which
+    has dense input-to-hidden and hidden-to-hidden connections.
+
+    >>> import lasagne
+    >>> n_batch, n_steps, n_in = (2, 3, 4)
+    >>> n_hid = 5
+    >>> l_in = lasagne.layers.InputLayer((n_batch, n_steps, n_in))
+    >>> l_in_hid = lasagne.layers.DenseLayer(
+    ...     lasagne.layers.InputLayer((None, n_in)), n_hid)
+    >>> l_hid_hid = lasagne.layers.DenseLayer(
+    ...     lasagne.layers.InputLayer((None, n_hid)), n_hid)
+    >>> l_rec = lasagne.layers.CustomRecurrentLayer(l_in, l_in_hid, l_hid_hid)
+
+
     References
     ----------
     .. [1] Graves, Alex: "Generating sequences with recurrent neural networks."

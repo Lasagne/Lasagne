@@ -16,7 +16,7 @@ The following recurrent layers are implemented:
     LSTMLayer
     GRULayer
 
-For recurrent layers with gates we use a helper class to setup the parameters
+For recurrent layers with gates we use a helper class to set up the parameters
 in each gate:
 
 .. autosummary::
@@ -86,11 +86,12 @@ class CustomRecurrentLayer(Layer):
     A layer which implements a recurrent connection.
 
     This layer allows you to specify custom input-to-hidden and
-    hidden-to-hidden connections by instantiating layer instances and passing
-    them on initialization.  The output shape for the provided layers must be
-    the same.  If you are looking for a standard, densely-connected recurrent
-    layer, please see :class:`RecurrentLayer`.  The output is computed
-    by
+    hidden-to-hidden connections by instantiating :class:`lasagne.layers.Layer`
+    instances and passing them on initialization.  Note that these connections
+    can consist of multiple layers chained together.  The output shape for the
+    provided input-to-hidden and hidden-to-hidden connections must be the same.
+    If you are looking for a standard, densely-connected recurrent layer,
+    please see :class:`RecurrentLayer`.  The output is computed by
 
     .. math ::
         h_t = \sigma(f_i(x_t) + f_h(h_{t-1}))
@@ -100,10 +101,15 @@ class CustomRecurrentLayer(Layer):
     incoming : a :class:`lasagne.layers.Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
     input_to_hidden : :class:`lasagne.layers.Layer`
-        Layer which connects input to the hidden state (:math:`f_i`).
+        :class:`lasagne.layers.Layer` instance which connects input to the
+        hidden state (:math:`f_i`).  This layer may be connected to a chain of
+        layers, which must end in a :class:`lasagne.layers.InputLayer` with the
+        same input shape as `incoming`.
     hidden_to_hidden : :class:`lasagne.layers.Layer`
         Layer which connects the previous hidden state to the new state
-        (:math:`f_h`).
+        (:math:`f_h`).  This layer may be connected to a chain of layers, which
+        must end in a :class:`lasagne.layers.InputLayer` with the same input
+        shape as `hidden_to_hidden`'s output shape.
     nonlinearity : callable or None
         Nonlinearity to apply when computing new state (:math:`\sigma`). If
         None is provided, no nonlinearity will be applied.

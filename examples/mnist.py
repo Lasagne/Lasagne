@@ -25,8 +25,7 @@ import theano.tensor as T
 import lasagne
 
 
-
-################### Download and prepare the MNIST dataset ###################
+# ################## Download and prepare the MNIST dataset ##################
 # This is just some way of getting the MNIST dataset from an online location
 # and loading it into numpy arrays. It doesn't involve Lasagne at all.
 
@@ -35,11 +34,13 @@ def load_dataset():
     if sys.version_info[0] == 2:
         from urllib import urlretrieve
         import cPickle as pickle
+
         def pickle_load(f, encoding):
             return pickle.load(f)
     else:
         from urllib.request import urlretrieve
         import pickle
+
         def pickle_load(f, encoding):
             return pickle.load(f, encoding=encoding)
 
@@ -77,8 +78,7 @@ def load_dataset():
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 
-
-####################### Build the neural network model #######################
+# ##################### Build the neural network model #######################
 # This script supports three types of models. For each one, we define a
 # function that takes a Theano variable representing the input and returns
 # the output layer of a neural network model build in Lasagne.
@@ -196,8 +196,7 @@ def build_cnn(input_var=None):
     return layer
 
 
-
-############################### Batch iterator ###############################
+# ############################# Batch iterator ###############################
 # This is just a simple helper function iterating over training data in
 # mini-batches of a particular size, optionally in random order. It assumes
 # data is available as numpy arrays. For big datasets, you could load numpy
@@ -219,8 +218,7 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
         yield inputs[excerpt], targets[excerpt]
 
 
-
-################################ Main program ################################
+# ############################## Main program ################################
 # Everything else will be handled in our main program now. We could pull out
 # more functions to better separate the code, but it wouldn't make it any
 # easier to read.
@@ -327,7 +325,7 @@ def main(model='mlp', num_epochs=500):
         test_acc / test_batches * 100))
 
     # Optionally, you could now dump the network weights to a file like this:
-    #np.savez('model.npz', lasagne.layers.get_all_param_values(network))
+    # np.savez('model.npz', lasagne.layers.get_all_param_values(network))
 
 
 if __name__ == '__main__':

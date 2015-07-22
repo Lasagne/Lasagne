@@ -2,6 +2,7 @@ from mock import Mock
 import pytest
 import numpy as np
 import theano
+import theano.tensor as T
 
 
 def test_shared_empty():
@@ -147,3 +148,28 @@ def test_nonpositive_dims_raises_value_error():
     with pytest.raises(ValueError):
         create_param(spec, zero_shape)
     create_param(spec, pos_shape)
+
+
+def test_unroll_scan():
+    from lasagne.utils import unroll_scan
+    k = 2
+    a = T.scalar("a")
+
+    result = unroll_scan(
+        fn=lambda step, prior_result, a: prior_result * a,
+        sequences=T.arange(k), outputs_info=[1.], non_sequences=[a], n_steps=k)
+    final_result = result[-1]
+    power = theano.function(inputs=[a], outputs=final_result)
+
+    assert np.all(power(10) == [10, 100])
+
+    b = T.scalar("b")
+
+    def mul_div(step, previous_mul, previous_div, mul, div):
+            return previous_mul*mul, previous_div/div
+
+    result = unroll_scan(
+        fn=mul_div, sequences=T.arange(k), outputs_info=[1., 1.],
+        non_sequences=[a, b], n_steps=k)
+    power = theano.function(inputs=[a, b], outputs=result)
+    assert np.allclose(power(10, 10), [[10, 100], [.1, .01]])

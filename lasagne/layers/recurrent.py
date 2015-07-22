@@ -2,8 +2,9 @@
 """
 Layers to construct recurrent networks. Recurrent layers can be used similarly
 to feed-forward layers except that the input shape is expected to be
-``(batch_size, sequence_length, num_inputs)``. The input is allowed to have
-more than three dimensions in which case dimensions trailing the third
+``(batch_size, sequence_length, num_inputs)``.   The CustomRecurrentLayer can
+also support more than one "feature" dimension (e.g. using convolutional
+connections), but for all other layers, dimensions trailing the third
 dimension are flattened.
 
 The following recurrent layers are implemented:
@@ -166,6 +167,22 @@ class CustomRecurrentLayer(MergeLayer):
     ...     lasagne.layers.InputLayer((None, n_hid)), n_hid)
     >>> l_rec = lasagne.layers.CustomRecurrentLayer(l_in, l_in_hid, l_hid_hid)
 
+    The CustomRecurrentLayer can also support "convolutional recurrence", as is
+    demonstrated below.
+
+    >>> n_batch, n_steps, n_channels, width, height = (2, 3, 4, 5, 6)
+    >>> n_out_filters = 7
+    >>> filter_shape = (3, 3)
+    >>> l_in = lasagne.layers.InputLayer(
+    ...     (n_batch, n_steps, n_channels, width, height))
+    >>> l_in_to_hid = lasagne.layers.Conv2DLayer(
+    ...     lasagne.layers.InputLayer((None, n_channels, width, height)),
+    ...     n_out_filters, filter_shape, pad='same')
+    >>> l_hid_to_hid = lasagne.layers.Conv2DLayer(
+    ...     lasagne.layers.InputLayer(l_in_to_hid.output_shape),
+    ...     n_out_filters, filter_shape, pad='same')
+    >>> l_rec = lasagne.layers.CustomRecurrentLayer(
+    ...     l_in, l_in_to_hid, l_hid_to_hid)
 
     References
     ----------
@@ -213,36 +230,84 @@ class CustomRecurrentLayer(MergeLayer):
             raise ValueError("Input sequence length cannot be specified as "
                              "None when unroll_scan is True")
 
-        # Check that output shapes match
-        if input_to_hidden.output_shape != hidden_to_hidden.output_shape:
+        # Check that the input_to_hidden connection can appropriately handle
+        # a first dimension of input_shape[0]*input_shape[1] when we will
+        # precompute the input dot product
+        if (self.precompute_input and
+                input_to_hidden.output_shape[0] is not None and
+                input_shape[0] is not None and
+                input_shape[1] is not None and
+                (input_to_hidden.output_shape[0] !=
+                 input_shape[0]*input_shape[1])):
+            raise ValueError(
+                'When precompute_input == True, '
+                'input_to_hidden.output_shape[0] must equal '
+                'incoming.output_shape[0]*incoming.output_shape[1] '
+                '(i.e. batch_size*sequence_length) or be None but '
+                'input_to_hidden.output_shape[0] = {} and '
+                'incoming.output_shape[0]*incoming.output_shape[1] = '
+                '{}'.format(input_to_hidden.output_shape[0],
+                            input_shape[0]*input_shape[1]))
+
+        # Check that the first dimension of input_to_hidden and
+        # hidden_to_hidden's outputs match when we won't precompute the input
+        # dot product
+        if (not self.precompute_input and
+                input_to_hidden.output_shape[0] is not None and
+                hidden_to_hidden.output_shape[0] is not None and
+                (input_to_hidden.output_shape[0] !=
+                 hidden_to_hidden.output_shape[0])):
+            raise ValueError(
+                'When precompute_input == False, '
+                'input_to_hidden.output_shape[0] must equal '
+                'hidden_to_hidden.output_shape[0] but '
+                'input_to_hidden.output_shape[0] = {} and '
+                'hidden_to_hidden.output_shape[0] = {}'.format(
+                    input_to_hidden.output_shape[0],
+                    hidden_to_hidden.output_shape[0]))
+
+        # Check that input_to_hidden and hidden_to_hidden output shapes match,
+        # but don't check a dimension if it's None for either shape
+        if not all(s1 is None or s2 is None or s1 == s2
+                   for s1, s2 in zip(input_to_hidden.output_shape[1:],
+                                     hidden_to_hidden.output_shape[1:])):
             raise ValueError("The output shape for input_to_hidden and "
-                             "input_to_hidden must be equal, but "
-                             "input_to_hidden.output_shape={} and "
-                             "hidden_to_hidden.output_shape={}".format(
+                             "hidden_to_hidden must be equal after the first "
+                             "dimension, but input_to_hidden.output_shape={} "
+                             "and hidden_to_hidden.output_shape={}".format(
                                  input_to_hidden.output_shape,
                                  hidden_to_hidden.output_shape))
+
+        # Check that input_to_hidden's output shape is the same as
+        # hidden_to_hidden's input shape but don't check a dimension if it's
+        # None for either shape
+        if not all(s1 is None or s2 is None or s1 == s2
+                   for s1, s2 in zip(input_to_hidden.output_shape[1:],
+                                     hidden_to_hidden.input_shape[1:])):
+            raise ValueError("The output shape for input_to_hidden "
+                             "must be equal to the input shape of "
+                             "hidden_to_hidden after the first dimension, but "
+                             "input_to_hidden.output_shape={} and "
+                             "hidden_to_hidden.input_shape={}".format(
+                                 input_to_hidden.output_shape,
+                                 hidden_to_hidden.input_shape))
 
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
         else:
             self.nonlinearity = nonlinearity
 
-        # Get the input dimensionality and number of units based on the
-        # expected output of the input-to-hidden layer
-        self.num_inputs = np.prod(input_shape[2:])
-        self.num_units = input_to_hidden.output_shape[-1]
-
         # Initialize hidden state
         if isinstance(hid_init, T.TensorVariable):
-            if hid_init.ndim != 2:
+            if hid_init.ndim != len(hidden_to_hidden.output_shape):
                 raise ValueError(
                     "When hid_init is provided as a TensorVariable, it should "
-                    "have 2 dimensions and have shape (num_batch, num_units)")
+                    "have the same shape as hidden_to_hidden.output_shape")
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
-                hid_init, (1, self.num_units), name="hid_init",
-                trainable=learn_init, regularizable=False)
+                hid_init, (1,) + hidden_to_hidden.output_shape[1:],
+                name="hid_init", trainable=learn_init, regularizable=False)
 
     def get_params(self, **tags):
         # Get all parameters from this layer, the master layer
@@ -256,7 +321,8 @@ class CustomRecurrentLayer(MergeLayer):
         # The shape of the input to this layer will be the first element
         # of input_shapes, whether or not a mask input is being used.
         input_shape = input_shapes[0]
-        return input_shape[0], input_shape[1], self.num_units
+        return ((input_shape[0], input_shape[1]) +
+                self.hidden_to_hidden.output_shape[1:])
 
     def get_output_for(self, inputs, **kwargs):
         """
@@ -286,28 +352,27 @@ class CustomRecurrentLayer(MergeLayer):
         # Retrieve the mask when it is supplied
         mask = inputs[1] if len(inputs) > 1 else None
 
-        # Treat all dimensions after the second as flattened feature dimensions
-        if input.ndim > 3:
-            input = T.flatten(input, 3)
-
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
-        input = input.dimshuffle(1, 0, 2)
-        seq_len, num_batch, _ = input.shape
+        input = input.dimshuffle(1, 0, *range(2, input.ndim))
+        seq_len, num_batch = input.shape[0], input.shape[1]
 
         if self.precompute_input:
             # Because the input is given for all time steps, we can precompute
             # the inputs to hidden before scanning. First we need to reshape
-            # from (seq_len, batch_size, num_inputs) to
-            # (seq_len*batch_size, num_inputs)
-            input = T.reshape(input,
-                              (seq_len*num_batch, -1))
+            # from (seq_len, batch_size, trailing dimensions...) to
+            # (seq_len*batch_size, trailing dimensions...)
+            # This strange use of a generator in a tuple was because
+            # input.shape[2:] was raising a Theano error
+            trailing_dims = tuple(input.shape[n] for n in range(2, input.ndim))
+            input = T.reshape(input, (seq_len*num_batch,) + trailing_dims)
             input = helper.get_output(
                 self.input_to_hidden, input, **kwargs)
 
-            # Reshape back to (seq_len, batch_size, num_units)
-            input = T.reshape(input, (seq_len, num_batch, -1))
+            # Reshape back to (seq_len, batch_size, trailing dimensions...)
+            trailing_dims = tuple(input.shape[n] for n in range(1, input.ndim))
+            input = T.reshape(input, (seq_len, num_batch) + trailing_dims)
 
         # We will always pass the hidden-to-hidden layer params to step
         non_seqs = helper.get_all_params(self.hidden_to_hidden)
@@ -354,8 +419,13 @@ class CustomRecurrentLayer(MergeLayer):
         if isinstance(self.hid_init, T.TensorVariable):
             hid_init = self.hid_init
         else:
-            # Dot against a 1s vector to repeat to shape (num_batch, num_units)
-            hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
+            # The code below simply repeats self.hid_init num_batch times in
+            # its first dimension.  Turns out using a dot product and a
+            # dimshuffle is faster than T.repeat.
+            dot_dims = (list(range(1, self.hid_init.ndim - 1)) +
+                        [0, self.hid_init.ndim - 1])
+            hid_init = T.dot(T.ones((num_batch, 1)),
+                             self.hid_init.dimshuffle(dot_dims))
 
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer
@@ -381,11 +451,11 @@ class CustomRecurrentLayer(MergeLayer):
                 strict=True)[0]
 
         # dimshuffle back to (n_batch, n_time_steps, n_features))
-        hid_out = hid_out.dimshuffle(1, 0, 2)
+        hid_out = hid_out.dimshuffle(1, 0, *range(2, hid_out.ndim))
 
         # if scan is backward reverse the output
         if self.backwards:
-            hid_out = hid_out[:, ::-1, :]
+            hid_out = hid_out[:, ::-1]
 
         return hid_out
 
@@ -477,15 +547,14 @@ class RecurrentLayer(CustomRecurrentLayer):
                  mask_input=None,
                  **kwargs):
         input_shape = incoming.output_shape
-        num_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
         # so we need to remove the second dimension (the time dimension)
-        in_to_hid = DenseLayer(InputLayer((num_batch,) + input_shape[2:]),
+        in_to_hid = DenseLayer(InputLayer((None,) + input_shape[2:]),
                                num_units, W=W_in_to_hid, b=b,
                                nonlinearity=None, **kwargs)
         # The hidden-to-hidden layer expects its inputs to have num_units
         # features because it recycles the previous hidden state
-        hid_to_hid = DenseLayer(InputLayer((num_batch, num_units)),
+        hid_to_hid = DenseLayer(InputLayer((None, num_units)),
                                 num_units, W=W_hid_to_hid, b=None,
                                 nonlinearity=None, **kwargs)
 

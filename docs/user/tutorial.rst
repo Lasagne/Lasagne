@@ -276,26 +276,27 @@ See for yourself:
 .. code-block:: python
 
     # Input layer and dropout (with shortcut `dropout` for `DropoutLayer`):
-    layer = lasagne.layers.InputLayer(shape=(None, 1, 28, 28),
-                                      input_var=input_var)
+    network = lasagne.layers.InputLayer(shape=(None, 1, 28, 28),
+                                        input_var=input_var)
     if drop_input:
-        layer = lasagne.layers.dropout(layer, p=drop_input)
+        network = lasagne.layers.dropout(network, p=drop_input)
     # Hidden layers and dropout:
     nonlin = lasagne.nonlinearities.rectify
     for _ in range(depth):
-        layer = lasagne.layers.DenseLayer(layer, width, nonlinearity=nonlin)
+        network = lasagne.layers.DenseLayer(
+                network, width, nonlinearity=nonlin)
         if drop_hidden:
-            layer = lasagne.layers.dropout(layer, p=drop_hidden)
+            network = lasagne.layers.dropout(network, p=drop_hidden)
     # Output layer:
     softmax = lasagne.nonlinearities.softmax
-    layer = lasagne.layers.DenseLayer(layer, 10, nonlinearity=softmax)
-    return layer
+    network = lasagne.layers.DenseLayer(network, 10, nonlinearity=softmax)
+    return network
 
 With two ``if`` clauses and a ``for`` loop, this network definition allows
 varying the architecture in a way that would be impossible for a ``.yaml`` file
 in `Pylearn2`_ or a ``.cfg`` file in `cuda-convnet`_.
 
-Note that to make the code easier, all the layers are just called ``layer``
+Note that to make the code easier, all the layers are just called ``network``
 here -- there is no need to give them different names if all we return is the
 last one we created anyway; we just used different names before for clarity.
 
@@ -311,8 +312,8 @@ The function begins like the others:
 .. code-block:: python
 
     def build_cnn(input_var=None):
-        layer = lasagne.layers.InputLayer(shape=(None, 1, 28, 28),
-                                          input_var=input_var)
+        network = lasagne.layers.InputLayer(shape=(None, 1, 28, 28),
+                                            input_var=input_var)
 
 We don't apply dropout to the inputs, as this tends to work less well for
 convolutional layers. Instead of a :class:`DenseLayer
@@ -321,8 +322,8 @@ convolutional layers. Instead of a :class:`DenseLayer
 
 .. code-block:: python
 
-    layer = lasagne.layers.Conv2DLayer(
-            layer, num_filters=32, filter_size=(5, 5),
+    network = lasagne.layers.Conv2DLayer(
+            network, num_filters=32, filter_size=(5, 5),
             nonlinearity=lasagne.nonlinearities.rectify,
             W=lasagne.init.GlorotUniform())
 
@@ -349,24 +350,24 @@ We then apply max-pooling of factor 2 in both dimensions, using a
 
 .. code-block:: python
 
-    layer = lasagne.layers.MaxPool2DLayer(layer, pool_size=(2, 2))
+    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
 
 We add another convolution and pooling stage like the ones before:
 
 .. code-block:: python
 
-    layer = lasagne.layers.Conv2DLayer(
-            layer, num_filters=32, filter_size=(5, 5),
+    network = lasagne.layers.Conv2DLayer(
+            network, num_filters=32, filter_size=(5, 5),
             nonlinearity=lasagne.nonlinearities.rectify)
-    layer = lasagne.layers.MaxPool2DLayer(layer, pool_size=(2, 2))
+    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(2, 2))
 
 Then a fully-connected layer of 256 units with 50% dropout on its inputs
 (using the :class:`lasagne.layers.dropout` shortcut directly inline):
 
 .. code-block:: python
 
-    layer = lasagne.layers.DenseLayer(
-            lasagne.layers.dropout(layer, p=.5),
+    network = lasagne.layers.DenseLayer(
+            lasagne.layers.dropout(network, p=.5),
             num_units=256,
             nonlinearity=lasagne.nonlinearities.rectify)
 
@@ -374,12 +375,12 @@ And finally a 10-unit softmax output layer, again with 50% dropout:
 
 .. code-block:: python
 
-    layer = lasagne.layers.DenseLayer(
-            lasagne.layers.dropout(layer, p=.5),
+    network = lasagne.layers.DenseLayer(
+            lasagne.layers.dropout(network, p=.5),
             num_units=10,
             nonlinearity=lasagne.nonlinearities.rectify)
 
-    return layer
+    return network
 
 
 Training the model

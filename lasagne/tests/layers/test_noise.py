@@ -1,7 +1,10 @@
 from mock import Mock
 import numpy
+from numpy.random import RandomState
 import theano
 import pytest
+
+from lasagne.random import set_rng
 
 
 class TestDropoutLayer:
@@ -52,12 +55,31 @@ class TestDropoutLayer:
         assert 0.9 < result_eval.mean() < 1.1
         assert (numpy.round(numpy.unique(result_eval), 2) == [0., 1.25]).all()
 
+    def test_specified_rng(self, input_layer):
+        from lasagne.layers.noise import DropoutLayer
+        input = theano.shared(numpy.ones((100, 100)))
+        seed = 123456789
+
+        set_rng(RandomState(seed))
+        result = DropoutLayer(input_layer).get_output_for(input)
+        result_eval1 = result.eval()
+
+        set_rng(RandomState(seed))
+        result = DropoutLayer(input_layer).get_output_for(input)
+        result_eval2 = result.eval()
+        assert numpy.allclose(result_eval1, result_eval2)
+
 
 class TestGaussianNoiseLayer:
     @pytest.fixture
     def layer(self):
         from lasagne.layers.noise import GaussianNoiseLayer
         return GaussianNoiseLayer(Mock(output_shape=(None,)))
+
+    @pytest.fixture(params=[(100, 100), (None, 100)])
+    def input_layer(self, request):
+        from lasagne.layers.input import InputLayer
+        return InputLayer(request.param)
 
     def test_get_output_for_non_deterministic(self, layer):
         input = theano.shared(numpy.ones((100, 100)))
@@ -72,3 +94,17 @@ class TestGaussianNoiseLayer:
         result = layer.get_output_for(input, deterministic=True)
         result_eval = result.eval()
         assert (result_eval == input.eval()).all()
+
+    def test_specified_rng(self, input_layer):
+        from lasagne.layers.noise import GaussianNoiseLayer
+        input = theano.shared(numpy.ones((100, 100)))
+        seed = 123456789
+
+        set_rng(RandomState(seed))
+        result = GaussianNoiseLayer(input_layer).get_output_for(input)
+        result_eval1 = result.eval()
+
+        set_rng(RandomState(seed))
+        result = GaussianNoiseLayer(input_layer).get_output_for(input)
+        result_eval2 = result.eval()
+        assert numpy.allclose(result_eval1, result_eval2)

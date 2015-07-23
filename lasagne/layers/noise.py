@@ -1,7 +1,7 @@
 import theano
-import numpy as np
 
 from .base import Layer
+from ..random import get_rng
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
@@ -54,7 +54,7 @@ class DropoutLayer(Layer):
     """
     def __init__(self, incoming, p=0.5, rescale=True, **kwargs):
         super(DropoutLayer, self).__init__(incoming, **kwargs)
-        self._srng = RandomStreams(np.random.randint(1, 2147462579))
+        self._srng = RandomStreams(get_rng().randint(1, 2147462579))
         self.p = p
         self.rescale = rescale
 
@@ -112,7 +112,7 @@ class GaussianNoiseLayer(Layer):
     """
     def __init__(self, incoming, sigma=0.1, **kwargs):
         super(GaussianNoiseLayer, self).__init__(incoming, **kwargs)
-        self._srng = RandomStreams(np.random.randint(1, 2147462579))
+        self._srng = RandomStreams(get_rng().randint(1, 2147462579))
         self.sigma = sigma
 
     def get_output_for(self, input, deterministic=False, **kwargs):

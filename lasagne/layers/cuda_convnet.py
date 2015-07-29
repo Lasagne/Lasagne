@@ -40,7 +40,7 @@ class Conv2DCCLayer(CCLayer):
     lasagne.layers.Conv2DCCLayer(incoming, num_filters, filter_size,
     stride=(1, 1), pad=0, untie_biases=False, W=None,
     b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
-    pad=None, dimshuffle=True, flip_filters=False, partial_sum=1, **kwargs)
+    dimshuffle=True, flip_filters=False, partial_sum=1, **kwargs)
 
     2D convolutional layer
 
@@ -71,11 +71,11 @@ class Conv2DCCLayer(CCLayer):
         convolution operation. This layer does not support using different
         strides along both axes.
 
-    pad : int, tuple of int, 'full' or 'same' (default: 0)
+    pad : int, tuple of int, 'full', 'same' or 'valid' (default: 0)
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.
-        The `pad` argument allows to implicitly pad the input with zeros,
+        The `pad` argument allows you to implicitly pad the input with zeros,
         extending the output size.
 
         A single integer results in symmetric zero-padding of the given size on
@@ -90,6 +90,8 @@ class Conv2DCCLayer(CCLayer):
         ``'same'`` pads with half the filter size on both sides (one less on
         the second side for an even filter size). When ``stride=1``, this
         results in an output size equal to the input size.
+
+        ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
         Note that ``'full'`` and ``'same'`` can be faster than equivalent
         integer values due to optimizations by Theano.
@@ -172,7 +174,7 @@ class Conv2DCCLayer(CCLayer):
     Notes
     -----
     Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    the 'same' pad. It is not emulated. This should result in better
+    ``pad='same'``. It is not emulated. This should result in better
     performance.
 
     The cuda-convnet convolution implementation has several limitations:
@@ -242,19 +244,16 @@ class Conv2DCCLayer(CCLayer):
                                "channels to be 1, 2, 3 or a multiple of 4, "
                                "but it is %d" % self.num_input_channels)
 
-        if isinstance(pad, basestring):
-            if pad == 'valid':
-                self.pad = 0
-            elif pad == 'full':
-                self.pad = self.filter_size - 1
-            elif pad == 'same':
-                # only works for odd filter size, but the even filter size case
-                # is probably not worth supporting.
-                self.pad = (self.filter_size - 1) // 2
-            else:
-                raise RuntimeError("Invalid pad: '%s'" % pad)
+        if pad == 'valid':
+            self.pad = 0
+        elif pad == 'full':
+            self.pad = self.filter_size - 1
+        elif pad == 'same':
+            # only works for odd filter size, but the even filter size case
+            # is probably not worth supporting.
+            self.pad = (self.filter_size - 1) // 2
         else:
-            pad = as_tuple(pad, 2)
+            pad = as_tuple(pad, 2, int)
             if pad[0] != pad[1]:
                 raise RuntimeError("Conv2DCCLayer only supports square "
                                    "padding, but pad=(%d, %d)" % pad)

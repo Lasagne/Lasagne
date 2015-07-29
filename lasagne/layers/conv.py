@@ -14,8 +14,7 @@ __all__ = [
 ]
 
 
-def conv_output_length(input_length, filter_size,
-                       stride, pad=0):
+def conv_output_length(input_length, filter_size, stride, pad=0):
     """Helper function to compute the output size of a convolution operation
 
     This function computes the length along a single axis, which corresponds
@@ -37,7 +36,7 @@ def conv_output_length(input_length, filter_size,
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.
-        The `pad` argument allows to implicitly pad the input with zeros,
+        The `pad` argument allows you to implicitly pad the input with zeros,
         extending the output size.
 
         A single integer results in symmetric zero-padding of the given size on
@@ -110,11 +109,11 @@ class Conv1DLayer(Layer):
         An integer or a 1-element tuple specifying the stride of the
         convolution operation.
 
-    pad : {0, 'full', 'same'} (default: 0)
+    pad : {0, (0,), 'full', 'same', 'valid'} (default: 0)
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.
-        The `pad` argument allows to implicitly pad the input with zeros,
+        The `pad` argument allows you to implicitly pad the input with zeros,
         extending the output size.
 
         ``'full'`` pads with one less than the filter size on both sides. This
@@ -125,8 +124,7 @@ class Conv1DLayer(Layer):
         the second side for an even filter size). When ``stride=1``, this
         results in an output size equal to the input size.
 
-        Note that ``'full'`` and ``'same'`` can be faster than equivalent
-        integer values due to optimizations by Theano.
+        ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
     untie_biases : bool (default: False)
         If ``False``, the layer will have a bias parameter for each channel,
@@ -176,7 +174,7 @@ class Conv1DLayer(Layer):
     Notes
     -----
     Theano's default convolution function (`theano.tensor.nnet.conv.conv2d`)
-    does not support the 'same' pad by default. This layer emulates
+    does not support ``pad='same'`` by default. This layer emulates
     it by performing a 'full' convolution and then cropping the result, which
     may negatively affect performance.
     """
@@ -194,12 +192,17 @@ class Conv1DLayer(Layer):
         self.num_filters = num_filters
         self.filter_size = as_tuple(filter_size, 1)
         self.stride = as_tuple(stride, 1)
-        self.pad = pad
         self.untie_biases = untie_biases
         self.convolution = convolution
 
-        if self.pad not in ['valid', 'full', 'same', 0]:
-            raise RuntimeError("Invalid pad: '%s'" % self.pad)
+        if pad == 'valid':
+            self.pad = (0,)
+        elif pad in ('full', 'same'):
+            self.pad = pad
+        else:
+            self.pad = as_tuple(pad, 1, int)
+            if self.pad != (0,):
+                raise ValueError("Arbitrary padding is not supported.")
 
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
@@ -224,10 +227,12 @@ class Conv1DLayer(Layer):
         return (self.num_filters, num_input_channels, self.filter_size[0])
 
     def get_output_shape_for(self, input_shape):
+        pad = self.pad if isinstance(self.pad, tuple) else (self.pad,)
+
         output_length = conv_output_length(input_shape[2],
                                            self.filter_size[0],
                                            self.stride[0],
-                                           self.pad)
+                                           pad[0])
 
         return (input_shape[0], self.num_filters, output_length)
 
@@ -239,12 +244,7 @@ class Conv1DLayer(Layer):
 
         filter_shape = self.get_W_shape()
 
-        if self.pad in [0, 'valid', 'full']:
-            conved = self.convolution(input, self.W, subsample=self.stride,
-                                      image_shape=input_shape,
-                                      filter_shape=filter_shape,
-                                      border_mode=self.pad or 'valid')
-        elif self.pad == 'same':
+        if self.pad == 'same':
             if self.stride[0] != 1:
                 raise NotImplementedError("Strided convolution with "
                                           "pad 'same' is not "
@@ -256,6 +256,12 @@ class Conv1DLayer(Layer):
                                       border_mode='full')
             shift = (self.filter_size[0] - 1) // 2
             conved = conved[:, :, shift:input.shape[2] + shift]
+        else:
+            border_mode = {(0,): 'valid', 'full': 'full'}[self.pad]
+            conved = self.convolution(input, self.W, subsample=self.stride,
+                                      image_shape=input_shape,
+                                      filter_shape=filter_shape,
+                                      border_mode=border_mode)
 
         if self.b is None:
             activation = conved
@@ -297,11 +303,11 @@ class Conv2DLayer(Layer):
         An integer or a 2-element tuple specifying the stride of the
         convolution operation.
 
-    pad : {0, 'full', 'same'} (default: 0)
+    pad : {0, (0,0), 'full', 'same', 'valid'} (default: 0)
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.
-        The `pad` argument allows to implicitly pad the input with zeros,
+        The `pad` argument allows you to implicitly pad the input with zeros,
         extending the output size.
 
         ``'full'`` pads with one less than the filter size on both sides. This
@@ -312,8 +318,7 @@ class Conv2DLayer(Layer):
         the second side for an even filter size). When ``stride=1``, this
         results in an output size equal to the input size.
 
-        Note that ``'full'`` and ``'same'`` can be faster than equivalent
-        integer values due to optimizations by Theano.
+        ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
     untie_biases : bool (default: False)
         If ``False``, the layer will have a bias parameter for each channel,
@@ -360,7 +365,7 @@ class Conv2DLayer(Layer):
     Notes
     -----
     Theano's default convolution function (`theano.tensor.nnet.conv.conv2d`)
-    does not support the 'same' pad by default. This layer emulates
+    does not support ``pad='same'`` by default. This layer emulates
     it by performing a 'full' convolution and then cropping the result, which
     may negatively affect performance.
     """
@@ -378,12 +383,17 @@ class Conv2DLayer(Layer):
         self.num_filters = num_filters
         self.filter_size = as_tuple(filter_size, 2)
         self.stride = as_tuple(stride, 2)
-        self.pad = pad
         self.untie_biases = untie_biases
         self.convolution = convolution
 
-        if self.pad not in ['valid', 'full', 'same', 0]:
-            raise RuntimeError("Invalid pad: '%s'" % self.pad)
+        if pad == 'valid':
+            self.pad = (0, 0)
+        elif pad in ('full', 'same'):
+            self.pad = pad
+        else:
+            self.pad = as_tuple(pad, 2, int)
+            if self.pad != (0, 0):
+                raise ValueError("Arbitrary padding is not supported.")
 
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
@@ -410,15 +420,17 @@ class Conv2DLayer(Layer):
                 self.filter_size[1])
 
     def get_output_shape_for(self, input_shape):
+        pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * 2
+
         output_rows = conv_output_length(input_shape[2],
                                          self.filter_size[0],
                                          self.stride[0],
-                                         self.pad)
+                                         pad[0])
 
         output_columns = conv_output_length(input_shape[3],
                                             self.filter_size[1],
                                             self.stride[1],
-                                            self.pad)
+                                            pad[1])
 
         return (input_shape[0], self.num_filters, output_rows, output_columns)
 
@@ -430,12 +442,7 @@ class Conv2DLayer(Layer):
 
         filter_shape = self.get_W_shape()
 
-        if self.pad in [0, 'valid', 'full']:
-            conved = self.convolution(input, self.W, subsample=self.stride,
-                                      image_shape=input_shape,
-                                      filter_shape=filter_shape,
-                                      border_mode=self.pad or 'valid')
-        elif self.pad == 'same':
+        if self.pad == 'same':
             if self.stride != (1, 1):
                 raise NotImplementedError("Strided convolution with "
                                           "pad 'same' is not "
@@ -449,6 +456,12 @@ class Conv2DLayer(Layer):
             shift_y = (self.filter_size[1] - 1) // 2
             conved = conved[:, :, shift_x:input.shape[2] + shift_x,
                             shift_y:input.shape[3] + shift_y]
+        else:
+            border_mode = {(0, 0): 'valid', 'full': 'full'}[self.pad]
+            conved = self.convolution(input, self.W, subsample=self.stride,
+                                      image_shape=input_shape,
+                                      filter_shape=filter_shape,
+                                      border_mode=border_mode)
 
         if self.b is None:
             activation = conved

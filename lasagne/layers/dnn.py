@@ -116,7 +116,7 @@ class Conv2DDNNLayer(DNNLayer):
     lasagne.layers.Conv2DDNNLayer(incoming, num_filters, filter_size,
     stride=(1, 1), pad=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
-    nonlinearity=lasagne.nonlinearities.rectify, pad=None, flip_filters=False,
+    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False,
     **kwargs)
 
     2D convolutional layer
@@ -142,11 +142,11 @@ class Conv2DDNNLayer(DNNLayer):
         An integer or a 2-element tuple specifying the stride of the
         convolution operation.
 
-    pad : int, tuple of int, 'full' or 'same' (default: 0)
+    pad : int, tuple of int, 'full', 'same' or 'valid' (default: 0)
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.
-        The `pad` argument allows to implicitly pad the input with zeros,
+        The `pad` argument allows you to implicitly pad the input with zeros,
         extending the output size.
 
         A single integer results in symmetric zero-padding of the given size on
@@ -160,6 +160,8 @@ class Conv2DDNNLayer(DNNLayer):
         ``'same'`` pads with half the filter size on both sides (one less on
         the second side for an even filter size). When ``stride=1``, this
         results in an output size equal to the input size.
+
+        ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
         Note that ``'full'`` and ``'same'`` can be faster than equivalent
         integer values due to optimizations by Theano.
@@ -213,7 +215,7 @@ class Conv2DDNNLayer(DNNLayer):
     Notes
     -----
     Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    the 'same' pad. It is not emulated. This should result in better
+    ``pad='same'``. It is not emulated. This should result in better
     performance.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
@@ -232,22 +234,19 @@ class Conv2DDNNLayer(DNNLayer):
         self.untie_biases = untie_biases
         self.flip_filters = flip_filters
 
-        if isinstance(pad, basestring):
-            if pad == 'valid':
-                self.pad = (0, 0)
-            elif pad == 'full':
-                self.pad = 'full'
-            elif pad == 'same':
-                # dnn_conv does not support same, so we just specify
-                # padding directly.
-                # only works for odd filter size, but the even filter size
-                # case is probably not worth supporting.
-                self.pad = ((self.filter_size[0] - 1) // 2,
-                            (self.filter_size[1] - 1) // 2)
-            else:
-                raise RuntimeError("Invalid pad: '%s'" % pad)
+        if pad == 'valid':
+            self.pad = (0, 0)
+        elif pad == 'full':
+            self.pad = 'full'
+        elif pad == 'same':
+            # dnn_conv does not support same, so we just specify
+            # padding directly.
+            # only works for odd filter size, but the even filter size
+            # case is probably not worth supporting.
+            self.pad = ((self.filter_size[0] - 1) // 2,
+                        (self.filter_size[1] - 1) // 2)
         else:
-            self.pad = as_tuple(pad, 2)
+            self.pad = as_tuple(pad, 2, int)
 
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
@@ -268,16 +267,17 @@ class Conv2DDNNLayer(DNNLayer):
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]
+        pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * 2
 
         output_rows = conv_output_length(input_shape[2],
                                          self.filter_size[0],
                                          self.stride[0],
-                                         self.pad[0])
+                                         pad[0])
 
         output_columns = conv_output_length(input_shape[3],
                                             self.filter_size[1],
                                             self.stride[1],
-                                            self.pad[1])
+                                            pad[1])
 
         return (batch_size, self.num_filters, output_rows, output_columns)
 

@@ -115,7 +115,7 @@ def test_conv_output_length():
 
     with pytest.raises(ValueError) as exc:
         conv_output_length(13, 5, 3, '_nonexistent_mode')
-    assert "Invalid pad" in exc.value.args[0]
+    assert "Invalid pad: " in exc.value.args[0]
 
 
 @pytest.fixture
@@ -167,10 +167,17 @@ class TestConv1DLayer:
     def test_invalid_pad(self, DummyInputLayer):
         from lasagne.layers.conv import Conv1DLayer
         input_layer = DummyInputLayer((1, 2, 3))
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(TypeError) as exc:
             layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
                                 pad='_nonexistent_mode')
-        assert "Invalid pad" in exc.value.args[0]
+        assert "iterable of int" in exc.value.args[0]
+
+    def test_custom_pad(self, DummyInputLayer):
+        from lasagne.layers.conv import Conv1DLayer
+        input_layer = DummyInputLayer((1, 2, 3))
+        with pytest.raises(ValueError) as exc:
+            layer = Conv1DLayer(input_layer, 16, (3,), pad=(1,))
+        assert "Arbitrary padding" in exc.value.args[0]
 
 
 class TestConv2DLayerImplementations:
@@ -264,10 +271,10 @@ class TestConv2DLayerImplementations:
 
     def test_invalid_pad(self, Conv2DImpl, DummyInputLayer):
         input_layer = DummyInputLayer((1, 2, 3))
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(TypeError) as exc:
             layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
                                pad='_nonexistent_mode')
-        assert "Invalid pad" in exc.value.args[0]
+        assert "iterable of int" in exc.value.args[0]
 
     def test_get_params(self, Conv2DImpl, DummyInputLayer):
         input_layer = DummyInputLayer((128, 3, 32, 32))
@@ -279,6 +286,14 @@ class TestConv2DLayerImplementations:
         assert layer.get_params(trainable=False) == []
         assert layer.get_params(_nonexistent_tag=True) == []
         assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
+
+
+class TestConv2DLayer:
+    def test_custom_pad(self):
+        from lasagne.layers.conv import Conv2DLayer
+        with pytest.raises(ValueError) as exc:
+            layer = Conv2DLayer((None,) * 4, 16, (3, 3), pad=(1, 1))
+        assert "Arbitrary padding" in exc.value.args[0]
 
 
 class TestConv2DDNNLayer:

@@ -47,7 +47,7 @@ def conv2d_test_sets():
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
-    for pad in ['valid', 'full', 'same']:
+    for pad in [0, 'full', 'same']:
         for stride in [1, 2, 3]:
             input = np.random.random((3, 1, 16, 23))
             kernel = np.random.random((16, 1, 3, 3))
@@ -70,6 +70,8 @@ def conv2d_test_sets():
     kernel = np.random.random((16, 1, 3, 3))
     output = conv2d(input, kernel, pad='valid')
     yield _convert(input, kernel, output, {'b': None})
+    # pad='valid' case
+    yield _convert(input, kernel, output, {'pad': 'valid'})
 
 
 def conv1d(input, kernel, pad='valid'):
@@ -87,7 +89,7 @@ def conv1d_test_sets():
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
-    for pad in [0, 'valid', 'full', 'same']:
+    for pad in [0, 1, 2, 'full', 'same']:
         for stride in [1, 2, 3]:
             input = np.random.random((3, 1, 23))
             kernel = np.random.random((16, 1, 3))
@@ -96,12 +98,13 @@ def conv1d_test_sets():
             yield _convert(input, kernel, output, {'pad': pad,
                                                    'stride': stride,
                                                    })
-
     # bias-less case
     input = np.random.random((3, 1, 23))
     kernel = np.random.random((16, 1, 3))
     output = conv1d(input, kernel, pad='valid')
     yield _convert(input, kernel, output, {'b': None})
+    # pad='valid' case
+    yield _convert(input, kernel, output, {'pad': 'valid'})
 
 
 def test_conv_output_length():
@@ -171,13 +174,6 @@ class TestConv1DLayer:
             layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
                                 pad='_nonexistent_mode')
         assert "iterable of int" in exc.value.args[0]
-
-    def test_custom_pad(self, DummyInputLayer):
-        from lasagne.layers.conv import Conv1DLayer
-        input_layer = DummyInputLayer((1, 2, 3))
-        with pytest.raises(ValueError) as exc:
-            layer = Conv1DLayer(input_layer, 16, (3,), pad=(1,))
-        assert "Arbitrary padding" in exc.value.args[0]
 
 
 class TestConv2DLayerImplementations:
@@ -286,14 +282,6 @@ class TestConv2DLayerImplementations:
         assert layer.get_params(trainable=False) == []
         assert layer.get_params(_nonexistent_tag=True) == []
         assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
-
-
-class TestConv2DLayer:
-    def test_custom_pad(self):
-        from lasagne.layers.conv import Conv2DLayer
-        with pytest.raises(ValueError) as exc:
-            layer = Conv2DLayer((None,) * 4, 16, (3, 3), pad=(1, 1))
-        assert "Arbitrary padding" in exc.value.args[0]
 
 
 class TestConv2DDNNLayer:

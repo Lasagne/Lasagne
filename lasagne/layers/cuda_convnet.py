@@ -62,16 +62,16 @@ class Conv2DCCLayer(CCLayer):
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or iterable
+    filter_size : int or iterable of int
         An integer or a 2-element tuple specifying the size of the filters.
         This layer does not support non-square filters.
 
-    stride : int or iterable
+    stride : int or iterable of int
         An integer or a 2-element tuple specifying the stride of the
         convolution operation. This layer does not support using different
         strides along both axes.
 
-    pad : int, tuple of int, 'full', 'same' or 'valid' (default: 0)
+    pad : int, iterable of int, 'full', 'same' or 'valid' (default: 0)
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.

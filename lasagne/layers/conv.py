@@ -3,7 +3,7 @@ import theano.tensor as T
 from .. import init
 from .. import nonlinearities
 from ..utils import as_tuple
-from ..theano_extensions import conv
+from ..theano_extensions import conv, padding
 
 from .base import Layer
 
@@ -102,19 +102,22 @@ class Conv1DLayer(Layer):
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or iterable
+    filter_size : int or iterable of int
         An integer or a 1-element tuple specifying the size of the filters.
 
-    stride : int or iterable
+    stride : int or iterable of int
         An integer or a 1-element tuple specifying the stride of the
         convolution operation.
 
-    pad : {0, (0,), 'full', 'same', 'valid'} (default: 0)
+    pad : int, iterable of int, 'full', 'same' or 'valid' (default: 0)
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.
         The `pad` argument allows you to implicitly pad the input with zeros,
         extending the output size.
+
+        An integer or a 1-element tuple results in symmetric zero-padding of
+        the given size on both borders.
 
         ``'full'`` pads with one less than the filter size on both sides. This
         is equivalent to computing the convolution wherever the input and the
@@ -173,10 +176,9 @@ class Conv1DLayer(Layer):
 
     Notes
     -----
-    Theano's default convolution function (`theano.tensor.nnet.conv.conv2d`)
-    does not support ``pad='same'`` by default. This layer emulates
-    it by performing a 'full' convolution and then cropping the result, which
-    may negatively affect performance.
+    Theano's underlying convolution (:func:`theano.tensor.nnet.conv.conv2d`)
+    only supports ``pad=0`` and ``pad='full'``. This layer emulates other modes
+    by cropping a full convolution or explicitly padding the input with zeros.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=1,
                  pad=0, untie_biases=False,
@@ -201,8 +203,6 @@ class Conv1DLayer(Layer):
             self.pad = pad
         else:
             self.pad = as_tuple(pad, 1, int)
-            if self.pad != (0,):
-                raise ValueError("Arbitrary padding is not supported.")
 
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
@@ -242,25 +242,33 @@ class Conv1DLayer(Layer):
         if input_shape is None:
             input_shape = self.input_shape
 
-        filter_shape = self.get_W_shape()
-
-        if self.pad == 'same':
-            if self.stride[0] != 1:
-                raise NotImplementedError("Strided convolution with "
-                                          "pad 'same' is not "
-                                          "supported by this layer yet.")
-
+        if self.stride == (1,) and self.pad == 'same':
+            # simulate same convolution by cropping a full convolution
             conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
-                                      filter_shape=filter_shape,
+                                      filter_shape=self.get_W_shape(),
                                       border_mode='full')
             shift = (self.filter_size[0] - 1) // 2
             conved = conved[:, :, shift:input.shape[2] + shift]
         else:
-            border_mode = {(0,): 'valid', 'full': 'full'}[self.pad]
+            # no padding needed, or explicit padding of input needed
+            if self.pad == 'full':
+                border_mode = 'full'
+                pad = (0, 0)
+            elif self.pad == 'same':
+                border_mode = 'valid'
+                pad = self.filter_size[0] // 2, (self.filter_size[0] - 1) // 2
+            else:
+                border_mode = 'valid'
+                pad = (self.pad[0], self.pad[0])
+            if pad != (0, 0):
+                input = padding.pad(input, [pad], batch_ndim=2)
+                input_shape = (input_shape[0], input_shape[1],
+                               None if input_shape[2] is None else
+                               input_shape[2] + pad[0] + pad[1])
             conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
-                                      filter_shape=filter_shape,
+                                      filter_shape=self.get_W_shape(),
                                       border_mode=border_mode)
 
         if self.b is None:
@@ -296,19 +304,23 @@ class Conv2DLayer(Layer):
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or iterable
+    filter_size : int or iterable of int
         An integer or a 2-element tuple specifying the size of the filters.
 
-    stride : int or iterable
+    stride : int or iterable of int
         An integer or a 2-element tuple specifying the stride of the
         convolution operation.
 
-    pad : {0, (0,0), 'full', 'same', 'valid'} (default: 0)
+    pad : int, iterable of int, 'full', 'same' or 'valid' (default: 0)
         By default, the convolution is only computed where the input and the
         filter fully overlap (a valid convolution). When ``stride=1``, this
         yields an output that is smaller than the input by ``filter_size - 1``.
         The `pad` argument allows you to implicitly pad the input with zeros,
         extending the output size.
+
+        A single integer results in symmetric zero-padding of the given size on
+        all borders, a tuple of two integers allows different symmetric padding
+        per dimension.
 
         ``'full'`` pads with one less than the filter size on both sides. This
         is equivalent to computing the convolution wherever the input and the
@@ -319,6 +331,9 @@ class Conv2DLayer(Layer):
         results in an output size equal to the input size.
 
         ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
+
+        Note that ``'full'`` and ``'same'`` can be faster than equivalent
+        integer values due to optimizations by Theano.
 
     untie_biases : bool (default: False)
         If ``False``, the layer will have a bias parameter for each channel,
@@ -364,10 +379,9 @@ class Conv2DLayer(Layer):
 
     Notes
     -----
-    Theano's default convolution function (`theano.tensor.nnet.conv.conv2d`)
-    does not support ``pad='same'`` by default. This layer emulates
-    it by performing a 'full' convolution and then cropping the result, which
-    may negatively affect performance.
+    Theano's underlying convolution (:func:`theano.tensor.nnet.conv.conv2d`)
+    only supports ``pad=0`` and ``pad='full'``. This layer emulates other modes
+    by cropping a full convolution or explicitly padding the input with zeros.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  pad=0, untie_biases=False,
@@ -392,8 +406,6 @@ class Conv2DLayer(Layer):
             self.pad = pad
         else:
             self.pad = as_tuple(pad, 2, int)
-            if self.pad != (0, 0):
-                raise ValueError("Arbitrary padding is not supported.")
 
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
@@ -440,27 +452,40 @@ class Conv2DLayer(Layer):
         if input_shape is None:
             input_shape = self.input_shape
 
-        filter_shape = self.get_W_shape()
-
-        if self.pad == 'same':
-            if self.stride != (1, 1):
-                raise NotImplementedError("Strided convolution with "
-                                          "pad 'same' is not "
-                                          "supported by this layer yet.")
-
+        if self.stride == (1, 1) and self.pad == 'same':
+            # simulate same convolution by cropping a full convolution
             conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
-                                      filter_shape=filter_shape,
+                                      filter_shape=self.get_W_shape(),
                                       border_mode='full')
             shift_x = (self.filter_size[0] - 1) // 2
             shift_y = (self.filter_size[1] - 1) // 2
             conved = conved[:, :, shift_x:input.shape[2] + shift_x,
                             shift_y:input.shape[3] + shift_y]
         else:
-            border_mode = {(0, 0): 'valid', 'full': 'full'}[self.pad]
+            # no padding needed, or explicit padding of input needed
+            if self.pad == 'full':
+                border_mode = 'full'
+                pad = [(0, 0), (0, 0)]
+            elif self.pad == 'same':
+                border_mode = 'valid'
+                pad = [(self.filter_size[0] // 2,
+                        (self.filter_size[0] - 1) // 2),
+                       (self.filter_size[1] // 2,
+                        (self.filter_size[1] - 1) // 2)]
+            else:
+                border_mode = 'valid'
+                pad = [(self.pad[0], self.pad[0]), (self.pad[1], self.pad[1])]
+            if pad != [(0, 0), (0, 0)]:
+                input = padding.pad(input, pad, batch_ndim=2)
+                input_shape = (input_shape[0], input_shape[1],
+                               None if input_shape[2] is None else
+                               input_shape[2] + pad[0][0] + pad[0][1],
+                               None if input_shape[3] is None else
+                               input_shape[3] + pad[1][0] + pad[1][1])
             conved = self.convolution(input, self.W, subsample=self.stride,
                                       image_shape=input_shape,
-                                      filter_shape=filter_shape,
+                                      filter_shape=self.get_W_shape(),
                                       border_mode=border_mode)
 
         if self.b is None:

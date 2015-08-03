@@ -213,6 +213,9 @@ NVIDIA provides a library for common neural network operations that especially
 speeds up Convolutional Neural Networks (CNNs). Again, it can be obtained from
 NVIDIA (after registering as a developer): https://developer.nvidia.com/cudnn
 
+Note that it requires a reasonably modern GPU with Compute Capability 3.0 or higher;
+see [NVIDIA's list of CUDA GPUs](https://developer.nvidia.com/cuda-gpus).
+
 To install it, copy the ``*.h`` files to ``/usr/local/cuda/include`` and the
 ``lib*`` files to ``/usr/local/cuda/lib64``.
 
@@ -220,7 +223,7 @@ To check whether it is found by Theano, run the following command:
 
 .. code-block:: bash
 
-  python -c "import theano; print theano.sandbox.cuda.dnn.dnn_available() or theano.sandbox.cuda.dnn.dnn_avalailable.msg"
+  python -c "import theano; print theano.sandbox.cuda.dnn.dnn_available() or theano.sandbox.cuda.dnn.dnn_available.msg"
 
 It will print ``True`` if everything is fine, or an error message otherwise.
 There are no additional steps required for Theano to make use of cuDNN.

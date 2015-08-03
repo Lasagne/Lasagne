@@ -335,9 +335,8 @@ class CustomRecurrentLayer(MergeLayer):
             return self.nonlinearity(hid_pre)
 
         def step_masked(input_n, mask_n, hid_previous, *args):
-            # If mask is 0, use previous state until mask = 1 is found.
-            # This propagates the layer initial state when moving backwards
-            # until the end of the sequence is found.
+            # Skip over any input with mask 0 by copying the previous
+            # hidden state; proceed normally for any input with mask 1.
             hid = step(input_n, hid_previous, *args)
             hid_out = hid*mask_n + hid_previous*(1 - mask_n)
             return [hid_out]
@@ -906,9 +905,8 @@ class LSTMLayer(MergeLayer):
                              W_cell_to_forgetgate, W_cell_to_outgate,
                              W_in_stacked, b_stacked)
 
-            # If mask is 0, use previous state until mask = 1 is found.
-            # This propagates the layer initial state when moving backwards
-            # until the end of the sequence is found.
+            # Skip over any input with mask 0 by copying the previous
+            # hidden state; proceed normally for any input with mask 1.
             not_mask = 1 - mask_n
             cell = cell*mask_n + cell_previous*not_mask
             hid = hid*mask_n + hid_previous*not_mask
@@ -1281,9 +1279,8 @@ class GRULayer(MergeLayer):
             hid = step(input_n, hid_previous, W_hid_stacked, W_in_stacked,
                        b_stacked)
 
-            # If mask is 0, use previous state until mask = 1 is found.
-            # This propagates the layer initial state when moving backwards
-            # until the end of the sequence is found.
+            # Skip over any input with mask 0 by copying the previous
+            # hidden state; proceed normally for any input with mask 1.
             not_mask = 1 - mask_n
             hid = hid*mask_n + hid_previous*not_mask
 

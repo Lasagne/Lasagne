@@ -27,12 +27,10 @@ def test_recurrent_return_shape():
 def test_recurrent_grad():
     num_batch, seq_len, n_features = 5, 3, 10
     num_units = 6
-    x = T.tensor3()
-    mask = T.matrix()
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_rec = RecurrentLayer(l_inp,
                            num_units=num_units)
-    output = helper.get_output(l_rec, x, mask=mask)
+    output = helper.get_output(l_rec)
     g = T.grad(T.mean(output), lasagne.layers.get_all_params(l_rec))
     assert isinstance(g, (list, tuple))
 
@@ -181,10 +179,9 @@ def test_recurrent_variable_input_size():
 def test_recurrent_unroll_scan_fwd():
     num_batch, seq_len, n_features1 = 2, 3, 4
     num_units = 2
-    x = T.tensor3()
-    mask = T.matrix()
     in_shp = (num_batch, seq_len, n_features1)
     l_inp = InputLayer(in_shp)
+    l_mask_inp = InputLayer(in_shp[:2])
 
     x_in = np.random.random(in_shp).astype('float32')
     mask_in = np.ones(in_shp[:2]).astype('float32')
@@ -192,15 +189,17 @@ def test_recurrent_unroll_scan_fwd():
     # need to set random seed.
     np.random.seed(1234)
     l_rec_scan = RecurrentLayer(l_inp, num_units=num_units, backwards=False,
-                                unroll_scan=False)
+                                unroll_scan=False, mask_input=l_mask_inp)
     np.random.seed(1234)
     l_rec_unroll = RecurrentLayer(l_inp, num_units=num_units, backwards=False,
-                                  unroll_scan=True)
-    output_scan = helper.get_output(l_rec_scan, x, mask=mask)
-    output_unrolled = helper.get_output(l_rec_unroll, x, mask=mask)
+                                  unroll_scan=True, mask_input=l_mask_inp)
+    output_scan = helper.get_output(l_rec_scan)
+    output_unrolled = helper.get_output(l_rec_unroll)
 
-    output_scan_val = output_scan.eval({x: x_in, mask: mask_in})
-    output_unrolled_val = output_unrolled.eval({x: x_in, mask: mask_in})
+    output_scan_val = output_scan.eval(
+        {l_inp.input_var: x_in, l_mask_inp.input_var: mask_in})
+    output_unrolled_val = output_unrolled.eval(
+        {l_inp.input_var: x_in, l_mask_inp.input_var: mask_in})
     np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
 
@@ -230,10 +229,9 @@ def test_recurrent_unroll_scan_bck():
 def test_recurrent_precompute():
     num_batch, seq_len, n_features1 = 2, 3, 4
     num_units = 2
-    x = T.tensor3()
-    mask = T.matrix()
     in_shp = (num_batch, seq_len, n_features1)
     l_inp = InputLayer(in_shp)
+    l_mask_inp = InputLayer(in_shp[:2])
 
     x_in = np.random.random(in_shp).astype('float32')
     mask_in = np.ones((num_batch, seq_len), dtype='float32')
@@ -241,14 +239,18 @@ def test_recurrent_precompute():
     # need to set random seed.
     np.random.seed(1234)
     l_rec_precompute = RecurrentLayer(l_inp, num_units=num_units,
-                                      precompute_input=True)
+                                      precompute_input=True,
+                                      mask_input=l_mask_inp)
     np.random.seed(1234)
     l_rec_no_precompute = RecurrentLayer(l_inp, num_units=num_units,
-                                         precompute_input=False)
+                                         precompute_input=False,
+                                         mask_input=l_mask_inp)
     output_precompute = helper.get_output(
-        l_rec_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+        l_rec_precompute).eval({l_inp.input_var: x_in,
+                                l_mask_inp.input_var: mask_in})
     output_no_precompute = helper.get_output(
-        l_rec_no_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+        l_rec_no_precompute).eval({l_inp.input_var: x_in,
+                                   l_mask_inp.input_var: mask_in})
 
     np.testing.assert_almost_equal(output_precompute, output_no_precompute)
 
@@ -272,11 +274,9 @@ def test_lstm_return_shape():
 def test_lstm_grad():
     num_batch, seq_len, n_features = 5, 3, 10
     num_units = 6
-    x = T.tensor3()
-    mask = T.matrix()
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_lstm = LSTMLayer(l_inp, num_units=num_units)
-    output = helper.get_output(l_lstm, x, mask=mask)
+    output = helper.get_output(l_lstm)
     g = T.grad(T.mean(output), lasagne.layers.get_all_params(l_lstm))
     assert isinstance(g, (list, tuple))
 
@@ -399,10 +399,9 @@ def test_lstm_bck():
 def test_lstm_precompute():
     num_batch, seq_len, n_features1 = 2, 3, 4
     num_units = 2
-    x = T.tensor3()
-    mask = T.matrix()
     in_shp = (num_batch, seq_len, n_features1)
     l_inp = InputLayer(in_shp)
+    l_mask_inp = InputLayer(in_shp[:2])
 
     x_in = np.random.random(in_shp).astype('float32')
     mask_in = np.ones((num_batch, seq_len), dtype='float32')
@@ -410,14 +409,18 @@ def test_lstm_precompute():
     # need to set random seed.
     np.random.seed(1234)
     l_lstm_precompute = LSTMLayer(
-        l_inp, num_units=num_units, precompute_input=True)
+        l_inp, num_units=num_units, precompute_input=True,
+        mask_input=l_mask_inp)
     np.random.seed(1234)
     l_lstm_no_precompute = LSTMLayer(
-        l_inp, num_units=num_units, precompute_input=False)
+        l_inp, num_units=num_units, precompute_input=False,
+        mask_input=l_mask_inp)
     output_precompute = helper.get_output(
-        l_lstm_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+        l_lstm_precompute).eval({l_inp.input_var: x_in,
+                                 l_mask_inp.input_var: mask_in})
     output_no_precompute = helper.get_output(
-        l_lstm_no_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+        l_lstm_no_precompute).eval({l_inp.input_var: x_in,
+                                    l_mask_inp.input_var: mask_in})
 
     # test that the backwards model reverses its final input
     np.testing.assert_almost_equal(output_precompute, output_no_precompute)
@@ -463,10 +466,9 @@ def test_lstm_variable_input_size():
 def test_lstm_unroll_scan_fwd():
     num_batch, seq_len, n_features1 = 2, 3, 4
     num_units = 2
-    x = T.tensor3()
-    mask = T.matrix()
     in_shp = (num_batch, seq_len, n_features1)
     l_inp = InputLayer(in_shp)
+    l_mask_inp = InputLayer(in_shp[:2])
 
     x_in = np.random.random(in_shp).astype('float32')
     mask_in = np.ones(in_shp[:2]).astype('float32')
@@ -474,15 +476,17 @@ def test_lstm_unroll_scan_fwd():
     # need to set random seed.
     np.random.seed(1234)
     l_lstm_scan = LSTMLayer(l_inp, num_units=num_units, backwards=False,
-                            unroll_scan=False)
+                            unroll_scan=False, mask_input=l_mask_inp)
     np.random.seed(1234)
     l_lstm_unrolled = LSTMLayer(l_inp, num_units=num_units, backwards=False,
-                                unroll_scan=True)
-    output_scan = helper.get_output(l_lstm_scan, x, mask=mask)
-    output_unrolled = helper.get_output(l_lstm_unrolled, x, mask=mask)
+                                unroll_scan=True, mask_input=l_mask_inp)
+    output_scan = helper.get_output(l_lstm_scan)
+    output_unrolled = helper.get_output(l_lstm_unrolled)
 
-    output_scan_val = output_scan.eval({x: x_in, mask: mask_in})
-    output_unrolled_val = output_unrolled.eval({x: x_in, mask: mask_in})
+    output_scan_val = output_scan.eval({l_inp.input_var: x_in,
+                                        l_mask_inp.input_var: mask_in})
+    output_unrolled_val = output_unrolled.eval({l_inp.input_var: x_in,
+                                                l_mask_inp.input_var: mask_in})
 
     np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
@@ -547,12 +551,10 @@ def test_gru_return_shape():
 def test_gru_grad():
     num_batch, seq_len, n_features = 5, 3, 10
     num_units = 6
-    x = T.tensor3()
-    mask = T.matrix()
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_gru = GRULayer(l_inp,
                      num_units=num_units)
-    output = helper.get_output(l_gru, x, mask=mask)
+    output = helper.get_output(l_gru)
     g = T.grad(T.mean(output), lasagne.layers.get_all_params(l_gru))
     assert isinstance(g, (list, tuple))
 
@@ -690,10 +692,9 @@ def test_gru_variable_input_size():
 def test_gru_unroll_scan_fwd():
     num_batch, seq_len, n_features1 = 2, 3, 4
     num_units = 2
-    x = T.tensor3()
-    mask = T.matrix()
     in_shp = (num_batch, seq_len, n_features1)
     l_inp = InputLayer(in_shp)
+    l_mask_inp = InputLayer(in_shp[:2])
 
     x_in = np.random.random(in_shp).astype('float32')
     mask_in = np.ones(in_shp[:2]).astype('float32')
@@ -701,15 +702,17 @@ def test_gru_unroll_scan_fwd():
     # need to set random seed.
     np.random.seed(1234)
     l_gru_scan = GRULayer(l_inp, num_units=num_units, backwards=False,
-                          unroll_scan=False)
+                          unroll_scan=False, mask_input=l_mask_inp)
     np.random.seed(1234)
     l_gru_unrolled = GRULayer(l_inp, num_units=num_units, backwards=False,
-                              unroll_scan=True)
-    output_scan = helper.get_output(l_gru_scan, x, mask=mask)
-    output_unrolled = helper.get_output(l_gru_unrolled, x, mask=mask)
+                              unroll_scan=True, mask_input=l_mask_inp)
+    output_scan = helper.get_output(l_gru_scan)
+    output_unrolled = helper.get_output(l_gru_unrolled)
 
-    output_scan_val = output_scan.eval({x: x_in, mask: mask_in})
-    output_unrolled_val = output_unrolled.eval({x: x_in, mask: mask_in})
+    output_scan_val = output_scan.eval({l_inp.input_var: x_in,
+                                        l_mask_inp.input_var: mask_in})
+    output_unrolled_val = output_unrolled.eval({l_inp.input_var: x_in,
+                                                l_mask_inp.input_var: mask_in})
 
     np.testing.assert_almost_equal(output_scan_val, output_unrolled_val)
 
@@ -741,25 +744,27 @@ def test_gru_unroll_scan_bck():
 def test_gru_precompute():
     num_batch, seq_len, n_features1 = 2, 3, 4
     num_units = 2
-    x = T.tensor3()
-    mask = T.matrix()
     in_shp = (num_batch, seq_len, n_features1)
     l_inp = InputLayer(in_shp)
+    l_mask_inp = InputLayer(in_shp[:2])
 
     x_in = np.random.random(in_shp).astype('float32')
     mask_in = np.ones((num_batch, seq_len), dtype='float32')
 
     # need to set random seed.
     np.random.seed(1234)
-    l_gru_precompute = GRULayer(
-        l_inp, num_units=num_units, precompute_input=True)
+    l_gru_precompute = GRULayer(l_inp, num_units=num_units,
+                                precompute_input=True, mask_input=l_mask_inp)
     np.random.seed(1234)
-    l_gru_no_precompute = GRULayer(
-        l_inp, num_units=num_units, precompute_input=False)
+    l_gru_no_precompute = GRULayer(l_inp, num_units=num_units,
+                                   precompute_input=False,
+                                   mask_input=l_mask_inp)
     output_precompute = helper.get_output(
-        l_gru_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+        l_gru_precompute).eval({l_inp.input_var: x_in,
+                                l_mask_inp.input_var: mask_in})
     output_no_precompute = helper.get_output(
-        l_gru_no_precompute, x, mask=mask).eval({x: x_in, mask: mask_in})
+        l_gru_no_precompute).eval({l_inp.input_var: x_in,
+                                   l_mask_inp.input_var: mask_in})
 
     # test that the backwards model reverses its final input
     np.testing.assert_almost_equal(output_precompute, output_no_precompute)

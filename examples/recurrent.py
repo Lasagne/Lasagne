@@ -105,16 +105,21 @@ def main(num_epochs=NUM_EPOCHS):
     # Recurrent layers expect input of shape
     # (batch size, max sequence length, number of features)
     l_in = lasagne.layers.InputLayer(shape=(N_BATCH, MAX_LENGTH, 2))
+    # The network also needs a way to provide a mask for each sequence.  We'll
+    # use a separate input layer for that.  Since the mask only determines
+    # which indices are part of the sequence for each batch entry, they are
+    # supplied as matrices of dimensionality (N_BATCH, MAX_LENGTH)
+    l_mask = lasagne.layers.InputLayer(shape=(N_BATCH, MAX_LENGTH))
     # We're using a bidirectional network, which means we will combine two
     # RecurrentLayers, one with the backwards=True keyword argument.
     # Setting a value for grad_clipping will clip the gradients in the layer
     l_forward = lasagne.layers.RecurrentLayer(
-        l_in, N_HIDDEN, grad_clipping=GRAD_CLIP,
+        l_in, N_HIDDEN, mask_input=l_mask, grad_clipping=GRAD_CLIP,
         W_in_to_hid=lasagne.init.HeUniform(),
         W_hid_to_hid=lasagne.init.HeUniform(),
         nonlinearity=lasagne.nonlinearities.tanh)
     l_backward = lasagne.layers.RecurrentLayer(
-        l_in, N_HIDDEN, grad_clipping=GRAD_CLIP,
+        l_in, N_HIDDEN, mask_input=l_mask, grad_clipping=GRAD_CLIP,
         W_in_to_hid=lasagne.init.HeUniform(),
         W_hid_to_hid=lasagne.init.HeUniform(),
         nonlinearity=lasagne.nonlinearities.tanh, backwards=True)
@@ -134,11 +139,9 @@ def main(num_epochs=NUM_EPOCHS):
         l_sum, num_units=1, nonlinearity=lasagne.nonlinearities.tanh)
 
     target_values = T.vector('target_output')
-    mask = T.matrix('mask')
 
     # lasagne.layers.get_output produces a variable for the output of the net
-    network_output = lasagne.layers.get_output(
-        l_out, l_in.input_var, mask=mask)
+    network_output = lasagne.layers.get_output(l_out)
     # The value we care about is the final value produced for each sequence
     predicted_values = network_output[:, -1]
     # Our cost will be mean-squared error
@@ -150,9 +153,10 @@ def main(num_epochs=NUM_EPOCHS):
     updates = lasagne.updates.adagrad(cost, all_params, LEARNING_RATE)
     # Theano functions for training and computing cost
     print("Compiling functions ...")
-    train = theano.function(
-        [l_in.input_var, target_values, mask], cost, updates=updates)
-    compute_cost = theano.function([l_in.input_var, target_values, mask], cost)
+    train = theano.function([l_in.input_var, target_values, l_mask.input_var],
+                            cost, updates=updates)
+    compute_cost = theano.function(
+        [l_in.input_var, target_values, l_mask.input_var], cost)
 
     # We'll use this "validation set" to periodically check progress
     X_val, y_val, mask_val = gen_data()

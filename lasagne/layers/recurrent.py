@@ -61,7 +61,7 @@ from .. import nonlinearities
 from .. import init
 from ..utils import unroll_scan
 
-from .base import Layer
+from .base import MergeLayer
 from .input import InputLayer
 from .dense import DenseLayer
 from . import helper
@@ -75,13 +75,13 @@ __all__ = [
 ]
 
 
-class CustomRecurrentLayer(Layer):
+class CustomRecurrentLayer(MergeLayer):
     """
     lasagne.layers.recurrent.CustomRecurrentLayer(incoming, input_to_hidden,
     hidden_to_hidden, nonlinearity=lasagne.nonlinearities.rectify,
     hid_init=lasagne.init.Constant(0.), backwards=False,
     learn_init=False, gradient_steps=-1, grad_clipping=False,
-    unroll_scan=False, precompute_input=True, **kwargs)
+    unroll_scan=False, precompute_input=True, mask_input=None, **kwargs)
 
     A layer which implements a recurrent connection.
 
@@ -143,6 +143,10 @@ class CustomRecurrentLayer(Layer):
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
         an increase in memory usage.
+    mask_input : :class:`lasagne.layers.Layer`
+        Layer which allows for a sequence mask to be input, for when sequences
+        are of variable length.  Default `None`, which means no mask will be
+        supplied (i.e. all sequences are of the same length).
 
     Examples
     --------
@@ -175,9 +179,17 @@ class CustomRecurrentLayer(Layer):
                  grad_clipping=False,
                  unroll_scan=False,
                  precompute_input=True,
+                 mask_input=None,
                  **kwargs):
 
-        super(CustomRecurrentLayer, self).__init__(incoming, **kwargs)
+        # This layer inherits from a MergeLayer, because it can have two
+        # inputs - the layer input, and the mask.  We will just provide the
+        # layer input as incomings, unless a mask input was provided.
+        incomings = [incoming]
+        if mask_input is not None:
+            incomings.append(mask_input)
+
+        super(CustomRecurrentLayer, self).__init__(incomings, **kwargs)
 
         self.input_to_hidden = input_to_hidden
         self.hidden_to_hidden = hidden_to_hidden
@@ -192,7 +204,10 @@ class CustomRecurrentLayer(Layer):
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
 
-        if unroll_scan and self.input_shape[1] is None:
+        # Retrieve the dimensionality of the incoming layer
+        input_shape = self.input_shapes[0]
+
+        if unroll_scan and input_shape[1] is None:
             raise ValueError("Input sequence length cannot be specified as "
                              "None when unroll_scan is True")
 
@@ -212,7 +227,7 @@ class CustomRecurrentLayer(Layer):
 
         # Get the input dimensionality and number of units based on the
         # expected output of the input-to-hidden layer
-        self.num_inputs = np.prod(self.input_shape[2:])
+        self.num_inputs = np.prod(input_shape[2:])
         self.num_units = input_to_hidden.output_shape[-1]
 
         # Initialize hidden state
@@ -235,31 +250,39 @@ class CustomRecurrentLayer(Layer):
         params += helper.get_all_params(self.hidden_to_hidden, **tags)
         return params
 
-    def get_output_shape_for(self, input_shape):
+    def get_output_shape_for(self, input_shapes):
+        # The shape of the input to this layer will be the first element
+        # of input_shapes, whether or not a mask input is being used.
+        input_shape = input_shapes[0]
         return input_shape[0], input_shape[1], self.num_units
 
-    def get_output_for(self, input, mask=None, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         """
         Compute this layer's output function given a symbolic input variable.
 
         Parameters
         ----------
-        input : theano.TensorType
-            Symbolic input variable.
-        mask : theano.TensorType
-            Theano variable denoting whether each time step in each
-            sequence in the batch is part of the sequence or not.  If ``None``,
-            then it is assumed that all sequences are of the same length.  If
-            not all sequences are of the same length, then it must be
-            supplied as a matrix of shape ``(n_batch, n_time_steps)`` where
-            ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
-            ``mask[i, j] = 0`` when ``j > (length of sequence i)``.
+        inputs : list of theano.TensorType
+            `inputs[0]` should always be the symbolic input variable.  When
+            this layer has a mask input (i.e. was instantiated with
+            `mask_input != None`, indicating that the lengths of sequences in
+            each batch vary), `inputs` should have length 2, where `inputs[1]`
+            is the `mask`.  The `mask` should be supplied as a Theano variable
+            denoting whether each time step in each sequence in the batch is
+            part of the sequence or not.  `mask` should be a matrix of shape
+            ``(n_batch, n_time_steps)`` where ``mask[i, j] = 1`` when ``j <=
+            (length of sequence i)`` and ``mask[i, j] = 0`` when ``j > (length
+            of sequence i)``.
 
         Returns
         -------
         layer_output : theano.TensorType
             Symbolic output variable.
         """
+        # Retrieve the layer input
+        input = inputs[0]
+        # Retrieve the mask when it is supplied
+        mask = inputs[1] if len(inputs) > 1 else None
 
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
@@ -335,6 +358,8 @@ class CustomRecurrentLayer(Layer):
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
         if self.unroll_scan:
+            # Retrieve the dimensionality of the incoming layer
+            input_shape = self.input_shapes[0]
             # Explicitly unroll the recurrence instead of using scan
             hid_out = unroll_scan(
                 fn=step_fun,
@@ -342,7 +367,7 @@ class CustomRecurrentLayer(Layer):
                 outputs_info=[hid_init],
                 go_backwards=self.backwards,
                 non_sequences=non_seqs,
-                n_steps=self.input_shape[1])[0]
+                n_steps=input_shape[1])[0]
         else:
             # Scan op iterates over first dimension of input and repeatedly
             # applies the step function
@@ -373,7 +398,7 @@ class RecurrentLayer(CustomRecurrentLayer):
     b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
     gradient_steps=-1, grad_clipping=False, unroll_scan=False,
-    precompute_input=True, **kwargs)
+    precompute_input=True, mask_input=None, **kwargs)
 
     Dense recurrent neural network (RNN) layer
 
@@ -428,6 +453,10 @@ class RecurrentLayer(CustomRecurrentLayer):
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
         an increase in memory usage.
+    mask_input : :class:`lasagne.layers.Layer`
+        Layer which allows for a sequence mask to be input, for when sequences
+        are of variable length.  Default `None`, which means no mask will be
+        supplied (i.e. all sequences are of the same length).
 
     References
     ----------
@@ -446,6 +475,7 @@ class RecurrentLayer(CustomRecurrentLayer):
                  grad_clipping=False,
                  unroll_scan=False,
                  precompute_input=True,
+                 mask_input=None,
                  **kwargs):
         input_shape = helper.get_output_shape(incoming)
         num_batch = input_shape[0]
@@ -471,7 +501,7 @@ class RecurrentLayer(CustomRecurrentLayer):
             hid_init=hid_init, backwards=backwards, learn_init=learn_init,
             gradient_steps=gradient_steps,
             grad_clipping=grad_clipping, unroll_scan=unroll_scan,
-            precompute_input=precompute_input, **kwargs)
+            precompute_input=precompute_input, mask_input=mask_input, **kwargs)
 
 
 class Gate(object):
@@ -534,7 +564,7 @@ class Gate(object):
             self.nonlinearity = nonlinearity
 
 
-class LSTMLayer(Layer):
+class LSTMLayer(MergeLayer):
     r"""
     lasagne.layers.recurrent.LSTMLayer(incoming, num_units,
     ingate=lasagne.layers.Gate(), forgetgate=lasagne.layers.Gate(),
@@ -545,7 +575,7 @@ class LSTMLayer(Layer):
     cell_init=b=lasagne.init.Constant(0.),
     hid_init=b=lasagne.init.Constant(0.), backwards=False, learn_init=False,
     peepholes=True, gradient_steps=-1, grad_clipping=False, unroll_scan=False,
-    precompute_input=True, **kwargs)
+    precompute_input=True, mask_input=None, **kwargs)
 
     A long short-term memory (LSTM) layer.
 
@@ -623,6 +653,10 @@ class LSTMLayer(Layer):
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
         an increase in memory usage.
+    mask_input : :class:`lasagne.layers.Layer`
+        Layer which allows for a sequence mask to be input, for when sequences
+        are of variable length.  Default `None`, which means no mask will be
+        supplied (i.e. all sequences are of the same length).
 
     References
     ----------
@@ -644,10 +678,18 @@ class LSTMLayer(Layer):
                  grad_clipping=False,
                  unroll_scan=False,
                  precompute_input=True,
+                 mask_input=None,
                  **kwargs):
 
+        # This layer inherits from a MergeLayer, because it can have two
+        # inputs - the layer input, and the mask.  We will just provide the
+        # layer input as incomings, unless a mask input was provided.
+        incomings = [incoming]
+        if mask_input is not None:
+            incomings.append(mask_input)
+
         # Initialize parent layer
-        super(LSTMLayer, self).__init__(incoming, **kwargs)
+        super(LSTMLayer, self).__init__(incomings, **kwargs)
 
         # If the provided nonlinearity is None, make it linear
         if nonlinearity_out is None:
@@ -668,11 +710,14 @@ class LSTMLayer(Layer):
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
 
-        if unroll_scan and self.input_shape[1] is None:
+        # Retrieve the dimensionality of the incoming layer
+        input_shape = self.input_shapes[0]
+
+        if unroll_scan and input_shape[1] is None:
             raise ValueError("Input sequence length cannot be specified as "
                              "None when unroll_scan is True")
 
-        num_inputs = np.prod(self.input_shape[2:])
+        num_inputs = np.prod(input_shape[2:])
 
         def add_gate_params(gate, gate_name):
             """ Convenience function for adding layer parameters from a Gate
@@ -752,31 +797,40 @@ class LSTMLayer(Layer):
                 hid_init, (1, self.num_units), name="hid_init",
                 trainable=learn_init, regularizable=False)
 
-    def get_output_shape_for(self, input_shape):
+    def get_output_shape_for(self, input_shapes):
+        # The shape of the input to this layer will be the first element
+        # of input_shapes, whether or not a mask input is being used.
+        input_shape = input_shapes[0]
         return input_shape[0], input_shape[1], self.num_units
 
-    def get_output_for(self, input, mask=None, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         """
         Compute this layer's output function given a symbolic input variable
 
         Parameters
         ----------
-        input : theano.TensorType
-            Symbolic input variable.
-        mask : theano.TensorType
-            Theano variable denoting whether each time step in each
-            sequence in the batch is part of the sequence or not.  If ``None``,
-            then it is assumed that all sequences are of the same length.  If
-            not all sequences are of the same length, then it must be
-            supplied as a matrix of shape ``(n_batch, n_time_steps)`` where
-            ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
-            ``mask[i, j] = 0`` when ``j > (length of sequence i)``.
+        inputs : list of theano.TensorType
+            `inputs[0]` should always be the symbolic input variable.  When
+            this layer has a mask input (i.e. was instantiated with
+            `mask_input != None`, indicating that the lengths of sequences in
+            each batch vary), `inputs` should have length 2, where `inputs[1]`
+            is the `mask`.  The `mask` should be supplied as a Theano variable
+            denoting whether each time step in each sequence in the batch is
+            part of the sequence or not.  `mask` should be a matrix of shape
+            ``(n_batch, n_time_steps)`` where ``mask[i, j] = 1`` when ``j <=
+            (length of sequence i)`` and ``mask[i, j] = 0`` when ``j > (length
+            of sequence i)``.
 
         Returns
         -------
         layer_output : theano.TensorType
-            Symblic output variable.
+            Symbolic output variable.
         """
+        # Retrieve the layer input
+        input = inputs[0]
+        # Retrieve the mask when it is supplied
+        mask = inputs[1] if len(inputs) > 1 else None
+
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
             input = input.reshape((input.shape[0], input.shape[1],
@@ -907,6 +961,8 @@ class LSTMLayer(Layer):
             non_seqs += [(), ()]
 
         if self.unroll_scan:
+            # Retrieve the dimensionality of the incoming layer
+            input_shape = self.input_shapes[0]
             # Explicitly unroll the recurrence instead of using scan
             cell_out, hid_out = unroll_scan(
                 fn=step_fun,
@@ -914,7 +970,7 @@ class LSTMLayer(Layer):
                 outputs_info=[cell_init, hid_init],
                 go_backwards=self.backwards,
                 non_sequences=non_seqs,
-                n_steps=self.input_shape[1])
+                n_steps=input_shape[1])
         else:
             # Scan op iterates over first dimension of input and repeatedly
             # applies the step function
@@ -942,7 +998,7 @@ class LSTMLayer(Layer):
         return hid_out
 
 
-class GRULayer(Layer):
+class GRULayer(MergeLayer):
     r"""
     lasagne.layers.recurrent.GRULayer(incoming, num_units,
     resetgate=lasagne.layers.Gate(W_cell=None),
@@ -951,7 +1007,7 @@ class GRULayer(Layer):
     W_cell=None, lasagne.nonlinearities.tanh),
     hid_init=lasagne.init.Constant(0.), learn_init=True, backwards=False,
     gradient_steps=-1, grad_clipping=False, unroll_scan=False,
-    precompute_input=True, **kwargs)
+    precompute_input=True, mask_input=None, **kwargs)
 
     Gated Recurrent Unit (GRU) Layer
 
@@ -1008,6 +1064,10 @@ class GRULayer(Layer):
         If True, precompute input_to_hid before iterating through
         the sequence. This can result in a speedup at the expense of
         an increase in memory usage.
+    mask_input : :class:`lasagne.layers.Layer`
+        Layer which allows for a sequence mask to be input, for when sequences
+        are of variable length.  Default `None`, which means no mask will be
+        supplied (i.e. all sequences are of the same length).
 
     References
     ----------
@@ -1042,10 +1102,18 @@ class GRULayer(Layer):
                  grad_clipping=False,
                  unroll_scan=False,
                  precompute_input=True,
+                 mask_input=None,
                  **kwargs):
 
+        # This layer inherits from a MergeLayer, because it can have two
+        # inputs - the layer input, and the mask.  We will just provide the
+        # layer input as incomings, unless a mask input was provided.
+        incomings = [incoming]
+        if mask_input is not None:
+            incomings.append(mask_input)
+
         # Initialize parent layer
-        super(GRULayer, self).__init__(incoming, **kwargs)
+        super(GRULayer, self).__init__(incomings, **kwargs)
 
         self.learn_init = learn_init
         self.num_units = num_units
@@ -1059,12 +1127,15 @@ class GRULayer(Layer):
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
 
-        if unroll_scan and self.input_shape[1] is None:
+        # Retrieve the dimensionality of the incoming layer
+        input_shape = self.input_shapes[0]
+
+        if unroll_scan and input_shape[1] is None:
             raise ValueError("Input sequence length cannot be specified as "
                              "None when unroll_scan is True")
 
         # Input dimensionality is the output dimensionality of the input layer
-        num_inputs = np.prod(self.input_shape[2:])
+        num_inputs = np.prod(input_shape[2:])
 
         def add_gate_params(gate, gate_name):
             """ Convenience function for adding layer parameters from a Gate
@@ -1114,26 +1185,39 @@ class GRULayer(Layer):
                 hid_init, (1, self.num_units), name="hid_init",
                 trainable=learn_init, regularizable=False)
 
-    def get_output_shape_for(self, input_shape):
+    def get_output_shape_for(self, input_shapes):
+        # The shape of the input to this layer will be the first element
+        # of input_shapes, whether or not a mask input is being used.
+        input_shape = input_shapes[0]
         return input_shape[0], input_shape[1], self.num_units
 
-    def get_output_for(self, input, mask=None, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         """
         Compute this layer's output function given a symbolic input variable
 
         Parameters
         ----------
-        input : theano.TensorType
-            Symbolic input variable
-        mask : theano.TensorType
-            Theano variable denoting whether each time step in each
-            sequence in the batch is part of the sequence or not.  If None,
-            then it is assumed that all sequences are of the same length.  If
-            not all sequences are of the same length, then it must be
-            supplied as a matrix of shape (n_batch, n_time_steps) where
-            ``mask[i, j] = 1`` when ``j <= (length of sequence i)`` and
-            ``mask[i, j] = 0`` when ``j > (length of sequence i)``.
+        inputs : list of theano.TensorType
+            `inputs[0]` should always be the symbolic input variable.  When
+            this layer has a mask input (i.e. was instantiated with
+            `mask_input != None`, indicating that the lengths of sequences in
+            each batch vary), `inputs` should have length 2, where `inputs[1]`
+            is the `mask`.  The `mask` should be supplied as a Theano variable
+            denoting whether each time step in each sequence in the batch is
+            part of the sequence or not.  `mask` should be a matrix of shape
+            ``(n_batch, n_time_steps)`` where ``mask[i, j] = 1`` when ``j <=
+            (length of sequence i)`` and ``mask[i, j] = 0`` when ``j > (length
+            of sequence i)``.
+
+        Returns
+        -------
+        layer_output : theano.TensorType
+            Symbolic output variable.
         """
+        # Retrieve the layer input
+        input = inputs[0]
+        # Retrieve the mask when it is supplied
+        mask = inputs[1] if len(inputs) > 1 else None
 
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
@@ -1235,6 +1319,8 @@ class GRULayer(Layer):
             non_seqs += [(), ()]
 
         if self.unroll_scan:
+            # Retrieve the dimensionality of the incoming layer
+            input_shape = self.input_shapes[0]
             # Explicitly unroll the recurrence instead of using scan
             hid_out = unroll_scan(
                 fn=step_fun,
@@ -1242,7 +1328,7 @@ class GRULayer(Layer):
                 outputs_info=[hid_init],
                 go_backwards=self.backwards,
                 non_sequences=non_seqs,
-                n_steps=self.input_shape[1])[0]
+                n_steps=input_shape[1])[0]
         else:
             # Scan op iterates over first dimension of input and repeatedly
             # applies the step function

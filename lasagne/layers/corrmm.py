@@ -30,9 +30,9 @@ class MMLayer(Layer):
 class Conv2DMMLayer(MMLayer):
     """
     lasagne.layers.Conv2DMMLayer(incoming, num_filters, filter_size,
-    stride=(1, 1), border_mode=None, untie_biases=False,
+    stride=(1, 1), pad=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
-    nonlinearity=lasagne.nonlinearities.rectify, pad=None, flip_filters=False,
+    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False,
     **kwargs)
 
     2D convolutional layer
@@ -51,30 +51,38 @@ class Conv2DMMLayer(MMLayer):
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or iterable
+    filter_size : int or iterable of int
         An integer or a 2-element tuple specifying the size of the filters.
 
-    stride : int or iterable
+    stride : int or iterable of int
         An integer or a 2-element tuple specifying the stride of the
         convolution operation.
 
-    border_mode : str, one of 'valid', 'full', 'same'
-        A string indicating the convolution border mode.
+    pad : int, iterable of int, 'full', 'same' or 'valid' (default: 0)
+        By default, the convolution is only computed where the input and the
+        filter fully overlap (a valid convolution). When ``stride=1``, this
+        yields an output that is smaller than the input by ``filter_size - 1``.
+        The `pad` argument allows you to implicitly pad the input with zeros,
+        extending the output size.
 
-        If 'valid', the convolution is only computed where the input and the
-        filter fully overlap.
+        A single integer results in symmetric zero-padding of the given size on
+        all borders, a tuple of two integers allows different symmetric padding
+        per dimension.
 
-        If 'full', the convolution is computed wherever the input and the
+        ``'full'`` pads with one less than the filter size on both sides. This
+        is equivalent to computing the convolution wherever the input and the
         filter overlap by at least one position.
 
-        If 'same', the convolution is computed wherever the input and the
-        filter overlap by at least half the filter size, when the filter size
-        is odd. In practice, the input is zero-padded with half the filter size
-        at the beginning and half at the end (or one less than half in the case
-        of an even filter size). This results in an output length that is the
-        same as the input length (for both odd and even filter sizes).
+        ``'same'`` pads with half the filter size on both sides (one less on
+        the second side for an even filter size). When ``stride=1``, this
+        results in an output size equal to the input size.
 
-    untie_biases : bool, default False
+        ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
+
+        Note that ``'full'`` and ``'same'`` can be faster than equivalent
+        integer values due to optimizations by Theano.
+
+    untie_biases : bool (default: False)
         If ``False``, the layer will have a bias parameter for each channel,
         which is shared across all positions in this channel. As a result, the
         `b` attribute will be a vector (1D).
@@ -101,12 +109,7 @@ class Conv2DMMLayer(MMLayer):
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    pad : int, iterable or None
-        An integer or a 2-element tuple specifying the amount of zero-padding
-        on each side. This may also be ``None``, in which case the correct
-        amount of padding will be inferred from the specified ``border_mode``.
-
-    flip_filters : bool, default False
+    flip_filters : bool (default: False)
         Whether to flip the filters and perform a convolution, or not to flip
         them and perform a correlation. Flipping adds a bit of overhead, so it
         is disabled by default. In most cases this does not make a difference
@@ -128,15 +131,13 @@ class Conv2DMMLayer(MMLayer):
     Notes
     -----
     Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    the 'same' border mode. It is not emulated. This should result in better
+    ``pad='same'``. It is not emulated. This should result in better
     performance.
-
-    Only one of ``pad`` and ``border_mode`` should be specified.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
-                 border_mode=None, untie_biases=False, W=init.GlorotUniform(),
+                 pad=0, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
-                 pad=None, flip_filters=False, **kwargs):
+                 flip_filters=False, **kwargs):
         super(Conv2DMMLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -149,27 +150,17 @@ class Conv2DMMLayer(MMLayer):
         self.untie_biases = untie_biases
         self.flip_filters = flip_filters
 
-        if border_mode is not None and pad is not None:
-            raise RuntimeError("You cannot specify both 'border_mode' and "
-                               "'pad'. To avoid ambiguity, please specify "
-                               "only one of them.")
-        elif border_mode is None and pad is None:
-            # no option specified, default to valid mode
+        if pad == 'valid':
             self.pad = (0, 0)
-        elif border_mode is not None:
-            if border_mode == 'valid':
-                self.pad = (0, 0)
-            elif border_mode == 'full':
-                self.pad = (self.filter_size[0] - 1, self.filter_size[1] - 1)
-            elif border_mode == 'same':
-                # only works for odd filter size, but the even filter size case
-                # is probably not worth supporting.
-                self.pad = ((self.filter_size[0] - 1) // 2,
-                            (self.filter_size[1] - 1) // 2)
-            else:
-                raise RuntimeError("Invalid border mode: '%s'" % border_mode)
+        elif pad == 'full':
+            self.pad = (self.filter_size[0] - 1, self.filter_size[1] - 1)
+        elif pad == 'same':
+            # only works for odd filter size, but the even filter size case
+            # is probably not worth supporting.
+            self.pad = ((self.filter_size[0] - 1) // 2,
+                        (self.filter_size[1] - 1) // 2)
         else:
-            self.pad = as_tuple(pad, 2)
+            self.pad = as_tuple(pad, 2, int)
 
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
@@ -183,7 +174,8 @@ class Conv2DMMLayer(MMLayer):
             self.b = self.add_param(b, biases_shape, name="b",
                                     regularizable=False)
 
-        self.corr_mm_op = GpuCorrMM(subsample=self.stride, pad=self.pad)
+        self.corr_mm_op = GpuCorrMM(subsample=self.stride,
+                                    border_mode=self.pad)
 
     def get_W_shape(self):
         num_input_channels = self.input_shape[1]
@@ -192,16 +184,17 @@ class Conv2DMMLayer(MMLayer):
 
     def get_output_shape_for(self, input_shape):
         batch_size = input_shape[0]
+        pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * 2
 
         output_rows = conv_output_length(input_shape[2],
                                          self.filter_size[0],
                                          self.stride[0],
-                                         'pad', self.pad[0])
+                                         pad[0])
 
         output_columns = conv_output_length(input_shape[3],
                                             self.filter_size[1],
                                             self.stride[1],
-                                            'pad', self.pad[1])
+                                            pad[1])
 
         return (batch_size, self.num_filters, output_rows, output_columns)
 

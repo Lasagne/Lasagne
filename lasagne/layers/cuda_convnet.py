@@ -38,9 +38,9 @@ class CCLayer(Layer):
 class Conv2DCCLayer(CCLayer):
     """
     lasagne.layers.Conv2DCCLayer(incoming, num_filters, filter_size,
-    stride=(1, 1), border_mode=None, untie_biases=False, W=None,
+    stride=(1, 1), pad=0, untie_biases=False, W=None,
     b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
-    pad=None, dimshuffle=True, flip_filters=False, partial_sum=1, **kwargs)
+    dimshuffle=True, flip_filters=False, partial_sum=1, **kwargs)
 
     2D convolutional layer
 
@@ -62,32 +62,41 @@ class Conv2DCCLayer(CCLayer):
     num_filters : int
         The number of learnable convolutional filters this layer has.
 
-    filter_size : int or iterable
+    filter_size : int or iterable of int
         An integer or a 2-element tuple specifying the size of the filters.
         This layer does not support non-square filters.
 
-    stride : int or iterable
+    stride : int or iterable of int
         An integer or a 2-element tuple specifying the stride of the
         convolution operation. This layer does not support using different
         strides along both axes.
 
-    border_mode : str, one of 'valid', 'full', 'same'
-        A string indicating the convolution border mode.
+    pad : int, iterable of int, 'full', 'same' or 'valid' (default: 0)
+        By default, the convolution is only computed where the input and the
+        filter fully overlap (a valid convolution). When ``stride=1``, this
+        yields an output that is smaller than the input by ``filter_size - 1``.
+        The `pad` argument allows you to implicitly pad the input with zeros,
+        extending the output size.
 
-        If 'valid', the convolution is only computed where the input and the
-        filter fully overlap.
+        A single integer results in symmetric zero-padding of the given size on
+        all borders. This layer does not support using different amounts of
+        padding along both axes, but for compatibility to other layers you can
+        still specify the padding as a tuple of two same-valued integers.
 
-        If 'full', the convolution is computed wherever the input and the
+        ``'full'`` pads with one less than the filter size on both sides. This
+        is equivalent to computing the convolution wherever the input and the
         filter overlap by at least one position.
 
-        If 'same', the convolution is computed wherever the input and the
-        filter overlap by at least half the filter size, when the filter size
-        is odd. In practice, the input is zero-padded with half the filter size
-        at the beginning and half at the end (or one less than half in the case
-        of an even filter size). This results in an output length that is the
-        same as the input length (for both odd and even filter sizes).
+        ``'same'`` pads with half the filter size on both sides (one less on
+        the second side for an even filter size). When ``stride=1``, this
+        results in an output size equal to the input size.
 
-    untie_biases : bool, default False
+        ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
+
+        Note that ``'full'`` and ``'same'`` can be faster than equivalent
+        integer values due to optimizations by Theano.
+
+    untie_biases : bool (default: False)
         If ``False``, the layer will have a bias parameter for each channel,
         which is shared across all positions in this channel. As a result, the
         `b` attribute will be a vector (1D).
@@ -117,13 +126,6 @@ class Conv2DCCLayer(CCLayer):
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
-    pad : int, iterable or None
-        An integer or a 2-element tuple specifying the amount of zero-padding
-        on each side. This may also be ``None``, in which case the correct
-        amount of padding will be inferred from the specified ``border_mode``.
-        This layer does not support using different amounts of padding along
-        both axes.
-
     dimshuffle : bool (default: True)
         If ``True``, the layer will automatically apply the necessary
         dimshuffle operations to deal with the fact that the cuda-convnet
@@ -137,7 +139,7 @@ class Conv2DCCLayer(CCLayer):
         :class:`ShuffleC01BToBC01Layer` can be used to convert between bc01 and
         c01b axis order.
 
-    flip_filters : bool, default False
+    flip_filters : bool (default: False)
         Whether to flip the filters and perform a convolution, or not to flip
         them and perform a correlation. Flipping adds a bit of overhead, so it
         is disabled by default. In most cases this does not make a difference
@@ -172,10 +174,8 @@ class Conv2DCCLayer(CCLayer):
     Notes
     -----
     Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    the 'same' border mode. It is not emulated. This should result in better
+    ``pad='same'``. It is not emulated. This should result in better
     performance.
-
-    Only one of ``pad`` and ``border_mode`` should be specified.
 
     The cuda-convnet convolution implementation has several limitations:
 
@@ -204,9 +204,9 @@ class Conv2DCCLayer(CCLayer):
     c01b axis order.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
-                 border_mode=None, untie_biases=False, W=None,
+                 pad=0, untie_biases=False, W=None,
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
-                 pad=None, dimshuffle=True, flip_filters=False, partial_sum=1,
+                 dimshuffle=True, flip_filters=False, partial_sum=1,
                  **kwargs):
         super(Conv2DCCLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
@@ -244,26 +244,16 @@ class Conv2DCCLayer(CCLayer):
                                "channels to be 1, 2, 3 or a multiple of 4, "
                                "but it is %d" % self.num_input_channels)
 
-        if border_mode is not None and pad is not None:
-            raise RuntimeError("You cannot specify both 'border_mode' and "
-                               "'pad'. To avoid ambiguity, please specify "
-                               "only one of them.")
-        elif border_mode is None and pad is None:
-            # no option specified, default to valid mode
+        if pad == 'valid':
             self.pad = 0
-        elif border_mode is not None:
-            if border_mode == 'valid':
-                self.pad = 0
-            elif border_mode == 'full':
-                self.pad = self.filter_size - 1
-            elif border_mode == 'same':
-                # only works for odd filter size, but the even filter size case
-                # is probably not worth supporting.
-                self.pad = (self.filter_size - 1) // 2
-            else:
-                raise RuntimeError("Invalid border mode: '%s'" % border_mode)
+        elif pad == 'full':
+            self.pad = self.filter_size - 1
+        elif pad == 'same':
+            # only works for odd filter size, but the even filter size case
+            # is probably not worth supporting.
+            self.pad = (self.filter_size - 1) // 2
         else:
-            pad = as_tuple(pad, 2)
+            pad = as_tuple(pad, 2, int)
             if pad[0] != pad[1]:
                 raise RuntimeError("Conv2DCCLayer only supports square "
                                    "padding, but pad=(%d, %d)" % pad)
@@ -320,12 +310,12 @@ class Conv2DCCLayer(CCLayer):
         output_rows = conv_output_length(input_rows,
                                          self.filter_size,
                                          self.stride,
-                                         'pad', self.pad)
+                                         self.pad)
 
         output_columns = conv_output_length(input_columns,
                                             self.filter_size,
                                             self.stride,
-                                            'pad', self.pad)
+                                            self.pad)
 
         if self.dimshuffle:
             return (batch_size, self.num_filters, output_rows, output_columns)
@@ -352,11 +342,11 @@ class Conv2DCCLayer(CCLayer):
             true_rows = conv_output_length(input.shape[1],
                                            self.filter_size,
                                            self.stride,
-                                           'pad', self.pad)
+                                           self.pad)
             true_columns = conv_output_length(input.shape[2],
                                               self.filter_size,
                                               self.stride,
-                                              'pad', self.pad)
+                                              self.pad)
             conved = conved[:, :true_rows, :true_columns, :]
 
         if self.b is not None:

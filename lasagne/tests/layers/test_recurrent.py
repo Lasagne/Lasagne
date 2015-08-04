@@ -127,9 +127,9 @@ def test_recurrent_bck():
     x_in = np.ones(in_shp).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_fwd = RecurrentLayer(l_inp, num_units=num_units, backwards=False)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_bck = RecurrentLayer(l_inp, num_units=num_units, backwards=True)
     l_out_fwd = helper.get_output(l_rec_fwd, x)
     l_out_bck = helper.get_output(l_rec_bck, x)
@@ -187,10 +187,10 @@ def test_recurrent_unroll_scan_fwd():
     mask_in = np.ones(in_shp[:2]).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_scan = RecurrentLayer(l_inp, num_units=num_units, backwards=False,
                                 unroll_scan=False, mask_input=l_mask_inp)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_unroll = RecurrentLayer(l_inp, num_units=num_units, backwards=False,
                                   unroll_scan=True, mask_input=l_mask_inp)
     output_scan = helper.get_output(l_rec_scan)
@@ -212,10 +212,10 @@ def test_recurrent_unroll_scan_bck():
     x_in = np.random.random(in_shp).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_scan = RecurrentLayer(l_inp, num_units=num_units, backwards=True,
                                 unroll_scan=False)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_unroll = RecurrentLayer(l_inp, num_units=num_units, backwards=True,
                                   unroll_scan=True)
     output_scan = helper.get_output(l_rec_scan, x)
@@ -237,11 +237,11 @@ def test_recurrent_precompute():
     mask_in = np.ones((num_batch, seq_len), dtype='float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_precompute = RecurrentLayer(l_inp, num_units=num_units,
                                       precompute_input=True,
                                       mask_input=l_mask_inp)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_rec_no_precompute = RecurrentLayer(l_inp, num_units=num_units,
                                          precompute_input=False,
                                          mask_input=l_mask_inp)
@@ -382,9 +382,9 @@ def test_lstm_bck():
     x_in = np.ones(in_shp).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_fwd = LSTMLayer(l_inp, num_units=num_units, backwards=False)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_bck = LSTMLayer(l_inp, num_units=num_units, backwards=True)
     output_fwd = helper.get_output(l_lstm_fwd, x)
     output_bck = helper.get_output(l_lstm_bck, x)
@@ -407,11 +407,11 @@ def test_lstm_precompute():
     mask_in = np.ones((num_batch, seq_len), dtype='float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_precompute = LSTMLayer(
         l_inp, num_units=num_units, precompute_input=True,
         mask_input=l_mask_inp)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_no_precompute = LSTMLayer(
         l_inp, num_units=num_units, precompute_input=False,
         mask_input=l_mask_inp)
@@ -474,10 +474,10 @@ def test_lstm_unroll_scan_fwd():
     mask_in = np.ones(in_shp[:2]).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_scan = LSTMLayer(l_inp, num_units=num_units, backwards=False,
                             unroll_scan=False, mask_input=l_mask_inp)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_unrolled = LSTMLayer(l_inp, num_units=num_units, backwards=False,
                                 unroll_scan=True, mask_input=l_mask_inp)
     output_scan = helper.get_output(l_lstm_scan)
@@ -501,10 +501,10 @@ def test_lstm_unroll_scan_bck():
     x_in = np.random.random(in_shp).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_scan = LSTMLayer(l_inp, num_units=num_units, backwards=True,
                             unroll_scan=False)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_lstm_unrolled = LSTMLayer(l_inp, num_units=num_units, backwards=True,
                                 unroll_scan=True)
     output_scan = helper.get_output(l_lstm_scan, x)
@@ -639,9 +639,9 @@ def test_gru_bck():
     x_in = np.ones(in_shp).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_fwd = GRULayer(l_inp, num_units=num_units, backwards=False)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_bck = GRULayer(l_inp, num_units=num_units, backwards=True)
     output_fwd = helper.get_output(l_gru_fwd, x)
     output_bck = helper.get_output(l_gru_bck, x)
@@ -700,10 +700,10 @@ def test_gru_unroll_scan_fwd():
     mask_in = np.ones(in_shp[:2]).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_scan = GRULayer(l_inp, num_units=num_units, backwards=False,
                           unroll_scan=False, mask_input=l_mask_inp)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_unrolled = GRULayer(l_inp, num_units=num_units, backwards=False,
                               unroll_scan=True, mask_input=l_mask_inp)
     output_scan = helper.get_output(l_gru_scan)
@@ -726,10 +726,10 @@ def test_gru_unroll_scan_bck():
     x_in = np.random.random(in_shp).astype('float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_scan = GRULayer(l_inp, num_units=num_units, backwards=True,
                           unroll_scan=False)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_unrolled = GRULayer(l_inp, num_units=num_units, backwards=True,
                               unroll_scan=True)
     output_scan = helper.get_output(l_gru_scan, x)
@@ -752,10 +752,10 @@ def test_gru_precompute():
     mask_in = np.ones((num_batch, seq_len), dtype='float32')
 
     # need to set random seed.
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_precompute = GRULayer(l_inp, num_units=num_units,
                                 precompute_input=True, mask_input=l_mask_inp)
-    np.random.seed(1234)
+    lasagne.random.get_rng().seed(1234)
     l_gru_no_precompute = GRULayer(l_inp, num_units=num_units,
                                    precompute_input=False,
                                    mask_input=l_mask_inp)

@@ -286,8 +286,7 @@ class CustomRecurrentLayer(MergeLayer):
 
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
-            input = input.reshape((input.shape[0], input.shape[1],
-                                   T.prod(input.shape[2:])))
+            input = T.flatten(input, 3)
 
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first
@@ -832,8 +831,7 @@ class LSTMLayer(MergeLayer):
 
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
-            input = input.reshape((input.shape[0], input.shape[1],
-                                   T.prod(input.shape[2:])))
+            input = T.flatten(input, 3)
 
         # Because scan iterates over the first dimension we dimshuffle to
         # (n_time_steps, n_batch, n_features)
@@ -1219,8 +1217,7 @@ class GRULayer(MergeLayer):
 
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
-            input = input.reshape((input.shape[0], input.shape[1],
-                                   T.prod(input.shape[2:])))
+            input = T.flatten(input, 3)
 
         # Because scan iterates over the first dimension we dimshuffle to
         # (n_time_steps, n_batch, n_features)

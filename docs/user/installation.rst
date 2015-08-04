@@ -214,7 +214,7 @@ speeds up Convolutional Neural Networks (CNNs). Again, it can be obtained from
 NVIDIA (after registering as a developer): https://developer.nvidia.com/cudnn
 
 Note that it requires a reasonably modern GPU with Compute Capability 3.0 or higher;
-see [NVIDIA's list of CUDA GPUs](https://developer.nvidia.com/cuda-gpus).
+see `NVIDIA's list of CUDA GPUs <https://developer.nvidia.com/cuda-gpus>`_.
 
 To install it, copy the ``*.h`` files to ``/usr/local/cuda/include`` and the
 ``lib*`` files to ``/usr/local/cuda/lib64``.

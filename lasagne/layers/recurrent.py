@@ -476,7 +476,7 @@ class RecurrentLayer(CustomRecurrentLayer):
                  precompute_input=True,
                  mask_input=None,
                  **kwargs):
-        input_shape = helper.get_output_shape(incoming)
+        input_shape = incoming.output_shape
         num_batch = input_shape[0]
         # We will be passing the input at each time step to the dense layer,
         # so we need to remove the second dimension (the time dimension)

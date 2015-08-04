@@ -510,7 +510,7 @@ class Gate(object):
     b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.sigmoid)
 
     Simple class to hold the parameters for a gate connection.  We define
-    a gate loosely as something which compute the linear mix of two inputs,
+    a gate loosely as something which computes the linear mix of two inputs,
     optionally computes an element-wise product with a third, adds a bias, and
     applies a nonlinearity.
 
@@ -571,8 +571,8 @@ class LSTMLayer(MergeLayer):
     W_cell=None, nonlinearity=lasagne.nonlinearities.tanh),
     outgate=lasagne.layers.Gate(),
     nonlinearity_out=lasagne.nonlinearities.tanh,
-    cell_init=b=lasagne.init.Constant(0.),
-    hid_init=b=lasagne.init.Constant(0.), backwards=False, learn_init=False,
+    cell_init=lasagne.init.Constant(0.),
+    hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
     peepholes=True, gradient_steps=-1, grad_clipping=False, unroll_scan=False,
     precompute_input=True, mask_input=None, **kwargs)
 
@@ -632,8 +632,8 @@ class LSTMLayer(MergeLayer):
         `learn_init` is ignored for that initial state.
     peepholes : bool
         If True, the LSTM uses peephole connections.
-        When False, `W_cell_to_ingate`, `W_cell_to_forgetgate` and
-        `W_cell_to_outgate` are ignored.
+        When False, `ingate.W_cell`, `forgetgate.W_cell` and
+        `outgate.W_cell` are ignored.
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.

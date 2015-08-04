@@ -114,9 +114,9 @@ class CustomRecurrentLayer(MergeLayer):
         Nonlinearity to apply when computing new state (:math:`\sigma`). If
         None is provided, no nonlinearity will be applied.
     hid_init : callable, np.ndarray, theano.shared or TensorVariable
-        Passing in a TensorVariable allows the user to specify
-        the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
-        ignored.
+        Initializer for initial hidden state (:math:`h_0').  If a
+        TensorVariable (Theano expression) is supplied, it will not be learned
+        regardless of the value of `learn_init`.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
@@ -424,9 +424,9 @@ class RecurrentLayer(CustomRecurrentLayer):
         Nonlinearity to apply when computing new state (:math:`\sigma`). If
         None is provided, no nonlinearity will be applied.
     hid_init : callable, np.ndarray, theano.shared or TensorVariable
-        Passing in a TensorVariable allows the user to specify
-        the value of `hid_init` (:math:`h_0`). In this mode `learn_init` is
-        ignored.
+        Initializer for initial hidden state (:math:`h_0').  If a
+        TensorVariable (Theano expression) is supplied, it will not be learned
+        regardless of the value of `learn_init`.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
@@ -615,13 +615,13 @@ class LSTMLayer(MergeLayer):
         The nonlinearity that is applied to the output (:math:`\sigma_h`). If
         None is provided, no nonlinearity will be applied.
     cell_init : callable, np.ndarray, theano.shared or TensorVariable
-        Passing in a TensorVariable allows the user to specify
-        the value of `cell_init` (:math:`c_0`). In this mode `learn_init` is
-        ignored for the cell state.
+        Initializer for initial cell state (:math:`c_0').  If a
+        TensorVariable (Theano expression) is supplied, it will not be learned
+        regardless of the value of `learn_init`.
     hid_init : callable, np.ndarray, theano.shared or TensorVariable
-        Passing in a TensorVariable allows the user to specify
-        the value of `hid_init` (:math:`h_0`). In this mode `learn_init` is
-        ignored for the hidden state.
+        Initializer for initial hidden state (:math:`h_0').  If a
+        TensorVariable (Theano expression) is supplied, it will not be learned
+        regardless of the value of `learn_init`.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
@@ -1033,9 +1033,9 @@ class GRULayer(MergeLayer):
         Parameters for the hidden update (:math:`c_t`): :math:`W_{xc}`,
         :math:`W_{hc}`, :math:`b_c`, and :math:`\sigma_c`.
     hid_init : callable, np.ndarray, theano.shared or TensorVariable
-        Passing in a TensorVariable allows the user to specify
-        the value of `hid_init` (:math:`h_0`). In this mode, `learn_init` is
-        ignored.
+        Initializer for initial hidden state (:math:`h_0').  If a
+        TensorVariable (Theano expression) is supplied, it will not be learned
+        regardless of the value of `learn_init`.
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always

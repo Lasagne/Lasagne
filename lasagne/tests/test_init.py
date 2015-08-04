@@ -22,6 +22,27 @@ def test_shape():
             assert klass().sample((12, 23)).shape == (12, 23)
 
 
+def test_specified_rng():
+    from lasagne.random import set_rng
+    from lasagne.init import (Normal, Uniform, GlorotNormal,
+                              GlorotUniform, Sparse, Orthogonal)
+
+    from numpy.random import RandomState
+    from numpy import allclose
+
+    seed = 123456789
+
+    for init_class in [Normal, Uniform, GlorotNormal,
+                       GlorotUniform, Sparse, Orthogonal]:
+        set_rng(RandomState(seed))
+        sample1 = init_class().sample((100, 100))
+        set_rng(RandomState(seed))
+        sample2 = init_class().sample((100, 100))
+        assert allclose(sample1, sample2),\
+            ("random initialization was inconsistent for {}"
+             .format(init_class.__name__))
+
+
 def test_normal():
     from lasagne.init import Normal
 

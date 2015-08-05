@@ -141,25 +141,6 @@ def test_recurrent_bck():
     np.testing.assert_almost_equal(output_fwd, output_bck[:, ::-1])
 
 
-def test_recurrent_self_outvars():
-    # check that outvars are correctly stored and returned
-    num_batch, seq_len, n_features1 = 2, 3, 4
-    num_units = 2
-    x = T.tensor3()
-    in_shp = (num_batch, seq_len, n_features1)
-    l_inp = InputLayer(in_shp)
-
-    x_in = np.ones(in_shp).astype('float32')
-
-    l_rec = RecurrentLayer(l_inp, num_units=num_units, backwards=True)
-    l_out = helper.get_output(l_rec, x)
-
-    output_hidout = l_rec.hid_out.eval({x: x_in})
-    output = l_out.eval({x: x_in})
-
-    np.testing.assert_almost_equal(output_hidout, output)
-
-
 def test_recurrent_variable_input_size():
     # check that seqlen and batchsize None works
     num_batch, n_features1 = 6, 5
@@ -426,27 +407,6 @@ def test_lstm_precompute():
     np.testing.assert_almost_equal(output_precompute, output_no_precompute)
 
 
-def test_lstm_self_outvars():
-    # check that outvars are correctly stored and returned
-    num_batch, seq_len, n_features1 = 2, 3, 4
-    num_units = 2
-    x = T.tensor3()
-    in_shp = (num_batch, seq_len, n_features1)
-    l_inp = InputLayer(in_shp)
-    x_in = np.ones(in_shp).astype('float32')
-
-    l_lstm = LSTMLayer(l_inp, num_units=num_units, backwards=True,
-                       peepholes=True)
-    l_out = helper.get_output(l_lstm, x)
-
-    output = l_out.eval({x: x_in})
-    output_hidout_val = l_lstm.hid_out.eval({x: x_in})
-    output_cellout_val = l_lstm.cell_out.eval({x: x_in})
-
-    np.testing.assert_almost_equal(output, output_hidout_val)
-    assert output_cellout_val.shape == output.shape
-
-
 def test_lstm_variable_input_size():
     # that seqlen and batchsize None works
     num_batch, n_features1 = 6, 5
@@ -651,25 +611,6 @@ def test_gru_bck():
 
     # test that the backwards model reverses its final input
     np.testing.assert_almost_equal(output_fwd_val, output_bck_val[:, ::-1])
-
-
-def test_gru_self_outvars():
-    # check that outvars are correctly stored and returned
-    num_batch, seq_len, n_features1 = 2, 3, 4
-    num_units = 2
-    x = T.tensor3()
-    in_shp = (num_batch, seq_len, n_features1)
-    l_inp = InputLayer(in_shp)
-
-    x_in = np.ones(in_shp).astype('float32')
-
-    l_gru = GRULayer(l_inp, num_units=num_units, backwards=True)
-    output = helper.get_output(l_gru, x)
-
-    output_val = output.eval({x: x_in})
-    output_hidout_val = l_gru.hid_out.eval({x: x_in})
-
-    np.testing.assert_almost_equal(output_val, output_hidout_val)
 
 
 def test_gru_variable_input_size():

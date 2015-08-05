@@ -385,7 +385,6 @@ class CustomRecurrentLayer(MergeLayer):
         if self.backwards:
             hid_out = hid_out[:, ::-1, :]
 
-        self.hid_out = hid_out
         return hid_out
 
 
@@ -988,9 +987,6 @@ class LSTMLayer(MergeLayer):
             hid_out = hid_out[:, ::-1]
             cell_out = cell_out[:, ::-1]
 
-        self.hid_out = hid_out
-        self.cell_out = cell_out
-
         return hid_out
 
 
@@ -1345,7 +1341,5 @@ class GRULayer(MergeLayer):
         # if scan is backward reverse the output
         if self.backwards:
             hid_out = hid_out[:, ::-1, :]
-
-        self.hid_out = hid_out
 
         return hid_out

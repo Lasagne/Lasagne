@@ -120,17 +120,30 @@ Philosophy
 
 Lasagne grew out of a need to combine the flexibility of Theano with the availability of the right building blocks for training neural networks. Its development is guided by a number of design goals:
 
-* **Simplicity**: it should be easy to use and extend the library. Whenever a feature is added, the effect on both of these should be considered. Every added abstraction should be carefully scrutinized, to determine whether the added complexity is justified.
+* **Simplicity**: Be easy to use, easy to understand and easy to extend, to
+  facilitate use in research. Interfaces should be kept small, with as few
+  classes and methods as possible. Every added abstraction and feature should
+  be carefully scrutinized, to determine whether the added complexity is
+  justified.
 
-* **Small interfaces**: as few classes and methods as possible. Try to rely on Theano's functionality and data types where possible, and follow Theano's conventions. Don't wrap things in classes if it is not strictly necessary. This should make it easier to both use the library and extend it (less cognitive overhead).
+* **Transparency**: Do not hide Theano behind abstractions, directly process
+  and return Theano expressions or Python / numpy data types. Try to rely on
+  Theano's functionality where possible, and follow Theano's conventions.
 
-* **Don't get in the way**: unused features should be invisible, the user should not have to take into account a feature that they do not use. It should be possible to use each component of the library in isolation from the others.
+* **Modularity**: Allow all parts (layers, regularizers, optimizers, ...) to be
+  used independently of Lasagne. Make it easy to use components in isolation or
+  in conjunction with other frameworks.
 
-* **Transparency**: don't try to hide Theano behind abstractions. Functions and methods should return Theano expressions and standard Python / numpy data types where possible.
+* **Pragmatism**: Make common use cases easy, do not overrate uncommon cases.
+  Ideally, everything should be possible, but common use cases shouldn't be
+  made more difficult just to cater for exotic ones.
 
-* **Focus**: follow the Unix philosophy of "do one thing and do it well", with a strong focus on feed-forward neural networks.
+* **Restraint**: Do not obstruct users with features they decide not to use.
+  Both in using and in extending components, it should be possible for users to
+  be fully oblivious to features they do not need.
 
-* **Pragmatism**: making common use cases easy is more important than supporting every possible use case out of the box.
+* **Focus**: "Do one thing and do it well". Do not try to provide a library for
+  everything to do with deep learning.
 
 
 

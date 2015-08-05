@@ -29,15 +29,15 @@ Its main features are:
 Its design is governed by `six principles
 <http://lasagne.readthedocs.org/en/latest/user/development.html#philosophy>`_:
 
-* **Simplicity**: Be easy to use and easy to extend, with as few abstractions
-  as possible, to facilitate research
-* **Small interfaces**: Have as few classes and methods as possible
-* **Don't get in the way**: Do not obstruct users with features they decide not
-  to use, and allow all parts to be used independently
-* **Transparency**: Do not hide Theano behind abstractions, directly process and
+* Simplicity: Be easy to use, easy to understand and easy to extend, to
+  facilitate use in research
+* Transparency: Do not hide Theano behind abstractions, directly process and
   return Theano expressions or Python / numpy data types
-* **Focus**: "Do one thing and do it well"
-* **Pragmatism**: Make common use cases easy, do not overrate uncommon cases
+* Modularity: Allow all parts (layers, regularizers, optimizers, ...) to be
+  used independently of Lasagne
+* Pragmatism: Make common use cases easy, do not overrate uncommon cases
+* Restraint: Do not obstruct users with features they decide not to use
+* Focus: "Do one thing and do it well"
 
 
 Installation

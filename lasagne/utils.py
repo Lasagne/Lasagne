@@ -327,7 +327,7 @@ def unroll_scan(fn, sequences, outputs_info, non_sequences, n_steps,
         Parameters
         ----------
 
-        fun : function
+        fn : function
             Function that defines calculations at each step.
 
         sequences : TensorVariable or list of TensorVariables

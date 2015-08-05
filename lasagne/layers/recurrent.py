@@ -569,7 +569,7 @@ class LSTMLayer(MergeLayer):
     cell=lasagne.layers.Gate(
     W_cell=None, nonlinearity=lasagne.nonlinearities.tanh),
     outgate=lasagne.layers.Gate(),
-    nonlinearity_out=lasagne.nonlinearities.tanh,
+    nonlinearity=lasagne.nonlinearities.tanh,
     cell_init=lasagne.init.Constant(0.),
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
     peepholes=True, gradient_steps=-1, grad_clipping=False, unroll_scan=False,
@@ -610,7 +610,7 @@ class LSTMLayer(MergeLayer):
     outgate : Gate
         Parameters for the output gate (:math:`o_t`): :math:`W_{xo}`,
         :math:`W_{ho}`, :math:`w_{co}`, :math:`b_o`, and :math:`\sigma_o`.
-    nonlinearity_out : callable or None
+    nonlinearity : callable or None
         The nonlinearity that is applied to the output (:math:`\sigma_h`). If
         None is provided, no nonlinearity will be applied.
     cell_init : callable, np.ndarray, theano.shared or TensorVariable
@@ -666,7 +666,7 @@ class LSTMLayer(MergeLayer):
                  forgetgate=Gate(),
                  cell=Gate(W_cell=None, nonlinearity=nonlinearities.tanh),
                  outgate=Gate(),
-                 nonlinearity_out=nonlinearities.tanh,
+                 nonlinearity=nonlinearities.tanh,
                  cell_init=init.Constant(0.),
                  hid_init=init.Constant(0.),
                  backwards=False,
@@ -690,10 +690,10 @@ class LSTMLayer(MergeLayer):
         super(LSTMLayer, self).__init__(incomings, **kwargs)
 
         # If the provided nonlinearity is None, make it linear
-        if nonlinearity_out is None:
-            self.nonlinearity_out = nonlinearities.identity
+        if nonlinearity is None:
+            self.nonlinearity = nonlinearities.identity
         else:
-            self.nonlinearity_out = nonlinearity_out
+            self.nonlinearity = nonlinearity
 
         self.learn_init = learn_init
         self.num_units = num_units
@@ -891,7 +891,7 @@ class LSTMLayer(MergeLayer):
                 outgate += cell*W_cell_to_outgate
 
             # Compute new hidden unit activation
-            hid = outgate*self.nonlinearity_out(cell)
+            hid = outgate*self.nonlinearity(cell)
             return [cell, hid]
 
         def step_masked(input_n, mask_n, cell_previous, hid_previous,

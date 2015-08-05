@@ -1007,7 +1007,8 @@ class GRULayer(MergeLayer):
 
     Gated Recurrent Unit (GRU) Layer
 
-    Implements the updates proposed in [1]_, which computes the output by
+    Implements the recurrent step proposed in [1]_, which computes the output
+    by
 
     .. math ::
         r_t &= \sigma_r(x_t W_{xr} + h_{t - 1} W_{hr} + b_r)\\

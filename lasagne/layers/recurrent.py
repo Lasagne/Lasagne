@@ -1001,7 +1001,7 @@ class GRULayer(MergeLayer):
     updategate=lasagne.layers.Gate(W_cell=None),
     hidden_update=lasagne.layers.Gate(
     W_cell=None, lasagne.nonlinearities.tanh),
-    hid_init=lasagne.init.Constant(0.), learn_init=True, backwards=False,
+    hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=True,
     gradient_steps=-1, grad_clipping=False, unroll_scan=False,
     precompute_input=True, mask_input=None, **kwargs)
 
@@ -1092,8 +1092,8 @@ class GRULayer(MergeLayer):
                  hidden_update=Gate(W_cell=None,
                                     nonlinearity=nonlinearities.tanh),
                  hid_init=init.Constant(0.),
-                 learn_init=True,
                  backwards=False,
+                 learn_init=True,
                  gradient_steps=-1,
                  grad_clipping=False,
                  unroll_scan=False,

@@ -743,22 +743,6 @@ class LSTMLayer(MergeLayer):
         (self.W_in_to_outgate, self.W_hid_to_outgate, self.b_outgate,
          self.nonlinearity_outgate) = add_gate_params(outgate, 'outgate')
 
-        # Stack input weight matrices into a (num_inputs, 4*num_units)
-        # matrix, which speeds up computation
-        self.W_in_stacked = T.concatenate(
-            [self.W_in_to_ingate, self.W_in_to_forgetgate,
-             self.W_in_to_cell, self.W_in_to_outgate], axis=1)
-
-        # Same for hidden weight matrices
-        self.W_hid_stacked = T.concatenate(
-            [self.W_hid_to_ingate, self.W_hid_to_forgetgate,
-             self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
-
-        # Stack biases into a (4*num_units) vector
-        self.b_stacked = T.concatenate(
-            [self.b_ingate, self.b_forgetgate,
-             self.b_cell, self.b_outgate], axis=0)
-
         # If peephole (cell to gate) connections were enabled, initialize
         # peephole connections.  These are elementwise products with the cell
         # state, so they are represented as vectors.
@@ -838,12 +822,28 @@ class LSTMLayer(MergeLayer):
         input = input.dimshuffle(1, 0, 2)
         seq_len, num_batch, _ = input.shape
 
+        # Stack input weight matrices into a (num_inputs, 4*num_units)
+        # matrix, which speeds up computation
+        W_in_stacked = T.concatenate(
+            [self.W_in_to_ingate, self.W_in_to_forgetgate,
+             self.W_in_to_cell, self.W_in_to_outgate], axis=1)
+
+        # Same for hidden weight matrices
+        W_hid_stacked = T.concatenate(
+            [self.W_hid_to_ingate, self.W_hid_to_forgetgate,
+             self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
+
+        # Stack biases into a (4*num_units) vector
+        b_stacked = T.concatenate(
+            [self.b_ingate, self.b_forgetgate,
+             self.b_cell, self.b_outgate], axis=0)
+
         if self.precompute_input:
             # Because the input is given for all time steps, we can
             # precompute_input the inputs dot weight matrices before scanning.
             # W_in_stacked is (n_features, 4*num_units). input is then
             # (n_time_steps, n_batch, 4*num_units).
-            input = T.dot(input, self.W_in_stacked) + self.b_stacked
+            input = T.dot(input, W_in_stacked) + b_stacked
 
         # At each call to scan, input_n will be (n_time_steps, 4*num_units).
         # We define a slicing function that extract the input to each LSTM gate
@@ -936,7 +936,7 @@ class LSTMLayer(MergeLayer):
             hid_init = T.dot(ones, self.hid_init)
 
         # The hidden-to-hidden weight matrix is always used in step
-        non_seqs = [self.W_hid_stacked]
+        non_seqs = [W_hid_stacked]
         # The "peephole" weight matrices are only used when self.peepholes=True
         if self.peepholes:
             non_seqs += [self.W_cell_to_ingate,
@@ -950,7 +950,7 @@ class LSTMLayer(MergeLayer):
         # When we aren't precomputing the input outside of scan, we need to
         # provide the input weights and biases to the step function
         if not self.precompute_input:
-            non_seqs += [self.W_in_stacked, self.b_stacked]
+            non_seqs += [W_in_stacked, b_stacked]
         # As above, when we aren't providing these parameters, we need to
         # supply placehold arguments
         else:
@@ -1156,19 +1156,6 @@ class GRULayer(MergeLayer):
          self.b_hidden_update, self.nonlinearity_hid) = add_gate_params(
              hidden_update, 'hidden_update')
 
-        self.W_in_stacked = T.concatenate(
-            [self.W_in_to_resetgate, self.W_in_to_updategate,
-             self.W_in_to_hidden_update], axis=1)
-
-        self.W_hid_stacked = T.concatenate(
-            [self.W_hid_to_resetgate, self.W_hid_to_updategate,
-             self.W_hid_to_hidden_update], axis=1)
-
-        # Stack gate biases into a (3*num_units) vector
-        self.b_stacked = T.concatenate(
-            [self.b_resetgate, self.b_updategate,
-             self.b_hidden_update], axis=0)
-
         # Initialize hidden state
         if isinstance(hid_init, T.TensorVariable):
             if hid_init.ndim != 2:
@@ -1224,10 +1211,26 @@ class GRULayer(MergeLayer):
         input = input.dimshuffle(1, 0, 2)
         seq_len, num_batch, _ = input.shape
 
+        # Stack input weight matrices into a (num_inputs, 3*num_units)
+        # matrix, which speeds up computation
+        W_in_stacked = T.concatenate(
+            [self.W_in_to_resetgate, self.W_in_to_updategate,
+             self.W_in_to_hidden_update], axis=1)
+
+        # Same for hidden weight matrices
+        W_hid_stacked = T.concatenate(
+            [self.W_hid_to_resetgate, self.W_hid_to_updategate,
+             self.W_hid_to_hidden_update], axis=1)
+
+        # Stack gate biases into a (3*num_units) vector
+        b_stacked = T.concatenate(
+            [self.b_resetgate, self.b_updategate,
+             self.b_hidden_update], axis=0)
+
         if self.precompute_input:
             # precompute_input inputs*W. W_in is (n_features, 3*num_units).
             # input is then (n_batch, n_time_steps, 3*num_units).
-            input = T.dot(input, self.W_in_stacked) + self.b_stacked
+            input = T.dot(input, W_in_stacked) + b_stacked
 
         # At each call to scan, input_n will be (n_time_steps, 3*num_units).
         # We define a slicing function that extract the input to each GRU gate
@@ -1301,11 +1304,11 @@ class GRULayer(MergeLayer):
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 
         # The hidden-to-hidden weight matrix is always used in step
-        non_seqs = [self.W_hid_stacked]
+        non_seqs = [W_hid_stacked]
         # When we aren't precomputing the input outside of scan, we need to
         # provide the input weights and biases to the step function
         if not self.precompute_input:
-            non_seqs += [self.W_in_stacked, self.b_stacked]
+            non_seqs += [W_in_stacked, b_stacked]
         # theano.scan only allows for positional arguments, so when
         # self.precompute_input is True, we need to supply fake placeholder
         # arguments for the input weights and biases.

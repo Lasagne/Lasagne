@@ -83,13 +83,6 @@ class Uniform(Initializer):
         see std for description.
     """
     def __init__(self, range=0.01, std=None, mean=0.0):
-        import warnings
-        warnings.warn("The uniform initializer no longer uses Glorot et al.'s "
-                      "approach to determine the bounds, but defaults to the "
-                      "range (-0.01, 0.01) instead. Please use the new "
-                      "GlorotUniform initializer to get the old behavior. "
-                      "GlorotUniform is now the default for all layers.")
-
         if std is not None:
             a = mean - np.sqrt(3) * std
             b = mean + np.sqrt(3) * std

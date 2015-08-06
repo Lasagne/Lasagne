@@ -23,7 +23,7 @@ def test_shape():
 
 
 def test_specified_rng():
-    from lasagne.random import set_rng
+    from lasagne.random import get_rng, set_rng
     from lasagne.init import (Normal, Uniform, GlorotNormal,
                               GlorotUniform, Sparse, Orthogonal)
 
@@ -31,6 +31,7 @@ def test_specified_rng():
     from numpy import allclose
 
     seed = 123456789
+    rng = get_rng()
 
     for init_class in [Normal, Uniform, GlorotNormal,
                        GlorotUniform, Sparse, Orthogonal]:
@@ -38,6 +39,7 @@ def test_specified_rng():
         sample1 = init_class().sample((100, 100))
         set_rng(RandomState(seed))
         sample2 = init_class().sample((100, 100))
+        set_rng(rng)  # reset to original RNG for other tests
         assert allclose(sample1, sample2),\
             ("random initialization was inconsistent for {}"
              .format(init_class.__name__))

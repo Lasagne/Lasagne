@@ -4,7 +4,7 @@ from numpy.random import RandomState
 import theano
 import pytest
 
-from lasagne.random import set_rng
+from lasagne.random import get_rng, set_rng
 
 
 class TestDropoutLayer:
@@ -59,6 +59,7 @@ class TestDropoutLayer:
         from lasagne.layers.noise import DropoutLayer
         input = theano.shared(numpy.ones((100, 100)))
         seed = 123456789
+        rng = get_rng()
 
         set_rng(RandomState(seed))
         result = DropoutLayer(input_layer).get_output_for(input)
@@ -67,6 +68,8 @@ class TestDropoutLayer:
         set_rng(RandomState(seed))
         result = DropoutLayer(input_layer).get_output_for(input)
         result_eval2 = result.eval()
+
+        set_rng(rng)  # reset to original RNG for other tests
         assert numpy.allclose(result_eval1, result_eval2)
 
 
@@ -99,6 +102,7 @@ class TestGaussianNoiseLayer:
         from lasagne.layers.noise import GaussianNoiseLayer
         input = theano.shared(numpy.ones((100, 100)))
         seed = 123456789
+        rng = get_rng()
 
         set_rng(RandomState(seed))
         result = GaussianNoiseLayer(input_layer).get_output_for(input)
@@ -107,4 +111,6 @@ class TestGaussianNoiseLayer:
         set_rng(RandomState(seed))
         result = GaussianNoiseLayer(input_layer).get_output_for(input)
         result_eval2 = result.eval()
+
+        set_rng(rng)  # reset to original RNG for other tests
         assert numpy.allclose(result_eval1, result_eval2)

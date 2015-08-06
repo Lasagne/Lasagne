@@ -71,7 +71,6 @@ __all__ = [
     "categorical_crossentropy",
     "squared_error",
     "aggregate",
-    "mse", "Objective", "MaskedObjective",  # deprecated
 ]
 
 
@@ -199,81 +198,3 @@ def aggregate(loss, weights=None, mode='mean'):
     else:
         raise ValueError("mode must be 'mean', 'sum' or 'normalized_sum', "
                          "got %r" % mode)
-
-
-def mse(x, t):  # pragma no cover
-    """Deprecated. Use :func:`squared_error()` instead."""
-    import warnings
-    warnings.warn("lasagne.objectives.mse() is deprecated and will be removed "
-                  "for the first release of Lasagne. Use "
-                  "lasagne.objectives.squared_error() instead.", stacklevel=2)
-    return squared_error(x, t)
-
-
-class Objective(object):  # pragma no cover
-    """
-    Deprecated. See docstring of :mod:`lasagne.objectives` for alternatives.
-    """
-
-    def __init__(self, input_layer, loss_function=squared_error,
-                 aggregation='mean'):
-        import warnings
-        warnings.warn("lasagne.objectives.Objective is deprecated and "
-                      "will be removed for the first release of Lasagne. For "
-                      "alternatives, please see: "
-                      "http://lasagne.readthedocs.org/en/latest/"
-                      "modules/objectives.html", stacklevel=2)
-        import theano.tensor as T
-        self.input_layer = input_layer
-        self.loss_function = loss_function
-        self.target_var = T.matrix("target")
-        self.aggregation = aggregation
-
-    def get_loss(self, input=None, target=None, aggregation=None, **kwargs):
-        from lasagne.layers import get_output
-        network_output = get_output(self.input_layer, input, **kwargs)
-
-        if target is None:
-            target = self.target_var
-        if aggregation is None:
-            aggregation = self.aggregation
-
-        losses = self.loss_function(network_output, target)
-
-        return aggregate(losses, mode=aggregation)
-
-
-class MaskedObjective(object):  # pragma no cover
-    """
-    Deprecated. See docstring of :mod:`lasagne.objectives` for alternatives.
-    """
-
-    def __init__(self, input_layer, loss_function=mse, aggregation='mean'):
-        import warnings
-        warnings.warn("lasagne.objectives.MaskedObjective is deprecated and "
-                      "will be removed for the first release of Lasagne. For "
-                      "alternatives, please see: "
-                      "http://lasagne.readthedocs.org/en/latest/"
-                      "modules/objectives.html", stacklevel=2)
-        import theano.tensor as T
-        self.input_layer = input_layer
-        self.loss_function = loss_function
-        self.target_var = T.matrix("target")
-        self.mask_var = T.matrix("mask")
-        self.aggregation = aggregation
-
-    def get_loss(self, input=None, target=None, mask=None,
-                 aggregation=None, **kwargs):
-        from lasagne.layers import get_output
-        network_output = get_output(self.input_layer, input, **kwargs)
-
-        if target is None:
-            target = self.target_var
-        if mask is None:
-            mask = self.mask_var
-        if aggregation is None:
-            aggregation = self.aggregation
-
-        losses = self.loss_function(network_output, target)
-
-        return aggregate(losses, mask, mode=aggregation)

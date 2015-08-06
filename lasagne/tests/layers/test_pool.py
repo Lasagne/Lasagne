@@ -108,7 +108,7 @@ class TestFeaturePoolLayer:
         numpy_result = max_pool_1d(numpy_result, pool_size)
         numpy_result = np.swapaxes(numpy_result, -1, axis)
 
-        assert np.all(numpy_result.shape == layer.get_output_shape())
+        assert np.all(numpy_result.shape == layer.output_shape)
         assert np.all(numpy_result.shape == layer_result.shape)
         assert np.allclose(numpy_result, layer_result)
 

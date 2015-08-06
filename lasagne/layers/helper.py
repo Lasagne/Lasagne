@@ -8,15 +8,12 @@ from .. import utils
 
 __all__ = [
     "get_all_layers",
-    "get_all_layers_old",
     "get_output",
     "get_output_shape",
     "get_all_params",
     "count_params",
     "get_all_param_values",
     "set_all_param_values",
-    "get_all_bias_params",
-    "get_all_non_bias_params",
 ]
 
 
@@ -65,14 +62,6 @@ def get_all_layers(layer, treat_as_input=None):
     >>> get_all_layers(l3, treat_as_input=[l2]) == [l2, l3]
     True
     """
-    import warnings
-    warnings.warn("get_all_layers() has been changed to return layers in "
-                  "topological order. The former implementation is still "
-                  "available as get_all_layers_old(), but will be removed "
-                  "before the first release of Lasagne. To ignore this "
-                  "warning, use `warnings.filterwarnings('ignore', "
-                  "'.*topo.*')`.")
-
     # We perform a depth-first search. We add a layer to the result list only
     # after adding all its incoming layers (if any) or when detecting a cycle.
     # We use a LIFO stack to avoid ever running into recursion depth limits.
@@ -114,38 +103,6 @@ def get_all_layers(layer, treat_as_input=None):
                 done.add(layer)
 
     return result
-
-
-def get_all_layers_old(layer):  # pragma no cover
-    """
-    Earlier implementation of `get_all_layers()` that does a breadth-first
-    search. Kept here to ease converting old models that rely on the order of
-    get_all_layers() or get_all_params(). Will be removed before the first
-    release of Lasagne.
-    """
-    if isinstance(layer, (list, tuple)):
-        layers = list(layer)
-    else:
-        layers = [layer]
-    layers_to_expand = list(layers)
-    while len(layers_to_expand) > 0:
-        current_layer = layers_to_expand.pop(0)
-        children = []
-
-        if hasattr(current_layer, 'input_layers'):
-            children = current_layer.input_layers
-        elif hasattr(current_layer, 'input_layer'):
-            children = [current_layer.input_layer]
-
-        # filter the layers that have already been visited, and remove None
-        # elements (for layers without incoming layers)
-        children = [child for child in children
-                    if child not in layers and
-                    child is not None]
-        layers_to_expand.extend(children)
-        layers.extend(children)
-
-    return layers
 
 
 def get_output(layer_or_layers, inputs=None, **kwargs):
@@ -349,24 +306,6 @@ def get_all_params(layer, **tags):
     layers = get_all_layers(layer)
     params = sum([l.get_params(**tags) for l in layers], [])
     return utils.unique(params)
-
-
-def get_all_bias_params(layer):  # pragma no cover
-    import warnings
-    warnings.warn("get_all_bias_params(layer) is deprecated and will be "
-                  "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=False) instead.",
-                  stacklevel=2)
-    return get_all_params(layer, regularizable=False)
-
-
-def get_all_non_bias_params(layer):  # pragma no cover
-    import warnings
-    warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
-                  "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=True) instead.",
-                  stacklevel=2)
-    return get_all_params(layer, regularizable=True)
 
 
 def count_params(layer, **tags):

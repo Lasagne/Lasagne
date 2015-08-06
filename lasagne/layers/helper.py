@@ -14,8 +14,6 @@ __all__ = [
     "count_params",
     "get_all_param_values",
     "set_all_param_values",
-    "get_all_bias_params",
-    "get_all_non_bias_params",
 ]
 
 
@@ -308,24 +306,6 @@ def get_all_params(layer, **tags):
     layers = get_all_layers(layer)
     params = sum([l.get_params(**tags) for l in layers], [])
     return utils.unique(params)
-
-
-def get_all_bias_params(layer):  # pragma no cover
-    import warnings
-    warnings.warn("get_all_bias_params(layer) is deprecated and will be "
-                  "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=False) instead.",
-                  stacklevel=2)
-    return get_all_params(layer, regularizable=False)
-
-
-def get_all_non_bias_params(layer):  # pragma no cover
-    import warnings
-    warnings.warn("get_all_non_bias_params(layer) is deprecated and will be "
-                  "removed for the first release of Lasagne. Please use "
-                  "get_all_params(layer, regularizable=True) instead.",
-                  stacklevel=2)
-    return get_all_params(layer, regularizable=True)
 
 
 def count_params(layer, **tags):

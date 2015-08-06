@@ -13,7 +13,7 @@
 # serve to show the default.
 
 # import sys
-# import os
+import os
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -140,6 +140,13 @@ def linkcode_resolve(domain, info):
 #}
 
 ## Read the docs style:
+if os.environ.get('READTHEDOCS') != 'True':
+    try:
+        import sphinx_rtd_theme
+    except ImportError:
+        pass  # assume we have sphinx >= 1.3
+    else:
+        html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 html_theme = 'sphinx_rtd_theme'
 def setup(app):
     app.add_stylesheet("fix_rtd.css")

@@ -371,7 +371,7 @@ def get_all_non_bias_params(layer):  # pragma no cover
 
 def count_params(layer, **tags):
     """
-    This function counts all parameters (i.e. the number of scalar
+    This function counts all parameters (i.e., the number of scalar
     values) of all layers below one or more given :class:`Layer` instances,
     including the layer(s) itself.
 

@@ -105,6 +105,12 @@ class Pool2DDNNLayer(DNNLayer):
 
 
 class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
+    """
+    2D max-pooling layer
+
+    Subclass of :class:`Pool2DDNNLayer` fixing ``mode='max'``, provided for
+    compatibility to other ``MaxPool2DLayer`` classes.
+    """
     def __init__(self, incoming, pool_size, stride=None,
                  pad=(0, 0), **kwargs):
         super(MaxPool2DDNNLayer, self).__init__(incoming, pool_size, stride,

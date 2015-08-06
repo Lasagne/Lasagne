@@ -36,8 +36,8 @@ method, this part of the documentation is for you.
   modules/init
   modules/nonlinearities
   modules/objectives
-  modules/random
   modules/regularization
+  modules/random
   modules/utils
 
 Indices and tables

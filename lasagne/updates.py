@@ -569,8 +569,11 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
     a_t = learning_rate*T.sqrt(1-beta2**t)/(1-beta1**t)
 
     for param, g_t in zip(params, all_grads):
-        m_prev = theano.shared(param.get_value() * 0.)
-        v_prev = theano.shared(param.get_value() * 0.)
+        value = param.get_value(borrow=True)
+        m_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                               broadcastable=param.broadcastable)
+        v_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                               broadcastable=param.broadcastable)
 
         m_t = beta1*m_prev + (1-beta1)*g_t
         v_t = beta2*v_prev + (1-beta2)*g_t**2

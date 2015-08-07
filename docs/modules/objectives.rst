@@ -17,13 +17,3 @@ Aggregation functions
 
 .. autofunction:: aggregate
 
-
-Deprecated
-----------
-
-.. autofunction:: mse
-
-.. autoclass:: Objective
-   :members:
-.. autoclass:: MaskedObjective
-   :members:

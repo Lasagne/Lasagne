@@ -27,7 +27,8 @@ tests_require = [
 setup(
     name="Lasagne",
     version=version,
-    description="neural network tools for Theano",
+    description="A lightweight library to build and train neural networks "
+                "in Theano",
     long_description="\n\n".join([README, CHANGES]),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -40,8 +41,8 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         ],
     keywords="",
-    author="Sander Dieleman",
-    author_email="sanderdieleman@gmail.com",
+    author="Lasagne contributors",
+    author_email="lasagne-users@googlegroups.com",
     url="https://github.com/Lasagne/Lasagne",
     license="MIT",
     packages=find_packages(),

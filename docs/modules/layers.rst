@@ -17,6 +17,7 @@
     layers/shape
     layers/merge
     layers/embedding
+    layers/special
     layers/corrmm
     layers/cuda_convnet
     layers/dnn
@@ -140,6 +141,14 @@
     :nosignatures:
 
     EmbeddingLayer
+
+
+.. rubric:: :doc:`layers/special`
+
+.. autosummary::
+    :nosignatures:
+
+    InverseLayer
 
 
 .. rubric:: :doc:`layers/corrmm`

@@ -80,6 +80,7 @@
     MaxPool1DLayer
     MaxPool2DLayer
     Pool2DLayer
+    Upscale2DLayer
     GlobalPoolLayer
     FeaturePoolLayer
     FeatureWTALayer

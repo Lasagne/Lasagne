@@ -203,8 +203,7 @@ class TestMaxPool2DLayer:
                     yield (pool_size, stride, pad)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape,
-                    output_shape=output_shape)
+        return Mock(output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride=None,
               pad=(0, 0), ignore_border=False):
@@ -293,8 +292,7 @@ class TestMaxPool2DCCLayer:
                 yield (pool_size, stride)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape,
-                    output_shape=output_shape)
+        return Mock(output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride):
         try:
@@ -356,29 +354,29 @@ class TestMaxPool2DCCLayer:
 
         input_layer = self.input_layer((128, 4, 12, 12))
 
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(NotImplementedError) as exc:
             layer = MaxPool2DCCLayer(input_layer, pool_size=2, pad=2)
         assert "MaxPool2DCCLayer does not support padding" in exc.value.args[0]
 
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(NotImplementedError) as exc:
             layer = MaxPool2DCCLayer(input_layer, pool_size=(2, 3))
         assert ("MaxPool2DCCLayer only supports square pooling regions" in
                 exc.value.args[0])
 
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(NotImplementedError) as exc:
             layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=(1, 2))
         assert (("MaxPool2DCCLayer only supports using the same stride in "
                  "both directions") in exc.value.args[0])
 
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(NotImplementedError) as exc:
             layer = MaxPool2DCCLayer(input_layer, pool_size=2, stride=3)
         assert ("MaxPool2DCCLayer only supports stride <= pool_size" in
                 exc.value.args[0])
 
-        with pytest.raises(RuntimeError) as exc:
+        with pytest.raises(NotImplementedError) as exc:
             layer = MaxPool2DCCLayer(input_layer, pool_size=2,
                                      ignore_border=True)
-        assert ("MaxPool2DCCLayer does not support ignore_border" in
+        assert ("MaxPool2DCCLayer does not support ignore_border=True" in
                 exc.value.args[0])
 
     def test_dimshuffle_false(self):
@@ -407,8 +405,7 @@ class TestMaxPool2DNNLayer:
                     yield (pool_size, stride, pad)
 
     def input_layer(self, output_shape):
-        return Mock(get_output_shape=lambda: output_shape,
-                    output_shape=output_shape)
+        return Mock(output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride, pad):
         try:
@@ -467,6 +464,17 @@ class TestMaxPool2DNNLayer:
         except NotImplementedError:
             raise
         #    pytest.skip()
+
+    def test_not_implemented(self):
+        try:
+            from lasagne.layers.dnn import MaxPool2DDNNLayer
+        except ImportError:
+            pytest.skip("cuDNN not available")
+        with pytest.raises(NotImplementedError) as exc:
+            layer = MaxPool2DDNNLayer((1, 2, 3, 4), pool_size=2,
+                                      ignore_border=False)
+        assert ("Pool2DDNNLayer does not support ignore_border=False" in
+                exc.value.args[0])
 
 
 class TestFeatureWTALayer(object):

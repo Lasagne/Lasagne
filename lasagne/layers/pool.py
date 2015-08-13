@@ -16,8 +16,7 @@ __all__ = [
 ]
 
 
-def pool_output_length(input_length, pool_size, stride,
-                       ignore_border, pad):
+def pool_output_length(input_length, pool_size, stride, pad, ignore_border):
     """
     Compute the output length of a pooling operator
     along a single dimension.
@@ -108,10 +107,13 @@ class MaxPool1DLayer(Layer):
     The value used to pad the input is chosen to be less than
     the minimum of the input, so that the output of each pooling region
     always corresponds to some element in the unpadded input region.
+
+    Using ``ignore_border=False`` prevents Theano from using cuDNN for the
+    operation, so it will fall back to a slower implementation.
     """
 
     def __init__(self, incoming, pool_size, stride=None, pad=0,
-                 ignore_border=False, **kwargs):
+                 ignore_border=True, **kwargs):
         super(MaxPool1DLayer, self).__init__(incoming, **kwargs)
         self.pool_size = as_tuple(pool_size, 1)
         self.stride = self.pool_size if stride is None else as_tuple(stride, 1)
@@ -124,8 +126,8 @@ class MaxPool1DLayer(Layer):
         output_shape[-1] = pool_output_length(input_shape[-1],
                                               pool_size=self.pool_size[0],
                                               stride=self.stride[0],
-                                              ignore_border=self.ignore_border,
                                               pad=self.pad[0],
+                                              ignore_border=self.ignore_border,
                                               )
 
         return tuple(output_shape)
@@ -163,14 +165,14 @@ class Pool2DLayer(Layer):
         The strides between sucessive pooling regions in each dimension.
         If ``None`` then ``stride = pool_size``.
 
-    ignore_border : bool
-        If ``True``, partial pooling regions will be ignored.
-        Must be ``True`` if ``pad != (0, 0)``.
-
     pad : integer or iterable
         Number of elements to be added on each side of the input
         in each dimension. Each value must be less than
         the corresponding stride.
+
+    ignore_border : bool
+        If ``True``, partial pooling regions will be ignored.
+        Must be ``True`` if ``pad != (0, 0)``.
 
     mode : {'max', 'average_inc_pad', 'average_exc_pad'}
         Pooling mode: max-pooling or mean-pooling including/excluding zeros
@@ -189,10 +191,13 @@ class Pool2DLayer(Layer):
     The value used to pad the input is chosen to be less than
     the minimum of the input, so that the output of each pooling region
     always corresponds to some element in the unpadded input region.
+
+    Using ``ignore_border=False`` prevents Theano from using cuDNN for the
+    operation, so it will fall back to a slower implementation.
     """
 
-    def __init__(self, incoming, pool_size, stride=None,
-                 ignore_border=False, pad=(0, 0), mode='max', **kwargs):
+    def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
+                 ignore_border=True, mode='max', **kwargs):
         super(Pool2DLayer, self).__init__(incoming, **kwargs)
 
         self.pool_size = as_tuple(pool_size, 2)
@@ -213,15 +218,15 @@ class Pool2DLayer(Layer):
         output_shape[2] = pool_output_length(input_shape[2],
                                              pool_size=self.pool_size[0],
                                              stride=self.stride[0],
-                                             ignore_border=self.ignore_border,
                                              pad=self.pad[0],
+                                             ignore_border=self.ignore_border,
                                              )
 
         output_shape[3] = pool_output_length(input_shape[3],
                                              pool_size=self.pool_size[1],
                                              stride=self.stride[1],
-                                             ignore_border=self.ignore_border,
                                              pad=self.pad[1],
+                                             ignore_border=self.ignore_border,
                                              )
 
         return tuple(output_shape)
@@ -275,15 +280,18 @@ class MaxPool2DLayer(Pool2DLayer):
     The value used to pad the input is chosen to be less than
     the minimum of the input, so that the output of each pooling region
     always corresponds to some element in the unpadded input region.
+
+    Using ``ignore_border=False`` prevents Theano from using cuDNN for the
+    operation, so it will fall back to a slower implementation.
     """
 
-    def __init__(self, incoming, pool_size, stride=None,
-                 ignore_border=False, pad=(0, 0), **kwargs):
+    def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
+                 ignore_border=True, **kwargs):
         super(MaxPool2DLayer, self).__init__(incoming,
                                              pool_size,
                                              stride,
-                                             ignore_border,
                                              pad,
+                                             ignore_border,
                                              mode='max',
                                              **kwargs)
 

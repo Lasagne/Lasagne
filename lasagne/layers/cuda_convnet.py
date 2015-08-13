@@ -477,11 +477,11 @@ class MaxPool2DCCLayer(CCLayer):
             raise NotImplementedError("MaxPool2DCCLayer only supports "
                                       "stride <= pool_size.")
 
-        # ignore_border argument is for compatibility with MaxPool2DLayer.
-        # it is not supported. Borders are never ignored.
-        if ignore_border is not False:
+        # The ignore_border argument is for compatibility with MaxPool2DLayer.
+        # ignore_border=True is not supported. Borders are never ignored.
+        if ignore_border:
             raise NotImplementedError("MaxPool2DCCLayer does not support "
-                                      "ignore_border.")
+                                      "ignore_border=True.")
 
         self.dimshuffle = dimshuffle
 
@@ -500,14 +500,14 @@ class MaxPool2DCCLayer(CCLayer):
         output_rows = pool_output_length(input_rows,
                                          pool_size=self.pool_size,
                                          stride=self.stride,
-                                         ignore_border=False,
                                          pad=0,
+                                         ignore_border=False,
                                          )
         output_columns = pool_output_length(input_columns,
                                             pool_size=self.pool_size,
                                             stride=self.stride,
-                                            ignore_border=False,
                                             pad=0,
+                                            ignore_border=False,
                                             )
 
         if self.dimshuffle:

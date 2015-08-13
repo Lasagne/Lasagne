@@ -2,13 +2,12 @@ import os
 from setuptools import find_packages
 from setuptools import setup
 
-version = '0.1.dev'
+version = '0.1'
 
 here = os.path.abspath(os.path.dirname(__file__))
 try:
     README = open(os.path.join(here, 'README.rst')).read()
-    CHANGES = ''
-    # CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
+    CHANGES = open(os.path.join(here, 'CHANGES.rst')).read()
 except IOError:
     README = CHANGES = ''
 
@@ -46,7 +45,7 @@ setup(
     url="https://github.com/Lasagne/Lasagne",
     license="MIT",
     packages=find_packages(),
-    include_package_data=True,
+    include_package_data=False,
     zip_safe=False,
     install_requires=install_requires,
     extras_require={

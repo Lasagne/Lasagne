@@ -110,6 +110,8 @@ development version of Theano. To install both, run the following commands:
 Again, add ``--user`` if you want to install to your home directory instead.
 
 
+.. _lasagne-development-install:
+
 Development installation
 ========================
 

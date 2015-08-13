@@ -10,6 +10,9 @@
 .. image:: https://img.shields.io/badge/license-MIT-blue.svg
     :target: https://github.com/Lasagne/Lasagne/blob/master/LICENSE
 
+.. image:: https://zenodo.org/badge/16974/Lasagne/Lasagne.svg
+   :target: https://zenodo.org/badge/latestdoi/16974/Lasagne/Lasagne
+
 Lasagne
 =======
 

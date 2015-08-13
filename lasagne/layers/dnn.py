@@ -51,6 +51,11 @@ class Pool2DDNNLayer(DNNLayer):
         in each dimension. Each value must be less than
         the corresponding stride.
 
+    ignore_border : bool (default: True)
+        This implementation never includes partial pooling regions, so this
+        argument must always be set to True. It exists only to make sure the
+        interface is compatible with :class:`lasagne.layers.MaxPool2DLayer`.
+
     mode : string
         Pooling mode, one of 'max', 'average_inc_pad' or 'average_exc_pad'.
         Defaults to 'max'.
@@ -70,7 +75,7 @@ class Pool2DDNNLayer(DNNLayer):
     argument.
     """
     def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
-                 mode='max', **kwargs):
+                 ignore_border=True, mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
         self.pool_size = as_tuple(pool_size, 2)
         if stride is None:
@@ -79,6 +84,12 @@ class Pool2DDNNLayer(DNNLayer):
             self.stride = as_tuple(stride, 2)
         self.pad = as_tuple(pad, 2)
         self.mode = mode
+        # The ignore_border argument is for compatibility with MaxPool2DLayer.
+        # ignore_border=False is not supported. Borders are always ignored.
+        if not ignore_border:
+            raise NotImplementedError("Pool2DDNNLayer does not support "
+                                      "ignore_border=False.")
+
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
@@ -86,15 +97,15 @@ class Pool2DDNNLayer(DNNLayer):
         output_shape[2] = pool_output_length(input_shape[2],
                                              pool_size=self.pool_size[0],
                                              stride=self.stride[0],
-                                             ignore_border=True,
                                              pad=self.pad[0],
+                                             ignore_border=True,
                                              )
 
         output_shape[3] = pool_output_length(input_shape[3],
                                              pool_size=self.pool_size[1],
                                              stride=self.stride[1],
-                                             ignore_border=True,
                                              pad=self.pad[1],
+                                             ignore_border=True,
                                              )
 
         return tuple(output_shape)
@@ -104,7 +115,7 @@ class Pool2DDNNLayer(DNNLayer):
                             self.mode, self.pad)
 
 
-class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
+class MaxPool2DDNNLayer(Pool2DDNNLayer):
     """
     2D max-pooling layer
 
@@ -112,9 +123,10 @@ class MaxPool2DDNNLayer(Pool2DDNNLayer):  # for consistency
     compatibility to other ``MaxPool2DLayer`` classes.
     """
     def __init__(self, incoming, pool_size, stride=None,
-                 pad=(0, 0), **kwargs):
+                 pad=(0, 0), ignore_border=True, **kwargs):
         super(MaxPool2DDNNLayer, self).__init__(incoming, pool_size, stride,
-                                                pad, mode='max', **kwargs)
+                                                pad, ignore_border, mode='max',
+                                                **kwargs)
 
 
 class Conv2DDNNLayer(DNNLayer):

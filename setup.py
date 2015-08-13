@@ -45,7 +45,7 @@ setup(
     url="https://github.com/Lasagne/Lasagne",
     license="MIT",
     packages=find_packages(),
-    include_package_data=True,
+    include_package_data=False,
     zip_safe=False,
     install_requires=install_requires,
     extras_require={

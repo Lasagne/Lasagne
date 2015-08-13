@@ -1,0 +1,11 @@
+include *.rst
+include *.txt
+include LICENSE
+
+recursive-include lasagne/tests *.py
+include .coveragerc
+recursive-include examples *.py
+recursive-include docs *.rst conf.py *.css Makefile
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

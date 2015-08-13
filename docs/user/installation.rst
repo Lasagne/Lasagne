@@ -70,15 +70,12 @@ be handled below.
 Stable Lasagne release
 ======================
 
-.. note:: Lasagne hasn't been released yet. Please see the next section for
-    how to install the bleeding-edge version instead.
-
 Lasagne 0.1 requires a more recent version of Theano than the one available
 on PyPI. To install a version that is known to work, run the following command:
 
 .. code-block:: bash
 
-  pip install -r https://raw.githubusercontent.com/Lasagne/Lasagne/0.1/requirements.txt
+  pip install -r https://raw.githubusercontent.com/Lasagne/Lasagne/v0.1/requirements.txt
 
 .. warning::
   An even more recent version of Theano will often work as well, but at the

@@ -64,7 +64,7 @@ copyright = u'2014–2015, Lasagne contributors'
 #
 import lasagne
 # The short X.Y version.
-version = '.'.join(lasagne.__version__.split('.', 3)[:2]).rstrip('dev')
+version = '.'.join(lasagne.__version__.split('.', 2)[:2])
 # The full version, including alpha/beta/rc tags.
 release = lasagne.__version__
 

@@ -7,3 +7,7 @@ Special-purpose layers
 
 .. autoclass:: InverseLayer
     :members:
+
+.. autoclass:: TransformerLayer
+    :members:
+

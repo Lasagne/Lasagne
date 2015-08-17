@@ -149,6 +149,7 @@
     :nosignatures:
 
     InverseLayer
+    TransformerLayer
 
 
 .. rubric:: :doc:`layers/corrmm`

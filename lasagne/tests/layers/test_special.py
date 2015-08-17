@@ -56,3 +56,33 @@ class TestInverseLayer:
         # transposed weights
         assert numpy.allclose(
             results.eval(), numpy.dot(numpy.dot(input.get_value(), W), W.T))
+
+
+def test_transform_errors():
+    import lasagne
+    with pytest.raises(ValueError):
+        l_in_a = lasagne.layers.InputLayer((None, 3, 28, 28))
+        l_loc_a = lasagne.layers.DenseLayer(l_in_a, num_units=5)
+        l_trans = lasagne.layers.TransformerLayer(l_in_a, l_loc_a)
+    with pytest.raises(ValueError):
+        l_in_b = lasagne.layers.InputLayer((3, 28, 28))
+        l_loc_b = lasagne.layers.DenseLayer(l_in_b, num_units=6)
+        l_trans = lasagne.layers.TransformerLayer(l_in_b, l_loc_b)
+
+
+def test_transform_downsample():
+        import numpy as np
+        import lasagne
+        downsample = 2.3
+        x = np.random.random((10, 3, 28, 28)).astype('float32')
+        x_sym = theano.tensor.tensor4()
+        l_in = lasagne.layers.InputLayer((None, 3, 28, 28))
+        l_loc = lasagne.layers.DenseLayer(l_in, num_units=6)
+        l_trans = lasagne.layers.TransformerLayer(l_in, l_loc,
+                                                  downsample_factor=downsample)
+
+        output = lasagne.layers.get_output(l_trans, x_sym)
+        x_out = output.eval({x_sym: x})
+        assert x_out.shape[1:] == l_trans.output_shape[1:]
+        assert l_trans.output_shape[0] is None
+        assert x_out.shape[0] == x.shape[0]

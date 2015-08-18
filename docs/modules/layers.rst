@@ -148,6 +148,7 @@
     :nosignatures:
 
     NonlinearityLayer
+    BiasLayer
     InverseLayer
     TransformerLayer
 

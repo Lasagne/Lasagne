@@ -1,5 +1,5 @@
 from mock import Mock
-import numpy
+import numpy as np
 import pytest
 import theano
 
@@ -47,6 +47,61 @@ class TestNonlinearityLayer:
         assert result is nonlinearity.return_value
 
 
+class TestBiasLayer:
+    @pytest.fixture
+    def BiasLayer(self):
+        from lasagne.layers.special import BiasLayer
+        return BiasLayer
+
+    @pytest.fixture
+    def init_b(self):
+        # initializer for a tensor of unique values
+        return lambda shape: np.arange(np.prod(shape)).reshape(shape)
+
+    def test_bias_init(self, BiasLayer, init_b):
+        input_shape = (2, 3, 4)
+        # default: share biases over all but second axis
+        b = BiasLayer(input_shape, b=init_b).b
+        assert np.allclose(b.get_value(), init_b((3,)))
+        # share over first axis only
+        b = BiasLayer(input_shape, b=init_b, shared_axes=0).b
+        assert np.allclose(b.get_value(), init_b((3, 4)))
+        # share over second and third axis
+        b = BiasLayer(input_shape, b=init_b, shared_axes=(1, 2)).b
+        assert np.allclose(b.get_value(), init_b((2,)))
+        # no bias
+        b = BiasLayer(input_shape, b=None).b
+        assert b is None
+
+    def test_get_output_for(self, BiasLayer, init_b):
+        input_shape = (2, 3, 4)
+        # random input tensor
+        input = np.random.randn(*input_shape).astype(theano.config.floatX)
+        # default: share biases over all but second axis
+        layer = BiasLayer(input_shape, b=init_b)
+        assert np.allclose(layer.get_output_for(input).eval(),
+                           input + init_b((1, 3, 1)))
+        # share over first axis only
+        layer = BiasLayer(input_shape, b=init_b, shared_axes=0)
+        assert np.allclose(layer.get_output_for(input).eval(),
+                           input + init_b((1, 3, 4)))
+        # share over second and third axis
+        layer = BiasLayer(input_shape, b=init_b, shared_axes=(1, 2))
+        assert np.allclose(layer.get_output_for(input).eval(),
+                           input + init_b((2, 1, 1)))
+        # no bias
+        layer = BiasLayer(input_shape, b=None)
+        assert layer.get_output_for(input) is input
+
+    def test_undefined_shape(self, BiasLayer):
+        # should work:
+        BiasLayer((64, None, 3), shared_axes=(1, 2))
+        # should not work:
+        with pytest.raises(ValueError) as exc:
+            BiasLayer((64, None, 3), shared_axes=(0, 2))
+        assert 'needs specified input sizes' in exc.value.args[0]
+
+
 class TestInverseLayer:
     @pytest.fixture
     def invlayer_vars(self):
@@ -92,14 +147,14 @@ class TestInverseLayer:
         layer = invlayer_vars['layer']
         W = layer.W.get_value()
         input = theano.shared(
-            numpy.random.rand(*layer.input_shape))
+            np.random.rand(*layer.input_shape))
         results = get_output(invlayer, inputs=input)
 
         # Check that the output of the invlayer is the output of the
         # dot product of the output of the dense layer and the
         # transposed weights
-        assert numpy.allclose(
-            results.eval(), numpy.dot(numpy.dot(input.get_value(), W), W.T))
+        assert np.allclose(
+            results.eval(), np.dot(np.dot(input.get_value(), W), W.T))
 
 
 def test_transform_errors():
@@ -115,7 +170,6 @@ def test_transform_errors():
 
 
 def test_transform_downsample():
-        import numpy as np
         import lasagne
         downsample = 2.3
         x = np.random.random((10, 3, 28, 28)).astype('float32')

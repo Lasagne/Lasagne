@@ -8,6 +8,9 @@ Special-purpose layers
 .. autoclass:: NonlinearityLayer
    :members:
 
+.. autoclass:: BiasLayer
+   :members:
+
 .. autoclass:: InverseLayer
     :members:
 

@@ -8,9 +8,6 @@ Dense layers
 .. autoclass:: DenseLayer
    :members:
 
-.. autoclass:: NonlinearityLayer
-   :members:
-
 .. autoclass:: NINLayer
     :members:
 

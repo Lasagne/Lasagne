@@ -5,6 +5,9 @@ Special-purpose layers
 
 .. currentmodule:: lasagne.layers
 
+.. autoclass:: NonlinearityLayer
+   :members:
+
 .. autoclass:: InverseLayer
     :members:
 

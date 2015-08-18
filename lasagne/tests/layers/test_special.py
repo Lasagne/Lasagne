@@ -1,6 +1,50 @@
+from mock import Mock
 import numpy
 import pytest
 import theano
+
+
+class TestNonlinearityLayer:
+    @pytest.fixture
+    def NonlinearityLayer(self):
+        from lasagne.layers.special import NonlinearityLayer
+        return NonlinearityLayer
+
+    @pytest.fixture
+    def layer_vars(self, NonlinearityLayer, dummy_input_layer):
+        nonlinearity = Mock()
+
+        layer = NonlinearityLayer(
+            dummy_input_layer,
+            nonlinearity=nonlinearity,
+            )
+
+        return {
+            'nonlinearity': nonlinearity,
+            'layer': layer,
+            }
+
+    @pytest.fixture
+    def layer(self, layer_vars):
+        return layer_vars['layer']
+
+    def test_init_none_nonlinearity(self, NonlinearityLayer,
+                                    dummy_input_layer):
+        import lasagne.nonlinearities
+        layer = NonlinearityLayer(
+            dummy_input_layer,
+            nonlinearity=None,
+            )
+        assert layer.nonlinearity == lasagne.nonlinearities.identity
+
+    def test_get_output_for(self, layer_vars):
+        layer = layer_vars['layer']
+        nonlinearity = layer_vars['nonlinearity']
+
+        input = theano.tensor.matrix()
+        result = layer.get_output_for(input)
+        nonlinearity.assert_called_with(input)
+        assert result is nonlinearity.return_value
 
 
 class TestInverseLayer:

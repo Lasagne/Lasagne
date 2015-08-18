@@ -19,18 +19,15 @@ class Layer(object):
     Because each layer can keep track of the layer(s) feeding into it, a
     network's output :class:`Layer` instance can double as a handle to the full
     network.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape.
+    name : a string or None
+        An optional name to attach to this layer.
     """
     def __init__(self, incoming, name=None):
-        """
-        Instantiates the layer.
-
-        Parameters
-        ----------
-        incoming : a :class:`Layer` instance or a tuple
-            The layer feeding into this layer, or the expected input shape.
-        name : a string or None
-            An optional name to attach to this layer.
-        """
         if isinstance(incoming, tuple):
             self.input_shape = incoming
             self.input_layer = None
@@ -224,18 +221,15 @@ class MergeLayer(Layer):
     This class represents a layer that aggregates input from multiple layers.
     It should be subclassed when implementing new types of layers that obtain
     their input from multiple layers.
+
+    Parameters
+    ----------
+    incomings : a list of :class:`Layer` instances or tuples
+        The layers feeding into this layer, or expected input shapes.
+    name : a string or None
+        An optional name to attach to this layer.
     """
     def __init__(self, incomings, name=None):
-        """
-        Instantiates the layer.
-
-        Parameters
-        ----------
-        incomings : a list of :class:`Layer` instances or tuples
-            The layers feeding into this layer, or expected input shapes.
-        name : a string or None
-            An optional name to attach to this layer.
-        """
         self.input_shapes = [incoming if isinstance(incoming, tuple)
                              else incoming.output_shape
                              for incoming in incomings]

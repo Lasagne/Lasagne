@@ -100,6 +100,15 @@ def test_recurrent_init_val_error():
         l_rec = RecurrentLayer(InputLayer((2, 2, 3)), 5, hid_init=hid_init)
 
 
+def test_recurrent_name():
+    l_in = lasagne.layers.InputLayer((2, 3, 4))
+    layer_name = 'l_rec'
+    l_rec = lasagne.layers.RecurrentLayer(l_in, 4, name=layer_name)
+    assert l_rec.b.name == layer_name + '.input_to_hidden.b'
+    assert l_rec.W_in_to_hid.name == layer_name + '.input_to_hidden.W'
+    assert l_rec.W_hid_to_hid.name == layer_name + '.hidden_to_hidden.W'
+
+
 def test_custom_recurrent_arbitrary_shape():
     # Check that the custom recurrent layer can handle more than 1 feature dim
     n_batch, n_steps, n_channels, width, height = (2, 3, 4, 5, 6)

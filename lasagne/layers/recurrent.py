@@ -551,16 +551,30 @@ class RecurrentLayer(CustomRecurrentLayer):
             input_shape = incoming
         else:
             input_shape = incoming.output_shape
+        # Retrieve the supplied name, if it exists; otherwise use ''
+        if 'name' in kwargs:
+            basename = kwargs['name'] + '.'
+            # Create a separate version of kwargs for the contained layers
+            # which does not include 'name'
+            layer_kwargs = dict((key, arg) for key, arg in kwargs.items()
+                                if key != 'name')
+        else:
+            basename = ''
+            layer_kwargs = kwargs
         # We will be passing the input at each time step to the dense layer,
         # so we need to remove the second dimension (the time dimension)
         in_to_hid = DenseLayer(InputLayer((None,) + input_shape[2:]),
                                num_units, W=W_in_to_hid, b=b,
-                               nonlinearity=None, **kwargs)
+                               nonlinearity=None,
+                               name=basename + 'input_to_hidden',
+                               **layer_kwargs)
         # The hidden-to-hidden layer expects its inputs to have num_units
         # features because it recycles the previous hidden state
         hid_to_hid = DenseLayer(InputLayer((None, num_units)),
                                 num_units, W=W_hid_to_hid, b=None,
-                                nonlinearity=None, **kwargs)
+                                nonlinearity=None,
+                                name=basename + 'hidden_to_hidden',
+                                **layer_kwargs)
 
         # Make child layer parameters intuitively accessible
         self.W_in_to_hid = in_to_hid.W

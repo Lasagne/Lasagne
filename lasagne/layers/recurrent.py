@@ -546,7 +546,11 @@ class RecurrentLayer(CustomRecurrentLayer):
                  precompute_input=True,
                  mask_input=None,
                  **kwargs):
-        input_shape = incoming.output_shape
+
+        if isinstance(incoming, tuple):
+            input_shape = incoming
+        else:
+            input_shape = incoming.output_shape
         # We will be passing the input at each time step to the dense layer,
         # so we need to remove the second dimension (the time dimension)
         in_to_hid = DenseLayer(InputLayer((None,) + input_shape[2:]),

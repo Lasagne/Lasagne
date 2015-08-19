@@ -87,6 +87,12 @@ def test_recurrent_tensor_init():
     assert isinstance(output_val, np.ndarray)
 
 
+def test_recurrent_incoming_tuple():
+    input_shape = (2, 3, 4)
+    l_rec = lasagne.layers.RecurrentLayer(input_shape, 5)
+    assert l_rec.input_shapes[0] == input_shape
+
+
 def test_recurrent_init_val_error():
     # check if errors are raised when init is non matrix tensor
     hid_init = T.vector()

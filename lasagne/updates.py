@@ -537,9 +537,9 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
         The variables to generate update expressions for
     learning_rate : float
         Learning rate
-    beta_1 : float
+    beta1 : float
         Exponential decay rate for the first moment estimates.
-    beta_2 : float
+    beta2 : float
         Exponential decay rate for the second moment estimates.
     epsilon : float
         Constant for numerical stability.

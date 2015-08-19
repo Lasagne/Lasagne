@@ -10,7 +10,6 @@ from .base import Layer
 __all__ = [
     "DenseLayer",
     "NINLayer",
-    "NonlinearityLayer"
 ]
 
 
@@ -89,32 +88,6 @@ class DenseLayer(Layer):
         if self.b is not None:
             activation = activation + self.b.dimshuffle('x', 0)
         return self.nonlinearity(activation)
-
-
-class NonlinearityLayer(Layer):
-    """
-    lasagne.layers.NonlinearityLayer(incoming,
-    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
-
-    A layer that just applies a nonlinearity.
-
-    Parameters
-    ----------
-    incoming : a :class:`Layer` instance or a tuple
-        The layer feeding into this layer, or the expected input shape
-
-    nonlinearity : callable or None
-        The nonlinearity that is applied to the layer activations. If None
-        is provided, the layer will be linear.
-    """
-    def __init__(self, incoming, nonlinearity=nonlinearities.rectify,
-                 **kwargs):
-        super(NonlinearityLayer, self).__init__(incoming, **kwargs)
-        self.nonlinearity = (nonlinearities.identity if nonlinearity is None
-                             else nonlinearity)
-
-    def get_output_for(self, input, **kwargs):
-        return self.nonlinearity(input)
 
 
 class NINLayer(Layer):

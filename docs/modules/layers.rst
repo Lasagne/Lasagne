@@ -60,7 +60,6 @@
     :nosignatures:
 
     DenseLayer
-    NonlinearityLayer
     NINLayer
 
 
@@ -148,6 +147,8 @@
 .. autosummary::
     :nosignatures:
 
+    NonlinearityLayer
+    BiasLayer
     InverseLayer
     TransformerLayer
 

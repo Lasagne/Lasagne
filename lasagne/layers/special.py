@@ -1,13 +1,112 @@
 import theano
 import theano.tensor as T
 
-from .base import MergeLayer
+from .. import init
+from .. import nonlinearities
+from .base import Layer, MergeLayer
 
 
 __all__ = [
+    "NonlinearityLayer",
+    "BiasLayer",
     "InverseLayer",
     "TransformerLayer",
 ]
+
+
+class NonlinearityLayer(Layer):
+    """
+    lasagne.layers.NonlinearityLayer(incoming,
+    nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
+
+    A layer that just applies a nonlinearity.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    nonlinearity : callable or None
+        The nonlinearity that is applied to the layer activations. If None
+        is provided, the layer will be linear.
+    """
+    def __init__(self, incoming, nonlinearity=nonlinearities.rectify,
+                 **kwargs):
+        super(NonlinearityLayer, self).__init__(incoming, **kwargs)
+        self.nonlinearity = (nonlinearities.identity if nonlinearity is None
+                             else nonlinearity)
+
+    def get_output_for(self, input, **kwargs):
+        return self.nonlinearity(input)
+
+
+class BiasLayer(Layer):
+    """
+    lasagne.layers.BiasLayer(incoming, b=lasagne.init.Constant(0),
+    shared_axes='auto', **kwargs)
+
+    A layer that just adds a (trainable) bias term.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    b : Theano shared variable, numpy array, callable or None
+        An initializer for the biases. If a shared variable or a numpy array
+        is provided, the shape must match the incoming shape, skipping those
+        axes the biases are shared over (see below for an example). If set to
+        ``None``, the layer will have no biases and pass through its input
+        unchanged.
+        See :func:`lasagne.utils.create_param` for more information.
+
+    shared_axes : 'auto', int or tuple of int
+        The axis or axes to share biases over. If ``'auto'`` (the default),
+        share over all axes except for the second: this will share biases over
+        the minibatch dimension for dense layers, and additionally over all
+        spatial dimensions for convolutional layers.
+
+    Notes
+    -----
+    The bias parameter dimensionality is the input dimensionality minus the
+    number of axes the biases are shared over, which matches the bias parameter
+    conventions of :class:`DenseLayer` or :class:`Conv2DLayer`. For example:
+
+    >>> layer = BiasLayer((20, 30, 40, 50), shared_axes=(0, 2))
+    >>> layer.b.get_value().shape
+    (30, 50)
+    """
+    def __init__(self, incoming, b=init.Constant(0), shared_axes='auto',
+                 **kwargs):
+        super(BiasLayer, self).__init__(incoming, **kwargs)
+
+        if shared_axes == 'auto':
+            # default: share biases over all but the second axis
+            shared_axes = (0,) + tuple(range(2, len(self.input_shape)))
+        elif isinstance(shared_axes, int):
+            shared_axes = (shared_axes,)
+        self.shared_axes = shared_axes
+
+        if b is None:
+            self.b = None
+        else:
+            # create bias parameter, ignoring all dimensions in shared_axes
+            shape = [size for axis, size in enumerate(self.input_shape)
+                     if axis not in self.shared_axes]
+            if any(size is None for size in shape):
+                raise ValueError("BiasLayer needs specified input sizes for "
+                                 "all axes that biases are not shared over.")
+            self.b = self.add_param(b, shape, 'b', regularizable=False)
+
+    def get_output_for(self, input, **kwargs):
+        if self.b is not None:
+            bias_axes = iter(range(self.b.ndim))
+            pattern = ['x' if input_axis in self.shared_axes
+                       else next(bias_axes)
+                       for input_axis in range(input.ndim)]
+            return input + self.b.dimshuffle(*pattern)
+        else:
+            return input
 
 
 class InverseLayer(MergeLayer):

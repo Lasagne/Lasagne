@@ -11,3 +11,4 @@ from .normalization import *
 from .embedding import *
 from .recurrent import *
 from .special import *
+from .autoenc import *

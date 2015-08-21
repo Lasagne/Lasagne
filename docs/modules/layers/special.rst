@@ -14,9 +14,6 @@ Special-purpose layers
 .. autoclass:: ExpressionLayer
    :members:
 
-.. autoclass:: InverseLayer
-    :members:
-
 .. autoclass:: TransformerLayer
     :members:
 

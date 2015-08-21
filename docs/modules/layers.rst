@@ -17,6 +17,7 @@
     layers/shape
     layers/merge
     layers/embedding
+    layers/autoenc
     layers/special
     layers/corrmm
     layers/cuda_convnet
@@ -145,6 +146,16 @@
     EmbeddingLayer
 
 
+.. rubric:: :doc:`layers/autoenc`
+
+.. autosummary::
+    :nosignatures:
+
+    InverseLayer
+    build_autoencoder
+    unfold_bias_and_nonlinearity_layers
+
+
 .. rubric:: :doc:`layers/special`
 
 .. autosummary::
@@ -153,7 +164,6 @@
     NonlinearityLayer
     BiasLayer
     ExpressionLayer
-    InverseLayer
     TransformerLayer
     ParametricRectifierLayer
     prelu

@@ -167,9 +167,10 @@ class TransformerLayer(MergeLayer):
 
     Parameters
     ----------
-    input : a :class:`Layer` instance
-        The input where the affine transformation is applied. This should
-        have convolution format, i.e. (num_batch, channels, height, width).
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 4D tensor, with shape
+        ``(batch_size, num_input_channels, input_rows, input_columns)``.
 
     localization_network : a :class:`Layer` instance
         The network that calculates the parameters of the affine
@@ -207,21 +208,21 @@ class TransformerLayer(MergeLayer):
     ... nonlinearity=None)
     >>> l_trans = lasagne.layers.TransformerLayer(l_in, l_loc)
     """
-    def __init__(
-            self, input, localization_network, downsample_factor=1, **kwargs):
+    def __init__(self, incoming, localization_network, downsample_factor=1,
+                 **kwargs):
         super(TransformerLayer, self).__init__(
-            [input, localization_network], **kwargs)
+            [incoming, localization_network], **kwargs)
         self.downsample_factor = downsample_factor
 
         input_shp, loc_shp = self.input_shapes
 
         if loc_shp[-1] != 6 or len(loc_shp) != 2:
             raise ValueError("The localization network must have "
-                             "output shape [num_batch, 6]")
+                             "output shape: (batch_size, 6)")
         if len(input_shp) != 4:
-            raise ValueError('The input network must have a 4-dimensional '
-                             'output shape:(batch_size, num_input_channels, '
-                             'input_rows, input_columns)')
+            raise ValueError("The input network must have a 4-dimensional "
+                             "output shape: (batch_size, num_input_channels, "
+                             "input_rows, input_columns)")
 
     def get_output_shape_for(self, input_shapes):
         shp = input_shapes[0]
@@ -229,7 +230,7 @@ class TransformerLayer(MergeLayer):
         return (shp[:2] + tuple(
             None if s is None else int(s/dsf) for s in shp[2:]))
 
-    def get_output_for(self, inputs, deterministic=False, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         # see eq. (1) and sec 3.1 in [1]
         input, theta = inputs
         return _transform(theta, input, self.downsample_factor)

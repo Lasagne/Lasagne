@@ -171,7 +171,7 @@ def test_transform_errors():
 
 def test_transform_downsample():
         import lasagne
-        downsample = 2.3
+        downsample = (0.7, 2.3)
         x = np.random.random((10, 3, 28, 28)).astype('float32')
         x_sym = theano.tensor.tensor4()
         l_in = lasagne.layers.InputLayer((None, 3, 28, 28))
@@ -179,8 +179,12 @@ def test_transform_downsample():
         l_trans = lasagne.layers.TransformerLayer(l_in, l_loc,
                                                   downsample_factor=downsample)
 
+        # check that shape propagation works
+        assert l_trans.output_shape[0] is None
+        assert l_trans.output_shape[1:] == (3, int(28 / .7), int(28 / 2.3))
+
+        # check that data propagation works
         output = lasagne.layers.get_output(l_trans, x_sym)
         x_out = output.eval({x_sym: x})
-        assert x_out.shape[1:] == l_trans.output_shape[1:]
-        assert l_trans.output_shape[0] is None
         assert x_out.shape[0] == x.shape[0]
+        assert x_out.shape[1:] == l_trans.output_shape[1:]

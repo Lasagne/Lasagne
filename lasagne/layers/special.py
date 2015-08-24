@@ -3,6 +3,7 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
+from ..utils import as_tuple
 from .base import Layer, MergeLayer
 
 
@@ -177,10 +178,11 @@ class TransformerLayer(MergeLayer):
         transformation. See the example for how to initialize to the identity
         transform.
 
-    downsample_factor : float
-        Determines the size of the output image. A value of 1 will keep the
-        original size of the input. Values larger than 1 will down sample the
-        input. Values below 1 will up sample the input.
+    downsample_factor : float or iterable of float
+        A float or a 2-element tuple specifying the downsample factor for the
+        output image (in both spatial dimensions). A value of 1 will keep the
+        original size of the input. Values larger than 1 will downsample the
+        input. Values below 1 will upsample the input.
 
     References
     ----------
@@ -212,7 +214,7 @@ class TransformerLayer(MergeLayer):
                  **kwargs):
         super(TransformerLayer, self).__init__(
             [incoming, localization_network], **kwargs)
-        self.downsample_factor = downsample_factor
+        self.downsample_factor = as_tuple(downsample_factor, 2)
 
         input_shp, loc_shp = self.input_shapes
 
@@ -225,10 +227,10 @@ class TransformerLayer(MergeLayer):
                              "input_rows, input_columns)")
 
     def get_output_shape_for(self, input_shapes):
-        shp = input_shapes[0]
-        dsf = self.downsample_factor
-        return (shp[:2] + tuple(
-            None if s is None else int(s/dsf) for s in shp[2:]))
+        shape = input_shapes[0]
+        factors = self.downsample_factor
+        return (shape[:2] + tuple(None if s is None else int(s / f)
+                                  for s, f in zip(shape[2:], factors)))
 
     def get_output_for(self, inputs, **kwargs):
         # see eq. (1) and sec 3.1 in [1]
@@ -243,8 +245,8 @@ def _transform(theta, input, downsample_factor):
     height_f = T.cast(height, 'float32')
     width_f = T.cast(width, 'float32')
 
-    out_height = T.cast(height_f / downsample_factor, 'int64')
-    out_width = T.cast(width_f / downsample_factor, 'int64')
+    out_height = T.cast(height_f / downsample_factor[0], 'int64')
+    out_width = T.cast(width_f / downsample_factor[1], 'int64')
 
     # grid of (x_t, y_t, 1), eq (1) in ref [1]
     grid = _meshgrid(out_height, out_width)

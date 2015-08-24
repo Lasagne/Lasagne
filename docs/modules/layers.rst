@@ -16,6 +16,7 @@
     layers/noise
     layers/shape
     layers/merge
+    layers/normalization
     layers/embedding
     layers/special
     layers/corrmm
@@ -135,6 +136,16 @@
     concat
     ElemwiseMergeLayer
     ElemwiseSumLayer
+
+
+.. rubric:: :doc:`layers/normalization`
+
+.. autosummary::
+    :nosignatures:
+
+    LocalResponseNormalization2DLayer
+    BatchNormLayer
+    batch_norm
 
 
 .. rubric:: :doc:`layers/embedding`

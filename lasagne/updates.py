@@ -681,7 +681,7 @@ def total_norm_constraint(tensor_vars, max_norm, epsilon=1e-7,
     ----------
     tensor_vars : List of TensorVariables.
         Tensors to be rescaled.
-    threshold : float
+    max_norm : float
         Threshold value for total norm.
     epsilon : scalar, optional
         Value used to prevent numerical instability when dividing by

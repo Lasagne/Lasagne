@@ -122,9 +122,16 @@ class TestConcatLayer:
                            cropping=['lower'] * 2)
 
     def test_get_output_shape_for(self, layer):
-        input_shapes = [(3, 2), (3, 5)]
-        result = layer.get_output_shape_for(input_shapes)
-        assert result == (3, 7)
+        assert layer.get_output_shape_for([(3, 2), (3, 5)]) == (3, 7)
+        assert layer.get_output_shape_for([(3, 2), (3, None)]) == (3, None)
+        assert layer.get_output_shape_for([(None, 2), (3, 5)]) == (3, 7)
+        assert layer.get_output_shape_for([(None, 2), (None, 5)]) == (None, 7)
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for([(4, None), (3, 5)])
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for([(3, 2), (4, None)])
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for([(None, 2), (3, 5), (4, 5)])
 
     def test_get_output_shape_for_cropped(self, crop_layer_0, crop_layer_1):
         input_shapes = [(3, 2), (4, 5)]
@@ -166,6 +173,18 @@ class TestElemwiseSumLayer:
         return ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, -1],
                                 cropping=['lower'] * 2)
 
+    def test_get_output_shape_for(self, layer):
+        assert layer.get_output_shape_for([(3, 2), (3, 2)]) == (3, 2)
+        assert layer.get_output_shape_for([(3, 2), (3, None)]) == (3, 2)
+        assert layer.get_output_shape_for([(None, 2), (3, 2)]) == (3, 2)
+        assert layer.get_output_shape_for([(None, 2), (None, 2)]) == (None, 2)
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for([(3, None), (4, 2)])
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for([(3, 2), (4, None)])
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for([(None, 2), (3, 2), (4, 2)])
+
     def test_get_output_for(self, layer):
         a = numpy.array([[0, 1], [2, 3]])
         b = numpy.array([[1, 2], [4, 5]])
@@ -190,11 +209,6 @@ class TestElemwiseSumLayer:
         from lasagne.layers.merge import ElemwiseSumLayer
         with pytest.raises(ValueError):
             ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, 3, -1])
-
-    def test_get_output_shape_for_fails(self, layer):
-        input_shapes = [(3, 2), (3, 5)]
-        with pytest.raises(ValueError):
-            layer.get_output_shape_for(input_shapes)
 
 
 class TestElemwiseMergeLayerMul:

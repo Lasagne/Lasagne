@@ -268,9 +268,24 @@ class ConcatLayer(MergeLayer):
 
     def get_output_shape_for(self, input_shapes):
         input_shapes = autocrop_array_shapes(input_shapes, self.cropping)
+        # Infer the output shape by grabbing, for each axis, the first
+        # input size that is not `None` (if there is any)
+        output_shape = [next((s for s in sizes if s is not None), None)
+                        for sizes in zip(*input_shapes)]
+
+        def match(shape1, shape2):
+            return (len(shape1) == len(shape2) and
+                    all(i == self.axis or s1 is None or s2 is None or s1 == s2
+                        for i, (s1, s2) in enumerate(zip(shape1, shape2))))
+
+        # Check for compatibility with inferred output shape
+        if not all(match(shape, output_shape) for shape in input_shapes):
+            raise ValueError("Mismatch: input shapes must be the same except "
+                             "in the concatenation axis")
+        # Infer output shape on concatenation axis and return
         sizes = [input_shape[self.axis] for input_shape in input_shapes]
-        output_shape = list(input_shapes[0])  # make a mutable copy
-        output_shape[self.axis] = sum(sizes)
+        concat_size = None if any(s is None for s in sizes) else sum(sizes)
+        output_shape[self.axis] = concat_size
         return tuple(output_shape)
 
     def get_output_for(self, inputs, **kwargs):
@@ -312,9 +327,20 @@ class ElemwiseMergeLayer(MergeLayer):
 
     def get_output_shape_for(self, input_shapes):
         input_shapes = autocrop_array_shapes(input_shapes, self.cropping)
-        if any(shape != input_shapes[0] for shape in input_shapes):
+        # Infer the output shape by grabbing, for each axis, the first
+        # input size that is not `None` (if there is any)
+        output_shape = tuple(next((s for s in sizes if s is not None), None)
+                             for sizes in zip(*input_shapes))
+
+        def match(shape1, shape2):
+            return (len(shape1) == len(shape2) and
+                    all(s1 is None or s2 is None or s1 == s2
+                        for s1, s2 in zip(shape1, shape2)))
+
+        # Check for compatibility with inferred output shape
+        if not all(match(shape, output_shape) for shape in input_shapes):
             raise ValueError("Mismatch: not all input shapes are the same")
-        return input_shapes[0]
+        return output_shape
 
     def get_output_for(self, inputs, **kwargs):
         inputs = autocrop(inputs, self.cropping)

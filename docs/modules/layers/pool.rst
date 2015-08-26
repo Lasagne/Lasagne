@@ -11,6 +11,9 @@ Pooling layers
 .. autoclass:: MaxPool2DLayer
     :members:
 
+.. autoclass:: Pool1DLayer
+    :members:
+
 .. autoclass:: Pool2DLayer
     :members:
 

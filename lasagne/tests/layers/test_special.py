@@ -171,16 +171,42 @@ def test_transform_errors():
 
 def test_transform_downsample():
         import lasagne
-        downsample = 2.3
+        downsample = (0.7, 2.3)
         x = np.random.random((10, 3, 28, 28)).astype('float32')
         x_sym = theano.tensor.tensor4()
+
+        # create transformer with fixed input size
         l_in = lasagne.layers.InputLayer((None, 3, 28, 28))
         l_loc = lasagne.layers.DenseLayer(l_in, num_units=6)
         l_trans = lasagne.layers.TransformerLayer(l_in, l_loc,
                                                   downsample_factor=downsample)
 
+        # check that shape propagation works
+        assert l_trans.output_shape[0] is None
+        assert l_trans.output_shape[1:] == (3, int(28 / .7), int(28 / 2.3))
+
+        # check that data propagation works
         output = lasagne.layers.get_output(l_trans, x_sym)
         x_out = output.eval({x_sym: x})
-        assert x_out.shape[1:] == l_trans.output_shape[1:]
-        assert l_trans.output_shape[0] is None
         assert x_out.shape[0] == x.shape[0]
+        assert x_out.shape[1:] == l_trans.output_shape[1:]
+
+        # create transformer with variable input size
+        l_in = lasagne.layers.InputLayer((None, 3, None, 28))
+        l_loc = lasagne.layers.DenseLayer(
+                lasagne.layers.ReshapeLayer(l_in, ([0], 3*28*28)),
+                num_units=6, W=l_loc.W, b=l_loc.b)
+        l_trans = lasagne.layers.TransformerLayer(l_in, l_loc,
+                                                  downsample_factor=downsample)
+
+        # check that shape propagation works
+        assert l_trans.output_shape[0] is None
+        assert l_trans.output_shape[1] == 3
+        assert l_trans.output_shape[2] is None
+        assert l_trans.output_shape[3] == int(28 / 2.3)
+
+        # check that data propagation works
+        output = lasagne.layers.get_output(l_trans, x_sym)
+        x_out2 = output.eval({x_sym: x})
+        assert x_out2.shape == x_out.shape
+        np.testing.assert_allclose(x_out2, x_out, rtol=1e-5, atol=1e-5)

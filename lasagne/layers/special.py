@@ -3,6 +3,7 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
+from ..utils import as_tuple
 from .base import Layer, MergeLayer
 
 
@@ -167,19 +168,21 @@ class TransformerLayer(MergeLayer):
 
     Parameters
     ----------
-    input : a :class:`Layer` instance
-        The input where the affine transformation is applied. This should
-        have convolution format, i.e. (num_batch, channels, height, width).
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape. The
+        output of this layer should be a 4D tensor, with shape
+        ``(batch_size, num_input_channels, input_rows, input_columns)``.
 
     localization_network : a :class:`Layer` instance
         The network that calculates the parameters of the affine
         transformation. See the example for how to initialize to the identity
         transform.
 
-    downsample_factor : float
-        Determines the size of the output image. A value of 1 will keep the
-        original size of the input. Values larger than 1 will down sample the
-        input. Values below 1 will up sample the input.
+    downsample_factor : float or iterable of float
+        A float or a 2-element tuple specifying the downsample factor for the
+        output image (in both spatial dimensions). A value of 1 will keep the
+        original size of the input. Values larger than 1 will downsample the
+        input. Values below 1 will upsample the input.
 
     References
     ----------
@@ -207,29 +210,29 @@ class TransformerLayer(MergeLayer):
     ... nonlinearity=None)
     >>> l_trans = lasagne.layers.TransformerLayer(l_in, l_loc)
     """
-    def __init__(
-            self, input, localization_network, downsample_factor=1, **kwargs):
+    def __init__(self, incoming, localization_network, downsample_factor=1,
+                 **kwargs):
         super(TransformerLayer, self).__init__(
-            [input, localization_network], **kwargs)
-        self.downsample_factor = downsample_factor
+            [incoming, localization_network], **kwargs)
+        self.downsample_factor = as_tuple(downsample_factor, 2)
 
         input_shp, loc_shp = self.input_shapes
 
         if loc_shp[-1] != 6 or len(loc_shp) != 2:
             raise ValueError("The localization network must have "
-                             "output shape [num_batch, 6]")
+                             "output shape: (batch_size, 6)")
         if len(input_shp) != 4:
-            raise ValueError('The input network must have a 4-dimensional '
-                             'output shape:(batch_size, num_input_channels, '
-                             'input_rows, input_columns)')
+            raise ValueError("The input network must have a 4-dimensional "
+                             "output shape: (batch_size, num_input_channels, "
+                             "input_rows, input_columns)")
 
     def get_output_shape_for(self, input_shapes):
-        shp = input_shapes[0]
-        dsf = self.downsample_factor
-        return (shp[:2] + tuple(
-            None if s is None else int(s/dsf) for s in shp[2:]))
+        shape = input_shapes[0]
+        factors = self.downsample_factor
+        return (shape[:2] + tuple(None if s is None else int(s / f)
+                                  for s, f in zip(shape[2:], factors)))
 
-    def get_output_for(self, inputs, deterministic=False, **kwargs):
+    def get_output_for(self, inputs, **kwargs):
         # see eq. (1) and sec 3.1 in [1]
         input, theta = inputs
         return _transform(theta, input, self.downsample_factor)
@@ -239,13 +242,9 @@ def _transform(theta, input, downsample_factor):
     num_batch, num_channels, height, width = input.shape
     theta = T.reshape(theta, (-1, 2, 3))
 
-    height_f = T.cast(height, 'float32')
-    width_f = T.cast(width, 'float32')
-
-    out_height = T.cast(height_f / downsample_factor, 'int64')
-    out_width = T.cast(width_f / downsample_factor, 'int64')
-
     # grid of (x_t, y_t, 1), eq (1) in ref [1]
+    out_height = T.cast(height / downsample_factor[0], 'int64')
+    out_width = T.cast(width / downsample_factor[1], 'int64')
     grid = _meshgrid(out_height, out_width)
 
     # Transform A x (x_t, y_t, 1)^T -> (x_s, y_s)
@@ -270,34 +269,38 @@ def _transform(theta, input, downsample_factor):
 def _interpolate(im, x, y, out_height, out_width):
     # *_f are floats
     num_batch, height, width, channels = im.shape
-    height_f = T.cast(height, 'float32')
-    width_f = T.cast(width, 'float32')
-    zero = T.zeros([], dtype='int64')
-    max_y = im.shape[1] - 1
-    max_x = im.shape[2] - 1
+    height_f = T.cast(height, theano.config.floatX)
+    width_f = T.cast(width, theano.config.floatX)
 
     # scale indices from [-1, 1] to [0, width/height].
-    x = (x + 1.0)*(width_f) / 2.0
-    y = (y + 1.0)*(height_f) / 2.0
+    x = (x + 1) / 2 * width_f
+    y = (y + 1) / 2 * height_f
 
-    x0 = T.cast(T.floor(x), 'int64')
-    x1 = x0 + 1
-    y0 = T.cast(T.floor(y), 'int64')
-    y1 = y0 + 1
+    # Clip indices to ensure they are not out of bounds.
+    max_x = width_f - 1
+    max_y = height_f - 1
+    x0 = T.clip(x, 0, max_x)
+    x1 = T.clip(x + 1, 0, max_x)
+    y0 = T.clip(y, 0, max_y)
+    y1 = T.clip(y + 1, 0, max_y)
 
-    # Clip indicies to ensure they are not out of bounds.
-    x0 = T.clip(x0, zero, max_x)
-    x1 = T.clip(x1, zero, max_x)
-    y0 = T.clip(y0, zero, max_y)
-    y1 = T.clip(y1, zero, max_y)
+    # We need floatX for interpolation and int64 for indexing.
+    x0_f = T.floor(x0)
+    x1_f = T.floor(x1)
+    y0_f = T.floor(y0)
+    y1_f = T.floor(y1)
+    x0 = T.cast(x0, 'int64')
+    x1 = T.cast(x1, 'int64')
+    y0 = T.cast(y0, 'int64')
+    y1 = T.cast(y1, 'int64')
 
     # The input is [num_batch, height, width, channels]. We do the lookup in
     # the flattened input, i.e [num_batch*height*width, channels]. We need
     # to offset all indices to match the flat version
     dim2 = width
     dim1 = width*height
-    base = _repeat(
-        T.arange(num_batch, dtype='int32')*dim1, out_height*out_width)
+    base = T.repeat(
+        T.arange(num_batch, dtype='int64')*dim1, out_height*out_width)
     base_y0 = base + y0*dim2
     base_y1 = base + y1*dim2
     idx_a = base_y0 + x0
@@ -313,10 +316,6 @@ def _interpolate(im, x, y, out_height, out_width):
     Id = im_flat[idx_d]
 
     # calculate interpolated values
-    x0_f = T.cast(x0, 'float32')
-    x1_f = T.cast(x1, 'float32')
-    y0_f = T.cast(y0, 'float32')
-    y1_f = T.cast(y1, 'float32')
     wa = ((x1_f-x) * (y1_f-y)).dimshuffle(0, 'x')
     wb = ((x1_f-x) * (y-y0_f)).dimshuffle(0, 'x')
     wc = ((x-x0_f) * (y1_f-y)).dimshuffle(0, 'x')
@@ -327,27 +326,24 @@ def _interpolate(im, x, y, out_height, out_width):
 
 def _linspace(start, stop, num):
     # Theano linspace. Behaves similar to np.linspace
-    start = T.cast(start, 'float32')
-    stop = T.cast(stop, 'float32')
-    num = T.cast(num, 'float32')
+    start = T.cast(start, theano.config.floatX)
+    stop = T.cast(stop, theano.config.floatX)
+    num = T.cast(num, theano.config.floatX)
     step = (stop-start)/(num-1)
-    return T.arange(num, dtype='float32')*step+start
-
-
-def _repeat(x, n_repeats):
-    # repeat a vector n times.
-    rep = T.ones((n_repeats,), dtype='int32').dimshuffle('x', 0)
-    x = T.dot(x.reshape((-1, 1)), rep)
-    return x.flatten()
+    return T.arange(num, dtype=theano.config.floatX)*step+start
 
 
 def _meshgrid(height, width):
-    # This should be equivalent to:
+    # This function is the grid generator from eq. (1) in reference [1].
+    # It is equivalent to the following numpy code:
     #  x_t, y_t = np.meshgrid(np.linspace(-1, 1, width),
     #                         np.linspace(-1, 1, height))
     #  ones = np.ones(np.prod(x_t.shape))
     #  grid = np.vstack([x_t.flatten(), y_t.flatten(), ones])
-    # The function is the grid generator from [1], see eq (1) in ref [1]
+    # It is implemented in Theano instead to support symbolic grid sizes.
+    # Note: If the image size is known at layer construction time, we could
+    # compute the meshgrid offline in numpy instead of doing it dynamically
+    # in Theano. However, it hardly affected performance when we tried.
     x_t = T.dot(T.ones((height, 1)),
                 _linspace(-1.0, 1.0, width).dimshuffle('x', 0))
     y_t = T.dot(_linspace(-1.0, 1.0, height).dimshuffle(0, 'x'),

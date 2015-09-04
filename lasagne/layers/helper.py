@@ -265,16 +265,18 @@ def get_output_shape(layer_or_layers, input_shapes=None):
 
 def get_all_params(layer, **tags):
     """
-    This function gathers all parameters of all layers below one or
+    Returns a list of Theano shared variables that parameterize the layer.
+
+    This function gathers all parameter variables of all layers below one or
     more given :class:`Layer` instances, including the layer(s) itself. Its
     main use is to collect all parameters of a network just given the output
     layer(s).
 
-    By default, all parameters that participate in the forward pass will be
-    returned. The list can optionally be filtered by specifying tags as keyword
-    arguments. For example, ``trainable=True`` will only return trainable
-    parameters, and ``regularizable=True`` will only return parameters that can
-    be regularized (e.g., by L2 decay).
+    By default, all shared variables that participate in the forward pass will
+    be returned. The list can optionally be filtered by specifying tags as
+    keyword  arguments. For example, ``trainable=True`` will only return
+    trainable parameters, and ``regularizable=True`` will only return
+    parameters that can be regularized (e.g., by L2 decay).
 
     Parameters
     ----------
@@ -301,6 +303,22 @@ def get_all_params(layer, **tags):
     >>> l1 = DenseLayer(l_in, num_units=50)
     >>> all_params = get_all_params(l1)
     >>> all_params == [l1.W, l1.b]
+    True
+
+    Notes
+    -----
+    If any layer's parameter was set to a Theano expression instead of a shared
+    variable, the shared variables involved in that expression will be returned
+    rather than the expression itself. Tag filtering considers all variables
+    within an expression to be tagged the same.
+    >>> import theano
+    >>> import numpy as np
+    >>> from lasagne.utils import floatX
+    >>> w1 = theano.shared(floatX(.01 * np.random.randn(50, 30)))
+    >>> w2 = theano.shared(floatX(1))
+    >>> l2 = DenseLayer(l1, num_units=30, W=theano.tensor.exp(w1) - w2, b=None)
+    >>> all_params = get_all_params(l2, regularizable=True)
+    >>> all_params == [l1.W, w1, w2]
     True
     """
     layers = get_all_layers(layer)

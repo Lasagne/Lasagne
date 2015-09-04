@@ -58,6 +58,19 @@ class TestLayer:
         assert layer.get_params(tag2=False) == [A]
         assert layer.get_params(tag1=True, tag2=True) == [B]
 
+    def test_get_params_expressions(self, layer):
+        x, y, z = (theano.shared(0, name=n) for n in 'xyz')
+        W1 = layer.add_param(x**2 + theano.tensor.log(y), (), tag1=True)
+        W2 = layer.add_param(theano.tensor.matrix(), (10, 10), tag1=True)
+        W3 = layer.add_param(z.T, (), tag2=True)
+        # layer.params stores the parameter expressions:
+        assert list(layer.params.keys()) == [W1, W2, W3]
+        # layer.get_params() returns the underlying shared variables:
+        assert layer.get_params() == [x, y, z]
+        # filtering acts on the parameter expressions:
+        assert layer.get_params(tag1=True) == [x, y]
+        assert layer.get_params(tag2=True) == [z]
+
     def test_add_param_tags(self, layer):
         a_shape = (20, 50)
         a = numpy.random.normal(0, 1, a_shape)

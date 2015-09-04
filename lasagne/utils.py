@@ -76,6 +76,29 @@ def as_theano_expression(input):
                             "exception: %s)" % (type(input), e))
 
 
+def collect_shared_vars(expressions):
+    """Returns all shared variables the given expression(s) depend on.
+
+    Parameters
+    ----------
+    expressions : Theano expression or iterable of Theano expressions
+        The expressions to collect shared variables from.
+
+    Returns
+    -------
+    list of Theano shared variables
+        All shared variables the given expression(s) depend on, in fixed order
+        (as found by a left-recursive depth-first search). If some expressions
+        are shared variables themselves, they are included in the result.
+    """
+    # wrap single expression in list
+    if isinstance(expressions, theano.Variable):
+        expressions = [expressions]
+    # return list of all shared variables
+    return [v for v in theano.gof.graph.inputs(reversed(expressions))
+            if isinstance(v, theano.compile.SharedVariable)]
+
+
 def one_hot(x, m=None):
     """One-hot representation of integer vector.
 
@@ -236,11 +259,11 @@ def create_param(spec, shape, name=None):
 
     Parameters
     ----------
-    spec : numpy array, Theano shared variable, or callable
+    spec : numpy array, Theano expression, or callable
         Either of the following:
 
         * a numpy array with the initial parameter values
-        * a Theano shared variable representing the parameters
+        * a Theano expression or shared variable representing the parameters
         * a function or callable that takes the desired shape of
           the parameter array as its single argument and returns
           a numpy array.
@@ -251,24 +274,24 @@ def create_param(spec, shape, name=None):
 
     name : string, optional
         If a new variable is created, the name to give to the parameter
-        variable. This is ignored if `spec` is already a Theano shared
-        variable.
+        variable. This is ignored if `spec` is already a Theano expression
+        or shared variable.
 
     Returns
     -------
-    Theano shared variable
-        a Theano shared variable representing layer parameters. If a
-        numpy array was provided, the variable is initialized to
-        contain this array. If a shared variable was provided, it is
-        simply returned. If a callable was provided, it is called, and
-        its output is used to initialize the variable.
+    Theano shared variable or Theano expression
+        A Theano shared variable or expression representing layer parameters.
+        If a numpy array was provided, a shared variable is initialized to
+        contain this array. If a shared variable or expression was provided,
+        it is simply returned. If a callable was provided, it is called, and
+        its output is used to initialize a shared variable.
 
     Notes
     -----
     This function is called by :meth:`Layer.add_param()` in the constructor
     of most :class:`Layer` subclasses. This enables those layers to
-    support initialization with numpy arrays, existing Theano shared
-    variables, and callables for generating initial parameter values.
+    support initialization with numpy arrays, existing Theano shared variables
+    or expressions, and callables for generating initial parameter values.
     """
     shape = tuple(shape)  # convert to tuple if needed
     if any(d <= 0 for d in shape):
@@ -276,15 +299,15 @@ def create_param(spec, shape, name=None):
             "Cannot create param with a non-positive shape dimension. "
             "Tried to create param with shape=%r, name=%r") % (shape, name))
 
-    if isinstance(spec, theano.compile.SharedVariable):
-        # We cannot check the shape here, the shared variable might not be
-        # initialized correctly yet. We can check the dimensionality
-        # though. Note that we cannot assign a name here. We could assign
-        # to the `name` attribute of the shared variable, but we shouldn't
-        # because the user may have already named the variable and we don't
-        # want to override this.
+    if isinstance(spec, theano.Variable):
+        # We cannot check the shape here, Theano expressions (even shared
+        # variables) do not have a fixed compile-time shape. We can check the
+        # dimensionality though.
+        # Note that we cannot assign a name here. We could assign to the
+        # `name` attribute of the variable, but the user may have already
+        # named the variable and we don't want to override this.
         if spec.ndim != len(shape):
-            raise RuntimeError("shared variable has %d dimensions, "
+            raise RuntimeError("parameter variable has %d dimensions, "
                                "should be %d" % (spec.ndim, len(shape)))
         return spec
 
@@ -310,7 +333,7 @@ def create_param(spec, shape, name=None):
 
     else:
         raise RuntimeError("cannot initialize parameters: 'spec' is not "
-                           "a numpy array, a Theano shared variable, or a "
+                           "a numpy array, a Theano expression, or a "
                            "callable")
 
 

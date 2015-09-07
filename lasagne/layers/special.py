@@ -243,8 +243,9 @@ def _transform(theta, input, downsample_factor):
     theta = T.reshape(theta, (-1, 2, 3))
 
     # grid of (x_t, y_t, 1), eq (1) in ref [1]
-    out_height = T.cast(height / downsample_factor[0], 'int64')
-    out_width = T.cast(width / downsample_factor[1], 'int64')
+    floatX = theano.config.floatX
+    out_height = T.cast(height.astype(floatX) / downsample_factor[0], 'int64')
+    out_width = T.cast(width.astype(floatX) / downsample_factor[1], 'int64')
     grid = _meshgrid(out_height, out_width)
 
     # Transform A x (x_t, y_t, 1)^T -> (x_s, y_s)

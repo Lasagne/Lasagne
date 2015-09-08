@@ -1,21 +1,25 @@
 language: python
+sudo: false
 python:
   - "2.7"
   - "3.4"
+addons:
+  apt:
+    packages:
+    - libblas-dev
+    - liblapack-dev
+    - gfortran
 before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq libatlas-dev libatlas-base-dev liblapack-dev gfortran
-  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda/bin:$PATH
-  - conda update --yes conda
+  - pip install -U pip
 install:
-  - travis_retry conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy
-  - travis_retry pip install -r requirements-dev.txt
+  - travis_wait travis_retry pip install -r requirements-dev.txt
   - travis_retry pip install python-coveralls
   - travis_retry python setup.py dev
 script: py.test --runslow --cov-config=.coveragerc-nogpu
 after_success:
   - coveralls
-cache: apt
+cache:
+  - apt
+  - directories:
+    - $HOME/.cache/pip
+    - $HOME/.theano

@@ -1,3 +1,6 @@
+.. image:: https://badge.fury.io/py/Lasagne.svg
+    :target: http://badge.fury.io/py/Lasagne
+
 .. image:: http://img.shields.io/badge/docs-latest-brightgreen.svg
     :target: http://lasagne.readthedocs.org/en/latest/
 

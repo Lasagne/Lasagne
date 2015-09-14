@@ -1,7 +1,24 @@
 '''
-Recurrent network example.  Trains a bidirectional vanilla RNN to output the
-sum of two numbers in a sequence of random numbers sampled uniformly from
-[0, 1] based on a separate marker sequence.
+Recurrent network example.  Trains a vanilla RNN to learn and generate
+text from a user-provided input file. This example is based on Andrej
+Karpathy's blog (http://karpathy.github.io/2015/05/21/rnn-effectiveness/)
+and more specifically, on his code min-char-rnn.py
+(https://gist.github.com/karpathy/d4dee566867f8291f086).
+The inputs to the RNN are a sequence of characters and the corresponding
+targets are the characters in the text shifted to the right by one. 
+Assuming a sequence length of 5, a training point for a text file as 
+"The quick brown fox jumps over the lazy dog" would be
+INPUT : 'T','H','E',' ','Q'
+OUTPUT: 'H','E',' ','Q','U'
+
+The loss function compares (via categorical crossentropy), the prediction
+at each time step with the output/target.
+
+Also included is a function to generate text using the RNN given the first 
+character.  
+
+Written by Nitish Shirish Keskar.
+BSD License
 '''
 
 from __future__ import print_function
@@ -13,7 +30,13 @@ import theano.tensor as T
 import lasagne
 
 
+#This snippet loads the text file and creates dictionaries to 
+#encode characters into a vector-space representation and vice-versa. 
+
 data = open('input.txt', 'r').read() # should be simple plain text file
+#As a sample file, you may use the complete works of Shakespeare
+#available as a .txt file from http://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt
+
 chars = list(set(data))
 data_size, vocab_size = len(data), len(chars)
 char_to_ix = { ch:i for i,ch in enumerate(chars) }
@@ -30,14 +53,22 @@ N_HIDDEN = 100
 
 # Optimization learning rate
 LEARNING_RATE = .01
+
 # All gradients above this will be clipped
 GRAD_CLIP = 5
+
 # How often should we check the output?
 PRINT_FREQ = 1000
+
 # Number of epochs to train the net
 NUM_EPOCHS = 10000
 
 def gen_data(p):
+    '''
+    This function produces a training sample from the location 'p' in the text file.
+    For instance, assuming SEQ_LENGTH = 25 and p=0, the function would output the first 
+    25 characters of the text file as the input and characters 1-26 (0 indexing) as the target.
+    '''
     x = np.zeros((1,SEQ_LENGTH,vocab_size))
     y = np.zeros((SEQ_LENGTH,vocab_size))
     for i in range(SEQ_LENGTH):
@@ -47,109 +78,77 @@ def gen_data(p):
 
 def main(num_epochs=NUM_EPOCHS):
     print("Building network ...")
-    import ipdb
-    
+   
     # First, we build the network, starting with an input layer
     # Recurrent layers expect input of shape
-    # (batch size, max sequence length, number of features)
+    # (batch size, SEQ_LENGTH, num_features)
+    # For simplicity, the batch size has been hardcoded as 1. However, this is easy to change. 
+
     l_in = lasagne.layers.InputLayer(shape=(1, None, vocab_size))
 
-    #l_forward = lasagne.layers.LSTMLayer(l_in, N_HIDDEN, grad_clipping=GRAD_CLIP)
- 
+    # We now build the recurrent layer which takes l_in as the input layer
+    # The weights are initialized to be Normal with mean 0 and std 0.01
+    # For simplicity, we assume that the initial value of the hidden weights is not learnt.
+    # We clip the gradients at GRAD_CLIP to prevent the problem of exploding gradients. 
+
     l_forward = lasagne.layers.RecurrentLayer(
         l_in, N_HIDDEN, grad_clipping=GRAD_CLIP, learn_init=False,
         W_in_to_hid=lasagne.init.Normal(),
         W_hid_to_hid=lasagne.init.Normal(),
         nonlinearity=lasagne.nonlinearities.tanh)
 
-
-
+    # The l_forward layer creates an output of dimension (batch_size, SEQ_LENGTH, N_HIDDEN)
+    # Since we hard-code the batch-size to be one, slice the output to obtain the matrix (SEQ_LENGTH, N_HIDDEN)
     l_forward_slice = lasagne.layers.SliceLayer(l_forward, 0, 0)
 
-   # Our output layer is a simple dense connection, with 1 output unit
+    # The sliced output is then passed through the softmax nonlinearity to create probability distribution
+    # for each time step. In other words, the output of this step is (SEQ_LENGTH, N_HIDDEN)
     l_out = lasagne.layers.DenseLayer(l_forward_slice, num_units=vocab_size, W = lasagne.init.Normal(), nonlinearity=lasagne.nonlinearities.softmax)
 
+    # Theano tensor for the targets
     target_values = T.imatrix('target_output')
     
-    
-
-
     # lasagne.layers.get_output produces a variable for the output of the net
     network_output = lasagne.layers.get_output(l_out)
-    #all_softmax, _ = theano.scan(fn = lambda x: T.nnet.softmax(x), outputs_info = None, sequences = network_output, n_steps = SEQ_LENGTH)
-    
-    # The value we care about is the final value produced for each sequence
+
+        
+    # In order to generate text from the network, we need the probability distribution of the next character given the current character
+    # This is done using the compiled function probs. 
+    # It takes the first character as input (in encoded form) and produces a probability distribution for the next. 
     probs = theano.function([l_in.input_var],network_output[0])
-    #probs = theano.function([l_in.input_var],T.exp(network_output[0]) / T.sum(T.exp(network_output[0])))
 
-    # Our cost will be mean-squared error
-    #ipdb.set_trace()
-    cost = T.nnet.categorical_crossentropy(network_output,target_values).sum()
-
-    # Retrieve all parameters from the network
-    np.random.seed(0)
-    all_params = lasagne.layers.get_all_params(l_out)
-    #all_params[1].set_value(np.loadtxt('Wxh'))
-    #all_params[3].set_value(np.loadtxt('Whh'))
-    #all_params[4].set_value(np.loadtxt('Why'))
-
-    def try_it_out(seed=8456):
-        np.random.seed(0)
+    def try_it_out(seed, N=200):
+        '''
+        This function uses the current state of the RNN to generate text. It takes as input the first character, 
+        computes the probability distribution of the next (using the RNN), chooses one at random using the computed probabilities
+        and continues the process for N characters. 
+        Inputs
+        seed (char) : The first letter of the generated text.
+        N (int) : Number of characters of generated text
+        '''
         sample_ix = []
-        #print('\n\n \t\t\t\t TRYING THE NET')
+
         x = np.zeros((1,1,vocab_size))
-        x[0,0,char_to_ix['N']] = 1.0
+        x[0,0,char_to_ix[seed]] = 1.0
         for i in range(200):
             ix = np.random.choice(range(vocab_size), p=probs(x).ravel())
             sample_ix.append(ix)
             x = np.zeros((1,1,vocab_size))
             x[0,0,sample_ix[-1]] = 1.0
-        #print(sample_ix)
-        random_snippet = ''.join(ix_to_char[ix] for ix in sample_ix)    
+
+        random_snippet = seed + ''.join(ix_to_char[ix] for ix in sample_ix)    
         print("----\n %s \n----" % random_snippet)
-        return sample_ix
-
-    # def sample(h = np.zeros((N_HIDDEN,1)), seed_ix = char_to_ix['N'], n = 5):
-    #   """ 
-    #   sample a sequence of integers from the model 
-    #   h is memory state, seed_ix is seed letter for first time step
-    #   """
-      
-    #   ipdb.set_trace()
-    #   Wxh = all_params[1].get_value().T
-    #   Whh = all_params[3].get_value().T
-    #   Why = all_params[4].get_value().T
-    #   bh  = all_params[2].get_value()
-    #   by  = all_params[5].get_value()
-
-    #   Wxh = np.loadtxt('Wxh')
-    #   Whh = np.loadtxt('Whh')
-    #   Why = np.loadtxt('Why')
-    #   x = np.zeros((vocab_size, 1))
-    #   x[seed_ix] = 1
-    #   ixes = []
-    #   for t in xrange(n):
-    #     h = np.tanh(np.dot(Wxh, x) + np.dot(Whh, h) + bh[0])
-    #     y = np.dot(Why, h)[0] + by
-    #     p = np.exp(y) / np.sum(np.exp(y))
-    #     #print(p)
-    #     np.random.seed(28)
-    #     ix = np.random.choice(range(vocab_size), p=p.ravel())
-    #     x = np.zeros((vocab_size, 1))
-    #     x[ix] = 1
-    #     ixes.append(ix)
-    #   return ixes 
     
+    # The loss function is calculated as the sum of the (categorical) cross-entropy between the prediction and target at each time step
+    cost = T.nnet.categorical_crossentropy(network_output,target_values).sum()
 
-    try_it_out()
-    
-    # random_snippet = ''.join(ix_to_char[ix] for ix in sample())  
-    # print("----\n %s \n----" % random_snippet) 
-    # ipdb.set_trace()
-    #import sys; sys.exit()
-    # Compute SGD updates for training
+    # Retrieve all parameters from the network
+    all_params = lasagne.layers.get_all_params(l_out)
+
+    # Compute AdaGrad updates for training
     print("Computing updates ...")
     updates = lasagne.updates.adagrad(cost, all_params, LEARNING_RATE)
+
     # Theano functions for training and computing cost
     print("Compiling functions ...")
     train = theano.function([l_in.input_var, target_values], cost, updates=updates)
@@ -159,26 +158,26 @@ def main(num_epochs=NUM_EPOCHS):
 
     # We'll use this "validation set" to periodically check progress
     X_val, y_val = gen_data(8456)
-    #ipdb.set_trace()
 
     print("Training ...")
     p = 0
     try:
-        for epoch in range(num_epochs):
-            sample_ix = try_it_out()
+        for it in xrange(data_size * num_epochs):
+            sample_ix = try_it_out(data[p]) # Generate text using RNN using the p^th character as the start. 
             cost_val = compute_cost(X_val, y_val)
-            print("Epoch {} validation cost = {}".format(epoch, cost_val))
+            print("Epoch {} validation cost = {}".format(it*1.0/data_size, cost_val))
             for _ in range(PRINT_FREQ):
                 x,y = gen_data(p)
                 p += SEQ_LENGTH
                 train(x, y)
 
                 if(p+1+SEQ_LENGTH>=data_size):
+                    # Bring data pointer back to start 
+                    # Also reset the RNN memory
                     print('Carriage Returned to Start ...')
-                    all_params[0].set_value(np.zeros((1,N_HIDDEN)))
                     p = 0
-            
-            
+                    all_params[0].set_value(np.zeros((1,N_HIDDEN)))
+                    
     except KeyboardInterrupt:
         pass
 

@@ -28,12 +28,20 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
-
+import sys
 
 #This snippet loads the text file and creates dictionaries to 
 #encode characters into a vector-space representation and vice-versa. 
+try:
+    fname = 'input.txt'
+    data = open(fname, 'r').read() # should be simple plain text file
+except IOError as e:
+    print("I/O error({0}): {1}".format(e.errno, e.strerror))
+    print("{0} does not exist. Please provide a valid txt file as input.".format(fname))
+    print("A sample txt file can be downloaded from https://raw.githubusercontent.com/keskarnitish/Lasagne/master/examples/input.txt")
+    sys.exit(1)
 
-data = open('input.txt', 'r').read() # should be simple plain text file
+
 #As a sample file, you may use the complete works of Shakespeare
 #available as a .txt file from http://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt
 
@@ -52,7 +60,7 @@ SEQ_LENGTH = 25
 N_HIDDEN = 100
 
 # Optimization learning rate
-LEARNING_RATE = .01
+LEARNING_RATE = .5
 
 # All gradients above this will be clipped
 GRAD_CLIP = 5

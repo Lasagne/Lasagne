@@ -72,7 +72,7 @@ PRINT_FREQ = 200
 NUM_EPOCHS = 100
 
 # Batch Size
-BATCH_SIZE = 128
+BATCH_SIZE = 16
 
 
 def gen_data(p, batch_size = BATCH_SIZE):
@@ -138,7 +138,7 @@ def main(num_epochs=NUM_EPOCHS):
     # In order to generate text from the network, we need the probability distribution of the next character given the current character
     # This is done using the compiled function probs. 
     # It takes the first character as input (in encoded form) and produces a probability distribution for the next. 
-    probs = theano.function([l_in.input_var],network_output.mean(axis=0))
+    probs = theano.function([l_in.input_var],network_output.mean(axis=0),allow_input_downcast=True)
 
     def try_it_out(seed, N=200):
         '''

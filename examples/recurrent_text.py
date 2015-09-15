@@ -17,8 +17,8 @@ at each time step with the output/target.
 Also included is a function to generate text using the RNN given the first 
 character.  
 
-Written by Nitish Shirish Keskar.
-BSD License
+Written by @keskarnitish
+Pre-processing of text uses snippets of Karpathy's code (BSD License)
 '''
 
 from __future__ import print_function

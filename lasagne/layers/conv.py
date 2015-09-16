@@ -249,7 +249,7 @@ class Conv1DLayer(Layer):
                                       filter_shape=self.get_W_shape(),
                                       border_mode='full')
             shift = (self.filter_size[0] - 1) // 2
-            conved = conved[:, :, shift:input.shape[2] + shift]
+            conved = conved[:, :, shift:-shift]
         else:
             # no padding needed, or explicit padding of input needed
             if self.pad == 'full':

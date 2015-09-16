@@ -30,48 +30,52 @@ import lasagne
 # and loading it into numpy arrays. It doesn't involve Lasagne at all.
 
 def load_dataset():
-    # We first define some helper functions for supporting both Python 2 and 3.
+    # We first define a download function, supporting both Python 2 and 3.
     if sys.version_info[0] == 2:
         from urllib import urlretrieve
-        import cPickle as pickle
-
-        def pickle_load(f, encoding):
-            return pickle.load(f)
     else:
         from urllib.request import urlretrieve
-        import pickle
 
-        def pickle_load(f, encoding):
-            return pickle.load(f, encoding=encoding)
+    def download(filename, source='http://yann.lecun.com/exdb/mnist/'):
+        print("Downloading %s" % filename)
+        urlretrieve(source + filename, filename)
 
-    # We'll now download the MNIST dataset if it is not yet available.
-    url = 'http://deeplearning.net/data/mnist/mnist.pkl.gz'
-    filename = 'mnist.pkl.gz'
-    if not os.path.exists(filename):
-        print("Downloading MNIST dataset...")
-        urlretrieve(url, filename)
-
-    # We'll then load and unpickle the file.
+    # We then define functions for loading MNIST images and labels.
+    # For convenience, they also download the requested files if needed.
     import gzip
-    with gzip.open(filename, 'rb') as f:
-        data = pickle_load(f, encoding='latin-1')
 
-    # The MNIST dataset we have here consists of six numpy arrays:
-    # Inputs and targets for the training set, validation set and test set.
-    X_train, y_train = data[0]
-    X_val, y_val = data[1]
-    X_test, y_test = data[2]
+    def load_mnist_images(filename):
+        if not os.path.exists(filename):
+            download(filename)
+        # Read the inputs in Yann LeCun's binary format.
+        with gzip.open(filename, 'rb') as f:
+            data = np.frombuffer(f.read(), np.uint8, offset=16)
+        # The inputs are vectors now, we reshape them to monochrome 2D images,
+        # following the shape convention: (examples, channels, rows, columns)
+        data = data.reshape(-1, 1, 28, 28)
+        # The inputs come as bytes, we convert them to float32 in range [0,1].
+        # (Actually to range [0, 255/256], for compatibility to the version
+        # provided at http://deeplearning.net/data/mnist/mnist.pkl.gz.)
+        return data / np.float32(256)
 
-    # The inputs come as vectors, we reshape them to monochrome 2D images,
-    # according to the shape convention: (examples, channels, rows, columns)
-    X_train = X_train.reshape((-1, 1, 28, 28))
-    X_val = X_val.reshape((-1, 1, 28, 28))
-    X_test = X_test.reshape((-1, 1, 28, 28))
+    def load_mnist_labels(filename):
+        if not os.path.exists(filename):
+            download(filename)
+        # Read the labels in Yann LeCun's binary format.
+        with gzip.open(filename, 'rb') as f:
+            data = np.frombuffer(f.read(), np.uint8, offset=8)
+        # The labels are vectors of integers now, that's exactly what we want.
+        return data
 
-    # The targets are int64, we cast them to int8 for GPU compatibility.
-    y_train = y_train.astype(np.uint8)
-    y_val = y_val.astype(np.uint8)
-    y_test = y_test.astype(np.uint8)
+    # We can now download and read the training and test set images and labels.
+    X_train = load_mnist_images('train-images-idx3-ubyte.gz')
+    y_train = load_mnist_labels('train-labels-idx1-ubyte.gz')
+    X_test = load_mnist_images('t10k-images-idx3-ubyte.gz')
+    y_test = load_mnist_labels('t10k-labels-idx1-ubyte.gz')
+
+    # We reserve the last 10000 training examples for validation.
+    X_train, X_val = X_train[:-10000], X_train[-10000:]
+    y_train, y_val = y_train[:-10000], y_train[-10000:]
 
     # We just return all the arrays in order, as expected in main().
     # (It doesn't matter how we do this as long as we can read them again.)
@@ -81,7 +85,7 @@ def load_dataset():
 # ##################### Build the neural network model #######################
 # This script supports three types of models. For each one, we define a
 # function that takes a Theano variable representing the input and returns
-# the output layer of a neural network model build in Lasagne.
+# the output layer of a neural network model built in Lasagne.
 
 def build_mlp(input_var=None):
     # This creates an MLP of two hidden layers of 800 units each, followed by

@@ -1,4 +1,4 @@
-.. image:: http://img.shields.io/badge/docs-latest-brightgreen.svg
+.. image:: https://readthedocs.org/projects/lasagne/badge/
     :target: http://lasagne.readthedocs.org/en/latest/
 
 .. image:: https://travis-ci.org/Lasagne/Lasagne.svg?branch=master

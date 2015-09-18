@@ -35,6 +35,7 @@ import sys
 try:
     fname = 'input.txt'
     data = open(fname, 'r').read() # should be simple plain text file
+    data = data.decode("utf-8-sig").encode("utf-8")
 except IOError as e:
     print("I/O error({0}): {1}".format(e.errno, e.strerror))
     print("{0} does not exist. Please provide a valid txt file as input.".format(fname))
@@ -63,16 +64,16 @@ N_HIDDEN = 512
 LEARNING_RATE = .01
 
 # All gradients above this will be clipped
-GRAD_CLIP = 5
+GRAD_CLIP = 100
 
 # How often should we check the output?
-PRINT_FREQ = 1000
+PRINT_FREQ = 1
 
 # Number of epochs to train the net
 NUM_EPOCHS = 100
 
 # Batch Size
-BATCH_SIZE = 128
+BATCH_SIZE = 16
 
 
 def gen_data(p, batch_size = BATCH_SIZE):
@@ -87,10 +88,7 @@ def gen_data(p, batch_size = BATCH_SIZE):
     for n in range(batch_size):
         ptr = n
         for i in range(SEQ_LENGTH):
-            try:
-                x[n,i,char_to_ix[data[p+ptr+i]]] = 1.
-            except:
-                import ipdb; ipdb.set_trace()
+            x[n,i,char_to_ix[data[p+ptr+i]]] = 1.
         y[n] = char_to_ix[data[p+ptr+SEQ_LENGTH]]
     return x, np.array(y,dtype='int32')
 
@@ -138,7 +136,7 @@ def main(num_epochs=NUM_EPOCHS):
     # In order to generate text from the network, we need the probability distribution of the next character given the current character
     # This is done using the compiled function probs. 
     # It takes the first character as input (in encoded form) and produces a probability distribution for the next. 
-    probs = theano.function([l_in.input_var],network_output.mean(axis=0),allow_input_downcast=True)
+    probs = theano.function([l_in.input_var],network_output,allow_input_downcast=True)
 
     def try_it_out(seed, N=200):
         '''
@@ -150,14 +148,13 @@ def main(num_epochs=NUM_EPOCHS):
         N (int) : Number of characters of generated text
         '''
         sample_ix = []
+        x,_ = gen_data(p, 1)
 
-        x,_ = gen_data(8456, 1)
-        
         for i in range(200):
-            ix = np.argmax(probs(x).ravel())
+            ix = np.random.choice(range(vocab_size), p=probs(x).ravel())
             sample_ix.append(ix)
-            x = np.zeros((1,SEQ_LENGTH,vocab_size))
-            x[0,0:SEQ_LENGTH-1,:] = x[0,1:,:]
+            x[:,0:SEQ_LENGTH-1,:] = x[:,1:,:]
+            x[:,SEQ_LENGTH-1,:] = 0
             x[0,SEQ_LENGTH-1,sample_ix[-1]] = 1. 
 
         random_snippet = seed + ''.join(ix_to_char[ix] for ix in sample_ix)    
@@ -182,11 +179,12 @@ def main(num_epochs=NUM_EPOCHS):
     p = 0
     try:
         for it in xrange(data_size * num_epochs / BATCH_SIZE):
-            sample_ix = try_it_out(data[p]) # Generate text using RNN using the p^th character as the start. 
+            sample_ix = try_it_out(p) # Generate text using RNN using the p^th character as the start. 
             
             avg_cost = 0;
             for _ in range(PRINT_FREQ):
                 x,y = gen_data(p)
+                
                 #print(p)
                 p += SEQ_LENGTH + BATCH_SIZE - 1 
                 if(p+BATCH_SIZE+SEQ_LENGTH >= data_size):

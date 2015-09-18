@@ -67,13 +67,13 @@ LEARNING_RATE = .01
 GRAD_CLIP = 100
 
 # How often should we check the output?
-PRINT_FREQ = 1
+PRINT_FREQ = 100
 
 # Number of epochs to train the net
 NUM_EPOCHS = 100
 
 # Batch Size
-BATCH_SIZE = 16
+BATCH_SIZE = 2
 
 
 def gen_data(p, batch_size = BATCH_SIZE):
@@ -148,16 +148,17 @@ def main(num_epochs=NUM_EPOCHS):
         N (int) : Number of characters of generated text
         '''
         sample_ix = []
-        x,_ = gen_data(p, 1)
+        x,_ = gen_data(seed, 1)
 
         for i in range(200):
-            ix = np.random.choice(range(vocab_size), p=probs(x).ravel())
+            #ix = np.random.choice(range(vocab_size), p=probs(x).ravel())
+            ix = np.argmax(probs(x).ravel())
             sample_ix.append(ix)
             x[:,0:SEQ_LENGTH-1,:] = x[:,1:,:]
             x[:,SEQ_LENGTH-1,:] = 0
             x[0,SEQ_LENGTH-1,sample_ix[-1]] = 1. 
 
-        random_snippet = seed + ''.join(ix_to_char[ix] for ix in sample_ix)    
+        random_snippet = data[seed] + ''.join(ix_to_char[ix] for ix in sample_ix)    
         print("----\n %s \n----" % random_snippet)
     
     # The loss function is calculated as the sum of the (categorical) cross-entropy between the prediction and target at each time step

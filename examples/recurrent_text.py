@@ -60,19 +60,19 @@ SEQ_LENGTH = 20
 N_HIDDEN = 512
 
 # Optimization learning rate
-LEARNING_RATE = .1
+LEARNING_RATE = .01
 
 # All gradients above this will be clipped
 GRAD_CLIP = 5
 
 # How often should we check the output?
-PRINT_FREQ = 200
+PRINT_FREQ = 1000
 
 # Number of epochs to train the net
 NUM_EPOCHS = 100
 
 # Batch Size
-BATCH_SIZE = 16
+BATCH_SIZE = 128
 
 
 def gen_data(p, batch_size = BATCH_SIZE):
@@ -138,7 +138,7 @@ def main(num_epochs=NUM_EPOCHS):
     # In order to generate text from the network, we need the probability distribution of the next character given the current character
     # This is done using the compiled function probs. 
     # It takes the first character as input (in encoded form) and produces a probability distribution for the next. 
-    probs = theano.function([l_in.input_var],network_output.mean(axis=0))
+    probs = theano.function([l_in.input_var],network_output.mean(axis=0),allow_input_downcast=True)
 
     def try_it_out(seed, N=200):
         '''
@@ -154,7 +154,7 @@ def main(num_epochs=NUM_EPOCHS):
         x,_ = gen_data(8456, 1)
         
         for i in range(200):
-            ix = np.random.choice(range(vocab_size), p=probs(x).ravel())
+            ix = np.argmax(probs(x).ravel())
             sample_ix.append(ix)
             x = np.zeros((1,SEQ_LENGTH,vocab_size))
             x[0,0:SEQ_LENGTH-1,:] = x[0,1:,:]

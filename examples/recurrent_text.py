@@ -175,8 +175,8 @@ def main(num_epochs=NUM_EPOCHS):
 
     # Theano functions for training and computing cost
     print("Compiling functions ...")
-    train = theano.function([l_in.input_var, target_values], cost, updates=updates)
-    compute_cost = theano.function([l_in.input_var, target_values], cost)
+    train = theano.function([l_in.input_var, target_values], cost, updates=updates, allow_input_downcast=True)
+    compute_cost = theano.function([l_in.input_var, target_values], cost, allow_input_downcast=True)
     
     print("Training ...")
     p = 0

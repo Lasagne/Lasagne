@@ -195,6 +195,7 @@ def main(num_epochs=NUM_EPOCHS):
 
                 avg_cost += train(x, y)
             print("Epoch {} average loss = {}".format(it*1.0*PRINT_FREQ/data_size*BATCH_SIZE, avg_cost / PRINT_FREQ))
+        import ipdb; ipdb.set_trace()
                     
     except KeyboardInterrupt:
         pass

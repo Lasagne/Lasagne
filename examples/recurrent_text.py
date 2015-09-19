@@ -67,13 +67,13 @@ LEARNING_RATE = .01
 GRAD_CLIP = 100
 
 # How often should we check the output?
-PRINT_FREQ = 100
+PRINT_FREQ = 1000
 
 # Number of epochs to train the net
 NUM_EPOCHS = 100
 
 # Batch Size
-BATCH_SIZE = 2
+BATCH_SIZE = 128
 
 
 def gen_data(p, batch_size = BATCH_SIZE):
@@ -194,7 +194,7 @@ def main(num_epochs=NUM_EPOCHS):
                 
 
                 avg_cost += train(x, y)
-            print("Epoch {} average loss = {}".format(it*1.0/data_size*BATCH_SIZE, avg_cost / PRINT_FREQ))
+            print("Epoch {} average loss = {}".format(it*1.0*PRINT_FREQ/data_size*BATCH_SIZE, avg_cost / PRINT_FREQ))
                     
     except KeyboardInterrupt:
         pass

@@ -231,9 +231,9 @@ Docker images
 =============
 
 Instead of manually installing Theano and Lasagne on your machines as described
-above, you may want to use a pre-made `Docker<https://www.docker.com/whatisdocker>`_
-image: `Lasagne Docker (CPU)<https://hub.docker.com/r/kaixhin/lasagne/>`_ or
-`Lasagne Docker (CUDA)<https://hub.docker.com/r/kaixhin/cuda-lasagne/>`_. These
+above, you may want to use a pre-made `Docker <https://www.docker.com/whatisdocker>`_
+image: `Lasagne Docker (CPU) <https://hub.docker.com/r/kaixhin/lasagne/>`_ or
+`Lasagne Docker (CUDA) <https://hub.docker.com/r/kaixhin/cuda-lasagne/>`_. These
 are updated on a weekly basis with bleeding-edge builds of Theano and Lasagne.
 Examples of running bash in a Docker container are as follows:
 
@@ -242,6 +242,6 @@ Examples of running bash in a Docker container are as follows:
   sudo docker run -it kaixhin/lasagne
   sudo docker run -it --device /dev/nvidiactl --device /dev/nvidia-uvm --device /dev/nvidia0 kaixhin/cuda-lasagne:7.0
 
-For a guide to Docker, see the `official docs<https://docs.docker.com/userguide/>`_.
+For a guide to Docker, see the `official docs <https://docs.docker.com/userguide/>`_.
 For more details on how to use the Lasagne Docker images, including requirements for
-CUDA support, consult the `source project<https://github.com/Kaixhin/dockerfiles>`_.
+CUDA support, consult the `source project <https://github.com/Kaixhin/dockerfiles>`_.

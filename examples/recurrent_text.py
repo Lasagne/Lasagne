@@ -34,13 +34,13 @@ import sys
 #This snippet loads the text file and creates dictionaries to 
 #encode characters into a vector-space representation and vice-versa. 
 try:
-    fname = 'input.txt' #The provided file is the work of Nietzsche downloaded from https://s3.amazonaws.com/text-datasets/nietzsche.txt
+    fname = 'input.txt' 
     data = open(fname, 'r').read() # should be simple plain text file
     data = data.decode("utf-8-sig").encode("utf-8")
 except IOError as e:
     print("I/O error({0}): {1}".format(e.errno, e.strerror))
     print("{0} does not exist. Please provide a valid txt file as input.".format(fname))
-    print("A sample txt file can be downloaded from https://raw.githubusercontent.com/keskarnitish/Lasagne/master/examples/input.txt")
+    print("A sample txt file can be downloaded from https://s3.amazonaws.com/text-datasets/nietzsche.txt")
     sys.exit(1)
 
 chars = list(set(data))

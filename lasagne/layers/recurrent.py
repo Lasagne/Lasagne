@@ -387,14 +387,16 @@ class CustomRecurrentLayer(MergeLayer):
         # Create single recurrent computation step function
         def step(input_n, hid_previous, *args):
             # Compute the hidden-to-hidden activation
-            hid_pre = helper.get_output(self.hidden_to_hidden, hid_previous)
+            hid_pre = helper.get_output(
+                self.hidden_to_hidden, hid_previous, **kwargs)
 
             # If the dot product is precomputed then add it, otherwise
             # calculate the input_to_hidden values and add them
             if self.precompute_input:
                 hid_pre += input_n
             else:
-                hid_pre += helper.get_output(self.input_to_hidden, input_n)
+                hid_pre += helper.get_output(
+                    self.input_to_hidden, input_n, **kwargs)
 
             # Clip gradients
             if self.grad_clipping:

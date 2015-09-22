@@ -92,3 +92,6 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Directories from IDE
+.idea

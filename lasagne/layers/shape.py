@@ -375,9 +375,11 @@ class SliceLayer(Layer):
         output_shape = list(input_shape)
         if isinstance(self.slice, int):
             del output_shape[self.axis]
-        else:
+        elif input_shape[self.axis] is not None:
             output_shape[self.axis] = len(
                 range(*self.slice.indices(input_shape[self.axis])))
+        else:
+            output_shape[self.axis] = None
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):

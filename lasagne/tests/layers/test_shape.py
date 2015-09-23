@@ -275,3 +275,10 @@ def test_slice_layer():
     aeq(get_output(l_slice_ax0, x).eval(), x1)
     aeq(get_output(l_slice_ax1, x).eval(), x2)
     aeq(get_output(l_slice_ax2, x).eval(), x3)
+
+    # test slicing None dimension
+    in_shp = (2, None, 2)
+    l_inp = InputLayer(in_shp)
+    l_slice_ax1 = SliceLayer(l_inp, axis=1, indices=slice(3, 5))
+    assert get_output_shape(l_slice_ax1) == (2, None, 2)
+    aeq(get_output(l_slice_ax1, x).eval(), x2)

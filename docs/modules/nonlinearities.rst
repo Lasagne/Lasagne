@@ -8,6 +8,7 @@
    sigmoid
    softmax
    tanh
+   ScaledTanH
    rectify
    LeakyRectify
    leaky_rectify
@@ -21,6 +22,9 @@ Detailed description
 .. autofunction:: sigmoid
 .. autofunction:: softmax
 .. autofunction:: tanh
+.. autoclass:: ScaledTanH
+   :members:
+.. autoclass:: ScaledTanh
 .. autofunction:: rectify
 .. autoclass:: LeakyRectify
    :members:

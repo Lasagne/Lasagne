@@ -72,7 +72,7 @@ __all__ = [
     "squared_error",
     "aggregate",
     "binary_hinge_loss",
-    "mutliclass_hinge_loss",
+    "multiclass_hinge_loss",
     "binary_accuracy",
     "categorical_accuracy"
 ]
@@ -238,7 +238,7 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
     return theano.tensor.nnet.relu(delta - predictions * targets)
 
 
-def mutliclass_hinge_loss(predictions, targets, delta=1):
+def multiclass_hinge_loss(predictions, targets, delta=1):
     """Computes the multi-class hinge loss between predictions and targets.
 
     .. math:: L_i = \\max_{j \not = p_i} (0, t_j - t_{p_i} + \\delta)

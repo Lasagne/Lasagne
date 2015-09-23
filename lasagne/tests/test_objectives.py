@@ -152,11 +152,11 @@ def test_binary_hinge_loss_invalid():
 
 
 def test_multiclass_hinge_loss():
-    from lasagne.objectives import mutliclass_hinge_loss
+    from lasagne.objectives import multiclass_hinge_loss
     from lasagne.nonlinearities import rectify
     p = theano.tensor.matrix('p')
     t = theano.tensor.ivector('t')
-    c = mutliclass_hinge_loss(p, t)
+    c = multiclass_hinge_loss(p, t)
     # numeric version
     floatX = theano.config.floatX
     predictions = np.random.rand(10, 20).astype(floatX)
@@ -172,9 +172,9 @@ def test_multiclass_hinge_loss():
 
 
 def test_multiclass_hinge_loss_invalid():
-    from lasagne.objectives import mutliclass_hinge_loss
+    from lasagne.objectives import multiclass_hinge_loss
     with pytest.raises(TypeError) as exc:
-        mutliclass_hinge_loss(theano.tensor.vector(),
+        multiclass_hinge_loss(theano.tensor.vector(),
                               theano.tensor.matrix())
     assert 'rank mismatch' in exc.value.args[0]
 

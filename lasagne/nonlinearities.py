@@ -46,18 +46,82 @@ def softmax(x):
 # tanh
 def tanh(x):
     """Tanh activation function :math:`\\varphi(x) = \\tanh(x)`
-
     Parameters
     ----------
     x : float32
         The activation (the summed, weighted input of a neuron).
-
     Returns
     -------
     float32 in [-1, 1]
         The output of the tanh function applied to the activation.
     """
     return theano.tensor.tanh(x)
+
+
+# scaled tanh
+class ScaledTanH(object):
+    """A scaled tanh :math:`\\varphi(x) = \\alpha \\tanh(\\beta x)`
+
+    This is a modified tanh function which allows to rescale both the input and
+    the output of the activation.
+
+    Scaling the input down will result in decreasing the maximum slope of the
+    tanh and as a result it will be in the "linear" mode in a larger interval
+    of the input space. Scaling the input up would increase the maximum slope
+    of the tanh and thus make bring it closer to a step function.
+
+    Scaling the output variable will make the output interval larger as well.
+
+    Parameters
+    ----------
+    x : float32
+        The activation (the summed, weighted input of a neuron).
+
+    scale_in : float32
+        The scale parameter :math:`\\beta` for the input
+
+    scale_out : float32
+        The scale parameter :math:`\\alpha` for the output
+
+    Returns
+    -------
+    float32 in `[-:math:\\alpha,:math:\\alpha]`
+        The output of the scaled tanh function applied to the activation.
+
+    Suggested values:
+        1, 1 - Standard tanh
+        1.7159, 0.6666 - Suggested in [1]
+        0.5, 2.4  - If the input is a random normal variable the output will
+        have a 0 mean and variance 1.
+        0.5, 2.27 - If the input is a uniform normal variable the output will
+        have a 0 mean and variance 1.
+        1, 1.6    -  If the input is a random normal variable the output will
+        have a 0 mean and variance 1.
+        1, 1.48   - If the input is a uniform normal variable the output will
+        have a 0 mean and variance 1.
+
+
+    References
+    ----------
+    .. [1] LeCun, Yann A., et al. (2012):
+       Efficient Backprop,
+       http://link.springer.com/chapter/10.1007/978-3-642-35289-8_3
+    .. [2] Masci, Jonathan, et al. (2011):
+       Stacked Convolutional Auto-Encoders for Hierarchical Feature Extraction,
+       http://link.springer.com/chapter/10.1007/978-3-642-21735-7_7
+    """
+
+    def __init__(self, scale_in=1, scale_out=1):
+        self.scale_in = scale_in
+        self.scale_out = scale_out
+
+    def __call__(self, x):
+        if self.scale_in != 1:
+            x = theano.tensor.mul(x, self.scale_in)
+        if self.scale_out != 1:
+            return theano.tensor.mul(self.scale_out, theano.tensor.tanh(x))
+        else:
+            return theano.tensor.tanh(x)
 
 
 # rectify

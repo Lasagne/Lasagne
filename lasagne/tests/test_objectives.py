@@ -143,14 +143,6 @@ def test_binary_hinge_loss_not_binary_targets():
     assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
 
 
-def test_binary_hinge_loss_invalid():
-    from lasagne.objectives import binary_hinge_loss
-    with pytest.raises(TypeError) as exc:
-        binary_hinge_loss(theano.tensor.matrix(),
-                          theano.tensor.vector())
-    assert 'rank mismatch' in exc.value.args[0]
-
-
 def test_multiclass_hinge_loss():
     from lasagne.objectives import multiclass_hinge_loss
     from lasagne.nonlinearities import rectify
@@ -191,14 +183,6 @@ def test_binary_accuracy():
     accuracy = predictions == targets
     # compare
     assert np.allclose(accuracy, c.eval({p: predictions, t: targets}))
-
-
-def test_binary_accuracy_invalid():
-    from lasagne.objectives import binary_accuracy
-    with pytest.raises(TypeError) as exc:
-        binary_accuracy(theano.tensor.matrix(),
-                        theano.tensor.vector())
-    assert 'rank mismatch' in exc.value.args[0]
 
 
 def test_categorical_accuracy():

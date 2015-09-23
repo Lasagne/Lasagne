@@ -74,11 +74,7 @@ def rectify(x):
     float32
         The output of the rectify function applied to the activation.
     """
-    # The following is faster than T.maximum(0, x),
-    # and it works with nonsymbolic inputs as well.
-    # Thanks to @SnipyHollow for pointing this out. Also see:
-    # https://github.com/Lasagne/Lasagne/pull/163#issuecomment-81765117
-    return 0.5 * (x + abs(x))
+    return theano.tensor.nnet.relu(x)
 
 
 # leaky rectify
@@ -141,15 +137,7 @@ class LeakyRectify(object):
         self.leakiness = leakiness
 
     def __call__(self, x):
-        if self.leakiness:
-            # The following is faster than T.maximum(leakiness * x, x),
-            # and it works with nonsymbolic inputs as well. Also see:
-            # https://github.com/Lasagne/Lasagne/pull/163#issuecomment-81765117
-            f1 = 0.5 * (1 + self.leakiness)
-            f2 = 0.5 * (1 - self.leakiness)
-            return f1 * x + f2 * abs(x)
-        else:
-            return rectify(x)
+        return theano.tensor.nnet.relu(x, self.leakiness)
 
 
 leaky_rectify = LeakyRectify()  # shortcut with default leakiness

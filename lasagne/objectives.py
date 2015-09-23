@@ -71,6 +71,10 @@ __all__ = [
     "categorical_crossentropy",
     "squared_error",
     "aggregate",
+    "binary_hinge_loss",
+    "mutliclass_hinge_loss",
+    "binary_accuracy",
+    "categorical_accuracy"
 ]
 
 
@@ -182,8 +186,8 @@ def aggregate(loss, weights=None, mode='mean'):
     When applied to batch-wise loss expressions, setting `mode` to
     ``'normalized_sum'`` ensures that the loss per batch is of a similar
     magnitude, independent of associated weights. However, it means that
-    a given datapoint contributes more to the loss when it shares a batch
-    with low-weighted or masked datapoints than with high-weighted ones.
+    a given data point contributes more to the loss when it shares a batch
+    with low-weighted or masked data points than with high-weighted ones.
     """
     if weights is not None:
         loss = loss * weights
@@ -198,3 +202,148 @@ def aggregate(loss, weights=None, mode='mean'):
     else:
         raise ValueError("mode must be 'mean', 'sum' or 'normalized_sum', "
                          "got %r" % mode)
+
+
+def binary_hinge_loss(predictions, targets, binary=True, delta=1):
+    """Computes the binary hinge loss between predictions and targets.
+
+    .. math:: L_i = \\max(0, \\delta - t_i p_i)
+
+    Parameters
+    ----------
+    predictions : Theano 1D tensor
+        Predictions in (0, 1), such as sigmoidal output of a neural network.
+    targets : Theano tensor
+        Targets in {0, 1}, such as ground truth labels or {-1,1}, indicated
+        by the binary parameter.
+    binary : bool, default True
+        True if targets are in {0,1} False if they are in {-1,1}
+    delta : scalar, default 1
+        The hinge loss margin
+
+    Returns
+    -------
+    Theano 1D tensor
+        An expression for the element-wise binary hinge loss
+
+    Notes
+    -----
+    This is an alternative to the binary cross-entropy loss for binary
+    classification problems
+    """
+    if targets.ndim != predictions.ndim:
+        raise TypeError('rank mismatch between targets and predictions')
+    if binary:
+        targets = 2 * targets - 1
+    return theano.tensor.nnet.relu(delta - predictions * targets)
+
+
+def mutliclass_hinge_loss(predictions, targets, delta=1):
+    """Computes the multi-class hinge loss between predictions and targets.
+
+    .. math:: L_i = \\max_{j \not = p_i} (0, t_j - t_{p_i} + \\delta)
+
+    Parameters
+    ----------
+    predictions : Theano 2D tensor
+        Predictions in (0, 1), such as softmax output of a neural network,
+        with data points in rows and class probabilities in columns.
+    targets : Theano 2D tensor or 1D tensor
+        Either a vector of int giving the correct class index per data point
+        or a 2D tensor of 1 hot encoding of the correct class in the same
+        layout as predictions
+    delta : scalar, default 1
+        The hinge loss margin
+
+    Returns
+    -------
+    Theano 1D tensor
+        An expression for the element-wise multi-class hinge loss
+
+    Notes
+    -----
+    This is an alternative to the categorial cross-entropy loss for multi-class
+    classification problems
+    """
+    num_cls = predictions.shape[1]
+    if targets.ndim == predictions.ndim - 1:
+        targets = theano.tensor.extra_ops.to_one_hot(targets, num_cls)
+    elif targets.ndim != predictions.ndim:
+        raise TypeError('rank mismatch between targets and predictions')
+    corrects = predictions[targets.nonzero()]
+    rest = theano.tensor.reshape(predictions[(1-targets).nonzero()],
+                                 (-1, num_cls-1))
+    rest = theano.tensor.max(rest, axis=1)
+    return theano.tensor.nnet.relu(rest - corrects + delta)
+
+
+def binary_accuracy(predictions, targets, threshold=0.5):
+    """Computes the binary accuracy between predictions and targets.
+
+    .. math:: L_i = \\mathbb{I}(t_i == p_i)
+
+    Parameters
+    ----------
+    predictions : Theano 1D tensor
+        Predictions in [0, 1], such as a sigmoidal output of a neural network,
+        with data points in rows and a single column representing the
+        probability of the point belonging to the positive class
+    targets : Theano 1D tensor
+        Targets in {0, 1}, such as ground truth labels.
+    threshold : A scalar, default: 0.5
+        Specifies at what threshold to consider the predictions being of the
+        positive class
+
+    Returns
+    -------
+    Theano 1D tensor
+        An expression for calculating the element-wise binary accuracy for each
+        data point
+
+    Notes
+    -----
+    This objective function should not be used with a gradient calculation;
+    its gradient is zero everywhere. It is intended as a convenience for
+    validation and testing, not training.
+    """
+    if targets.ndim != predictions.ndim:
+        raise TypeError('rank mismatch between targets and predictions')
+
+    predictions = theano.tensor.ge(predictions, threshold)
+    return theano.tensor.eq(predictions, targets)
+
+
+def categorical_accuracy(predictions, targets):
+    """Computes the categorical accuracy between predictions and targets.
+
+    .. math:: L_i = \\mathbb{I}(t_i == p_i)
+
+    Parameters
+    ----------
+    predictions : Theano 2D tensor
+        Predictions in (0, 1), such as softmax output of a neural network,
+        with data points in rows and class probabilities in columns.
+    targets : Theano 2D tensor or 1D tensor
+        Either a vector of int giving the correct class index per data point
+        or a 2D tensor of 1 hot encoding of the correct class in the same
+        layout as predictions
+
+    Returns
+    -------
+    Theano 1D tensor
+        An expression for calculating the element-wise categorial accuracy for
+        each data point
+
+    Notes
+    -----
+    This is a strictly non differential function as it includes an argmax.
+    This objective function should never be used with a gradient calculation.
+    It is intended as a convenience for validation and testing not training.
+    """
+    if targets.ndim == predictions.ndim:
+        targets = theano.tensor.argmax(targets, axis=targets.ndim-1)
+    elif targets.ndim != predictions.ndim - 1:
+        raise TypeError('rank mismatch between targets and predictions')
+    predictions = theano.tensor.argmax(predictions, axis=predictions.ndim-1)
+
+    return theano.tensor.eq(predictions, targets)

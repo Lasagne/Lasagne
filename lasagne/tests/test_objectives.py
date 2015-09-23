@@ -110,3 +110,120 @@ def test_aggregate_invalid():
     with pytest.raises(ValueError) as exc:
         aggregate(theano.tensor.matrix(), mode='normalized_sum')
     assert 'require weights' in exc.value.args[0]
+
+
+def test_binary_hinge_loss():
+    from lasagne.objectives import binary_hinge_loss
+    from lasagne.nonlinearities import rectify
+    p = theano.tensor.vector('p')
+    t = theano.tensor.ivector('t')
+    c = binary_hinge_loss(p, t)
+    # numeric version
+    floatX = theano.config.floatX
+    predictions = np.random.rand(10).astype(floatX)
+    targets = np.random.random_integers(0, 1, (10,)).astype("int8")
+    hinge = rectify(1 - predictions * (2 * targets - 1))
+    # compare
+    assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
+
+
+def test_binary_hinge_loss_not_binary_targets():
+    from lasagne.objectives import binary_hinge_loss
+    from lasagne.nonlinearities import rectify
+    p = theano.tensor.vector('p')
+    t = theano.tensor.ivector('t')
+    c = binary_hinge_loss(p, t, binary=False)
+    # numeric version
+    floatX = theano.config.floatX
+    predictions = np.random.rand(10, ).astype(floatX)
+    targets = np.random.random_integers(0, 1, (10, )).astype("int8")
+    targets = 2 * targets - 1
+    hinge = rectify(1 - predictions * targets)
+    # compare
+    assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
+
+
+def test_binary_hinge_loss_invalid():
+    from lasagne.objectives import binary_hinge_loss
+    with pytest.raises(TypeError) as exc:
+        binary_hinge_loss(theano.tensor.matrix(),
+                          theano.tensor.vector())
+    assert 'rank mismatch' in exc.value.args[0]
+
+
+def test_multiclass_hinge_loss():
+    from lasagne.objectives import mutliclass_hinge_loss
+    from lasagne.nonlinearities import rectify
+    p = theano.tensor.matrix('p')
+    t = theano.tensor.ivector('t')
+    c = mutliclass_hinge_loss(p, t)
+    # numeric version
+    floatX = theano.config.floatX
+    predictions = np.random.rand(10, 20).astype(floatX)
+    targets = np.random.random_integers(0, 19, (10,)).astype("int8")
+    one_hot = np.zeros((10, 20))
+    one_hot[np.arange(10), targets] = 1
+    correct = predictions[one_hot > 0]
+    rest = predictions[one_hot < 1].reshape((10, 19))
+    rest = np.max(rest, axis=1)
+    hinge = rectify(1 + rest - correct)
+    # compare
+    assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
+
+
+def test_multiclass_hinge_loss_invalid():
+    from lasagne.objectives import mutliclass_hinge_loss
+    with pytest.raises(TypeError) as exc:
+        mutliclass_hinge_loss(theano.tensor.vector(),
+                              theano.tensor.matrix())
+    assert 'rank mismatch' in exc.value.args[0]
+
+
+def test_binary_accuracy():
+    from lasagne.objectives import binary_accuracy
+    p = theano.tensor.vector('p')
+    t = theano.tensor.ivector('t')
+    c = binary_accuracy(p, t)
+    # numeric version
+    floatX = theano.config.floatX
+    predictions = np.random.rand(10, ).astype(floatX) > 0.5
+    targets = np.random.random_integers(0, 1, (10,)).astype("int8")
+    accuracy = predictions == targets
+    # compare
+    assert np.allclose(accuracy, c.eval({p: predictions, t: targets}))
+
+
+def test_binary_accuracy_invalid():
+    from lasagne.objectives import binary_accuracy
+    with pytest.raises(TypeError) as exc:
+        binary_accuracy(theano.tensor.matrix(),
+                        theano.tensor.vector())
+    assert 'rank mismatch' in exc.value.args[0]
+
+
+def test_categorical_accuracy():
+    from lasagne.objectives import categorical_accuracy
+    p = theano.tensor.matrix('p')
+    t = theano.tensor.ivector('t')
+    c = categorical_accuracy(p, t)
+    # numeric version
+    floatX = theano.config.floatX
+    predictions = np.random.rand(10, 20).astype(floatX)
+    cls_predictions = np.argmax(predictions, axis=1)
+    targets = np.random.random_integers(0, 19, (10,)).astype("int8")
+    accuracy = cls_predictions == targets
+    # compare
+    assert np.allclose(accuracy, c.eval({p: predictions, t: targets}))
+    one_hot = np.zeros((10, 20)).astype("int8")
+    one_hot[np.arange(10), targets] = 1
+    t = theano.tensor.imatrix('t')
+    c = categorical_accuracy(p, t)
+    assert np.allclose(accuracy, c.eval({p: predictions, t: one_hot}))
+
+
+def test_categorial_accuracy_invalid():
+    from lasagne.objectives import categorical_accuracy
+    with pytest.raises(TypeError) as exc:
+        categorical_accuracy(theano.tensor.vector(),
+                             theano.tensor.matrix())
+    assert 'rank mismatch' in exc.value.args[0]

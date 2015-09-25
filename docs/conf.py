@@ -147,7 +147,7 @@ if os.environ.get('READTHEDOCS') != 'True':
         pass  # assume we have sphinx >= 1.3
     else:
         html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-html_theme = 'sphinx_rtd_theme'
+    html_theme = 'sphinx_rtd_theme'
 def setup(app):
     app.add_stylesheet("fix_rtd.css")
 

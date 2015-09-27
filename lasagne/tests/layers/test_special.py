@@ -4,6 +4,123 @@ import pytest
 import theano
 
 
+class TestExpressionLayer:
+    @pytest.fixture
+    def ExpressionLayer(self):
+        from lasagne.layers.special import ExpressionLayer
+        return ExpressionLayer
+
+    @pytest.fixture
+    def input_layer(self):
+        from lasagne.layers import InputLayer
+        return InputLayer((2, 3, 4, 5))
+
+    @pytest.fixture
+    def input_layer_nones(self):
+        from lasagne.layers import InputLayer
+        return InputLayer((1, None, None, 5))
+
+    def np_result(self, func, input_layer):
+        X = np.random.uniform(-1, 1, input_layer.output_shape)
+        return X, func(X)
+
+    @pytest.mark.parametrize('func',
+                             [lambda X: X**2,
+                              lambda X: X.mean(-1),
+                              lambda X: X.sum(),
+                              ])
+    def test_tuple_shape(self, func, input_layer, ExpressionLayer):
+        from lasagne.layers.helper import get_output
+
+        X, expected = self.np_result(func, input_layer)
+        layer = ExpressionLayer(input_layer, func, output_shape=expected.shape)
+        assert layer.get_output_shape_for(X.shape) == expected.shape
+
+        output = get_output(layer, X).eval()
+        assert np.allclose(output, expected)
+
+    @pytest.mark.parametrize('func',
+                             [lambda X: X**2,
+                              lambda X: X.mean(-1),
+                              lambda X: X.sum(),
+                              ])
+    def test_callable_shape(self, func, input_layer, ExpressionLayer):
+        from lasagne.layers.helper import get_output
+
+        X, expected = self.np_result(func, input_layer)
+
+        def get_shape(input_shape):
+            return func(np.empty(shape=input_shape)).shape
+
+        layer = ExpressionLayer(input_layer, func, output_shape=get_shape)
+        assert layer.get_output_shape_for(X.shape) == expected.shape
+
+        output = get_output(layer, X).eval()
+        assert np.allclose(output, expected)
+
+    @pytest.mark.parametrize('func',
+                             [lambda X: X**2,
+                              lambda X: X.mean(-1),
+                              lambda X: X.sum(),
+                              ])
+    def test_none_shape(self, func, input_layer, ExpressionLayer):
+        from lasagne.layers.helper import get_output
+
+        X, expected = self.np_result(func, input_layer)
+
+        layer = ExpressionLayer(input_layer, func, output_shape=None)
+        if X.shape == expected.shape:
+            assert layer.get_output_shape_for(X.shape) == expected.shape
+
+        output = get_output(layer, X).eval()
+        assert np.allclose(output, expected)
+
+    @pytest.mark.parametrize('func',
+                             [lambda X: X**2,
+                              lambda X: X.mean(-1),
+                              lambda X: X.sum(),
+                              ])
+    def test_auto_shape(self, func, input_layer, ExpressionLayer):
+        from lasagne.layers.helper import get_output
+
+        X, expected = self.np_result(func, input_layer)
+
+        layer = ExpressionLayer(input_layer, func, output_shape='auto')
+        assert layer.get_output_shape_for(X.shape) == expected.shape
+
+        output = get_output(layer, X).eval()
+        assert np.allclose(output, expected)
+
+    @pytest.mark.parametrize('func',
+                             [lambda X: X**2,
+                              lambda X: X.mean(-1),
+                              lambda X: X.sum(),
+                              ])
+    def test_nones_shape(self, func, input_layer_nones, ExpressionLayer):
+        input_shape = input_layer_nones.output_shape
+        np_shape = tuple(0 if s is None else s for s in input_shape)
+        X = np.random.uniform(-1, 1, np_shape)
+        expected = func(X)
+        expected_shape = tuple(s if s else None for s in expected.shape)
+
+        layer = ExpressionLayer(input_layer_nones,
+                                func,
+                                output_shape=expected_shape)
+        assert layer.get_output_shape_for(input_shape) == expected_shape
+
+        def get_shape(input_shape):
+            return expected_shape
+        layer = ExpressionLayer(input_layer_nones,
+                                func,
+                                output_shape=get_shape)
+        assert layer.get_output_shape_for(input_shape) == expected_shape
+
+        layer = ExpressionLayer(input_layer_nones,
+                                func,
+                                output_shape='auto')
+        assert layer.get_output_shape_for(input_shape) == expected_shape
+
+
 class TestNonlinearityLayer:
     @pytest.fixture
     def NonlinearityLayer(self):

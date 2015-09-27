@@ -152,6 +152,7 @@
 
     NonlinearityLayer
     BiasLayer
+    ExpressionLayer
     InverseLayer
     TransformerLayer
     ParametricRectifierLayer

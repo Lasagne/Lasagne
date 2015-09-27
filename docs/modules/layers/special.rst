@@ -11,6 +11,9 @@ Special-purpose layers
 .. autoclass:: BiasLayer
    :members:
 
+.. autoclass:: ExpressionLayer
+   :members:
+
 .. autoclass:: InverseLayer
     :members:
 

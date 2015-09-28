@@ -2,7 +2,7 @@
 Provides some minimal help with building loss expressions for training or
 validating a neural network.
 
-Three functions build element- or item-wise loss expressions from network
+Five functions build element- or item-wise loss expressions from network
 predictions and targets:
 
 .. autosummary::
@@ -11,6 +11,8 @@ predictions and targets:
     binary_crossentropy
     categorical_crossentropy
     squared_error
+    binary_hinge_loss
+    multiclass_hinge_loss
 
 A convenience function aggregates such losses into a scalar expression
 suitable for differentiation:
@@ -23,6 +25,17 @@ suitable for differentiation:
 Note that these functions only serve to write more readable code, but are
 completely optional. Essentially, any differentiable scalar Theano expression
 can be used as a training objective.
+
+Finally, two functions compute evaluation measures that are useful for
+validation and testing only, not for training:
+
+.. autosummary::
+   :nosignatures:
+
+   binary_accuracy
+   categorical_accuracy
+
+Those can also be aggregated into a scalar expression if needed.
 
 Examples
 --------
@@ -211,19 +224,19 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
 
     Parameters
     ----------
-    predictions : Theano 1D tensor
+    predictions : Theano tensor
         Predictions in (0, 1), such as sigmoidal output of a neural network.
     targets : Theano tensor
-        Targets in {0, 1}, such as ground truth labels or {-1,1}, indicated
-        by the binary parameter.
+        Targets in {0, 1} (or in {-1, 1} depending on `binary`), such as
+        ground truth labels.
     binary : bool, default True
-        True if targets are in {0,1} False if they are in {-1,1}
+        ``True`` if targets are in {0, 1}, ``False`` if they are in {-1, 1}
     delta : scalar, default 1
         The hinge loss margin
 
     Returns
     -------
-    Theano 1D tensor
+    Theano tensor
         An expression for the element-wise binary hinge loss
 
     Notes
@@ -231,8 +244,6 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
     This is an alternative to the binary cross-entropy loss for binary
     classification problems
     """
-    if targets.ndim != predictions.ndim:
-        raise TypeError('rank mismatch between targets and predictions')
     if binary:
         targets = 2 * targets - 1
     return theano.tensor.nnet.relu(delta - predictions * targets)
@@ -241,7 +252,7 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
 def multiclass_hinge_loss(predictions, targets, delta=1):
     """Computes the multi-class hinge loss between predictions and targets.
 
-    .. math:: L_i = \\max_{j \not = p_i} (0, t_j - t_{p_i} + \\delta)
+    .. math:: L_i = \\max_{j \\not = p_i} (0, t_j - t_{p_i} + \\delta)
 
     Parameters
     ----------
@@ -250,20 +261,20 @@ def multiclass_hinge_loss(predictions, targets, delta=1):
         with data points in rows and class probabilities in columns.
     targets : Theano 2D tensor or 1D tensor
         Either a vector of int giving the correct class index per data point
-        or a 2D tensor of 1 hot encoding of the correct class in the same
-        layout as predictions
+        or a 2D tensor of one-hot encoding of the correct class in the same
+        layout as predictions (non-binary targets in [0, 1] do not work!)
     delta : scalar, default 1
         The hinge loss margin
 
     Returns
     -------
     Theano 1D tensor
-        An expression for the element-wise multi-class hinge loss
+        An expression for the item-wise multi-class hinge loss
 
     Notes
     -----
-    This is an alternative to the categorial cross-entropy loss for multi-class
-    classification problems
+    This is an alternative to the categorical cross-entropy loss for
+    multi-class classification problems
     """
     num_cls = predictions.shape[1]
     if targets.ndim == predictions.ndim - 1:
@@ -284,31 +295,29 @@ def binary_accuracy(predictions, targets, threshold=0.5):
 
     Parameters
     ----------
-    predictions : Theano 1D tensor
+    predictions : Theano tensor
         Predictions in [0, 1], such as a sigmoidal output of a neural network,
-        with data points in rows and a single column representing the
-        probability of the point belonging to the positive class
-    targets : Theano 1D tensor
+        giving the probability of the positive class
+    targets : Theano tensor
         Targets in {0, 1}, such as ground truth labels.
-    threshold : A scalar, default: 0.5
+    threshold : scalar, default: 0.5
         Specifies at what threshold to consider the predictions being of the
         positive class
 
     Returns
     -------
-    Theano 1D tensor
-        An expression for calculating the element-wise binary accuracy for each
-        data point
+    Theano tensor
+        An expression for the element-wise binary accuracy in {0, 1}
 
     Notes
     -----
     This objective function should not be used with a gradient calculation;
     its gradient is zero everywhere. It is intended as a convenience for
     validation and testing, not training.
-    """
-    if targets.ndim != predictions.ndim:
-        raise TypeError('rank mismatch between targets and predictions')
 
+    To obtain the average accuracy, call :func:`theano.tensor.mean()` on the
+    result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
+    """
     predictions = theano.tensor.ge(predictions, threshold)
     return theano.tensor.eq(predictions, targets)
 
@@ -331,14 +340,16 @@ def categorical_accuracy(predictions, targets):
     Returns
     -------
     Theano 1D tensor
-        An expression for calculating the element-wise categorial accuracy for
-        each data point
+        An expression for the item-wise categorical accuracy in {0, 1}
 
     Notes
     -----
     This is a strictly non differential function as it includes an argmax.
     This objective function should never be used with a gradient calculation.
     It is intended as a convenience for validation and testing not training.
+
+    To obtain the average accuracy, call :func:`theano.tensor.mean()` on the
+    result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
     """
     if targets.ndim == predictions.ndim:
         targets = theano.tensor.argmax(targets, axis=targets.ndim-1)

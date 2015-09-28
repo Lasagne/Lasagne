@@ -330,7 +330,12 @@ def main(model='mlp', num_epochs=500):
         test_acc / test_batches * 100))
 
     # Optionally, you could now dump the network weights to a file like this:
-    # np.savez('model.npz', lasagne.layers.get_all_param_values(network))
+    # np.savez('model.npz', *lasagne.layers.get_all_param_values(network))
+    #
+    # And load them again later on like this:
+    # with np.load('model.npz') as f:
+    #     param_values = [f['arr_%d' % i] for i in range(len(f.files))]
+    # lasagne.layers.set_all_param_values(network, param_values)
 
 
 if __name__ == '__main__':

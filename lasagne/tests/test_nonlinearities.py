@@ -25,17 +25,32 @@ class TestNonlinearities(object):
     def softmax(self, x):
         return (np.exp(x).T / np.exp(x).sum(-1)).T
 
+    def low_temperature_softmax(self, x):
+        e_xp = np.exp(x / 0.1)
+        return ((e_xp).T / e_xp.sum(-1)).T
+
+    def temperature_softmax_1(self, x):
+        return self.softmax(x)
+
+
     @pytest.mark.parametrize('nonlinearity',
                              ['linear', 'rectify',
                               'leaky_rectify', 'sigmoid',
                               'tanh', 'softmax',
-                              'leaky_rectify_0'])
+                              'leaky_rectify_0'
+                              'low_temperature_softmax',
+                              'temperature_softmax_1'
+                             ])
+
     def test_nonlinearity(self, nonlinearity):
         import lasagne.nonlinearities
-
+        
         if nonlinearity == 'leaky_rectify_0':
             from lasagne.nonlinearities import LeakyRectify
             theano_nonlinearity = LeakyRectify(leakiness=0)
+        elif nonlinearity == 'temperature_softmax_1':
+            from lasagne.nonlinearities import TemperatureSoftmax
+            theano_nonlinearity = TemperatureSoftmax(temperature=1)
         else:
             theano_nonlinearity = getattr(lasagne.nonlinearities,
                                           nonlinearity)

@@ -272,27 +272,25 @@ def _interpolate(im, x, y, out_height, out_width):
     height_f = T.cast(height, theano.config.floatX)
     width_f = T.cast(width, theano.config.floatX)
 
-    # scale indices from [-1, 1] to [0, width/height].
-    x = (x + 1) / 2 * width_f
-    y = (y + 1) / 2 * height_f
+    # clip coordinates to [-1, 1]
+    x = T.clip(x, -1, 1)
+    y = T.clip(y, -1, 1)
 
-    # Clip indices to ensure they are not out of bounds.
-    max_x = width_f - 1
-    max_y = height_f - 1
-    x0 = T.clip(x, 0, max_x)
-    x1 = T.clip(x + 1, 0, max_x)
-    y0 = T.clip(y, 0, max_y)
-    y1 = T.clip(y + 1, 0, max_y)
+    # scale coordinates from [-1, 1] to [0, width/height - 1]
+    x = (x + 1) / 2 * (width_f - 1)
+    y = (y + 1) / 2 * (height_f - 1)
 
-    # We need floatX for interpolation and int64 for indexing.
-    x0_f = T.floor(x0)
-    x1_f = T.floor(x1)
-    y0_f = T.floor(y0)
-    y1_f = T.floor(y1)
-    x0 = T.cast(x0, 'int64')
-    x1 = T.cast(x1, 'int64')
-    y0 = T.cast(y0, 'int64')
-    y1 = T.cast(y1, 'int64')
+    # obtain indices of the 2x2 pixel neighborhood surrounding the coordinates;
+    # we need those in floatX for interpolation and in int64 for indexing. for
+    # indexing, we need to take care they do not extend past the image.
+    x0_f = T.floor(x)
+    y0_f = T.floor(y)
+    x1_f = x0_f + 1
+    y1_f = y0_f + 1
+    x0 = T.cast(x0_f, 'int64')
+    y0 = T.cast(y0_f, 'int64')
+    x1 = T.cast(T.minimum(x1_f, width_f - 1), 'int64')
+    y1 = T.cast(T.minimum(y1_f, height_f - 1), 'int64')
 
     # The input is [num_batch, height, width, channels]. We do the lookup in
     # the flattened input, i.e [num_batch*height*width, channels]. We need

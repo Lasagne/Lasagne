@@ -940,10 +940,7 @@ class LSTMLayer(MergeLayer):
 
         # Create single recurrent computation step function
         # input_n is the n'th vector of the input
-        def step(input_n, cell_previous, hid_previous, W_hid_stacked,
-                 W_cell_to_ingate, W_cell_to_forgetgate,
-                 W_cell_to_outgate, W_in_stacked, b_stacked):
-
+        def step(input_n, cell_previous, hid_previous, *args):
             if not self.precompute_input:
                 input_n = T.dot(input_n, W_in_stacked) + b_stacked
 
@@ -963,8 +960,8 @@ class LSTMLayer(MergeLayer):
 
             if self.peepholes:
                 # Compute peephole connections
-                ingate += cell_previous*W_cell_to_ingate
-                forgetgate += cell_previous*W_cell_to_forgetgate
+                ingate += cell_previous*self.W_cell_to_ingate
+                forgetgate += cell_previous*self.W_cell_to_forgetgate
 
             # Apply nonlinearities
             ingate = self.nonlinearity_ingate(ingate)
@@ -976,20 +973,14 @@ class LSTMLayer(MergeLayer):
             cell = forgetgate*cell_previous + ingate*cell_input
 
             if self.peepholes:
-                outgate += cell*W_cell_to_outgate
+                outgate += cell*self.W_cell_to_outgate
 
             # Compute new hidden unit activation
             hid = outgate*self.nonlinearity(cell)
             return [cell, hid]
 
-        def step_masked(input_n, mask_n, cell_previous, hid_previous,
-                        W_hid_stacked, W_cell_to_ingate, W_cell_to_forgetgate,
-                        W_cell_to_outgate, W_in_stacked, b_stacked):
-
-            cell, hid = step(input_n, cell_previous, hid_previous,
-                             W_hid_stacked, W_cell_to_ingate,
-                             W_cell_to_forgetgate, W_cell_to_outgate,
-                             W_in_stacked, b_stacked)
+        def step_masked(input_n, mask_n, cell_previous, hid_previous, *args):
+            cell, hid = step(input_n, cell_previous, hid_previous, *args)
 
             # Skip over any input with mask 0 by copying the previous
             # hidden state; proceed normally for any input with mask 1.
@@ -1030,19 +1021,11 @@ class LSTMLayer(MergeLayer):
             non_seqs += [self.W_cell_to_ingate,
                          self.W_cell_to_forgetgate,
                          self.W_cell_to_outgate]
-        # theano.scan only allows for positional arguments, so when
-        # self.peepholes is False, we need to supply fake placeholder arguments
-        # for the three peephole matrices.
-        else:
-            non_seqs += [(), (), ()]
+
         # When we aren't precomputing the input outside of scan, we need to
         # provide the input weights and biases to the step function
         if not self.precompute_input:
             non_seqs += [W_in_stacked, b_stacked]
-        # As above, when we aren't providing these parameters, we need to
-        # supply placehold arguments
-        else:
-            non_seqs += [(), ()]
 
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer
@@ -1325,8 +1308,7 @@ class GRULayer(MergeLayer):
 
         # Create single recurrent computation step function
         # input__n is the n'th vector of the input
-        def step(input_n, hid_previous, W_hid_stacked, W_in_stacked,
-                 b_stacked):
+        def step(input_n, hid_previous, *args):
             # Compute W_{hr} h_{t - 1}, W_{hu} h_{t - 1}, and W_{hc} h_{t - 1}
             hid_input = T.dot(hid_previous, W_hid_stacked)
 
@@ -1359,11 +1341,8 @@ class GRULayer(MergeLayer):
             hid = (1 - updategate)*hid_previous + updategate*hidden_update
             return hid
 
-        def step_masked(input_n, mask_n, hid_previous, W_hid_stacked,
-                        W_in_stacked, b_stacked):
-
-            hid = step(input_n, hid_previous, W_hid_stacked, W_in_stacked,
-                       b_stacked)
+        def step_masked(input_n, mask_n, hid_previous, *args):
+            hid = step(input_n, hid_previous, *args)
 
             # Skip over any input with mask 0 by copying the previous
             # hidden state; proceed normally for any input with mask 1.
@@ -1395,11 +1374,6 @@ class GRULayer(MergeLayer):
         # provide the input weights and biases to the step function
         if not self.precompute_input:
             non_seqs += [W_in_stacked, b_stacked]
-        # theano.scan only allows for positional arguments, so when
-        # self.precompute_input is True, we need to supply fake placeholder
-        # arguments for the input weights and biases.
-        else:
-            non_seqs += [(), ()]
 
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer

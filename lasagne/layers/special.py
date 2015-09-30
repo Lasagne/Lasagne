@@ -12,6 +12,8 @@ __all__ = [
     "BiasLayer",
     "InverseLayer",
     "TransformerLayer",
+    "ParametricRectifierLayer",
+    "prelu",
 ]
 
 
@@ -352,3 +354,114 @@ def _meshgrid(height, width):
     ones = T.ones_like(x_t_flat)
     grid = T.concatenate([x_t_flat, y_t_flat, ones], axis=0)
     return grid
+
+
+class ParametricRectifierLayer(Layer):
+    """
+    lasagne.layers.ParametricRectifierLayer(incoming,
+    alpha=init.Constant(0.25), shared_axes='auto', **kwargs)
+
+    A layer that applies parametric rectify nonlinearity to its input
+    following [1]_ (http://arxiv.org/abs/1502.01852)
+
+    Equation for the parametric rectifier linear unit:
+    :math:`\\varphi(x) = \\max(x,0) + \\alpha \\min(x,0)`
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    alpha : Theano shared variable, expression, numpy array or callable
+        Initial value, expression or initializer for the alpha values. The
+        shape must match the incoming shape, skipping those axes the alpha
+        values are shared over (see the example below).
+        See :func:`lasagne.utils.create_param` for more information.
+
+    shared_axes : 'auto', 'all', int or tuple of int
+        The axes along which the parameters of the rectifier units are
+        going to be shared. If ``'auto'`` (the default), share over all axes
+        except for the second - this will share the parameter over the
+        minibatch dimension for dense layers, and additionally over all
+        spatial dimensions for convolutional layers. If ``'all'``, share over
+        all axes, which corresponds to a single scalar parameter.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
+
+     References
+    ----------
+    .. [1] K He, X Zhang et al. (2015):
+       Delving Deep into Rectifiers: Surpassing Human-Level Performance on
+       ImageNet Classification,
+       http://link.springer.com/chapter/10.1007/3-540-49430-8_2
+
+    Notes
+    -----
+    The alpha parameter dimensionality is the input dimensionality minus the
+    number of axes it is shared over, which matches the same convention as
+    the :class:`BiasLayer`.
+
+    >>> layer = ParametricRectifierLayer((20, 3, 28, 28), shared_axes=(0, 3))
+    >>> layer.alpha.get_value().shape
+    (3, 28)
+    """
+    def __init__(self, incoming, alpha=init.Constant(0.25), shared_axes='auto',
+                 **kwargs):
+        super(ParametricRectifierLayer, self).__init__(incoming, **kwargs)
+        if shared_axes == 'auto':
+            self.shared_axes = (0,) + tuple(range(2, len(self.input_shape)))
+        elif shared_axes == 'all':
+            self.shared_axes = tuple(range(len(self.input_shape)))
+        elif isinstance(shared_axes, int):
+            self.shared_axes = (shared_axes,)
+        else:
+            self.shared_axes = shared_axes
+
+        shape = [size for axis, size in enumerate(self.input_shape)
+                 if axis not in self.shared_axes]
+        if any(size is None for size in shape):
+            raise ValueError("ParametricRectifierLayer needs input sizes for "
+                             "all axes that alpha's are not shared over.")
+        self.alpha = self.add_param(alpha, shape, name="alpha",
+                                    regularizable=False)
+
+    def get_output_for(self, input, **kwargs):
+        axes = iter(range(self.alpha.ndim))
+        pattern = ['x' if input_axis in self.shared_axes
+                   else next(axes)
+                   for input_axis in range(input.ndim)]
+        alpha = self.alpha.dimshuffle(pattern)
+        return theano.tensor.nnet.relu(input, alpha)
+
+
+def prelu(layer, **kwargs):
+    """
+    Convenience function to apply parametric rectify to a given layer's output.
+    Will set the layer's nonlinearity to identity if there is one and will
+    apply the parametric rectifier instead.
+
+    Parameters
+    ----------
+    layer: a :class:`Layer` instance
+        The `Layer` instance to apply the parametric rectifier layer to;
+        note that it will be irreversibly modified as specified above
+
+    **kwargs
+        Any additional keyword arguments are passed to the
+        :class:`ParametericRectifierLayer`
+
+    Examples
+    --------
+    Note that this function modifies an existing layer, like this:
+    >>> from lasagne.layers import InputLayer, DenseLayer, prelu
+    >>> layer = InputLayer((32, 100))
+    >>> layer = DenseLayer(layer, num_units=200)
+    >>> layer = prelu(layer)
+
+    In particular, :func:`prelu` can *not* be passed as a nonlinearity.
+    """
+    nonlinearity = getattr(layer, 'nonlinearity', None)
+    if nonlinearity is not None:
+        layer.nonlinearity = nonlinearities.identity
+    return ParametricRectifierLayer(layer, **kwargs)

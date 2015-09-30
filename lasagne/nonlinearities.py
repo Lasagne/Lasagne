@@ -60,6 +60,85 @@ def tanh(x):
     return theano.tensor.tanh(x)
 
 
+# scaled tanh
+class ScaledTanH(object):
+    """Scaled tanh :math:`\\varphi(x) = \\tanh(\\alpha \\cdot x) \\cdot \\beta`
+
+    This is a modified tanh function which allows to rescale both the input and
+    the output of the activation.
+
+    Scaling the input down will result in decreasing the maximum slope of the
+    tanh and as a result it will be in the linear regime in a larger interval
+    of the input space. Scaling the input up will increase the maximum slope
+    of the tanh and thus bring it closer to a step function.
+
+    Scaling the output changes the output interval to :math:`[-\\beta,\\beta]`.
+
+    Parameters
+    ----------
+    scale_in : float32
+        The scale parameter :math:`\\alpha` for the input
+
+    scale_out : float32
+        The scale parameter :math:`\\beta` for the output
+
+    Methods
+    -------
+    __call__(x)
+        Apply the scaled tanh function to the activation `x`.
+
+    Examples
+    --------
+    In contrast to other activation functions in this module, this is
+    a class that needs to be instantiated to obtain a callable:
+
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((None, 100))
+    >>> from lasagne.nonlinearities import ScaledTanH
+    >>> scaled_tanh = ScaledTanH(scale_in=0.5, scale_out=2.27)
+    >>> l1 = DenseLayer(l_in, num_units=200, nonlinearity=scaled_tanh)
+
+    Notes
+    -----
+    LeCun et al. (in [1]_, Section 4.4) suggest ``scale_in=2./3`` and
+    ``scale_out=1.7159``, which has :math:`\\varphi(\\pm 1) = \\pm 1`,
+    maximum second derivative at 1, and an effective gain close to 1.
+
+    By carefully matching :math:`\\alpha` and :math:`\\beta`, the nonlinearity
+    can also be tuned to preserve the mean and variance of its input:
+
+      * ``scale_in=0.5``, ``scale_out=2.4``: If the input is a random normal
+        variable, the output will have zero mean and unit variance.
+      * ``scale_in=1``, ``scale_out=1.6``: Same property, but with a smaller
+        linear regime in input space.
+      * ``scale_in=0.5``, ``scale_out=2.27``: If the input is a uniform normal
+        variable, the output will have zero mean and unit variance.
+      * ``scale_in=1``, ``scale_out=1.48``: Same property, but with a smaller
+        linear regime in input space.
+
+    References
+    ----------
+    .. [1] LeCun, Yann A., et al. (1998):
+       Efficient BackProp,
+       http://link.springer.com/chapter/10.1007/3-540-49430-8_2,
+       http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
+    .. [2] Masci, Jonathan, et al. (2011):
+       Stacked Convolutional Auto-Encoders for Hierarchical Feature Extraction,
+       http://link.springer.com/chapter/10.1007/978-3-642-21735-7_7,
+       http://people.idsia.ch/~ciresan/data/icann2011.pdf
+    """
+
+    def __init__(self, scale_in=1, scale_out=1):
+        self.scale_in = scale_in
+        self.scale_out = scale_out
+
+    def __call__(self, x):
+        return theano.tensor.tanh(x * self.scale_in) * self.scale_out
+
+
+ScaledTanh = ScaledTanH  # alias with alternative capitalization
+
+
 # rectify
 def rectify(x):
     """Rectify activation function :math:`\\varphi(x) = \\max(0, x)`

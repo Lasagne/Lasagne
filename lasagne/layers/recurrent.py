@@ -967,13 +967,13 @@ class LSTMLayer(MergeLayer):
             ingate = self.nonlinearity_ingate(ingate)
             forgetgate = self.nonlinearity_forgetgate(forgetgate)
             cell_input = self.nonlinearity_cell(cell_input)
-            outgate = self.nonlinearity_outgate(outgate)
 
             # Compute new cell value
             cell = forgetgate*cell_previous + ingate*cell_input
 
             if self.peepholes:
                 outgate += cell*self.W_cell_to_outgate
+            outgate = self.nonlinearity_outgate(outgate)
 
             # Compute new hidden unit activation
             hid = outgate*self.nonlinearity(cell)

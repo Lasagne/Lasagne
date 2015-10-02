@@ -83,7 +83,7 @@ class CustomRecurrentLayer(MergeLayer):
     lasagne.layers.recurrent.CustomRecurrentLayer(incoming, input_to_hidden,
     hidden_to_hidden, nonlinearity=lasagne.nonlinearities.rectify,
     hid_init=lasagne.init.Constant(0.), backwards=False,
-    learn_init=False, gradient_steps=-1, grad_clipping=False,
+    learn_init=False, gradient_steps=-1, grad_clipping=0,
     unroll_scan=False, precompute_input=True, mask_input=None, **kwargs)
 
     A layer which implements a recurrent connection.
@@ -131,10 +131,9 @@ class CustomRecurrentLayer(MergeLayer):
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
-    grad_clipping : False or float
-        If a float is provided, the gradient messages are clipped during the
-        backward pass.  If False, the gradients will not be clipped.  See [1]_
-        (p. 6) for further explanation.
+    grad_clipping : float
+        If nonzero, the gradient messages are clipped to the given value during
+        the backward pass.  See [1]_ (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
@@ -195,7 +194,7 @@ class CustomRecurrentLayer(MergeLayer):
                  backwards=False,
                  learn_init=False,
                  gradient_steps=-1,
-                 grad_clipping=False,
+                 grad_clipping=0,
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
@@ -394,7 +393,7 @@ class CustomRecurrentLayer(MergeLayer):
                 hid_pre += helper.get_output(self.input_to_hidden, input_n)
 
             # Clip gradients
-            if self.grad_clipping is not False:
+            if self.grad_clipping:
                 hid_pre = theano.gradient.grad_clip(
                     hid_pre, -self.grad_clipping, self.grad_clipping)
 
@@ -466,7 +465,7 @@ class RecurrentLayer(CustomRecurrentLayer):
     W_in_to_hid=lasagne.init.Uniform(), W_hid_to_hid=lasagne.init.Uniform(),
     b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
-    gradient_steps=-1, grad_clipping=False, unroll_scan=False,
+    gradient_steps=-1, grad_clipping=0, unroll_scan=False,
     precompute_input=True, mask_input=None, **kwargs)
 
     Dense recurrent neural network (RNN) layer
@@ -507,10 +506,9 @@ class RecurrentLayer(CustomRecurrentLayer):
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
-    grad_clipping : False or float
-        If a float is provided, the gradient messages are clipped during the
-        backward pass.  If False, the gradients will not be clipped.  See [1]_
-        (p. 6) for further explanation.
+    grad_clipping : float
+        If nonzero, the gradient messages are clipped to the given value during
+        the backward pass.  See [1]_ (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
@@ -541,7 +539,7 @@ class RecurrentLayer(CustomRecurrentLayer):
                  backwards=False,
                  learn_init=False,
                  gradient_steps=-1,
-                 grad_clipping=False,
+                 grad_clipping=0,
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
@@ -660,7 +658,7 @@ class LSTMLayer(MergeLayer):
     nonlinearity=lasagne.nonlinearities.tanh,
     cell_init=lasagne.init.Constant(0.),
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
-    peepholes=True, gradient_steps=-1, grad_clipping=False, unroll_scan=False,
+    peepholes=True, gradient_steps=-1, grad_clipping=0, unroll_scan=False,
     precompute_input=True, mask_input=None, **kwargs)
 
     A long short-term memory (LSTM) layer.
@@ -724,10 +722,9 @@ class LSTMLayer(MergeLayer):
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
-    grad_clipping: False or float
-        If a float is provided, the gradient messages are clipped during the
-        backward pass.  If False, the gradients will not be clipped.  See [1]_
-        (p. 6) for further explanation.
+    grad_clipping : float
+        If nonzero, the gradient messages are clipped to the given value during
+        the backward pass.  See [1]_ (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
@@ -761,7 +758,7 @@ class LSTMLayer(MergeLayer):
                  learn_init=False,
                  peepholes=True,
                  gradient_steps=-1,
-                 grad_clipping=False,
+                 grad_clipping=0,
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
@@ -948,7 +945,7 @@ class LSTMLayer(MergeLayer):
             gates = input_n + T.dot(hid_previous, W_hid_stacked)
 
             # Clip gradients
-            if self.grad_clipping is not False:
+            if self.grad_clipping:
                 gates = theano.gradient.grad_clip(
                     gates, -self.grad_clipping, self.grad_clipping)
 
@@ -1070,7 +1067,7 @@ class GRULayer(MergeLayer):
     hidden_update=lasagne.layers.Gate(
     W_cell=None, lasagne.nonlinearities.tanh),
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=True,
-    gradient_steps=-1, grad_clipping=False, unroll_scan=False,
+    gradient_steps=-1, grad_clipping=0, unroll_scan=False,
     precompute_input=True, mask_input=None, **kwargs)
 
     Gated Recurrent Unit (GRU) Layer
@@ -1114,10 +1111,9 @@ class GRULayer(MergeLayer):
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
-    grad_clipping : False or float
-        If a float is provided, the gradient messages are clipped during the
-        backward pass.  If False, the gradients will not be clipped.  See [1]_
-        (p. 6) for further explanation.
+    grad_clipping : float
+        If nonzero, the gradient messages are clipped to the given value during
+        the backward pass.  See [1]_ (p. 6) for further explanation.
     unroll_scan : bool
         If True the recursion is unrolled instead of using scan. For some
         graphs this gives a significant speed up but it might also consume
@@ -1164,7 +1160,7 @@ class GRULayer(MergeLayer):
                  backwards=False,
                  learn_init=True,
                  gradient_steps=-1,
-                 grad_clipping=False,
+                 grad_clipping=0,
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
@@ -1312,7 +1308,7 @@ class GRULayer(MergeLayer):
             # Compute W_{hr} h_{t - 1}, W_{hu} h_{t - 1}, and W_{hc} h_{t - 1}
             hid_input = T.dot(hid_previous, W_hid_stacked)
 
-            if self.grad_clipping is not False:
+            if self.grad_clipping:
                 input_n = theano.gradient.grad_clip(
                     input_n, -self.grad_clipping, self.grad_clipping)
                 hid_input = theano.gradient.grad_clip(
@@ -1332,7 +1328,7 @@ class GRULayer(MergeLayer):
             hidden_update_in = slice_w(input_n, 2)
             hidden_update_hid = slice_w(hid_input, 2)
             hidden_update = hidden_update_in + resetgate*hidden_update_hid
-            if self.grad_clipping is not False:
+            if self.grad_clipping:
                 hidden_update = theano.gradient.grad_clip(
                     hidden_update, -self.grad_clipping, self.grad_clipping)
             hidden_update = self.nonlinearity_hid(hidden_update)

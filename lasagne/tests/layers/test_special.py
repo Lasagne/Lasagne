@@ -210,3 +210,17 @@ def test_transform_downsample():
         x_out2 = output.eval({x_sym: x})
         assert x_out2.shape == x_out.shape
         np.testing.assert_allclose(x_out2, x_out, rtol=1e-5, atol=1e-5)
+
+
+def test_transform_identity():
+    from lasagne.layers import InputLayer, TransformerLayer
+    from lasagne.utils import floatX
+    from theano.tensor import constant
+    batchsize = 10
+    l_in = InputLayer((batchsize, 3, 28, 28))
+    l_loc = InputLayer((batchsize, 6))
+    layer = TransformerLayer(l_in, l_loc)
+    inputs = floatX(np.arange(np.prod(l_in.shape)).reshape(l_in.shape))
+    thetas = floatX(np.tile([1, 0, 0, 0, 1, 0], (batchsize, 1)))
+    outputs = layer.get_output_for([constant(inputs), constant(thetas)]).eval()
+    np.testing.assert_allclose(inputs, outputs, rtol=1e-6)

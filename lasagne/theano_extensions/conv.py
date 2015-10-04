@@ -37,7 +37,11 @@ def conv1d_sc(input, filters, image_shape=None, filter_shape=None,
     conved = T.nnet.conv2d(input_sc, filters_sc, image_shape=image_shape_sc,
                            filter_shape=filter_shape_sc,
                            subsample=(1, subsample[0]))
-    return conved[:, :, 0, :]  # drop the unused dimension
+    try:
+        conved = conved.dimshuffle(0, 1, 3)  # drop the unused dimension
+    except ValueError:
+        conved = T.addbroadcast(conved, 2).dimshuffle(0, 1, 3)
+    return conved
 
 
 def conv1d_mc0(input, filters, image_shape=None, filter_shape=None,
@@ -64,7 +68,11 @@ def conv1d_mc0(input, filters, image_shape=None, filter_shape=None,
         input_mc0, filters_mc0, image_shape=image_shape_mc0,
         filter_shape=filter_shape_mc0, subsample=(1, subsample[0]),
         border_mode=border_mode)
-    return conved[:, :, 0, :]  # drop the unused dimension
+    try:
+        conved = conved.dimshuffle(0, 1, 3)  # drop the unused dimension
+    except ValueError:
+        conved = T.addbroadcast(conved, 2).dimshuffle(0, 1, 3)
+    return conved
 
 
 def conv1d_mc1(input, filters, image_shape=None, filter_shape=None,
@@ -91,7 +99,11 @@ def conv1d_mc1(input, filters, image_shape=None, filter_shape=None,
         input_mc1, filters_mc1, image_shape=image_shape_mc1,
         filter_shape=filter_shape_mc1, subsample=(subsample[0], 1),
         border_mode=border_mode)
-    return conved[:, :, :, 0]  # drop the unused dimension
+    try:
+        conved = conved.dimshuffle(0, 1, 2)  # drop the unused dimension
+    except ValueError:
+        conved = T.addbroadcast(conved, 3).dimshuffle(0, 1, 2)
+    return conved
 
 
 def conv1d_unstrided(input, filters, image_shape, filter_shape,

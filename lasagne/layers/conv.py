@@ -253,8 +253,8 @@ class Conv1DLayer(Layer):
                                       image_shape=input_shape,
                                       filter_shape=self.get_W_shape(),
                                       border_mode='full')
-            shift = (self.filter_size[0] - 1) // 2
-            conved = conved[:, :, shift:input.shape[2] + shift]
+            crop = self.filter_size[0] // 2
+            conved = conved[:, :, crop:-crop or None]
         else:
             # no padding needed, or explicit padding of input needed
             if self.pad == 'full':
@@ -468,10 +468,10 @@ class Conv2DLayer(Layer):
                                       image_shape=input_shape,
                                       filter_shape=self.get_W_shape(),
                                       border_mode='full')
-            shift_x = (self.filter_size[0] - 1) // 2
-            shift_y = (self.filter_size[1] - 1) // 2
-            conved = conved[:, :, shift_x:input.shape[2] + shift_x,
-                            shift_y:input.shape[3] + shift_y]
+            crop_x = self.filter_size[0] // 2
+            crop_y = self.filter_size[1] // 2
+            conved = conved[:, :, crop_x:-crop_x or None,
+                            crop_y:-crop_y or None]
         else:
             # no padding needed, or explicit padding of input needed
             if self.pad == 'full':

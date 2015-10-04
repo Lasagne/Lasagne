@@ -123,9 +123,9 @@ class Conv1DLayer(Layer):
         is equivalent to computing the convolution wherever the input and the
         filter overlap by at least one position.
 
-        ``'same'`` pads with half the filter size on both sides (one less on
-        the second side for an even filter size). When ``stride=1``, this
-        results in an output size equal to the input size.
+        ``'same'`` pads with half the filter size (rounded down) on both sides.
+        When ``stride=1`` this results in an output size equal to the input
+        size. Even filter size is not supported.
 
         ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
@@ -196,6 +196,11 @@ class Conv1DLayer(Layer):
         self.stride = as_tuple(stride, 1)
         self.untie_biases = untie_biases
         self.convolution = convolution
+
+        if pad == 'same':
+            if self.filter_size[0] % 2 == 0:
+                raise NotImplementedError(
+                    '`same` padding requires odd filter size.')
 
         if pad == 'valid':
             self.pad = (0,)
@@ -326,9 +331,9 @@ class Conv2DLayer(Layer):
         is equivalent to computing the convolution wherever the input and the
         filter overlap by at least one position.
 
-        ``'same'`` pads with half the filter size on both sides (one less on
-        the second side for an even filter size). When ``stride=1``, this
-        results in an output size equal to the input size.
+        ``'same'`` pads with half the filter size (rounded down) on both sides.
+        When ``stride=1`` this results in an output size equal to the input
+        size. Even filter size is not supported.
 
         ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
@@ -400,6 +405,11 @@ class Conv2DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
+        if pad == 'same':
+            if any(s % 2 == 0 for s in self.filter_size):
+                raise NotImplementedError(
+                    '`same` padding requires odd filter size.')
+
         if pad == 'valid':
             self.pad = (0, 0)
         elif pad in ('full', 'same'):
@@ -470,9 +480,9 @@ class Conv2DLayer(Layer):
             elif self.pad == 'same':
                 border_mode = 'valid'
                 pad = [(self.filter_size[0] // 2,
-                        (self.filter_size[0] - 1) // 2),
+                        self.filter_size[0] // 2),
                        (self.filter_size[1] // 2,
-                        (self.filter_size[1] - 1) // 2)]
+                        self.filter_size[1] // 2)]
             else:
                 border_mode = 'valid'
                 pad = [(self.pad[0], self.pad[0]), (self.pad[1], self.pad[1])]

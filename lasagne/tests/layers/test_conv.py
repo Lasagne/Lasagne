@@ -4,7 +4,7 @@ import importlib
 import theano
 
 import lasagne
-from lasagne.utils import floatX
+from lasagne.utils import floatX, as_tuple
 
 
 def conv2d(input, kernel, pad):
@@ -20,20 +20,31 @@ def conv2d(input, kernel, pad):
     -------
     numpy array
     """
+    if pad not in ['valid', 'same', 'full']:
+        pad = as_tuple(pad, 2, int)
+        input = np.pad(input,
+                       ((0, 0), (0, 0), (pad[0], pad[0]), (pad[1], pad[1])),
+                       mode='constant')
+        pad = 'valid'
+
     output = np.zeros((input.shape[0],
                        kernel.shape[0],
                        input.shape[2] + kernel.shape[2] - 1,
                        input.shape[3] + kernel.shape[3] - 1,
                        ))
+
     for i in range(kernel.shape[2]):
         for j in range(kernel.shape[3]):
             k = kernel[:, :, i, j][:, :, np.newaxis, np.newaxis]
             output[:, :, i:i + input.shape[2],
                    j:j + input.shape[3]] += (input[:, np.newaxis] * k).sum(2)
 
-    if pad in ['valid', 0]:
+    if pad == 'valid':
         trim = (kernel.shape[2] - 1, kernel.shape[3] - 1)
-        output = output[:, :, trim[0]:-trim[0], trim[1]:-trim[1]]
+        output = output[:,
+                        :,
+                        trim[0]:-trim[0] or None,
+                        trim[1]:-trim[1] or None]
 
     elif pad == 'same':
         shift_x = (kernel.shape[2] - 1) // 2
@@ -49,21 +60,16 @@ def conv2d_test_sets():
 
     for pad in [0, 'full', 'same']:
         for stride in [1, 2, 3]:
-            input = np.random.random((3, 1, 16, 23))
-            kernel = np.random.random((16, 1, 3, 3))
-            output = conv2d(input, kernel, pad=pad)
-            output = output[:, :, ::stride, ::stride]
-            yield _convert(input, kernel, output, {'pad': pad,
-                                                   'stride': stride
-                                                   })
-
-            input = np.random.random((3, 3, 16, 23))
-            kernel = np.random.random((16, 3, 3, 3))
-            output = conv2d(input, kernel, pad=pad)
-            output = output[:, :, ::stride, ::stride]
-            yield _convert(input, kernel, output, {'pad': pad,
-                                                   'stride': stride
-                                                   })
+            for filter_size in [1, 3]:
+                if stride > filter_size:
+                    continue
+                input = np.random.random((3, 1, 16, 23))
+                kernel = np.random.random((16, 1, filter_size, filter_size))
+                output = conv2d(input, kernel, pad=pad)
+                output = output[:, :, ::stride, ::stride]
+                yield _convert(input, kernel, output, {'pad': pad,
+                                                       'stride': stride
+                                                       })
 
     # bias-less case
     input = np.random.random((3, 1, 16, 23))
@@ -74,7 +80,13 @@ def conv2d_test_sets():
     yield _convert(input, kernel, output, {'pad': 'valid'})
 
 
-def conv1d(input, kernel, pad='valid'):
+def conv1d(input, kernel, pad):
+    if pad not in ['valid', 'same', 'full']:
+        input = np.pad(input,
+                       ((0, 0), (0, 0), (int(pad), int(pad))),
+                       mode='constant')
+        pad = 'valid'
+
     output = []
     for b in input:
         temp = []
@@ -91,13 +103,17 @@ def conv1d_test_sets():
 
     for pad in [0, 1, 2, 'full', 'same']:
         for stride in [1, 2, 3]:
-            input = np.random.random((3, 1, 23))
-            kernel = np.random.random((16, 1, 3))
-            output = conv1d(input, kernel, pad)
-            output = output[:, :, ::stride]
-            yield _convert(input, kernel, output, {'pad': pad,
-                                                   'stride': stride,
-                                                   })
+            for filter_size in [1, 3]:
+                if stride > filter_size:
+                    continue
+                input = np.random.random((3, 1, 23))
+                kernel = np.random.random((16, 1, filter_size))
+                output = conv1d(input, kernel, pad)
+                output = output[:, :, ::stride]
+                yield _convert(input, kernel, output, {'pad': pad,
+                                                       'stride': stride,
+                                                       })
+
     # bias-less case
     input = np.random.random((3, 1, 23))
     kernel = np.random.random((16, 1, 3))
@@ -174,6 +190,11 @@ class TestConv1DLayer:
             layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(3,),
                                 pad='_nonexistent_mode')
         assert "iterable of int" in exc.value.args[0]
+
+        with pytest.raises(NotImplementedError) as exc:
+            layer = Conv1DLayer(input_layer, num_filters=16, filter_size=(4,),
+                                pad='same')
+        assert "requires odd filter size" in exc.value.args[0]
 
 
 class TestConv2DLayerImplementations:
@@ -271,6 +292,11 @@ class TestConv2DLayerImplementations:
             layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
                                pad='_nonexistent_mode')
         assert "iterable of int" in exc.value.args[0]
+
+        with pytest.raises(NotImplementedError) as exc:
+            layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(4, 4),
+                               pad='same')
+        assert "requires odd filter size" in exc.value.args[0]
 
     def test_get_params(self, Conv2DImpl, DummyInputLayer):
         input_layer = DummyInputLayer((128, 3, 32, 32))

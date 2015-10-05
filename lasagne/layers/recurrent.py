@@ -107,7 +107,11 @@ class CustomRecurrentLayer(MergeLayer):
         :class:`lasagne.layers.Layer` instance which connects input to the
         hidden state (:math:`f_i`).  This layer may be connected to a chain of
         layers, which must end in a :class:`lasagne.layers.InputLayer` with the
-        same input shape as `incoming`.
+        same input shape as `incoming`, except for the first dimension: When
+        ``precompute_input == True`` (the default), it must be
+        ``incoming.output_shape[0]*incoming.output_shape[1]`` or ``None``; when
+        ``precompute_input == False``, it must be ``incoming.output_shape[0]``
+        or ``None``.
     hidden_to_hidden : :class:`lasagne.layers.Layer`
         Layer which connects the previous hidden state to the new state
         (:math:`f_h`).  This layer may be connected to a chain of layers, which

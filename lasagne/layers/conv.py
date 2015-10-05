@@ -123,9 +123,9 @@ class Conv1DLayer(Layer):
         is equivalent to computing the convolution wherever the input and the
         filter overlap by at least one position.
 
-        ``'same'`` pads with half the filter size on both sides (one less on
-        the second side for an even filter size). When ``stride=1``, this
-        results in an output size equal to the input size.
+        ``'same'`` pads with half the filter size (rounded down) on both sides.
+        When ``stride=1`` this results in an output size equal to the input
+        size. Even filter size is not supported.
 
         ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
@@ -197,6 +197,11 @@ class Conv1DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
+        if pad == 'same':
+            if self.filter_size[0] % 2 == 0:
+                raise NotImplementedError(
+                    '`same` padding requires odd filter size.')
+
         if pad == 'valid':
             self.pad = (0,)
         elif pad in ('full', 'same'):
@@ -248,8 +253,8 @@ class Conv1DLayer(Layer):
                                       image_shape=input_shape,
                                       filter_shape=self.get_W_shape(),
                                       border_mode='full')
-            shift = (self.filter_size[0] - 1) // 2
-            conved = conved[:, :, shift:input.shape[2] + shift]
+            crop = self.filter_size[0] // 2
+            conved = conved[:, :, crop:-crop or None]
         else:
             # no padding needed, or explicit padding of input needed
             if self.pad == 'full':
@@ -326,9 +331,9 @@ class Conv2DLayer(Layer):
         is equivalent to computing the convolution wherever the input and the
         filter overlap by at least one position.
 
-        ``'same'`` pads with half the filter size on both sides (one less on
-        the second side for an even filter size). When ``stride=1``, this
-        results in an output size equal to the input size.
+        ``'same'`` pads with half the filter size (rounded down) on both sides.
+        When ``stride=1`` this results in an output size equal to the input
+        size. Even filter size is not supported.
 
         ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
@@ -400,6 +405,11 @@ class Conv2DLayer(Layer):
         self.untie_biases = untie_biases
         self.convolution = convolution
 
+        if pad == 'same':
+            if any(s % 2 == 0 for s in self.filter_size):
+                raise NotImplementedError(
+                    '`same` padding requires odd filter size.')
+
         if pad == 'valid':
             self.pad = (0, 0)
         elif pad in ('full', 'same'):
@@ -458,10 +468,10 @@ class Conv2DLayer(Layer):
                                       image_shape=input_shape,
                                       filter_shape=self.get_W_shape(),
                                       border_mode='full')
-            shift_x = (self.filter_size[0] - 1) // 2
-            shift_y = (self.filter_size[1] - 1) // 2
-            conved = conved[:, :, shift_x:input.shape[2] + shift_x,
-                            shift_y:input.shape[3] + shift_y]
+            crop_x = self.filter_size[0] // 2
+            crop_y = self.filter_size[1] // 2
+            conved = conved[:, :, crop_x:-crop_x or None,
+                            crop_y:-crop_y or None]
         else:
             # no padding needed, or explicit padding of input needed
             if self.pad == 'full':
@@ -470,9 +480,9 @@ class Conv2DLayer(Layer):
             elif self.pad == 'same':
                 border_mode = 'valid'
                 pad = [(self.filter_size[0] // 2,
-                        (self.filter_size[0] - 1) // 2),
+                        self.filter_size[0] // 2),
                        (self.filter_size[1] // 2,
-                        (self.filter_size[1] - 1) // 2)]
+                        self.filter_size[1] // 2)]
             else:
                 border_mode = 'valid'
                 pad = [(self.pad[0], self.pad[0]), (self.pad[1], self.pad[1])]

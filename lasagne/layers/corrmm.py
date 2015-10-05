@@ -73,9 +73,9 @@ class Conv2DMMLayer(MMLayer):
         is equivalent to computing the convolution wherever the input and the
         filter overlap by at least one position.
 
-        ``'same'`` pads with half the filter size on both sides (one less on
-        the second side for an even filter size). When ``stride=1``, this
-        results in an output size equal to the input size.
+        ``'same'`` pads with half the filter size (rounded down) on both sides.
+        When ``stride=1`` this results in an output size equal to the input
+        size. Even filter size is not supported.
 
         ``'valid'`` is an alias for ``0`` (no padding / a valid convolution).
 
@@ -155,10 +155,10 @@ class Conv2DMMLayer(MMLayer):
         elif pad == 'full':
             self.pad = (self.filter_size[0] - 1, self.filter_size[1] - 1)
         elif pad == 'same':
-            # only works for odd filter size, but the even filter size case
-            # is probably not worth supporting.
-            self.pad = ((self.filter_size[0] - 1) // 2,
-                        (self.filter_size[1] - 1) // 2)
+            if any(s % 2 == 0 for s in self.filter_size):
+                raise NotImplementedError(
+                    '`same` padding requires odd filter size.')
+            self.pad = (self.filter_size[0] // 2, self.filter_size[1] // 2)
         else:
             self.pad = as_tuple(pad, 2, int)
 

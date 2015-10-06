@@ -17,6 +17,9 @@ Pooling layers
 .. autoclass:: Pool2DLayer
     :members:
 
+.. autoclass:: Upscale1DLayer
+    :members:
+
 .. autoclass:: Upscale2DLayer
     :members:
 

@@ -48,6 +48,18 @@ def max_pool_1d_ignoreborder(data, pool_size, stride=None, pad=0):
     return data_pooled
 
 
+def upscale_1d_shape(shape, scale_factor):
+    return (shape[0], shape[1],
+            shape[2] * scale_factor[0])
+
+
+def upscale_1d(data, scale_factor):
+    upscaled = np.zeros(upscale_1d_shape(data.shape, scale_factor))
+    for i in range(scale_factor[0]):
+        upscaled[:, :, i::scale_factor[0]] = data
+    return upscaled
+
+
 def max_pool_2d(data, pool_size, stride):
     data_pooled = max_pool_1d(data, pool_size[1], stride[1])
 
@@ -488,6 +500,63 @@ class TestMaxPool2DNNLayer:
                                       ignore_border=False)
         assert ("Pool2DDNNLayer does not support ignore_border=False" in
                 exc.value.args[0])
+
+
+class TestUpscale1DLayer:
+    def scale_factor_test_sets():
+        for scale_factor in [2, 3]:
+            yield scale_factor
+
+    def input_layer(self, output_shape):
+        return Mock(output_shape=output_shape)
+
+    def layer(self, input_layer, scale_factor):
+        from lasagne.layers.pool import Upscale1DLayer
+        return Upscale1DLayer(
+            input_layer,
+            scale_factor=scale_factor,
+        )
+
+    def test_invalid_scale_factor(self):
+        from lasagne.layers.pool import Upscale1DLayer
+        inlayer = self.input_layer((128, 3, 32))
+        with pytest.raises(ValueError):
+            Upscale1DLayer(inlayer, scale_factor=0)
+        with pytest.raises(ValueError):
+            Upscale1DLayer(inlayer, scale_factor=-1)
+        with pytest.raises(ValueError):
+            Upscale1DLayer(inlayer, scale_factor=(0))
+
+    @pytest.mark.parametrize(
+        "scale_factor", list(scale_factor_test_sets()))
+    def test_get_output_for(self, scale_factor):
+        input = floatX(np.random.randn(8, 16, 17))
+        input_layer = self.input_layer(input.shape)
+        input_theano = theano.shared(input)
+        result = self.layer(
+            input_layer,
+            (scale_factor),
+        ).get_output_for(input_theano)
+
+        result_eval = result.eval()
+        numpy_result = upscale_1d(input, (scale_factor, scale_factor))
+
+        assert np.all(numpy_result.shape == result_eval.shape)
+        assert np.allclose(result_eval, numpy_result)
+
+    @pytest.mark.parametrize(
+        "input_shape,output_shape",
+        [((32, 64, 24), (32, 64, 48)),
+         ((None, 64, 24), (None, 64, 48)),
+         ((32, None, 24), (32, None, 48)),
+         ((32, 64, None), (32, 64, None))],
+    )
+    def test_get_output_shape_for(self, input_shape, output_shape):
+        input_layer = self.input_layer(input_shape)
+        layer = self.layer(input_layer,
+                           scale_factor=(2))
+        assert layer.get_output_shape_for(
+            input_shape) == output_shape
 
 
 class TestUpscale2DLayer:

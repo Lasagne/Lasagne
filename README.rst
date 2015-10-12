@@ -1,7 +1,7 @@
 .. image:: https://readthedocs.org/projects/lasagne/badge/
     :target: http://lasagne.readthedocs.org/en/latest/
 
-.. image:: https://travis-ci.org/Lasagne/Lasagne.svg?branch=master
+.. image:: https://travis-ci.org/Lasagne/Lasagne.svg
     :target: https://travis-ci.org/Lasagne/Lasagne
 
 .. image:: https://img.shields.io/coveralls/Lasagne/Lasagne.svg

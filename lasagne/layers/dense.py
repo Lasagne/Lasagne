@@ -29,16 +29,16 @@ class DenseLayer(Layer):
     num_units : int
         The number of units of the layer
 
-    W : Theano shared variable, numpy array or callable
-        An initializer for the weights of the layer. If a shared variable or a
-        numpy array is provided the shape should  be (num_inputs, num_units).
-        See :meth:`Layer.create_param` for more information.
+    W : Theano shared variable, expression, numpy array or callable
+        Initial value, expression or initializer for the weights.
+        These should be a matrix with shape ``(num_inputs, num_units)``.
+        See :func:`lasagne.utils.create_param` for more information.
 
-    b : Theano shared variable, numpy array, callable or None
-        An initializer for the biases of the layer. If a shared variable or a
-        numpy array is provided the shape should be (num_units,).
-        If None is provided the layer will have no biases.
-        See :meth:`Layer.create_param` for more information.
+    b : Theano shared variable, expression, numpy array, callable or ``None``
+        Initial value, expression or initializer for the biases. If set to
+        ``None``, the layer will have no biases. Otherwise, biases should be
+        a 1D array with shape ``(num_units,)``.
+        See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
         The nonlinearity that is applied to the layer activations. If None
@@ -115,19 +115,18 @@ class NINLayer(Layer):
         layer. If true a separate bias vector is used for each trailing
         dimension beyond the 2nd.
 
-    W : Theano shared variable, numpy array or callable
-        An initializer for the weights of the layer. If a shared variable or a
-        numpy array is provided the shape should be (num_inputs, num_units),
-        where num_units is the size of the 2nd. dimension of the input.
+    W : Theano shared variable, expression, numpy array or callable
+        Initial value, expression or initializer for the weights.
+        These should be a matrix with shape ``(num_inputs, num_units)``,
+        where ``num_inputs`` is the size of the second dimension of the input.
         See :func:`lasagne.utils.create_param` for more information.
 
-    b : Theano shared variable, numpy array, callable or None
-        An initializer for the biases of the layer. If a shared variable or a
-        numpy array is provided the correct shape is determined by the
-        untie_biases setting. If untie_biases is False, then the shape should
-        be (num_units, ). If untie_biases is True then the shape should be
-        (num_units, input_dim[2], ..., input_dim[-1]). If None is provided the
-        layer will have no biases.
+    b : Theano shared variable, expression, numpy array, callable or ``None``
+        Initial value, expression or initializer for the biases. If set to
+        ``None``, the layer will have no biases. Otherwise, biases should be
+        a 1D array with shape ``(num_units,)`` for ``untie_biases=False``, and
+        a tensor of shape ``(num_units, input_shape[2], ..., input_shape[-1])``
+        for ``untie_biases=True``.
         See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None

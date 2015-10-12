@@ -53,12 +53,11 @@ class BiasLayer(Layer):
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
 
-    b : Theano shared variable, numpy array, callable or None
-        An initializer for the biases. If a shared variable or a numpy array
-        is provided, the shape must match the incoming shape, skipping those
-        axes the biases are shared over (see below for an example). If set to
+    b : Theano shared variable, expression, numpy array, callable or ``None``
+        Initial value, expression or initializer for the biases. If set to
         ``None``, the layer will have no biases and pass through its input
-        unchanged.
+        unchanged. Otherwise, the bias shape must match the incoming shape,
+        skipping those axes the biases are shared over (see the example below).
         See :func:`lasagne.utils.create_param` for more information.
 
     shared_axes : 'auto', int or tuple of int

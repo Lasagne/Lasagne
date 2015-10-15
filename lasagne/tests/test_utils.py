@@ -18,6 +18,22 @@ def test_as_theano_expression_fails():
         as_theano_expression({})
 
 
+def test_collect_shared_vars():
+    from lasagne.utils import collect_shared_vars as collect
+    x, y, z = (theano.shared(0, name=n) for n in 'xyz')
+    # collecting must not change the order
+    assert collect([x, y, z]) == [x, y, z]
+    # duplicates should be eliminated
+    assert collect([x, y, x, y, y, z]) == [x, y, z]
+    # ensure we have left-recursive depth-first search
+    assert collect((x + y) + z) == [x, y, z]
+    assert collect(x + (y + z)) == [x, y, z]
+    # complex expressions and constants should not be included
+    assert collect([x**2, y * z * np.ones(10), x + T.matrix()]) == [x, y, z]
+    # the result can even be empty
+    assert collect([T.matrix() + T.matrix(), T.log(T.matrix())]) == []
+
+
 def test_one_hot():
     from lasagne.utils import one_hot
     a = np.random.randint(0, 10, 20)

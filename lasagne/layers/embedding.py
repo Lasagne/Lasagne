@@ -30,8 +30,10 @@ class EmbeddingLayer(Layer):
     output_size : int
         The size of each embedding.
 
-    W : Theano shared variable, numpy array or callable
-        The embedding matrix.
+    W : Theano shared variable, expression, numpy array or callable
+        Initial value, expression or initializer for the embedding matrix.
+        This should be a matrix with shape ``(input_size, output_size)``.
+        See :func:`lasagne.utils.create_param` for more information.
 
     Examples
     --------

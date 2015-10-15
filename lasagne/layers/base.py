@@ -50,15 +50,20 @@ class Layer(object):
 
     def get_params(self, **tags):
         """
-        Returns a list of all the Theano variables that parameterize the layer.
+        Returns a list of Theano shared variables that parameterize the layer.
 
-        By default, all parameters that participate in the forward pass will be
-        returned (in the order they were registered in the Layer's constructor
-        via :meth:`add_param()`). The list can optionally be filtered by
-        specifying tags as keyword arguments. For example, ``trainable=True``
-        will only return trainable parameters, and ``regularizable=True``
-        will only return parameters that can be regularized (e.g., by L2
-        decay).
+        By default, all shared variables that participate in the forward pass
+        will be returned (in the order they were registered in the Layer's
+        constructor via :meth:`add_param()`). The list can optionally be
+        filtered by specifying tags as keyword arguments. For example,
+        ``trainable=True`` will only return trainable parameters, and
+        ``regularizable=True`` will only return parameters that can be
+        regularized (e.g., by L2 decay).
+
+        If any of the layer's parameters was set to a Theano expression instead
+        of a shared variable, the shared variables involved in that expression
+        will be returned rather than the expression itself. Tag filtering
+        considers all variables within an expression to be tagged the same.
 
         Parameters
         ----------
@@ -92,7 +97,7 @@ class Layer(object):
             result = [param for param in result
                       if not (self.params[param] & exclude)]
 
-        return result
+        return utils.collect_shared_vars(result)
 
     def get_output_shape_for(self, input_shape):
         """
@@ -149,56 +154,54 @@ class Layer(object):
 
     def add_param(self, spec, shape, name=None, **tags):
         """
-        Register and initialize a Theano shared variable containing parameters
-        associated with the layer.
+        Register and possibly initialize a parameter tensor for the layer.
 
-        When defining a new layer, this method can be used in the constructor
+        When defining a layer class, this method is called in the constructor
         to define which parameters the layer has, what their shapes are, how
         they should be initialized and what tags are associated with them.
+        This allows layer classes to transparently support parameter
+        initialization from numpy arrays and callables, as well as setting
+        parameters to existing Theano shared variables or Theano expressions.
 
-        All parameter variables associated with the layer can be retrieved
-        using :meth:`Layer.get_params()`.
+        All registered parameters are stored along with their tags in the
+        ordered dictionary :attr:`Layer.params`, and can be retrieved with
+        :meth:`Layer.get_params()`, optionally filtered by their tags.
 
         Parameters
         ----------
-        spec : Theano shared variable, numpy array or callable
-            an initializer for this parameter variable. This should initialize
-            the variable with an array of the specified shape. See
-            :func:`lasagne.utils.create_param` for more information.
+        spec : Theano shared variable, expression, numpy array or callable
+            initial value, expression or initializer for this parameter.
+            See :func:`lasagne.utils.create_param` for more information.
 
         shape : tuple of int
             a tuple of integers representing the desired shape of the
-            parameter array.
+            parameter tensor.
 
         name : str (optional)
-            the name of the parameter variable. This will be passed to
-            ``theano.shared`` when the variable is created. If ``spec`` is
-            already a shared variable, this parameter will be ignored to avoid
-            overwriting an existing name. If the layer itself has a name,
-            the name of the parameter variable will be prefixed with it and it
-            will be of the form 'layer_name.param_name'.
+            a descriptive name for the parameter variable. This will be passed
+            to ``theano.shared`` when the variable is created, prefixed by the
+            layer's name if any (in the form ``'layer_name.param_name'``). If
+            ``spec`` is already a shared variable or expression, this parameter
+            will be ignored to avoid overwriting an existing name.
 
         **tags (optional)
-            tags associated with the parameter variable can be specified as
-            keyword arguments.
-
-            To associate the tag ``tag1`` with the variable, pass
+            tags associated with the parameter can be specified as keyword
+            arguments. To associate the tag ``tag1`` with the parameter, pass
             ``tag1=True``.
 
             By default, the tags ``regularizable`` and ``trainable`` are
-            associated with the parameter variable. Pass
-            ``regularizable=False`` or ``trainable=False`` respectively to
-            prevent this.
+            associated with the parameter. Pass ``regularizable=False`` or
+            ``trainable=False`` respectively to prevent this.
 
         Returns
         -------
-        Theano shared variable
-            the resulting parameter variable
+        Theano shared variable or Theano expression
+            the resulting parameter variable or parameter expression
 
         Notes
         -----
-        It is recommend to assign the resulting parameter variable to an
-        attribute of the layer, so it can be accessed easily, for example:
+        It is recommended to assign the resulting parameter variable/expression
+        to an attribute of the layer for easy access, for example:
 
         >>> self.W = self.add_param(W, (2, 3), name='W')  #doctest: +SKIP
         """
@@ -206,7 +209,7 @@ class Layer(object):
         if name is not None:
             if self.name is not None:
                 name = "%s.%s" % (self.name, name)
-
+        # create shared variable, or pass through given variable/expression
         param = utils.create_param(spec, shape, name)
         # parameters should be trainable and regularizable by default
         tags['trainable'] = tags.get('trainable', True)

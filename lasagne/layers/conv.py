@@ -138,15 +138,15 @@ class Conv1DLayer(Layer):
         position in each channel. As a result, the `b` attribute will be a
         matrix (2D).
 
-    W : Theano shared variable, numpy array or callable
-        An initializer for the weights of the layer. This should initialize the
-        layer weights to a 3D array with shape
+    W : Theano shared variable, expression, numpy array or callable
+        Initial value, expression or initializer for the weights.
+        These should be a 3D tensor with shape
         ``(num_filters, num_input_channels, filter_length)``.
         See :func:`lasagne.utils.create_param` for more information.
 
-    b : Theano shared variable, numpy array, callable or None
-        An initializer for the biases of the layer. If None is provided, the
-        layer will have no biases. This should initialize the layer biases to
+    b : Theano shared variable, expression, numpy array, callable or ``None``
+        Initial value, expression or initializer for the biases. If set to
+        ``None``, the layer will have no biases. Otherwise, biases should be
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
         ``(num_filters, input_length)`` instead.
@@ -168,11 +168,11 @@ class Conv1DLayer(Layer):
 
     Attributes
     ----------
-    W : Theano shared variable
-        Variable representing the filter weights.
+    W : Theano shared variable or expression
+        Variable or expression representing the filter weights.
 
-    b : Theano shared variable
-        Variable representing the biases.
+    b : Theano shared variable or expression
+        Variable or expression representing the biases.
 
     Notes
     -----
@@ -349,18 +349,18 @@ class Conv2DLayer(Layer):
         position in each channel. As a result, the `b` attribute will be a
         3D tensor.
 
-    W : Theano shared variable, numpy array or callable
-        An initializer for the weights of the layer. This should initialize the
-        layer weights to a 4D array with shape
+    W : Theano shared variable, expression, numpy array or callable
+        Initial value, expression or initializer for the weights.
+        These should be a 4D tensor with shape
         ``(num_filters, num_input_channels, filter_rows, filter_columns)``.
         See :func:`lasagne.utils.create_param` for more information.
 
-    b : Theano shared variable, numpy array, callable or None
-        An initializer for the biases of the layer. If None is provided, the
-        layer will have no biases. This should initialize the layer biases to
+    b : Theano shared variable, expression, numpy array, callable or ``None``
+        Initial value, expression or initializer for the biases. If set to
+        ``None``, the layer will have no biases. Otherwise, biases should be
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filters, input_rows, input_columns)`` instead.
+        ``(num_filters, output_rows, output_columns)`` instead.
         See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
@@ -376,11 +376,11 @@ class Conv2DLayer(Layer):
 
     Attributes
     ----------
-    W : Theano shared variable
-        Variable representing the filter weights.
+    W : Theano shared variable or expression
+        Variable or expression representing the filter weights.
 
-    b : Theano shared variable
-        Variable representing the biases.
+    b : Theano shared variable or expression
+        Variable or expression representing the biases.
 
     Notes
     -----

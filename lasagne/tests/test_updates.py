@@ -62,12 +62,12 @@ class TestUpdateFunctions(object):
         assert np.allclose(A.get_value(), self.torch_values[method])
 
 
-def test_get_or_compute_grads_raises():
+def test_get_or_compute_grads():
 
     from lasagne.updates import get_or_compute_grads
 
-    A = T.scalar()
-    B = T.scalar()
+    A = theano.shared(1)
+    B = theano.shared(1)
     loss = A + B
     grads = get_or_compute_grads(loss, [A, B])
 
@@ -75,6 +75,10 @@ def test_get_or_compute_grads_raises():
 
     with pytest.raises(ValueError):
         get_or_compute_grads(grads, [A])
+
+    C = T.scalar()
+    with pytest.raises(ValueError):
+        get_or_compute_grads(A + C, [A, C])
 
 
 @pytest.mark.parametrize('ndim', [2, 3])

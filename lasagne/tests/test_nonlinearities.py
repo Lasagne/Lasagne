@@ -16,6 +16,9 @@ class TestNonlinearities(object):
     def leaky_rectify_0(self, x):
         return self.rectify(x)
 
+    def softplus(self, x):
+        return np.log1p(np.exp(x))
+
     def sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
 
@@ -36,7 +39,7 @@ class TestNonlinearities(object):
                               'leaky_rectify', 'sigmoid',
                               'tanh', 'scaled_tanh',
                               'softmax', 'leaky_rectify_0',
-                              'scaled_tanh_p'])
+                              'scaled_tanh_p', 'softplus'])
     def test_nonlinearity(self, nonlinearity):
         import lasagne.nonlinearities
 

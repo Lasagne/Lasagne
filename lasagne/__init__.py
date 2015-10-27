@@ -32,5 +32,5 @@ try:
     import pkg_resources
     __version__ = pkg_resources.get_distribution("Lasagne").version
     del pkg_resources
-except:
+except:  # pragma: no cover
     pass

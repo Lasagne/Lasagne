@@ -154,6 +154,8 @@
     BiasLayer
     InverseLayer
     TransformerLayer
+    ParametricRectifierLayer
+    prelu
 
 
 .. rubric:: :doc:`layers/corrmm`

@@ -17,3 +17,8 @@ Special-purpose layers
 .. autoclass:: TransformerLayer
     :members:
 
+.. autoclass:: ParametricRectifierLayer
+    :members:
+
+.. autofunction:: prelu
+

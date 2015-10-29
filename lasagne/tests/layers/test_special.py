@@ -224,3 +224,108 @@ def test_transform_identity():
     thetas = floatX(np.tile([1, 0, 0, 0, 1, 0], (batchsize, 1)))
     outputs = layer.get_output_for([constant(inputs), constant(thetas)]).eval()
     np.testing.assert_allclose(inputs, outputs, rtol=1e-6)
+
+
+class TestParametricRectifierLayer:
+    @pytest.fixture
+    def ParametricRectifierLayer(self):
+        from lasagne.layers.special import ParametricRectifierLayer
+        return ParametricRectifierLayer
+
+    @pytest.fixture
+    def init_alpha(self):
+        # initializer for a tensor of unique values
+        return lambda shape: (np.arange(np.prod(shape)).reshape(shape)) \
+            / np.prod(shape)
+
+    def test_alpha_init(self, ParametricRectifierLayer, init_alpha):
+        input_shape = (None, 3, 28, 28)
+        # default: alphas only over 2nd axis
+        layer = ParametricRectifierLayer(input_shape, alpha=init_alpha)
+        alpha = layer.alpha
+        assert layer.shared_axes == (0, 2, 3)
+        assert alpha.get_value().shape == (3, )
+        assert np.allclose(alpha.get_value(), init_alpha((3, )))
+
+        # scalar alpha
+        layer = ParametricRectifierLayer(input_shape, alpha=init_alpha,
+                                         shared_axes='all')
+        alpha = layer.alpha
+        assert layer.shared_axes == (0, 1, 2, 3)
+        assert alpha.get_value().shape == ()
+        assert np.allclose(alpha.get_value(), init_alpha((1,)))
+
+        # alphas shared over the 1st axis
+        layer = ParametricRectifierLayer(input_shape, alpha=init_alpha,
+                                         shared_axes=0)
+        alpha = layer.alpha
+        assert layer.shared_axes == (0,)
+        assert alpha.get_value().shape == (3, 28, 28)
+        assert np.allclose(alpha.get_value(), init_alpha((3, 28, 28)))
+
+        # alphas shared over the 1st and 4th axes
+        layer = ParametricRectifierLayer(input_shape, alpha=init_alpha,
+                                         shared_axes=(0, 3))
+        alpha = layer.alpha
+        assert layer.shared_axes == (0, 3)
+        assert alpha.get_value().shape == (3, 28)
+        assert np.allclose(alpha.get_value(), init_alpha((3, 28)))
+
+    def test_undefined_shape(self, ParametricRectifierLayer):
+        with pytest.raises(ValueError):
+            ParametricRectifierLayer((None, 3, 28, 28), shared_axes=(1, 2, 3))
+
+    def test_get_output_for(self, ParametricRectifierLayer, init_alpha):
+        input_shape = (3, 3, 28, 28)
+        # random input tensor
+        input = np.random.randn(*input_shape).astype(theano.config.floatX)
+
+        # default: alphas shared only along 2nd axis
+        layer = ParametricRectifierLayer(input_shape, alpha=init_alpha)
+        alpha_v = layer.alpha.get_value()
+        expected = np.maximum(input, 0) + np.minimum(input, 0) * \
+            alpha_v[None, :, None, None]
+        assert np.allclose(layer.get_output_for(input).eval(), expected)
+
+        # scalar alpha
+        layer = ParametricRectifierLayer(input_shape, alpha=init_alpha,
+                                         shared_axes='all')
+        alpha_v = layer.alpha.get_value()
+        expected = np.maximum(input, 0) + np.minimum(input, 0) * alpha_v
+        assert np.allclose(layer.get_output_for(input).eval(), expected)
+
+        # alphas shared over the 1st axis
+        layer = ParametricRectifierLayer(input_shape, alpha=init_alpha,
+                                         shared_axes=0)
+        alpha_v = layer.alpha.get_value()
+        expected = np.maximum(input, 0) + np.minimum(input, 0) * \
+            alpha_v[None, :, :, :]
+        assert np.allclose(layer.get_output_for(input).eval(), expected)
+
+        # alphas shared over the 1st and 4th axes
+        layer = ParametricRectifierLayer(input_shape, shared_axes=(0, 3),
+                                         alpha=init_alpha)
+        alpha_v = layer.alpha.get_value()
+        expected = np.maximum(input, 0) + np.minimum(input, 0) * \
+            alpha_v[None, :, :, None]
+        assert np.allclose(layer.get_output_for(input).eval(), expected)
+
+    def test_prelu(self, init_alpha):
+        import lasagne
+        input_shape = (3, 28)
+        input = np.random.randn(*input_shape).astype(theano.config.floatX)
+
+        l_in = lasagne.layers.input.InputLayer(input_shape)
+        l_dense = lasagne.layers.dense.DenseLayer(l_in, num_units=100)
+        l_prelu = lasagne.layers.prelu(l_dense, alpha=init_alpha)
+        output = lasagne.layers.get_output(l_prelu, input)
+
+        assert l_dense.nonlinearity == lasagne.nonlinearities.identity
+
+        W = l_dense.W.get_value()
+        b = l_dense.b.get_value()
+        alpha_v = l_prelu.alpha.get_value()
+        expected = np.dot(input, W) + b
+        expected = np.maximum(expected, 0) + \
+            np.minimum(expected, 0) * alpha_v
+        assert np.allclose(output.eval(), expected)

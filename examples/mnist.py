@@ -249,6 +249,7 @@ def main(model='mlp', num_epochs=500):
         network = build_cnn(input_var)
     else:
         print("Unrecognized model type %r." % model)
+        return
 
     # Create a loss expression for training, i.e., a scalar objective we want
     # to minimize (for our multi-class problem, it is the cross-entropy loss):

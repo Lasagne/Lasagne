@@ -29,6 +29,4 @@ from . import updates
 from . import utils
 
 
-import pkg_resources
-__version__ = pkg_resources.get_distribution("Lasagne").version
-del pkg_resources
+__version__ = "0.2.dev1"

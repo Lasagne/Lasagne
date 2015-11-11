@@ -142,8 +142,9 @@ def main(num_epochs=NUM_EPOCHS):
 
     # lasagne.layers.get_output produces a variable for the output of the net
     network_output = lasagne.layers.get_output(l_out)
-    # The value we care about is the final value produced for each sequence
-    predicted_values = network_output[:, -1]
+    # The network output will have shape (n_batch, 1); let's flatten to get a
+    # 1-dimensional vector of predicted values
+    predicted_values = network_output.flatten()
     # Our cost will be mean-squared error
     cost = T.mean((predicted_values - target_values)**2)
     # Retrieve all parameters from the network

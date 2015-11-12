@@ -7,120 +7,105 @@ import lasagne
 from lasagne.utils import floatX, as_tuple
 
 
-def conv2d(input, kernel, pad):
-    """Execute a 2D convolution.
+def convNd(input, kernel, pad, stride=1, n=None):
+    """Execute a batch of a stack of N-dimensional convolutions.
 
     Parameters
     ----------
     input : numpy array
     kernel : numpy array
-    pad : {0, 'valid', 'same', 'full'}
+    pad : {0, 'valid', 'same', 'full'}, int or tuple of int
+    stride : int or tuple of int
+    n : int
 
     Returns
     -------
     numpy array
     """
+    if n is None:
+        n = input.ndim - 2
     if pad not in ['valid', 'same', 'full']:
-        pad = as_tuple(pad, 2, int)
-        input = np.pad(input,
-                       ((0, 0), (0, 0), (pad[0], pad[0]), (pad[1], pad[1])),
-                       mode='constant')
+        pad = as_tuple(pad, n, int)
+        input = np.pad(input, [(p, p) for p in (0, 0) + pad], mode='constant')
         pad = 'valid'
 
-    output = np.zeros((input.shape[0],
-                       kernel.shape[0],
-                       input.shape[2] + kernel.shape[2] - 1,
-                       input.shape[3] + kernel.shape[3] - 1,
-                       ))
+    output = np.zeros((input.shape[0], kernel.shape[0]) +
+                      tuple(i + k - 1 for i, k in zip(input.shape[2:],
+                                                      kernel.shape[2:])))
 
-    for i in range(kernel.shape[2]):
-        for j in range(kernel.shape[3]):
-            k = kernel[:, :, i, j][:, :, np.newaxis, np.newaxis]
-            output[:, :, i:i + input.shape[2],
-                   j:j + input.shape[3]] += (input[:, np.newaxis] * k).sum(2)
+    if n == 1:
+        for i in range(kernel.shape[2]):
+            f = kernel[:, :, i:i+1]
+            c = (input[:, np.newaxis] * f).sum(axis=2)
+            output[:, :,
+                   i:i + input.shape[2]] += c
+    elif n == 2:
+        for i in range(kernel.shape[2]):
+            for j in range(kernel.shape[3]):
+                f = kernel[:, :, i:i+1, j:j+1]
+                c = (input[:, np.newaxis] * f).sum(axis=2)
+                output[:, :,
+                       i:i + input.shape[2],
+                       j:j + input.shape[3]] += c
+    else:
+        raise NotImplementedError("convNd() only supports n in (1, 2)")
 
     if pad == 'valid':
-        trim = (kernel.shape[2] - 1, kernel.shape[3] - 1)
-        output = output[:,
-                        :,
-                        trim[0]:-trim[0] or None,
-                        trim[1]:-trim[1] or None]
-
+        trim = tuple(k - 1 for k in kernel.shape[2:])
+        slices = [slice(None), slice(None)]
+        slices += [slice(t, -t or None) for t in trim]
+        output = output[slices]
     elif pad == 'same':
-        shift_x = (kernel.shape[2] - 1) // 2
-        shift_y = (kernel.shape[3] - 1) // 2
-        output = output[:, :, shift_x:input.shape[2] + shift_x,
-                        shift_y:input.shape[3] + shift_y]
+        shift = tuple((k - 1) // 2 for k in kernel.shape[2:])
+        slices = [slice(None), slice(None)]
+        slices += [slice(s, s + i) for s, i in zip(shift, input.shape[2:])]
+        output = output[slices]
+
+    stride = as_tuple(stride, n, int)
+    if any(s > 1 for s in stride):
+        slices = [slice(None), slice(None)]
+        slices += [slice(None, None, s) for s in stride]
+        output = output[slices]
+
     return output
 
 
-def conv2d_test_sets():
+def convNd_test_sets(n, pads=(0,)):
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
-    for pad in [0, 'full', 'same']:
-        for stride in [1, 2, 3]:
-            for filter_size in [1, 3]:
+    extra_shape = (16, 23)
+    input_shape = (3, 1) + extra_shape[-n:]
+
+    for pad in pads + ('full', 'same'):
+        for stride in (1, 2, 3):
+            for filter_size in (1, 3):
                 if stride > filter_size:
                     continue
-                input = np.random.random((3, 1, 16, 23))
-                kernel = np.random.random((16, 1, filter_size, filter_size))
-                output = conv2d(input, kernel, pad=pad)
-                output = output[:, :, ::stride, ::stride]
-                yield _convert(input, kernel, output, {'pad': pad,
-                                                       'stride': stride
-                                                       })
-
-    # bias-less case
-    input = np.random.random((3, 1, 16, 23))
-    kernel = np.random.random((16, 1, 3, 3))
-    output = conv2d(input, kernel, pad='valid')
-    yield _convert(input, kernel, output, {'b': None})
-    # pad='valid' case
-    yield _convert(input, kernel, output, {'pad': 'valid'})
-
-
-def conv1d(input, kernel, pad):
-    if pad not in ['valid', 'same', 'full']:
-        input = np.pad(input,
-                       ((0, 0), (0, 0), (int(pad), int(pad))),
-                       mode='constant')
-        pad = 'valid'
-
-    output = []
-    for b in input:
-        temp = []
-        for c in kernel:
-            temp.append(
-                np.convolve(b[0, :], c[0, :], mode=pad))
-        output.append(temp)
-    return np.array(output)
-
-
-def conv1d_test_sets():
-    def _convert(input, kernel, output, kwargs):
-        return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
-
-    for pad in [0, 1, 2, 'full', 'same']:
-        for stride in [1, 2, 3]:
-            for filter_size in [1, 3]:
-                if stride > filter_size:
-                    continue
-                input = np.random.random((3, 1, 23))
-                kernel = np.random.random((16, 1, filter_size))
-                output = conv1d(input, kernel, pad)
-                output = output[:, :, ::stride]
+                input = np.random.random(input_shape)
+                kernel = np.random.random((16, 1) + (filter_size,) * n)
+                output = convNd(input, kernel, pad, stride, n=n)
                 yield _convert(input, kernel, output, {'pad': pad,
                                                        'stride': stride,
                                                        })
 
     # bias-less case
-    input = np.random.random((3, 1, 23))
-    kernel = np.random.random((16, 1, 3))
-    output = conv1d(input, kernel, pad='valid')
+    input = np.random.random(input_shape)
+    kernel = np.random.random((16, 1) + (3,) * n)
+    output = convNd(input, kernel, pad='valid')
     yield _convert(input, kernel, output, {'b': None})
     # pad='valid' case
     yield _convert(input, kernel, output, {'pad': 'valid'})
+
+
+
+
+def conv2d_test_sets():
+    return convNd_test_sets(2)
+
+
+def conv1d_test_sets():
+    return convNd_test_sets(1, pads=(0, 1, 2))
 
 
 def test_conv_output_length():

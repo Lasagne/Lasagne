@@ -28,7 +28,11 @@ from . import regularization
 from . import updates
 from . import utils
 
-
 import pkg_resources
-__version__ = pkg_resources.get_distribution("Lasagne").version
+
+try:
+    __version__ = pkg_resources.get_distribution("Lasagne").version
+except pkg_resources.DistributionNotFound:  # pragma: no cover
+    __version__ = 'unknown'
+
 del pkg_resources

@@ -59,30 +59,35 @@ class LocalResponseNormalization2DLayer(Layer):
     Aggregation is purely across channels, not within channels,
     and performed "pixelwise".
 
-    Input order is assumed to be `BC01`.
-
-    If the value of the ith channel is :math:`x_i`, the output is
+    If the value of the :math:`i` th channel is :math:`x_i`, the output is
 
     .. math::
-
-        x_i = \frac{x_i}{ (k + ( \alpha \sum_j x_j^2 ))^\beta }
+        x_i = \\frac{x_i}{ (k + ( \\alpha \\sum_j x_j^2 ))^\\beta }
 
     where the summation is performed over this position on :math:`n`
     neighboring channels.
 
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape. Must
+        follow *BC01* layout, i.e., ``(batchsize, channels, rows, columns)``.
+    alpha : float scalar
+        coefficient, see equation above
+    k : float scalar
+        offset, see equation above
+    beta : float scalar
+        exponent, see equation above
+    n : int
+        number of adjacent channels to normalize over, must be odd
+
+    Notes
+    -----
     This code is adapted from pylearn2. See the module docstring for license
     information.
     """
 
     def __init__(self, incoming, alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
-        """
-        :parameters:
-            - incoming: input layer or shape
-            - alpha: see equation above
-            - k: see equation above
-            - beta: see equation above
-            - n: number of adjacent channels to normalize over.
-        """
         super(LocalResponseNormalization2DLayer, self).__init__(incoming,
                                                                 **kwargs)
         self.alpha = alpha

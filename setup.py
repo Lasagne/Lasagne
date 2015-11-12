@@ -1,11 +1,17 @@
 import os
+import re
 from setuptools import find_packages
 from setuptools import setup
 
-version = '0.2.dev1'
-
 here = os.path.abspath(os.path.dirname(__file__))
 try:
+    # obtain version string from __init__.py
+    init_py = open(os.path.join(here, 'lasagne', '__init__.py')).read()
+    version = re.search('__version__ = "(.*)"', init_py).groups()[0]
+except Exception:
+    version = ''
+try:
+    # obtain long description from README and CHANGES
     README = open(os.path.join(here, 'README.rst')).read()
     CHANGES = open(os.path.join(here, 'CHANGES.rst')).read()
 except IOError:

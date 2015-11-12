@@ -233,6 +233,23 @@ very_leaky_rectify.__doc__ = """very_leaky_rectify(x)
      """
 
 
+# softplus
+def softplus(x):
+    """Softplus activation function :math:`\\varphi(x) = \\log(1 + e^x)`
+
+    Parameters
+    ----------
+    x : float32
+        The activation (the summed, weighted input of a neuron).
+
+    Returns
+    -------
+    float32
+        The output of the softplus function applied to the activation.
+    """
+    return theano.tensor.nnet.softplus(x)
+
+
 # linear
 def linear(x):
     """Linear activation function :math:`\\varphi(x) = x`

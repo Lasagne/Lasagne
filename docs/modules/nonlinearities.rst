@@ -13,6 +13,7 @@
    LeakyRectify
    leaky_rectify
    very_leaky_rectify
+   softplus
    linear
    identity
 
@@ -30,4 +31,5 @@ Detailed description
    :members:
 .. autofunction:: leaky_rectify
 .. autofunction:: very_leaky_rectify
+.. autofunction:: softplus
 .. autofunction:: linear

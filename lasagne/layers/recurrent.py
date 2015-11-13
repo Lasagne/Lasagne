@@ -84,7 +84,8 @@ class CustomRecurrentLayer(MergeLayer):
     hidden_to_hidden, nonlinearity=lasagne.nonlinearities.rectify,
     hid_init=lasagne.init.Constant(0.), backwards=False,
     learn_init=False, gradient_steps=-1, grad_clipping=0,
-    unroll_scan=False, precompute_input=True, mask_input=None, **kwargs)
+    unroll_scan=False, precompute_input=True, mask_input=None,
+    only_return_final=False, **kwargs)
 
     A layer which implements a recurrent connection.
 
@@ -153,6 +154,10 @@ class CustomRecurrentLayer(MergeLayer):
         Layer which allows for a sequence mask to be input, for when sequences
         are of variable length.  Default `None`, which means no mask will be
         supplied (i.e. all sequences are of the same length).
+    only_return_final : bool
+        If True, only return the final sequential output (e.g. for tasks where
+        a single target value for the entire sequence is desired).  In this
+        case, Theano makes an optimization which saves memory.
 
     Examples
     --------
@@ -202,6 +207,7 @@ class CustomRecurrentLayer(MergeLayer):
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
+                 only_return_final=False,
                  **kwargs):
 
         # This layer inherits from a MergeLayer, because it can have two
@@ -221,6 +227,7 @@ class CustomRecurrentLayer(MergeLayer):
         self.grad_clipping = grad_clipping
         self.unroll_scan = unroll_scan
         self.precompute_input = precompute_input
+        self.only_return_final = only_return_final
 
         if unroll_scan and gradient_steps != -1:
             raise ValueError(
@@ -324,8 +331,14 @@ class CustomRecurrentLayer(MergeLayer):
         # The shape of the input to this layer will be the first element
         # of input_shapes, whether or not a mask input is being used.
         input_shape = input_shapes[0]
-        return ((input_shape[0], input_shape[1]) +
-                self.hidden_to_hidden.output_shape[1:])
+        # When only_return_final is true, the second (sequence step) dimension
+        # will be flattened
+        if self.only_return_final:
+            return (input_shape[0],) + self.hidden_to_hidden.output_shape[1:]
+        # Otherwise, the shape will be (n_batch, n_steps, trailing_dims...)
+        else:
+            return ((input_shape[0], input_shape[1]) +
+                    self.hidden_to_hidden.output_shape[1:])
 
     def get_output_for(self, inputs, **kwargs):
         """
@@ -455,12 +468,17 @@ class CustomRecurrentLayer(MergeLayer):
                 truncate_gradient=self.gradient_steps,
                 strict=True)[0]
 
-        # dimshuffle back to (n_batch, n_time_steps, n_features))
-        hid_out = hid_out.dimshuffle(1, 0, *range(2, hid_out.ndim))
+        # When it is requested that we only return the final sequence step,
+        # we need to slice it out immediately after scan is applied
+        if self.only_return_final:
+            hid_out = hid_out[-1]
+        else:
+            # dimshuffle back to (n_batch, n_time_steps, n_features))
+            hid_out = hid_out.dimshuffle(1, 0, *range(2, hid_out.ndim))
 
-        # if scan is backward reverse the output
-        if self.backwards:
-            hid_out = hid_out[:, ::-1]
+            # if scan is backward reverse the output
+            if self.backwards:
+                hid_out = hid_out[:, ::-1]
 
         return hid_out
 
@@ -472,7 +490,7 @@ class RecurrentLayer(CustomRecurrentLayer):
     b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
     gradient_steps=-1, grad_clipping=0, unroll_scan=False,
-    precompute_input=True, mask_input=None, **kwargs)
+    precompute_input=True, mask_input=None, only_return_final=False, **kwargs)
 
     Dense recurrent neural network (RNN) layer
 
@@ -530,6 +548,10 @@ class RecurrentLayer(CustomRecurrentLayer):
         Layer which allows for a sequence mask to be input, for when sequences
         are of variable length.  Default `None`, which means no mask will be
         supplied (i.e. all sequences are of the same length).
+    only_return_final : bool
+        If True, only return the final sequential output (e.g. for tasks where
+        a single target value for the entire sequence is desired).  In this
+        case, Theano makes an optimization which saves memory.
 
     References
     ----------
@@ -549,6 +571,7 @@ class RecurrentLayer(CustomRecurrentLayer):
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
+                 only_return_final=False,
                  **kwargs):
 
         if isinstance(incoming, tuple):
@@ -591,7 +614,8 @@ class RecurrentLayer(CustomRecurrentLayer):
             hid_init=hid_init, backwards=backwards, learn_init=learn_init,
             gradient_steps=gradient_steps,
             grad_clipping=grad_clipping, unroll_scan=unroll_scan,
-            precompute_input=precompute_input, mask_input=mask_input, **kwargs)
+            precompute_input=precompute_input, mask_input=mask_input,
+            only_return_final=only_return_final, **kwargs)
 
 
 class Gate(object):
@@ -665,7 +689,7 @@ class LSTMLayer(MergeLayer):
     cell_init=lasagne.init.Constant(0.),
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
     peepholes=True, gradient_steps=-1, grad_clipping=0, unroll_scan=False,
-    precompute_input=True, mask_input=None, **kwargs)
+    precompute_input=True, mask_input=None, only_return_final=False, **kwargs)
 
     A long short-term memory (LSTM) layer.
 
@@ -746,6 +770,10 @@ class LSTMLayer(MergeLayer):
         Layer which allows for a sequence mask to be input, for when sequences
         are of variable length.  Default `None`, which means no mask will be
         supplied (i.e. all sequences are of the same length).
+    only_return_final : bool
+        If True, only return the final sequential output (e.g. for tasks where
+        a single target value for the entire sequence is desired).  In this
+        case, Theano makes an optimization which saves memory.
 
     References
     ----------
@@ -768,6 +796,7 @@ class LSTMLayer(MergeLayer):
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
+                 only_return_final=False,
                  **kwargs):
 
         # This layer inherits from a MergeLayer, because it can have two
@@ -794,6 +823,7 @@ class LSTMLayer(MergeLayer):
         self.grad_clipping = grad_clipping
         self.unroll_scan = unroll_scan
         self.precompute_input = precompute_input
+        self.only_return_final = only_return_final
 
         if unroll_scan and gradient_steps != -1:
             raise ValueError(
@@ -874,7 +904,13 @@ class LSTMLayer(MergeLayer):
         # The shape of the input to this layer will be the first element
         # of input_shapes, whether or not a mask input is being used.
         input_shape = input_shapes[0]
-        return input_shape[0], input_shape[1], self.num_units
+        # When only_return_final is true, the second (sequence step) dimension
+        # will be flattened
+        if self.only_return_final:
+            return input_shape[0], self.num_units
+        # Otherwise, the shape will be (n_batch, n_steps, num_units)
+        else:
+            return input_shape[0], input_shape[1], self.num_units
 
     def get_output_for(self, inputs, **kwargs):
         """
@@ -1053,14 +1089,17 @@ class LSTMLayer(MergeLayer):
                 non_sequences=non_seqs,
                 strict=True)[0]
 
-        # dimshuffle back to (n_batch, n_time_steps, n_features))
-        hid_out = hid_out.dimshuffle(1, 0, 2)
-        cell_out = cell_out.dimshuffle(1, 0, 2)
+        # When it is requested that we only return the final sequence step,
+        # we need to slice it out immediately after scan is applied
+        if self.only_return_final:
+            hid_out = hid_out[-1]
+        else:
+            # dimshuffle back to (n_batch, n_time_steps, n_features))
+            hid_out = hid_out.dimshuffle(1, 0, 2)
 
-        # if scan is backward reverse the output
-        if self.backwards:
-            hid_out = hid_out[:, ::-1]
-            cell_out = cell_out[:, ::-1]
+            # if scan is backward reverse the output
+            if self.backwards:
+                hid_out = hid_out[:, ::-1]
 
         return hid_out
 
@@ -1074,7 +1113,7 @@ class GRULayer(MergeLayer):
     W_cell=None, lasagne.nonlinearities.tanh),
     hid_init=lasagne.init.Constant(0.), backwards=False, learn_init=False,
     gradient_steps=-1, grad_clipping=0, unroll_scan=False,
-    precompute_input=True, mask_input=None, **kwargs)
+    precompute_input=True, mask_input=None, only_return_final=False, **kwargs)
 
     Gated Recurrent Unit (GRU) Layer
 
@@ -1135,6 +1174,10 @@ class GRULayer(MergeLayer):
         Layer which allows for a sequence mask to be input, for when sequences
         are of variable length.  Default `None`, which means no mask will be
         supplied (i.e. all sequences are of the same length).
+    only_return_final : bool
+        If True, only return the final sequential output (e.g. for tasks where
+        a single target value for the entire sequence is desired).  In this
+        case, Theano makes an optimization which saves memory.
 
     References
     ----------
@@ -1170,6 +1213,7 @@ class GRULayer(MergeLayer):
                  unroll_scan=False,
                  precompute_input=True,
                  mask_input=None,
+                 only_return_final=False,
                  **kwargs):
 
         # This layer inherits from a MergeLayer, because it can have two
@@ -1189,6 +1233,7 @@ class GRULayer(MergeLayer):
         self.gradient_steps = gradient_steps
         self.unroll_scan = unroll_scan
         self.precompute_input = precompute_input
+        self.only_return_final = only_return_final
 
         if unroll_scan and gradient_steps != -1:
             raise ValueError(
@@ -1243,7 +1288,13 @@ class GRULayer(MergeLayer):
         # The shape of the input to this layer will be the first element
         # of input_shapes, whether or not a mask input is being used.
         input_shape = input_shapes[0]
-        return input_shape[0], input_shape[1], self.num_units
+        # When only_return_final is true, the second (sequence step) dimension
+        # will be flattened
+        if self.only_return_final:
+            return input_shape[0], self.num_units
+        # Otherwise, the shape will be (n_batch, n_steps, num_units)
+        else:
+            return input_shape[0], input_shape[1], self.num_units
 
     def get_output_for(self, inputs, **kwargs):
         """
@@ -1400,11 +1451,16 @@ class GRULayer(MergeLayer):
                 truncate_gradient=self.gradient_steps,
                 strict=True)[0]
 
-        # dimshuffle back to (n_batch, n_time_steps, n_features))
-        hid_out = hid_out.dimshuffle(1, 0, 2)
+        # When it is requested that we only return the final sequence step,
+        # we need to slice it out immediately after scan is applied
+        if self.only_return_final:
+            hid_out = hid_out[-1]
+        else:
+            # dimshuffle back to (n_batch, n_time_steps, n_features))
+            hid_out = hid_out.dimshuffle(1, 0, 2)
 
-        # if scan is backward reverse the output
-        if self.backwards:
-            hid_out = hid_out[:, ::-1, :]
+            # if scan is backward reverse the output
+            if self.backwards:
+                hid_out = hid_out[:, ::-1]
 
         return hid_out

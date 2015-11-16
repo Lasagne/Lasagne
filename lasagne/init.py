@@ -5,7 +5,8 @@ Examples
 --------
 >>> from lasagne.layers import DenseLayer
 >>> from lasagne.init import Constant, GlorotUniform
->>> l1 = DenseLayer((100,20), num_units=50, W=GlorotUniform(), b=Constant(0.0))
+>>> l1 = DenseLayer((100,20), num_units=50,
+...                 W=GlorotUniform('relu'), b=Constant(0.0))
 """
 
 import numpy as np
@@ -100,9 +101,9 @@ class Uniform(Initializer):
 
 
 class Glorot(Initializer):
-    """Glorot weight initialization [1]_.
+    """Glorot weight initialization.
 
-    This is also known as Xavier initialization.
+    This is also known as Xavier initialization [1]_.
 
     Parameters
     ----------
@@ -111,9 +112,11 @@ class Glorot(Initializer):
         constructor to sample from a distribution with a given standard
         deviation.
     gain : float or 'relu'
-        Scaling factor for the weights. Set this to 1.0 for linear and sigmoid
-        units, to 'relu' or sqrt(2) for rectified linear units. Other transfer
-        functions may need different factors.
+        Scaling factor for the weights. Set this to ``1.0`` for linear and
+        sigmoid units, to 'relu' or ``sqrt(2)`` for rectified linear units, and
+        to ``sqrt(2/(1+alpha**2)`` for leaky rectified linear units with
+        leakiness ``alpha``. Other transfer functions may need different
+        factors.
     c01b : bool
         For a :class:`lasagne.layers.cuda_convnet.Conv2DCCLayer` constructed
         with ``dimshuffle=False``, `c01b` must be set to ``True`` to compute
@@ -128,8 +131,8 @@ class Glorot(Initializer):
 
     Notes
     -----
-    For a :class:`DenseLayer`, if ``gain='relu'`` and ``initializer=Uniform``,
-    the weights are initialized as
+    For a :class:`DenseLayer <lasagne.layers.DenseLayer>`, if ``gain='relu'``
+    and ``initializer=Uniform``, the weights are initialized as
 
     .. math::
        a &= \\sqrt{\\frac{6}{fan_{in}+fan_{out}}}\\\\
@@ -193,10 +196,10 @@ class GlorotUniform(Glorot):
 
 
 class He(Initializer):
-    """He weight initialization [1]_.
+    """He weight initialization.
 
     Weights are initialized with a standard deviation of
-    :math:`\\sigma = gain \\sqrt{\\frac{1}{fan_{in}}}`.
+    :math:`\\sigma = gain \\sqrt{\\frac{1}{fan_{in}}}` [1]_.
 
     Parameters
     ----------
@@ -205,9 +208,11 @@ class He(Initializer):
         constructor to sample from a distribution with a given standard
         deviation.
     gain : float or 'relu'
-        Scaling factor for the weights. Set this to 1.0 for linear and sigmoid
-        units, to 'relu' or sqrt(2) for rectified linear units. Other transfer
-        functions may need different factors.
+        Scaling factor for the weights. Set this to ``1.0`` for linear and
+        sigmoid units, to 'relu' or ``sqrt(2)`` for rectified linear units, and
+        to ``sqrt(2/(1+alpha**2)`` for leaky rectified linear units with
+        leakiness ``alpha``. Other transfer functions may need different
+        factors.
     c01b : bool
         For a :class:`lasagne.layers.cuda_convnet.Conv2DCCLayer` constructed
         with ``dimshuffle=False``, `c01b` must be set to ``True`` to compute
@@ -322,15 +327,25 @@ class Sparse(Initializer):
 class Orthogonal(Initializer):
     """Intialize weights as Orthogonal matrix.
 
-    Orthogonal matrix initialization. For n-dimensional shapes where n > 2,
-    the n-1 trailing axes are flattened. For convolutional layers, this
+    Orthogonal matrix initialization [1]_. For n-dimensional shapes where
+    n > 2, the n-1 trailing axes are flattened. For convolutional layers, this
     corresponds to the fan-in, so this makes the initialization usable for
     both dense and convolutional layers.
 
     Parameters
     ----------
     gain : float or 'relu'
-        'relu' gives gain of sqrt(2).
+        Scaling factor for the weights. Set this to ``1.0`` for linear and
+        sigmoid units, to 'relu' or ``sqrt(2)`` for rectified linear units, and
+        to ``sqrt(2/(1+alpha**2)`` for leaky rectified linear units with
+        leakiness ``alpha``. Other transfer functions may need different
+        factors.
+
+    References
+    ----------
+    .. [1] Saxe, Andrew M., James L. McClelland, and Surya Ganguli.
+           "Exact solutions to the nonlinear dynamics of learning in deep
+           linear neural networks." arXiv preprint arXiv:1312.6120 (2013).
     """
     def __init__(self, gain=1.0):
         if gain == 'relu':

@@ -291,7 +291,7 @@ def multiclass_hinge_loss(predictions, targets, delta=1):
 def binary_accuracy(predictions, targets, threshold=0.5):
     """Computes the binary accuracy between predictions and targets.
 
-    .. math:: L_i = \\mathbb{I}(t_i == p_i)
+    .. math:: L_i = \\mathbb{I}(t_i = \mathbb{I}(p_i \\ge \\alpha))
 
     Parameters
     ----------
@@ -325,7 +325,7 @@ def binary_accuracy(predictions, targets, threshold=0.5):
 def categorical_accuracy(predictions, targets):
     """Computes the categorical accuracy between predictions and targets.
 
-    .. math:: L_i = \\mathbb{I}(t_i == p_i)
+    .. math:: L_i = \\mathbb{I}(t_i = \\operatorname{argmax}_c p_{i,c})
 
     Parameters
     ----------

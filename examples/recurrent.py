@@ -113,30 +113,24 @@ def main(num_epochs=NUM_EPOCHS):
     # We're using a bidirectional network, which means we will combine two
     # RecurrentLayers, one with the backwards=True keyword argument.
     # Setting a value for grad_clipping will clip the gradients in the layer
+    # Setting only_return_final=True makes the layers only return their output
+    # for the final time step, which is all we need for this task
     l_forward = lasagne.layers.RecurrentLayer(
         l_in, N_HIDDEN, mask_input=l_mask, grad_clipping=GRAD_CLIP,
         W_in_to_hid=lasagne.init.HeUniform(),
         W_hid_to_hid=lasagne.init.HeUniform(),
-        nonlinearity=lasagne.nonlinearities.tanh)
+        nonlinearity=lasagne.nonlinearities.tanh, only_return_final=True)
     l_backward = lasagne.layers.RecurrentLayer(
         l_in, N_HIDDEN, mask_input=l_mask, grad_clipping=GRAD_CLIP,
         W_in_to_hid=lasagne.init.HeUniform(),
         W_hid_to_hid=lasagne.init.HeUniform(),
-        nonlinearity=lasagne.nonlinearities.tanh, backwards=True)
-    # The objective of this task depends only on the final value produced by
-    # the network.  So, we'll use SliceLayers to extract the LSTM layer's
-    # output after processing the entire input sequence.  For the forward
-    # layer, this corresponds to the last value of the second (sequence length)
-    # dimension.
-    l_forward_slice = lasagne.layers.SliceLayer(l_forward, -1, 1)
-    # For the backwards layer, the first index actually corresponds to the
-    # final output of the network, as it processes the sequence backwards.
-    l_backward_slice = lasagne.layers.SliceLayer(l_backward, 0, 1)
+        nonlinearity=lasagne.nonlinearities.tanh,
+        only_return_final=True, backwards=True)
     # Now, we'll concatenate the outputs to combine them.
-    l_sum = lasagne.layers.ConcatLayer([l_forward_slice, l_backward_slice])
+    l_concat = lasagne.layers.ConcatLayer([l_forward, l_backward])
     # Our output layer is a simple dense connection, with 1 output unit
     l_out = lasagne.layers.DenseLayer(
-        l_sum, num_units=1, nonlinearity=lasagne.nonlinearities.tanh)
+        l_concat, num_units=1, nonlinearity=lasagne.nonlinearities.tanh)
 
     target_values = T.vector('target_output')
 

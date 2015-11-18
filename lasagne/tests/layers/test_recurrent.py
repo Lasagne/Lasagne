@@ -318,6 +318,26 @@ def test_recurrent_precompute():
     np.testing.assert_almost_equal(output_precompute, output_no_precompute)
 
 
+def test_recurrent_return_final():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 2
+    in_shp = (num_batch, seq_len, n_features)
+    x_in = np.random.random(in_shp).astype('float32')
+
+    l_inp = InputLayer(in_shp)
+    lasagne.random.get_rng().seed(1234)
+    l_rec_final = RecurrentLayer(l_inp, num_units, only_return_final=True)
+    lasagne.random.get_rng().seed(1234)
+    l_rec_all = RecurrentLayer(l_inp, num_units, only_return_final=False)
+
+    output_final = helper.get_output(l_rec_final).eval({l_inp.input_var: x_in})
+    output_all = helper.get_output(l_rec_all).eval({l_inp.input_var: x_in})
+
+    assert output_final.shape == (output_all.shape[0], output_all.shape[2])
+    assert output_final.shape == lasagne.layers.get_output_shape(l_rec_final)
+    assert np.allclose(output_final, output_all[:, -1])
+
+
 def test_lstm_return_shape():
     num_batch, seq_len, n_features1, n_features2 = 5, 3, 10, 11
     num_units = 6
@@ -574,6 +594,26 @@ def test_lstm_passthrough():
     np.testing.assert_almost_equal(out.eval({l_in.input_var: inp}), inp)
 
 
+def test_lstm_return_final():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 2
+    in_shp = (num_batch, seq_len, n_features)
+    x_in = np.random.random(in_shp).astype('float32')
+
+    l_inp = InputLayer(in_shp)
+    lasagne.random.get_rng().seed(1234)
+    l_rec_final = LSTMLayer(l_inp, num_units, only_return_final=True)
+    lasagne.random.get_rng().seed(1234)
+    l_rec_all = LSTMLayer(l_inp, num_units, only_return_final=False)
+
+    output_final = helper.get_output(l_rec_final).eval({l_inp.input_var: x_in})
+    output_all = helper.get_output(l_rec_all).eval({l_inp.input_var: x_in})
+
+    assert output_final.shape == (output_all.shape[0], output_all.shape[2])
+    assert output_final.shape == lasagne.layers.get_output_shape(l_rec_final)
+    assert np.allclose(output_final, output_all[:, -1])
+
+
 def test_gru_return_shape():
     num_batch, seq_len, n_features1, n_features2 = 5, 3, 10, 11
     num_units = 6
@@ -806,6 +846,26 @@ def test_gru_passthrough():
     out = lasagne.layers.get_output(l_rec)
     inp = np.arange(4*5*6).reshape(4, 5, 6).astype(theano.config.floatX)
     np.testing.assert_almost_equal(out.eval({l_in.input_var: inp}), inp)
+
+
+def test_gru_return_final():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 2
+    in_shp = (num_batch, seq_len, n_features)
+    x_in = np.random.random(in_shp).astype('float32')
+
+    l_inp = InputLayer(in_shp)
+    lasagne.random.get_rng().seed(1234)
+    l_rec_final = GRULayer(l_inp, num_units, only_return_final=True)
+    lasagne.random.get_rng().seed(1234)
+    l_rec_all = GRULayer(l_inp, num_units, only_return_final=False)
+
+    output_final = helper.get_output(l_rec_final).eval({l_inp.input_var: x_in})
+    output_all = helper.get_output(l_rec_all).eval({l_inp.input_var: x_in})
+
+    assert output_final.shape == (output_all.shape[0], output_all.shape[2])
+    assert output_final.shape == lasagne.layers.get_output_shape(l_rec_final)
+    assert np.allclose(output_final, output_all[:, -1])
 
 
 def test_gradient_steps_error():

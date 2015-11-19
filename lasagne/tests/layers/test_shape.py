@@ -67,6 +67,9 @@ class TestPadLayer:
         [(3, (2, 3, 4, 5), (2, 3, 10, 11)),
          ((2, 3), (2, 3, 4, 5), (2, 3, 8, 11)),
          (((1, 2), (3, 4)), (2, 3, 4, 5), (2, 3, 7, 12)),
+         (3, (2, 3, None, 5), (2, 3, None, 11)),
+         ((2, 3), (2, 3, 4, None), (2, 3, 8, None)),
+         (((1, 2), (3, 4)), (None, 3, None, None), (None, 3, None, None)),
          ])
     def test_get_output_shape_for(self, layerclass,
                                   width, input_shape, output_shape):

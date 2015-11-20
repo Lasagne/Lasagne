@@ -1,3 +1,5 @@
+import numpy as np
+
 """
 Provides some minimal help with building loss expressions for training or
 validating a neural network.
@@ -76,8 +78,6 @@ This gives a loss expression good for monitoring validation error.
 """
 
 import theano.tensor.nnet
-
-from lasagne.layers import get_output
 
 __all__ = [
     "binary_crossentropy",
@@ -358,3 +358,83 @@ def categorical_accuracy(predictions, targets):
     predictions = theano.tensor.argmax(predictions, axis=predictions.ndim-1)
 
     return theano.tensor.eq(predictions, targets)
+
+
+def kl_divergence(p_params, q_params, p_type='gaussian',  q_type='gaussian'):
+    """
+    Calculates the analytical KL Divergence of Q from P KL(P||Q)
+    The parameters should be provided as 2D Tensor of size (batch_size, dim)
+
+    Parameters
+    ----------
+    p_params : list or tuple
+        The expressions for the parameters of the P distribution
+
+    q_params : list or tuple
+        The expressions for the parameters of the Q distribution
+
+    p_type : currently 'gaussian' only
+        The type of distribution that P is. This will determine how many
+        parameters to expect in p_params
+
+    q_type : currently 'gaussian' only
+        The type of distribution that Q is. This will determine how many
+        parameters to expect in q_params
+
+    Returns
+    -------
+    Theano 1D tensor
+        An expression for the row wise calculation of the KL divergence
+
+    Notes
+    ------
+    Currently only support Gaussian distribution with diagonal covariance
+
+    """
+    if p_type == 'gaussian' and q_type == 'gaussian':
+        if len(p_params) != 2 or len(q_params) != 2:
+            raise ValueError("Gaussian Distribution expects two parameters")
+        p_mean, p_sigma = p_params
+        q_mean, q_sigma = q_params
+
+        if isinstance(p_mean, (int, long, float)):
+            p_mean = np.array(p_mean)
+        if isinstance(q_mean, (int, long, float)):
+            q_mean = np.array(q_mean)
+        if isinstance(p_sigma, (int, long, float)):
+            p_sigma = np.array(p_sigma)
+        if isinstance(q_sigma, (int, long, float)):
+            q_sigma = np.array(q_sigma)
+
+        if p_mean.ndim < 2 and q_mean.ndim < 2:
+            raise ValueError("Expecting at least one of the means to be of two dimensions")
+
+        mu = p_mean - q_mean
+        # -1
+        kl = - mu.shape[1]
+        # log|Sigma_q|
+        if q_sigma.ndim < 2:
+            kl += mu.shape[1] * theano.tensor.log(q_sigma)
+        elif q_sigma.ndim == 2:
+            kl += theano.tensor.log(q_sigma).sum(axis=1)
+        else:
+            raise ValueError("Not implemented")
+        # mu^T Sigma_q^-1 mu
+        kl += (theano.tensor.sqr(mu) / q_sigma).sum(axis=1)
+
+        # -log|Sigma_p|
+        if p_sigma.ndim < 2:
+            kl -= mu.shape[1] * theano.tensor.log(p_sigma)
+        elif p_sigma.ndim == 2:
+            kl -= theano.tensor.log(p_sigma).sum(axis=1)
+        else:
+            raise ValueError("Not implemented")
+
+        # Trace(Sigma_p Sigma_q^-1)
+        if p_sigma.ndim < 2 and q_sigma.ndim < 2:
+            kl += mu.shape[1] * p_sigma / q_sigma
+        else:
+            kl += (p_sigma / q_sigma).sum(axis=1)
+    else:
+        raise ValueError("Unrecognized or unimplemented distribution types")
+    return kl / 2

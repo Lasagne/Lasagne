@@ -32,6 +32,9 @@ class TestUpdateFunctions(object):
                     'adam': [0.90034972009036,
                              0.90034967993061,
                              0.90034966654402],
+                    'adamax': [0.90211749000754,
+                               0.90211748762402,
+                               0.90211748682951],
                     }
 
     def f(self, X):
@@ -45,6 +48,7 @@ class TestUpdateFunctions(object):
         ['rmsprop', {'learning_rate': 0.01}],
         ['adadelta', {}],
         ['adam', {'learning_rate': 0.01}],
+        ['adamax', {'learning_rate': 0.01}],
         ])
     def test_updates(self, method, kwargs):
         A = theano.shared(lasagne.utils.floatX([1, 1, 1]))

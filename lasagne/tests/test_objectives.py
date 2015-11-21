@@ -192,16 +192,39 @@ def test_categorical_accuracy():
     c = categorical_accuracy(p, t)
     # numeric version
     floatX = theano.config.floatX
-    predictions = np.random.rand(10, 20).astype(floatX)
+    predictions = np.random.rand(100, 5).astype(floatX)
     cls_predictions = np.argmax(predictions, axis=1)
-    targets = np.random.random_integers(0, 19, (10,)).astype("int8")
+    targets = np.random.random_integers(0, 4, (100,)).astype("int8")
     accuracy = cls_predictions == targets
+    # compare
+    assert np.allclose(accuracy, c.eval({p: predictions, t: targets}))
+    one_hot = np.zeros((100, 5)).astype("int8")
+    one_hot[np.arange(100), targets] = 1
+    t = theano.tensor.imatrix('t')
+    c = categorical_accuracy(p, t)
+    assert np.allclose(accuracy, c.eval({p: predictions, t: one_hot}))
+
+
+def test_categorical_accuracy_top_k():
+    from lasagne.objectives import categorical_accuracy
+    p = theano.tensor.matrix('p')
+    t = theano.tensor.ivector('t')
+    top_k = 4
+    c = categorical_accuracy(p, t, top_k=top_k)
+    # numeric version
+    floatX = theano.config.floatX
+    predictions = np.random.rand(10, 20).astype(floatX)
+    cls_predictions = np.argsort(predictions, axis=1).astype("int8")
+    # (construct targets such that top-1 to top-10 predictions are in there)
+    targets = cls_predictions[np.arange(10), -np.random.permutation(10)]
+    top_predictions = cls_predictions[:, -top_k:]
+    accuracy = np.any(top_predictions == targets[:, np.newaxis], axis=1)
     # compare
     assert np.allclose(accuracy, c.eval({p: predictions, t: targets}))
     one_hot = np.zeros((10, 20)).astype("int8")
     one_hot[np.arange(10), targets] = 1
     t = theano.tensor.imatrix('t')
-    c = categorical_accuracy(p, t)
+    c = categorical_accuracy(p, t, top_k=top_k)
     assert np.allclose(accuracy, c.eval({p: predictions, t: one_hot}))
 
 

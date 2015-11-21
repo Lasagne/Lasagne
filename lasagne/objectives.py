@@ -291,7 +291,7 @@ def multiclass_hinge_loss(predictions, targets, delta=1):
 def binary_accuracy(predictions, targets, threshold=0.5):
     """Computes the binary accuracy between predictions and targets.
 
-    .. math:: L_i = \\mathbb{I}(t_i == p_i)
+    .. math:: L_i = \\mathbb{I}(t_i = \mathbb{I}(p_i \\ge \\alpha))
 
     Parameters
     ----------
@@ -322,10 +322,15 @@ def binary_accuracy(predictions, targets, threshold=0.5):
     return theano.tensor.eq(predictions, targets)
 
 
-def categorical_accuracy(predictions, targets):
+def categorical_accuracy(predictions, targets, top_k=1):
     """Computes the categorical accuracy between predictions and targets.
 
-    .. math:: L_i = \\mathbb{I}(t_i == p_i)
+    .. math:: L_i = \\mathbb{I}(t_i = \\operatorname{argmax}_c p_{i,c})
+
+    Can be relaxed to allow matches among the top :math:`k` predictions:
+
+    .. math::
+        L_i = \\mathbb{I}(t_i \\in \\operatorname{argsort}_c (-p_{i,c})_{:k})
 
     Parameters
     ----------
@@ -336,6 +341,10 @@ def categorical_accuracy(predictions, targets):
         Either a vector of int giving the correct class index per data point
         or a 2D tensor of 1 hot encoding of the correct class in the same
         layout as predictions
+    top_k : int
+        Regard a prediction to be correct if the target class is among the
+        `top_k` largest class probabilities. For the default value of 1, a
+        prediction is correct only if the target class is the most probable.
 
     Returns
     -------
@@ -352,9 +361,19 @@ def categorical_accuracy(predictions, targets):
     result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
     """
     if targets.ndim == predictions.ndim:
-        targets = theano.tensor.argmax(targets, axis=targets.ndim-1)
+        targets = theano.tensor.argmax(targets, axis=-1)
     elif targets.ndim != predictions.ndim - 1:
         raise TypeError('rank mismatch between targets and predictions')
-    predictions = theano.tensor.argmax(predictions, axis=predictions.ndim-1)
 
-    return theano.tensor.eq(predictions, targets)
+    if top_k == 1:
+        # standard categorical accuracy
+        top = theano.tensor.argmax(predictions, axis=-1)
+        return theano.tensor.eq(top, targets)
+    else:
+        # top-k accuracy
+        top = theano.tensor.argsort(predictions, axis=-1)
+        # (Theano cannot index with [..., -top_k:], we need to simulate that)
+        top = top[[slice(None) for _ in range(top.ndim - 1)] +
+                  [slice(-top_k, None)]]
+        targets = theano.tensor.shape_padaxis(targets, axis=-1)
+        return theano.tensor.any(theano.tensor.eq(top, targets), axis=-1)

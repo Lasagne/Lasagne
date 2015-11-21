@@ -7,120 +7,117 @@ import lasagne
 from lasagne.utils import floatX, as_tuple
 
 
-def conv2d(input, kernel, pad):
-    """Execute a 2D convolution.
+def convNd(input, kernel, pad, stride=1, n=None):
+    """Execute a batch of a stack of N-dimensional convolutions.
 
     Parameters
     ----------
     input : numpy array
     kernel : numpy array
-    pad : {0, 'valid', 'same', 'full'}
+    pad : {0, 'valid', 'same', 'full'}, int or tuple of int
+    stride : int or tuple of int
+    n : int
 
     Returns
     -------
     numpy array
     """
+    if n is None:
+        n = input.ndim - 2
     if pad not in ['valid', 'same', 'full']:
-        pad = as_tuple(pad, 2, int)
-        input = np.pad(input,
-                       ((0, 0), (0, 0), (pad[0], pad[0]), (pad[1], pad[1])),
-                       mode='constant')
+        pad = as_tuple(pad, n, int)
+        input = np.pad(input, [(p, p) for p in (0, 0) + pad], mode='constant')
         pad = 'valid'
 
-    output = np.zeros((input.shape[0],
-                       kernel.shape[0],
-                       input.shape[2] + kernel.shape[2] - 1,
-                       input.shape[3] + kernel.shape[3] - 1,
-                       ))
+    output = np.zeros((input.shape[0], kernel.shape[0]) +
+                      tuple(i + k - 1 for i, k in zip(input.shape[2:],
+                                                      kernel.shape[2:])))
 
-    for i in range(kernel.shape[2]):
-        for j in range(kernel.shape[3]):
-            k = kernel[:, :, i, j][:, :, np.newaxis, np.newaxis]
-            output[:, :, i:i + input.shape[2],
-                   j:j + input.shape[3]] += (input[:, np.newaxis] * k).sum(2)
+    if n == 1:
+        for i in range(kernel.shape[2]):
+            f = kernel[:, :, i:i+1]
+            c = (input[:, np.newaxis] * f).sum(axis=2)
+            output[:, :,
+                   i:i + input.shape[2]] += c
+    elif n == 2:
+        for i in range(kernel.shape[2]):
+            for j in range(kernel.shape[3]):
+                f = kernel[:, :, i:i+1, j:j+1]
+                c = (input[:, np.newaxis] * f).sum(axis=2)
+                output[:, :,
+                       i:i + input.shape[2],
+                       j:j + input.shape[3]] += c
+    elif n == 3:
+        for i in range(kernel.shape[2]):
+            for j in range(kernel.shape[3]):
+                for k in range(kernel.shape[4]):
+                    f = kernel[:, :, i:i+1, j:j+1, k:k+1]
+                    c = (input[:, np.newaxis] * f).sum(axis=2)
+                    output[:, :,
+                           i:i + input.shape[2],
+                           j:j + input.shape[3],
+                           k:k + input.shape[4]] += c
+    else:
+        raise NotImplementedError("convNd() only supports n in (1, 2, 3)")
 
     if pad == 'valid':
-        trim = (kernel.shape[2] - 1, kernel.shape[3] - 1)
-        output = output[:,
-                        :,
-                        trim[0]:-trim[0] or None,
-                        trim[1]:-trim[1] or None]
-
+        trim = tuple(k - 1 for k in kernel.shape[2:])
+        slices = [slice(None), slice(None)]
+        slices += [slice(t, -t or None) for t in trim]
+        output = output[slices]
     elif pad == 'same':
-        shift_x = (kernel.shape[2] - 1) // 2
-        shift_y = (kernel.shape[3] - 1) // 2
-        output = output[:, :, shift_x:input.shape[2] + shift_x,
-                        shift_y:input.shape[3] + shift_y]
+        shift = tuple((k - 1) // 2 for k in kernel.shape[2:])
+        slices = [slice(None), slice(None)]
+        slices += [slice(s, s + i) for s, i in zip(shift, input.shape[2:])]
+        output = output[slices]
+
+    stride = as_tuple(stride, n, int)
+    if any(s > 1 for s in stride):
+        slices = [slice(None), slice(None)]
+        slices += [slice(None, None, s) for s in stride]
+        output = output[slices]
+
     return output
 
 
-def conv2d_test_sets():
+def convNd_test_sets(n, pads=(0,)):
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
-    for pad in [0, 'full', 'same']:
-        for stride in [1, 2, 3]:
-            for filter_size in [1, 3]:
+    extra_shape = (11, 16, 23)
+    input_shape = (3, 1) + extra_shape[-n:]
+
+    for pad in pads + ('full', 'same'):
+        for stride in (1, 2, 3):
+            for filter_size in (1, 3):
                 if stride > filter_size:
                     continue
-                input = np.random.random((3, 1, 16, 23))
-                kernel = np.random.random((16, 1, filter_size, filter_size))
-                output = conv2d(input, kernel, pad=pad)
-                output = output[:, :, ::stride, ::stride]
-                yield _convert(input, kernel, output, {'pad': pad,
-                                                       'stride': stride
-                                                       })
-
-    # bias-less case
-    input = np.random.random((3, 1, 16, 23))
-    kernel = np.random.random((16, 1, 3, 3))
-    output = conv2d(input, kernel, pad='valid')
-    yield _convert(input, kernel, output, {'b': None})
-    # pad='valid' case
-    yield _convert(input, kernel, output, {'pad': 'valid'})
-
-
-def conv1d(input, kernel, pad):
-    if pad not in ['valid', 'same', 'full']:
-        input = np.pad(input,
-                       ((0, 0), (0, 0), (int(pad), int(pad))),
-                       mode='constant')
-        pad = 'valid'
-
-    output = []
-    for b in input:
-        temp = []
-        for c in kernel:
-            temp.append(
-                np.convolve(b[0, :], c[0, :], mode=pad))
-        output.append(temp)
-    return np.array(output)
-
-
-def conv1d_test_sets():
-    def _convert(input, kernel, output, kwargs):
-        return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
-
-    for pad in [0, 1, 2, 'full', 'same']:
-        for stride in [1, 2, 3]:
-            for filter_size in [1, 3]:
-                if stride > filter_size:
-                    continue
-                input = np.random.random((3, 1, 23))
-                kernel = np.random.random((16, 1, filter_size))
-                output = conv1d(input, kernel, pad)
-                output = output[:, :, ::stride]
+                input = np.random.random(input_shape)
+                kernel = np.random.random((16, 1) + (filter_size,) * n)
+                output = convNd(input, kernel, pad, stride, n=n)
                 yield _convert(input, kernel, output, {'pad': pad,
                                                        'stride': stride,
                                                        })
 
     # bias-less case
-    input = np.random.random((3, 1, 23))
-    kernel = np.random.random((16, 1, 3))
-    output = conv1d(input, kernel, pad='valid')
+    input = np.random.random(input_shape)
+    kernel = np.random.random((16, 1) + (3,) * n)
+    output = convNd(input, kernel, pad='valid')
     yield _convert(input, kernel, output, {'b': None})
     # pad='valid' case
     yield _convert(input, kernel, output, {'pad': 'valid'})
+
+
+def conv3d_test_sets():
+    return convNd_test_sets(3)
+
+
+def conv2d_test_sets():
+    return convNd_test_sets(2)
+
+
+def conv1d_test_sets():
+    return convNd_test_sets(1, pads=(0, 1, 2))
 
 
 def test_conv_output_length():
@@ -287,7 +284,7 @@ class TestConv2DLayerImplementations:
         assert layer.b is None
 
     def test_invalid_pad(self, Conv2DImpl, DummyInputLayer):
-        input_layer = DummyInputLayer((1, 2, 3))
+        input_layer = DummyInputLayer((1, 2, 3, 3))
         with pytest.raises(TypeError) as exc:
             layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3),
                                pad='_nonexistent_mode')
@@ -301,6 +298,117 @@ class TestConv2DLayerImplementations:
     def test_get_params(self, Conv2DImpl, DummyInputLayer):
         input_layer = DummyInputLayer((128, 3, 32, 32))
         layer = Conv2DImpl(input_layer, num_filters=16, filter_size=(3, 3))
+        assert layer.get_params() == [layer.W, layer.b]
+        assert layer.get_params(regularizable=False) == [layer.b]
+        assert layer.get_params(regularizable=True) == [layer.W]
+        assert layer.get_params(trainable=True) == [layer.W, layer.b]
+        assert layer.get_params(trainable=False) == []
+        assert layer.get_params(_nonexistent_tag=True) == []
+        assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
+
+
+class TestConv3DLayerImplementations:
+
+    @pytest.fixture(
+        params=[
+            ('lasagne.layers.dnn', 'Conv3DDNNLayer', {'flip_filters': True}),
+        ],
+    )
+    def Conv3DImpl(self, request):
+        impl_module_name, impl_name, impl_default_kwargs = request.param
+        try:
+            mod = importlib.import_module(impl_module_name)
+        except ImportError:
+            pytest.skip("{} not available".format(impl_module_name))
+
+        impl = getattr(mod, impl_name)
+
+        def wrapper(*args, **kwargs):
+            kwargs2 = impl_default_kwargs.copy()
+            kwargs2.update(kwargs)
+            return impl(*args, **kwargs2)
+
+        wrapper.__name__ = impl_name
+        return wrapper
+
+    @pytest.mark.parametrize(
+        "input, kernel, output, kwargs", list(conv3d_test_sets()))
+    @pytest.mark.parametrize("extra_kwargs", [
+        {},
+        {'untie_biases': True},
+    ])
+    def test_defaults(self, Conv3DImpl, DummyInputLayer,
+                      input, kernel, output, kwargs, extra_kwargs):
+        kwargs.update(extra_kwargs)
+        b, c, h, w, d = input.shape.eval()
+        input_layer = DummyInputLayer((b, c, h, w, d))
+        try:
+            layer = Conv3DImpl(
+                input_layer,
+                num_filters=kernel.shape[0],
+                filter_size=kernel.shape[2:],
+                W=kernel,
+                **kwargs
+            )
+            actual = layer.get_output_for(input).eval()
+            assert actual.shape == output.shape
+            assert actual.shape == layer.output_shape
+            assert np.allclose(actual, output)
+
+        except NotImplementedError:
+            pytest.skip()
+
+    @pytest.mark.parametrize(
+        "input, kernel, output, kwargs", list(conv3d_test_sets()))
+    def test_with_nones(self, Conv3DImpl, DummyInputLayer,
+                        input, kernel, output, kwargs):
+        b, c, h, w, d = input.shape.eval()
+        input_layer = DummyInputLayer((None, c, None, None, None))
+        try:
+            layer = Conv3DImpl(
+                input_layer,
+                num_filters=kernel.shape[0],
+                filter_size=kernel.shape[2:],
+                W=kernel,
+                **kwargs
+            )
+            actual = layer.get_output_for(input).eval()
+
+            assert layer.output_shape == (None,
+                                          kernel.shape[0],
+                                          None,
+                                          None,
+                                          None)
+            assert actual.shape == output.shape
+            assert np.allclose(actual, output)
+
+        except NotImplementedError:
+            pytest.skip()
+
+    def test_init_none_nonlinearity_bias(self, Conv3DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((1, 2, 3, 3, 3))
+        layer = Conv3DImpl(input_layer, num_filters=16, filter_size=(3, 3, 3),
+                           nonlinearity=None, b=None)
+        assert layer.nonlinearity == lasagne.nonlinearities.identity
+        assert layer.b is None
+
+    def test_invalid_pad(self, Conv3DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((1, 2, 3, 3, 3))
+        with pytest.raises(TypeError) as exc:
+            layer = Conv3DImpl(input_layer, num_filters=16,
+                               filter_size=(3, 3, 3),
+                               pad='_nonexistent_mode')
+        assert "iterable of int" in exc.value.args[0]
+
+        with pytest.raises(NotImplementedError) as exc:
+            layer = Conv3DImpl(input_layer, num_filters=16,
+                               filter_size=(4, 4, 4),
+                               pad='same')
+        assert "requires odd filter size" in exc.value.args[0]
+
+    def test_get_params(self, Conv3DImpl, DummyInputLayer):
+        input_layer = DummyInputLayer((128, 3, 32, 32, 32))
+        layer = Conv3DImpl(input_layer, num_filters=16, filter_size=(3, 3, 3))
         assert layer.get_params() == [layer.W, layer.b]
         assert layer.get_params(regularizable=False) == [layer.b]
         assert layer.get_params(regularizable=True) == [layer.W]

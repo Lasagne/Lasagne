@@ -187,6 +187,7 @@
     :nosignatures:
 
     dnn.Conv2DDNNLayer
+    dnn.Conv3DDNNLayer
     dnn.MaxPool2DDNNLayer
     dnn.Pool2DDNNLayer
 

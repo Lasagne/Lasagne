@@ -322,11 +322,14 @@ class PadLayer(Layer):
             widths = self.width
 
         for k, w in enumerate(widths):
-            try:
-                l, r = w
-            except TypeError:
-                l = r = w
-            output_shape[k + self.batch_ndim] += l + r
+            if output_shape[k + self.batch_ndim] is None:
+                continue
+            else:
+                try:
+                    l, r = w
+                except TypeError:
+                    l = r = w
+                output_shape[k + self.batch_ndim] += l + r
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):

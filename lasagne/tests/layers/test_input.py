@@ -31,3 +31,11 @@ class TestInputLayer:
 
         with pytest.raises(ValueError):
             InputLayer((3, 2), input_var)
+
+    def test_nonpositive_input_dims_raises_value_error(self):
+        from lasagne.layers import InputLayer
+        with pytest.raises(ValueError):
+            InputLayer(shape=(None, -1, -1))
+        with pytest.raises(ValueError):
+            InputLayer(shape=(None, 0, 0))
+        InputLayer(shape=(None, 1, 1))

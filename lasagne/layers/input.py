@@ -49,6 +49,12 @@ class InputLayer(Layer):
     """
     def __init__(self, shape, input_var=None, name=None, **kwargs):
         self.shape = shape
+        if any(d is not None and d <= 0 for d in self.shape):
+            raise ValueError((
+                "Cannot create InputLayer with a non-positive shape "
+                "dimension. shape=%r, self.name=%r") % (
+                    self.shape, name))
+
         ndim = len(shape)
         if input_var is None:
             # create the right TensorType for the given number of dimensions

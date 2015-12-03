@@ -135,7 +135,7 @@ class Glorot(Initializer):
     and ``initializer=Uniform``, the weights are initialized as
 
     .. math::
-       a &= \\sqrt{\\frac{6}{fan_{in}+fan_{out}}}\\\\
+       a &= \\sqrt{\\frac{12}{fan_{in}+fan_{out}}}\\\\
        W &\sim U[-a, a]
 
     If ``gain=1`` and ``initializer=Normal``, the weights are initialized as

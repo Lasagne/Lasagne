@@ -297,8 +297,8 @@ def nesterov_momentum(loss_or_grads, params, learning_rate, momentum=0.9):
 
     Generates update expressions of the form:
 
-    * ``velocity := momentum * velocity + updates[param] - param``
-    * ``param := param + momentum * velocity + updates[param] - param``
+    * ``velocity := momentum * velocity - learning_rate * gradient``
+    * ``param := param + momentum * velocity - learning_rate * gradient``
 
     Parameters
     ----------

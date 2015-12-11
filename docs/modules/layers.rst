@@ -157,6 +157,8 @@
     TransformerLayer
     ParametricRectifierLayer
     prelu
+    RandomizedRectifierLayer
+    rrelu
 
 
 .. rubric:: :doc:`layers/corrmm`

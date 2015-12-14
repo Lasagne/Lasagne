@@ -889,7 +889,7 @@ class LSTMLayer(MergeLayer):
                 cell_init, (1, num_units), name="cell_init",
                 trainable=learn_init, regularizable=False)
 
-        if isinstance(hid_init, T.TensorVariable):
+        if isinstance(hid_init, theano.Variable):
             if hid_init.ndim != 2:
                 raise ValueError(
                     "When hid_init is provided as a TensorVariable, it should "
@@ -1047,7 +1047,7 @@ class LSTMLayer(MergeLayer):
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             cell_init = T.dot(ones, self.cell_init)
 
-        if isinstance(self.hid_init, T.TensorVariable):
+        if isinstance(self.hid_init, theano.Variable):
             hid_init = self.hid_init
         else:
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)

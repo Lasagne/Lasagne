@@ -25,3 +25,8 @@ Special-purpose layers
 
 .. autofunction:: prelu
 
+.. autoclass:: RandomizedRectifierLayer
+    :members:
+
+.. autofunction:: rrelu
+

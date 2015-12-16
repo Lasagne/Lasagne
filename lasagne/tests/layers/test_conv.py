@@ -157,6 +157,15 @@ class TestBaseConvLayer:
         with pytest.raises(NotImplementedError):
             layer.convolve(theano.tensor.tensor3())
 
+    def test_fail_on_mismatching_dimensionality(self):
+        from lasagne.layers.conv import BaseConvLayer
+        with pytest.raises(ValueError) as exc:
+            BaseConvLayer((10, 20, 30), 1, 3, n=2)
+        assert "Expected 4 input dimensions" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            BaseConvLayer((10, 20, 30, 40), 1, 3, n=1)
+        assert "Expected 3 input dimensions" in exc.value.args[0]
+
 
 class TestConv1DLayer:
 

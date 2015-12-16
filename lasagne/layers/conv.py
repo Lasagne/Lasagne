@@ -192,6 +192,11 @@ class BaseConvLayer(Layer):
 
         if n is None:
             n = len(self.input_shape) - 2
+        elif n != len(self.input_shape) - 2:
+            raise ValueError("Tried to create a %dD convolution layer with "
+                             "input shape %r. Expected %d input dimensions "
+                             "(batchsize, channels, %d spatial dimensions)." %
+                             (n, self.input_shape, n+2, n))
         self.n = n
         self.num_filters = num_filters
         self.filter_size = as_tuple(filter_size, n, int)

@@ -142,6 +142,22 @@ def DummyInputLayer():
     return factory
 
 
+class TestBaseConvLayer:
+
+    def test_infer_dimensionality(self):
+        from lasagne.layers.conv import BaseConvLayer
+        shape = (10, 20, 30, 40, 50, 60)
+        for n in range(1, 4):
+            layer = BaseConvLayer(shape[:n+2], 1, 3)
+            assert layer.n == n
+
+    def test_convolve_not_implemented(self):
+        from lasagne.layers.conv import BaseConvLayer
+        layer = BaseConvLayer((10, 20, 30), 1, 3)
+        with pytest.raises(NotImplementedError):
+            layer.convolve(theano.tensor.tensor3())
+
+
 class TestConv1DLayer:
 
     @pytest.mark.parametrize(

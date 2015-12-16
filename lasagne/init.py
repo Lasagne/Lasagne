@@ -114,7 +114,7 @@ class Glorot(Initializer):
     gain : float or 'relu'
         Scaling factor for the weights. Set this to ``1.0`` for linear and
         sigmoid units, to 'relu' or ``sqrt(2)`` for rectified linear units, and
-        to ``sqrt(2/(1+alpha**2)`` for leaky rectified linear units with
+        to ``sqrt(2/(1+alpha**2))`` for leaky rectified linear units with
         leakiness ``alpha``. Other transfer functions may need different
         factors.
     c01b : bool
@@ -210,7 +210,7 @@ class He(Initializer):
     gain : float or 'relu'
         Scaling factor for the weights. Set this to ``1.0`` for linear and
         sigmoid units, to 'relu' or ``sqrt(2)`` for rectified linear units, and
-        to ``sqrt(2/(1+alpha**2)`` for leaky rectified linear units with
+        to ``sqrt(2/(1+alpha**2))`` for leaky rectified linear units with
         leakiness ``alpha``. Other transfer functions may need different
         factors.
     c01b : bool
@@ -337,7 +337,7 @@ class Orthogonal(Initializer):
     gain : float or 'relu'
         Scaling factor for the weights. Set this to ``1.0`` for linear and
         sigmoid units, to 'relu' or ``sqrt(2)`` for rectified linear units, and
-        to ``sqrt(2/(1+alpha**2)`` for leaky rectified linear units with
+        to ``sqrt(2/(1+alpha**2))`` for leaky rectified linear units with
         leakiness ``alpha``. Other transfer functions may need different
         factors.
 

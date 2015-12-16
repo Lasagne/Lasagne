@@ -225,12 +225,6 @@ class Conv2DDNNLayer(BaseConvLayer):
 
     b : Theano shared variable or expression
         Variable or expression representing the biases.
-
-    Notes
-    -----
-    Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    ``pad='same'``. It is not emulated. This should result in better
-    performance.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  pad=0, untie_biases=False, W=init.GlorotUniform(),
@@ -239,8 +233,7 @@ class Conv2DDNNLayer(BaseConvLayer):
         super(Conv2DDNNLayer, self).__init__(incoming, num_filters,
                                              filter_size, stride, pad,
                                              untie_biases, W, b, nonlinearity,
-                                             n=2, **kwargs)
-        self.flip_filters = flip_filters
+                                             flip_filters, n=2, **kwargs)
 
     def convolve(self, input, **kwargs):
         # by default we assume 'cross', consistent with corrmm.
@@ -365,8 +358,7 @@ class Conv3DDNNLayer(BaseConvLayer):
         super(Conv3DDNNLayer, self).__init__(incoming, num_filters,
                                              filter_size, stride, pad,
                                              untie_biases, W, b, nonlinearity,
-                                             n=3, **kwargs)
-        self.flip_filters = flip_filters
+                                             flip_filters, n=3, **kwargs)
 
     def convolve(self, input, **kwargs):
         # by default we assume 'cross', consistent with corrmm.

@@ -85,7 +85,7 @@ class BaseConvLayer(Layer):
     lasagne.layers.BaseConvLayer(incoming, num_filters, filter_size,
     stride=1, pad=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
-    nonlinearity=lasagne.nonlinearities.rectify,
+    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=True,
     n=None, **kwargs)
 
     Convolutional layer base class
@@ -163,6 +163,13 @@ class BaseConvLayer(Layer):
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
+    flip_filters : bool (default: True)
+        Whether to flip the filters before sliding them over the input,
+        performing a convolution (this is the default), or not to flip them and
+        perform a correlation. Note that for some other convolutional layers in
+        Lasagne, flipping incurs an overhead and is disabled by default --
+        check the documentation when using learned weights from another layer.
+
     n : int or None
         The dimensionality of the convolution (i.e., the number of spatial
         dimensions of each feature map and each convolutional filter). If
@@ -182,7 +189,7 @@ class BaseConvLayer(Layer):
     def __init__(self, incoming, num_filters, filter_size, stride=1, pad=0,
                  untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
-                 nonlinearity=nonlinearities.rectify,
+                 nonlinearity=nonlinearities.rectify, flip_filters=True,
                  n=None, **kwargs):
         super(BaseConvLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
@@ -200,6 +207,7 @@ class BaseConvLayer(Layer):
         self.n = n
         self.num_filters = num_filters
         self.filter_size = as_tuple(filter_size, n, int)
+        self.flip_filters = flip_filters
         self.stride = as_tuple(stride, n, int)
         self.untie_biases = untie_biases
 
@@ -285,7 +293,8 @@ class Conv1DLayer(BaseConvLayer):
     lasagne.layers.Conv1DLayer(incoming, num_filters, filter_size, stride=1,
     pad=0, untie_biases=False, W=lasagne.init.GlorotUniform(),
     b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify,
-    convolution=lasagne.theano_extensions.conv.conv1d_mc0, **kwargs)
+    flip_filters=True, convolution=lasagne.theano_extensions.conv.conv1d_mc0,
+    **kwargs)
 
     1D convolutional layer
 
@@ -356,12 +365,20 @@ class Conv1DLayer(BaseConvLayer):
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
+    flip_filters : bool (default: True)
+        Whether to flip the filters before sliding them over the input,
+        performing a convolution (this is the default), or not to flip them and
+        perform a correlation. Note that for some other convolutional layers in
+        Lasagne, flipping incurs an overhead and is disabled by default --
+        check the documentation when using learned weights from another layer.
+
     convolution : callable
         The convolution implementation to use. The
         `lasagne.theano_extensions.conv` module provides some alternative
         implementations for 1D convolutions, because the Theano API only
         features a 2D convolution implementation. Usually it should be fine
-        to leave this at the default value.
+        to leave this at the default value. Note that not all implementations
+        support all settings for `pad` and `subsample`.
 
     **kwargs
         Any additional keyword arguments are passed to the `Layer` superclass.
@@ -373,54 +390,25 @@ class Conv1DLayer(BaseConvLayer):
 
     b : Theano shared variable or expression
         Variable or expression representing the biases.
-
-    Notes
-    -----
-    Theano's underlying convolution (:func:`theano.tensor.nnet.conv.conv2d`)
-    only supports ``pad=0`` and ``pad='full'``. This layer emulates other modes
-    by cropping a full convolution or explicitly padding the input with zeros.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=1,
                  pad=0, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
-                 nonlinearity=nonlinearities.rectify,
+                 nonlinearity=nonlinearities.rectify, flip_filters=True,
                  convolution=conv.conv1d_mc0, **kwargs):
         super(Conv1DLayer, self).__init__(incoming, num_filters, filter_size,
                                           stride, pad, untie_biases, W, b,
-                                          nonlinearity, n=1, **kwargs)
+                                          nonlinearity, flip_filters, n=1,
+                                          **kwargs)
         self.convolution = convolution
 
     def convolve(self, input, **kwargs):
-        if self.stride == (1,) and self.pad == 'same':
-            # simulate same convolution by cropping a full convolution
-            conved = self.convolution(input, self.W, subsample=self.stride,
-                                      image_shape=self.input_shape,
-                                      filter_shape=self.get_W_shape(),
-                                      border_mode='full')
-            crop = self.filter_size[0] // 2
-            conved = conved[:, :, crop:-crop or None]
-        else:
-            # no padding needed, or explicit padding of input needed
-            if self.pad == 'full':
-                border_mode = 'full'
-                pad = (0, 0)
-            elif self.pad == 'same':
-                border_mode = 'valid'
-                pad = self.filter_size[0] // 2, (self.filter_size[0] - 1) // 2
-            else:
-                border_mode = 'valid'
-                pad = (self.pad[0], self.pad[0])
-            if pad != (0, 0):
-                input = padding.pad(input, [pad], batch_ndim=2)
-                input_shape = (self.input_shape[0], self.input_shape[1],
-                               None if self.input_shape[2] is None else
-                               self.input_shape[2] + pad[0] + pad[1])
-            else:
-                input_shape = self.input_shape
-            conved = self.convolution(input, self.W, subsample=self.stride,
-                                      image_shape=input_shape,
-                                      filter_shape=self.get_W_shape(),
-                                      border_mode=border_mode)
+        border_mode = 'half' if self.pad == 'same' else self.pad
+        conved = self.convolution(input, self.W,
+                                  self.input_shape, self.get_W_shape(),
+                                  subsample=self.stride,
+                                  border_mode=border_mode,
+                                  filter_flip=self.flip_filters)
         return conved
 
 
@@ -429,7 +417,7 @@ class Conv2DLayer(BaseConvLayer):
     lasagne.layers.Conv2DLayer(incoming, num_filters, filter_size,
     stride=(1, 1), pad=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
-    nonlinearity=lasagne.nonlinearities.rectify,
+    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=True,
     convolution=theano.tensor.nnet.conv2d, **kwargs)
 
     2D convolutional layer
@@ -505,6 +493,13 @@ class Conv2DLayer(BaseConvLayer):
         The nonlinearity that is applied to the layer activations. If None
         is provided, the layer will be linear.
 
+    flip_filters : bool (default: True)
+        Whether to flip the filters before sliding them over the input,
+        performing a convolution (this is the default), or not to flip them and
+        perform a correlation. Note that for some other convolutional layers in
+        Lasagne, flipping incurs an overhead and is disabled by default --
+        check the documentation when using learned weights from another layer.
+
     convolution : callable
         The convolution implementation to use. Usually it should be fine to
         leave this at the default value.
@@ -519,61 +514,25 @@ class Conv2DLayer(BaseConvLayer):
 
     b : Theano shared variable or expression
         Variable or expression representing the biases.
-
-    Notes
-    -----
-    Theano's underlying convolution (:func:`theano.tensor.nnet.conv.conv2d`)
-    only supports ``pad=0`` and ``pad='full'``. This layer emulates other modes
-    by cropping a full convolution or explicitly padding the input with zeros.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  pad=0, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
-                 nonlinearity=nonlinearities.rectify,
+                 nonlinearity=nonlinearities.rectify, flip_filters=True,
                  convolution=T.nnet.conv2d, **kwargs):
         super(Conv2DLayer, self).__init__(incoming, num_filters, filter_size,
                                           stride, pad, untie_biases, W, b,
-                                          nonlinearity, n=2, **kwargs)
+                                          nonlinearity, flip_filters, n=2,
+                                          **kwargs)
         self.convolution = convolution
 
     def convolve(self, input, **kwargs):
-        if self.stride == (1, 1) and self.pad == 'same':
-            # simulate same convolution by cropping a full convolution
-            conved = self.convolution(input, self.W, subsample=self.stride,
-                                      image_shape=self.input_shape,
-                                      filter_shape=self.get_W_shape(),
-                                      border_mode='full')
-            crop_x = self.filter_size[0] // 2
-            crop_y = self.filter_size[1] // 2
-            conved = conved[:, :, crop_x:-crop_x or None,
-                            crop_y:-crop_y or None]
-        else:
-            # no padding needed, or explicit padding of input needed
-            if self.pad == 'full':
-                border_mode = 'full'
-                pad = [(0, 0), (0, 0)]
-            elif self.pad == 'same':
-                border_mode = 'valid'
-                pad = [(self.filter_size[0] // 2,
-                        self.filter_size[0] // 2),
-                       (self.filter_size[1] // 2,
-                        self.filter_size[1] // 2)]
-            else:
-                border_mode = 'valid'
-                pad = [(self.pad[0], self.pad[0]), (self.pad[1], self.pad[1])]
-            if pad != [(0, 0), (0, 0)]:
-                input = padding.pad(input, pad, batch_ndim=2)
-                input_shape = (self.input_shape[0], self.input_shape[1],
-                               None if self.input_shape[2] is None else
-                               self.input_shape[2] + pad[0][0] + pad[0][1],
-                               None if self.input_shape[3] is None else
-                               self.input_shape[3] + pad[1][0] + pad[1][1])
-            else:
-                input_shape = self.input_shape
-            conved = self.convolution(input, self.W, subsample=self.stride,
-                                      image_shape=input_shape,
-                                      filter_shape=self.get_W_shape(),
-                                      border_mode=border_mode)
+        border_mode = 'half' if self.pad == 'same' else self.pad
+        conved = self.convolution(input, self.W,
+                                  self.input_shape, self.get_W_shape(),
+                                  subsample=self.stride,
+                                  border_mode=border_mode,
+                                  filter_flip=self.flip_filters)
         return conved
 
 # TODO: add Conv3DLayer

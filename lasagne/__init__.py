@@ -13,7 +13,7 @@ http://lasagne.readthedocs.org/en/latest/user/installation.html#theano"""
 except ImportError:  # pragma: no cover
     raise ImportError("Could not import Theano." + install_instr)
 else:
-    if not hasattr(theano.tensor.nnet, 'h_softmax'):  # pragma: no cover
+    if not hasattr(theano.tensor.nnet, 'abstract_conv'):  # pragma: no cover
         raise ImportError("Your Theano version is too old." + install_instr)
     del install_instr
     del theano

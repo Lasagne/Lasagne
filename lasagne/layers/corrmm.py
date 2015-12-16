@@ -121,12 +121,6 @@ class Conv2DMMLayer(BaseConvLayer):
 
     b : Theano shared variable
         Variable representing the biases.
-
-    Notes
-    -----
-    Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    ``pad='same'``. It is not emulated. This should result in better
-    performance.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  pad=0, untie_biases=False, W=init.GlorotUniform(),
@@ -134,8 +128,8 @@ class Conv2DMMLayer(BaseConvLayer):
                  flip_filters=False, **kwargs):
         super(Conv2DMMLayer, self).__init__(incoming, num_filters, filter_size,
                                             stride, pad, untie_biases, W, b,
-                                            nonlinearity, n=2, **kwargs)
-        self.flip_filters = flip_filters
+                                            nonlinearity, flip_filters, n=2,
+                                            **kwargs)
         border_mode = 'half' if self.pad == 'same' else self.pad
         self.corr_mm_op = GpuCorrMM(subsample=self.stride,
                                     border_mode=border_mode)

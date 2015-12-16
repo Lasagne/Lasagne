@@ -167,10 +167,6 @@ class Conv2DCCLayer(BaseConvLayer):
 
     Notes
     -----
-    Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    ``pad='same'``. It is not emulated. This should result in better
-    performance.
-
     The cuda-convnet convolution implementation has several limitations:
 
     * only square filters are supported.
@@ -211,8 +207,8 @@ class Conv2DCCLayer(BaseConvLayer):
 
         super(Conv2DCCLayer, self).__init__(incoming, num_filters, filter_size,
                                             stride, pad, untie_biases, W, b,
-                                            nonlinearity, n=2, **kwargs)
-        self.flip_filters = flip_filters
+                                            nonlinearity, flip_filters, n=2,
+                                            **kwargs)
         self.partial_sum = partial_sum
 
         if self.filter_size[0] != self.filter_size[1]:

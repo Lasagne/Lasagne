@@ -895,16 +895,11 @@ class LSTMLayer(MergeLayer):
                 hid_init, (1, self.num_units), name="hid_init",
                 trainable=learn_init, regularizable=False)
         elif issubclass(self.provided_hid_init_type, theano.Variable):
-            try:
-                if hid_init.ndim != 2:
-                    raise ValueError(
-                        "When hid_init is provided as a "
-                        "TensorVariable, it should have 2 "
-                        "dimensions and have "
-                        "shape (num_batch, num_units)")
-            except AttributeError:
-                raise ValueError('Behavior is not defined for hid_init type {}'
-                                 .format(self.provided_hid_init_type))
+            if hid_init.ndim != 2:
+                raise ValueError(
+                    "When hid_init is provided as a TensorVariable, "
+                    "it should have 2 dimensions and have "
+                    "shape (num_batch, num_units)")
             self.hid_init = hid_init
         else:
             raise ValueError('Behavior is not defined for hid_init type {}'

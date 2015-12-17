@@ -447,6 +447,9 @@ def test_lstm_init_val_error():
     with pytest.raises(ValueError):
         l_rec = LSTMLayer(InputLayer((2, 2, 3)), 5, cell_init=vector)
 
+    with pytest.raises(ValueError):
+        l_rec = LSTMLayer(InputLayer((2, 2, 3)), 5, hid_init=0)
+
 
 def test_lstm_grad_clipping():
     # test that you can set grad_clip variable

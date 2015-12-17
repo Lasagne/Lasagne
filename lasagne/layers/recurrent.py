@@ -889,16 +889,21 @@ class LSTMLayer(MergeLayer):
                 cell_init, (1, num_units), name="cell_init",
                 trainable=learn_init, regularizable=False)
 
-        if isinstance(hid_init, T.TensorVariable):
-            if hid_init.ndim != 2:
-                raise ValueError(
-                    "When hid_init is provided as a TensorVariable, it should "
-                    "have 2 dimensions and have shape (num_batch, num_units)")
-            self.hid_init = hid_init
-        else:
+        self.provided_hid_init_type = type(hid_init)
+        if issubclass(self.provided_hid_init_type, init.Initializer):
             self.hid_init = self.add_param(
                 hid_init, (1, self.num_units), name="hid_init",
                 trainable=learn_init, regularizable=False)
+        elif issubclass(self.provided_hid_init_type, theano.Variable):
+            if hid_init.ndim != 2:
+                raise ValueError(
+                    "When hid_init is provided as a TensorVariable, "
+                    "it should have 2 dimensions and have "
+                    "shape (num_batch, num_units)")
+            self.hid_init = hid_init
+        else:
+            raise ValueError('Behavior is not defined for hid_init type {}'
+                             .format(self.provided_hid_init_type))
 
     def get_output_shape_for(self, input_shapes):
         # The shape of the input to this layer will be the first element
@@ -1047,7 +1052,7 @@ class LSTMLayer(MergeLayer):
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             cell_init = T.dot(ones, self.cell_init)
 
-        if isinstance(self.hid_init, T.TensorVariable):
+        if issubclass(self.provided_hid_init_type, theano.Variable):
             hid_init = self.hid_init
         else:
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)

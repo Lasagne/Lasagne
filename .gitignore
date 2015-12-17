@@ -100,3 +100,4 @@ Temporary Items
 
 # Directories from IDE
 .idea
+*.iml

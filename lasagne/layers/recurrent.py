@@ -898,13 +898,17 @@ class LSTMLayer(MergeLayer):
             try:
                 if hid_init.ndim != 2:
                     raise ValueError(
-                        "When hid_init is provided as a TensorVariable, it should "
-                        "have 2 dimensions and have shape (num_batch, num_units)")
+                        "When hid_init is provided as a "
+                        "TensorVariable, it should have 2 "
+                        "dimensions and have "
+                        "shape (num_batch, num_units)")
             except AttributeError:
-                ValueError('Behavior is not defined for hid_init type {}'.format(self.provided_hid_init_type))
+                raise ValueError('Behavior is not defined for hid_init type {}'
+                                 .format(self.provided_hid_init_type))
             self.hid_init = hid_init
         else:
-            raise ValueError('Behavior is not defined for hid_init type {}'.format(self.provided_hid_init_type))
+            raise ValueError('Behavior is not defined for hid_init type {}'
+                             .format(self.provided_hid_init_type))
 
     def get_output_shape_for(self, input_shapes):
         # The shape of the input to this layer will be the first element

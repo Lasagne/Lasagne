@@ -446,3 +446,107 @@ class TestParametricRectifierLayer:
         expected = np.maximum(expected, 0) + \
             np.minimum(expected, 0) * alpha_v
         assert np.allclose(output.eval(), expected)
+
+
+class TestRandomizedRectifierLayer:
+    @pytest.fixture
+    def RandomizedRectifierLayer(self):
+        from lasagne.layers.special import RandomizedRectifierLayer
+        return RandomizedRectifierLayer
+
+    def test_high_low(self, RandomizedRectifierLayer):
+        with pytest.raises(ValueError):
+            RandomizedRectifierLayer((None, 3, 28, 28), lower=0.9, upper=0.1)
+
+    def test_nomod_positive(self, RandomizedRectifierLayer):
+        input = np.ones((3, 3, 28, 28)).astype(theano.config.floatX)
+        layer = RandomizedRectifierLayer(input.shape)
+        out = layer.get_output_for(input).eval()
+        assert np.allclose(out, 1.0)
+
+    def test_low_eq_high(self, RandomizedRectifierLayer):
+        input = np.ones((3, 3, 28, 28)).astype(theano.config.floatX) * -1
+        layer = RandomizedRectifierLayer(input.shape, lower=0.5, upper=0.5)
+        out = layer.get_output_for(input)
+        assert np.allclose(out, -0.5)
+
+    def test_deterministic(self, RandomizedRectifierLayer):
+        input = np.ones((3, 3, 28, 28)).astype(theano.config.floatX) * -1
+        layer = RandomizedRectifierLayer(input.shape, lower=0.4, upper=0.6)
+        out = layer.get_output_for(input, deterministic=True)
+        assert np.allclose(out, -0.5)
+
+    def test_dim_None(self, RandomizedRectifierLayer):
+        import lasagne
+        l_in = lasagne.layers.input.InputLayer((None, 3, 28, 28))
+        layer = RandomizedRectifierLayer(l_in)
+        input = np.ones((3, 3, 28, 28)).astype(theano.config.floatX)
+        out = layer.get_output_for(input).eval()
+        assert np.allclose(out, 1.0)
+
+    def assert_between(self, layer, input, output):
+        slopes = output / input
+        slopes = slopes[input < 0]
+        assert slopes.min() >= layer.lower
+        assert slopes.max() <= layer.upper
+        assert slopes.var() > 0
+
+    def test_get_output_for(self, RandomizedRectifierLayer):
+        input_shape = (3, 3, 28, 28)
+
+        # ensure slope never exceeds [lower,upper)
+        input = np.random.randn(*input_shape).astype(theano.config.floatX)
+        layer = RandomizedRectifierLayer(input_shape, shared_axes=0)
+        self.assert_between(layer, input, layer.get_output_for(input).eval())
+
+        # from here on, we want to check parameter sharing
+        # this is easier to check if the input is all ones
+        input = np.ones(input_shape).astype(theano.config.floatX) * -1
+
+        # default: parameters shared along all but 2nd axis
+        layer = RandomizedRectifierLayer(input_shape)
+        out = layer.get_output_for(input).eval()
+        assert [
+                np.allclose(out.var(axis=a), 0)
+                for a in range(4)
+               ] == [True, False, True, True]
+
+        # share across all axes (single slope)
+        layer = RandomizedRectifierLayer(input_shape, shared_axes='all')
+        out = layer.get_output_for(input).eval()
+        assert [
+                np.allclose(out.var(axis=a), 0)
+                for a in range(4)
+               ] == [True, True, True, True]
+
+        # share across 1st axis
+        layer = RandomizedRectifierLayer(input_shape, shared_axes=0)
+        out = layer.get_output_for(input).eval()
+        assert [
+                np.allclose(out.var(axis=a), 0)
+                for a in range(4)
+               ] == [True, False, False, False]
+
+        # share across 1st and 4th axes
+        layer = RandomizedRectifierLayer(input_shape, shared_axes=(0, 3))
+        out = layer.get_output_for(input).eval()
+        assert [
+                np.allclose(out.var(axis=a), 0)
+                for a in range(4)
+               ] == [True, False, False, True]
+
+    def test_rrelu(self):
+        import lasagne
+        input_shape = (3, 28)
+        input = np.random.randn(*input_shape).astype(theano.config.floatX)
+
+        l_in = lasagne.layers.input.InputLayer(input_shape)
+        l_dense = lasagne.layers.dense.DenseLayer(l_in, num_units=100)
+        l_rrelu = lasagne.layers.rrelu(l_dense)
+        output = lasagne.layers.get_output(l_rrelu, input)
+
+        assert l_dense.nonlinearity == lasagne.nonlinearities.identity
+
+        W = l_dense.W.get_value()
+        b = l_dense.b.get_value()
+        self.assert_between(l_rrelu, np.dot(input, W) + b, output.eval())

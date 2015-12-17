@@ -4,7 +4,9 @@ import theano.tensor as T
 from .. import init
 from .. import nonlinearities
 from ..utils import as_tuple
+from ..random import get_rng
 from .base import Layer, MergeLayer
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 
 __all__ = [
@@ -15,6 +17,8 @@ __all__ = [
     "TransformerLayer",
     "ParametricRectifierLayer",
     "prelu",
+    "RandomizedRectifierLayer",
+    "rrelu",
 ]
 
 
@@ -530,3 +534,125 @@ def prelu(layer, **kwargs):
     if nonlinearity is not None:
         layer.nonlinearity = nonlinearities.identity
     return ParametricRectifierLayer(layer, **kwargs)
+
+
+class RandomizedRectifierLayer(Layer):
+    """
+    A layer that applies a randomized leaky rectify nonlinearity to its input.
+
+    The randomized leaky rectifier was first proposed and used in the Kaggle
+    NDSB Competition, and later evaluated in [1]_. Compared to the standard
+    leaky rectifier :func:`leaky_rectify`, it has a randomly sampled slope
+    for negative input during training, and a fixed slope during evaluation.
+
+    Equation for the randomized rectifier linear unit during training:
+    :math:`\\varphi(x) = \\max((\\sim U(lower, upper)) \\cdot x, x)`
+
+    During evaluation, the factor is fixed to the arithmetic mean of `lower`
+    and `upper`.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        The layer feeding into this layer, or the expected input shape
+
+    lower : Theano shared variable, expression, or constant
+        The lower bound for the randomly chosen slopes.
+
+    upper : Theano shared variable, expression, or constant
+        The upper bound for the randomly chosen slopes.
+
+    shared_axes : 'auto', 'all', int or tuple of int
+        The axes along which the random slopes of the rectifier units are
+        going to be shared. If ``'auto'`` (the default), share over all axes
+        except for the second - this will share the random slope over the
+        minibatch dimension for dense layers, and additionally over all
+        spatial dimensions for convolutional layers. If ``'all'``, share over
+        all axes, thus using a single random slope.
+
+    **kwargs
+        Any additional keyword arguments are passed to the `Layer` superclass.
+
+     References
+    ----------
+    .. [1] Bing Xu, Naiyan Wang et al. (2015):
+       Empirical Evaluation of Rectified Activations in Convolutional Network,
+       http://arxiv.org/abs/1505.00853
+    """
+    def __init__(self, incoming, lower=0.3, upper=0.8, shared_axes='auto',
+                 **kwargs):
+        super(RandomizedRectifierLayer, self).__init__(incoming, **kwargs)
+        self._srng = RandomStreams(get_rng().randint(1, 2147462579))
+        self.lower = lower
+        self.upper = upper
+
+        if not isinstance(lower > upper, theano.Variable) and lower > upper:
+            raise ValueError("Upper bound for RandomizedRectifierLayer needs "
+                             "to be higher than lower bound.")
+
+        if shared_axes == 'auto':
+            self.shared_axes = (0,) + tuple(range(2, len(self.input_shape)))
+        elif shared_axes == 'all':
+            self.shared_axes = tuple(range(len(self.input_shape)))
+        elif isinstance(shared_axes, int):
+            self.shared_axes = (shared_axes,)
+        else:
+            self.shared_axes = shared_axes
+
+    def get_output_for(self, input, deterministic=False, **kwargs):
+        """
+        Parameters
+        ----------
+        input : tensor
+            output from the previous layer
+        deterministic : bool
+            If true, the arithmetic mean of lower and upper are used for the
+            leaky slope.
+        """
+        if deterministic or self.upper == self.lower:
+            return theano.tensor.nnet.relu(input, (self.upper+self.lower)/2.0)
+        else:
+            shape = list(self.input_shape)
+            if any(s is None for s in shape):
+                shape = list(input.shape)
+            for ax in self.shared_axes:
+                shape[ax] = 1
+
+            rnd = self._srng.uniform(tuple(shape),
+                                     low=self.lower,
+                                     high=self.upper,
+                                     dtype=theano.config.floatX)
+            rnd = theano.tensor.addbroadcast(rnd, *self.shared_axes)
+            return theano.tensor.nnet.relu(input, rnd)
+
+
+def rrelu(layer, **kwargs):
+    """
+    Convenience function to apply randomized rectify to a given layer's output.
+    Will set the layer's nonlinearity to identity if there is one and will
+    apply the randomized rectifier instead.
+
+    Parameters
+    ----------
+    layer: a :class:`Layer` instance
+        The `Layer` instance to apply the randomized rectifier layer to;
+        note that it will be irreversibly modified as specified above
+
+    **kwargs
+        Any additional keyword arguments are passed to the
+        :class:`RandomizedRectifierLayer`
+
+    Examples
+    --------
+    Note that this function modifies an existing layer, like this:
+    >>> from lasagne.layers import InputLayer, DenseLayer, rrelu
+    >>> layer = InputLayer((32, 100))
+    >>> layer = DenseLayer(layer, num_units=200)
+    >>> layer = rrelu(layer)
+
+    In particular, :func:`rrelu` can *not* be passed as a nonlinearity.
+    """
+    nonlinearity = getattr(layer, 'nonlinearity', None)
+    if nonlinearity is not None:
+        layer.nonlinearity = nonlinearities.identity
+    return RandomizedRectifierLayer(layer, **kwargs)

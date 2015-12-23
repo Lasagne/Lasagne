@@ -116,7 +116,7 @@ def autocrop(inputs, cropping):
 
         # Nested list of slices; each list in `slices` corresponds to
         # an input and contains a slice for each dimension
-        slices_by_input = [[] for i in range(ndim)]
+        slices_by_input = [[] for i in range(len(inputs))]
 
         # If there are more dimensions than cropping entries, pad
         # the cropping
@@ -154,7 +154,8 @@ def autocrop(inputs, cropping):
                 else:
                     raise ValueError(
                         'Unknown crop mode \'{0}\''.format(cr))
-
+        
+        assert(len(inputs) == len(slices_by_input))
         return [input[slices] for input, slices in
                 zip(inputs, slices_by_input)]
 

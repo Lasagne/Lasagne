@@ -439,7 +439,7 @@ class CustomRecurrentLayer(MergeLayer):
             # Skip over any input with mask 0 by copying the previous
             # hidden state; proceed normally for any input with mask 1.
             hid = step(input_n, hid_previous, *args)
-            hid_out = hid*mask_n + hid_previous*(1 - mask_n)
+            hid_out = T.switch(mask_n, hid, hid_previous)
             return [hid_out]
 
         if mask is not None:
@@ -1074,9 +1074,8 @@ class LSTMLayer(MergeLayer):
 
             # Skip over any input with mask 0 by copying the previous
             # hidden state; proceed normally for any input with mask 1.
-            not_mask = 1 - mask_n
-            cell = cell*mask_n + cell_previous*not_mask
-            hid = hid*mask_n + hid_previous*not_mask
+            cell = T.switch(mask_n, cell, cell_previous)
+            hid = T.switch(mask_n, hid, hid_previous)
 
             return [cell, hid]
 
@@ -1471,8 +1470,7 @@ class GRULayer(MergeLayer):
 
             # Skip over any input with mask 0 by copying the previous
             # hidden state; proceed normally for any input with mask 1.
-            not_mask = 1 - mask_n
-            hid = hid*mask_n + hid_previous*not_mask
+            hid = T.switch(mask_n, hid, hid_previous)
 
             return hid
 

@@ -285,6 +285,43 @@ def softplus(x):
     """
     return theano.tensor.nnet.softplus(x)
 
+# Clipped Activation
+def ClippedActivation(x, clip=20.0, activation=rectify):
+    """Clipped Activation activation function :math:`\\varphi(x,c,a) = \\min(a(x),c)`
+
+    This function clips the activation function. Usefull for non-saturating
+    functions such as the rectify to avoid exploding activations.
+    
+    Parameters
+    ----------
+    x : float32
+        The activation (the summed, weighted input of a neuron).
+    clip : float32
+        The upper bound for the activation function.
+    activation : function
+        An activation function that maps x onto a float32
+
+    Returns
+    -------
+    float32
+        The output of the clipped activation function applied to the activation.
+    """
+    return theano.tensor.minimum(activation(x), clip)
+
+clipped_rectify = ClippedActivation()
+clipped_rectify.__doc__ = """clipped_rectify(x)
+
+    Instance of :class:`ClippedActivation' such as used in [1]_.
+    :math:`\\clip=20.0 \\activation=rectify`
+    
+    References
+    ----------
+    .. [1] Awni Hannun, Carl Case, Jared Casper, Bryan Catanzaro, Greg Diamos,
+            Eric Elsen, Ryan Prenger, Sanjeev Satheesh, Shubho Sengupta,
+            Adam Coates, Andrew Y. Ng (2014):
+       Deep Speech: Scaling up end-to-end speech recognition,
+       http://arxiv.org/abs/1412.5567
+    """
 
 # linear
 def linear(x):

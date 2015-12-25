@@ -15,6 +15,8 @@
    very_leaky_rectify
    elu
    softplus
+   ClippedActivation
+   clipped_rectify
    linear
    identity
 
@@ -34,4 +36,6 @@ Detailed description
 .. autofunction:: very_leaky_rectify
 .. autofunction:: elu
 .. autofunction:: softplus
+.. autofunction:: ClippedActivation
+.. autofunction:: clipped_rectify
 .. autofunction:: linear

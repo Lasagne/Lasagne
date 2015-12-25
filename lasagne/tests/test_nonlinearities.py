@@ -36,13 +36,17 @@ class TestNonlinearities(object):
 
     def softmax(self, x):
         return (np.exp(x).T / np.exp(x).sum(-1)).T
+    
+    def clipped_activation(self, x):
+        return np.minimum(np.maximum(0, x), 20)
 
     @pytest.mark.parametrize('nonlinearity',
                              ['linear', 'rectify',
                               'leaky_rectify', 'elu', 'sigmoid',
                               'tanh', 'scaled_tanh',
                               'softmax', 'leaky_rectify_0',
-                              'scaled_tanh_p', 'softplus'])
+                              'scaled_tanh_p', 'softplus',
+                              'clipped_activation'])
     def test_nonlinearity(self, nonlinearity):
         import lasagne.nonlinearities
 
@@ -55,6 +59,10 @@ class TestNonlinearities(object):
         elif nonlinearity == 'scaled_tanh_p':
             from lasagne.nonlinearities import ScaledTanH
             theano_nonlinearity = ScaledTanH(scale_in=0.5, scale_out=2.27)
+        elif nonlinearity == 'clipped_activation':
+            from lasagne.nonlinearities import ClippedActivation
+            from lasagne.nonlinearities import rectify
+            theano_nonlinearity = ClippedActivation(clip=20, activation=rectify)
         else:
             theano_nonlinearity = getattr(lasagne.nonlinearities,
                                           nonlinearity)

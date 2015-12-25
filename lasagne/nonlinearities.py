@@ -308,7 +308,7 @@ def ClippedActivation(x, clip=20.0, activation=rectify):
     """
     return theano.tensor.minimum(activation(x), clip)
 
-clipped_rectify = ClippedActivation(x)
+clipped_rectify = ClippedActivation
 clipped_rectify.__doc__ = """clipped_rectify(x)
 
     Instance of :class:`ClippedActivation' such as used in [1]_.

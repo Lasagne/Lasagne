@@ -7,7 +7,7 @@ from .. import nonlinearities
 
 from .base import Layer
 
-from .conv import conv_output_length
+from .conv import conv_output_length, BaseConvLayer
 from .pool import pool_output_length
 from ..utils import as_tuple
 
@@ -15,7 +15,6 @@ from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 
 __all__ = [
-    "CCLayer",
     "Conv2DCCLayer",
     "MaxPool2DCCLayer",
     "ShuffleBC01ToC01BLayer",
@@ -30,12 +29,7 @@ if not theano.config.device.startswith("gpu"):
     raise ImportError("requires a GPU to work")  # pragma: no cover
 
 
-# base class for all layers that use ops from pylearn2.sandbox.cuda_convnet
-class CCLayer(Layer):
-    pass
-
-
-class Conv2DCCLayer(CCLayer):
+class Conv2DCCLayer(BaseConvLayer):
     """
     lasagne.layers.Conv2DCCLayer(incoming, num_filters, filter_size,
     stride=(1, 1), pad=0, untie_biases=False, W=None,
@@ -173,10 +167,6 @@ class Conv2DCCLayer(CCLayer):
 
     Notes
     -----
-    Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    ``pad='same'``. It is not emulated. This should result in better
-    performance.
-
     The cuda-convnet convolution implementation has several limitations:
 
     * only square filters are supported.
@@ -208,35 +198,31 @@ class Conv2DCCLayer(CCLayer):
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  dimshuffle=True, flip_filters=False, partial_sum=1,
                  **kwargs):
-        super(Conv2DCCLayer, self).__init__(incoming, **kwargs)
-        if nonlinearity is None:
-            self.nonlinearity = nonlinearities.identity
-        else:
-            self.nonlinearity = nonlinearity
+        if W is None:
+            if dimshuffle:
+                W = init.GlorotUniform()
+            else:
+                W = init.GlorotUniform(c01b=True)
+        self.dimshuffle = dimshuffle
 
-        filter_size = as_tuple(filter_size, 2)
-        stride = as_tuple(stride, 2)
+        super(Conv2DCCLayer, self).__init__(incoming, num_filters, filter_size,
+                                            stride, pad, untie_biases, W, b,
+                                            nonlinearity, flip_filters, n=2,
+                                            **kwargs)
+        self.partial_sum = partial_sum
 
-        if filter_size[0] != filter_size[1]:
+        if self.filter_size[0] != self.filter_size[1]:
             raise RuntimeError("Conv2DCCLayer only supports square filters, "
                                "but filter_size=(%d, %d)" % filter_size)
 
-        if stride[0] != stride[1]:
+        if self.stride[0] != self.stride[1]:
             raise RuntimeError("Conv2DCCLayer only supports square strides, "
                                "but stride=(%d, %d)" % stride)
 
-        if num_filters % 16 != 0:
+        if self.num_filters % 16 != 0:
             raise RuntimeError("Conv2DCCLayer requires num_filters to be a "
                                "multiple of 16, but num_filters is "
                                "%d" % num_filters)
-
-        self.num_filters = num_filters
-        self.filter_size = filter_size[0]
-        self.stride = stride[0]
-        self.untie_biases = untie_biases
-        self.dimshuffle = dimshuffle
-        self.flip_filters = flip_filters
-        self.partial_sum = partial_sum
 
         if not (self.num_input_channels < 4 or
                 self.num_input_channels % 4 == 0):
@@ -244,46 +230,26 @@ class Conv2DCCLayer(CCLayer):
                                "channels to be 1, 2, 3 or a multiple of 4, "
                                "but it is %d" % self.num_input_channels)
 
-        if pad == 'valid':
-            self.pad = 0
-        elif pad == 'full':
-            self.pad = self.filter_size - 1
-        elif pad == 'same':
-            if self.filter_size % 2 == 0:
-                raise NotImplementedError(
-                    '`same` padding requires odd filter size.')
-            self.pad = self.filter_size // 2
-        else:
-            pad = as_tuple(pad, 2, int)
-            if pad[0] != pad[1]:
+        if isinstance(self.pad, tuple):
+            if self.pad[0] != self.pad[1]:
                 raise RuntimeError("Conv2DCCLayer only supports square "
                                    "padding, but pad=(%d, %d)" % pad)
-            self.pad = pad[0]
+            pad = self.pad[0]
+        elif self.pad == 'same':
+            pad = self.filter_size[0] // 2
+        elif self.pad == 'full':
+            pad = self.filter_size[0] - 1
 
-        if W is None:
-            if dimshuffle:
-                W = init.GlorotUniform()
-            else:
-                W = init.GlorotUniform(c01b=True)
-
-        self.W = self.add_param(W, self.get_W_shape(), name="W")
-        if b is None:
-            self.b = None
-        else:
-            if self.untie_biases:
-                if self.dimshuffle:
-                    biases_shape = (num_filters, self.output_shape[2],
-                                    self.output_shape[3])
-                else:
-                    biases_shape = (num_filters, self.output_shape[1],
-                                    self.output_shape[2])
-            else:
-                biases_shape = (num_filters,)
+        if not self.dimshuffle and self.untie_biases and self.b is not None:
+            del self.params[self.b]
+            biases_shape = (num_filters, self.output_shape[1],
+                            self.output_shape[2])
             self.b = self.add_param(b, biases_shape, name="b",
                                     regularizable=False)
 
-        self.filter_acts_op = FilterActs(
-            stride=self.stride, partial_sum=self.partial_sum, pad=self.pad)
+        self.filter_acts_op = FilterActs(stride=self.stride[0],
+                                         partial_sum=self.partial_sum,
+                                         pad=pad)
 
     @property
     def num_input_channels(self):
@@ -294,34 +260,22 @@ class Conv2DCCLayer(CCLayer):
 
     def get_W_shape(self):
         if self.dimshuffle:
-            return (self.num_filters, self.num_input_channels,
-                    self.filter_size, self.filter_size)
+            return super(Conv2DCCLayer, self).get_W_shape()
         else:
-            return (self.num_input_channels, self.filter_size,
-                    self.filter_size, self.num_filters)
+            return ((self.num_input_channels,) +
+                    self.filter_size +
+                    (self.num_filters,))
 
     def get_output_shape_for(self, input_shape):
-        if self.dimshuffle:
-            batch_size = input_shape[0]
-            input_rows, input_columns = input_shape[2:4]
-        else:
-            batch_size = input_shape[3]
-            input_rows, input_columns = input_shape[1:3]
-
-        output_rows = conv_output_length(input_rows,
-                                         self.filter_size,
-                                         self.stride,
-                                         self.pad)
-
-        output_columns = conv_output_length(input_columns,
-                                            self.filter_size,
-                                            self.stride,
-                                            self.pad)
-
-        if self.dimshuffle:
-            return (batch_size, self.num_filters, output_rows, output_columns)
-        else:
-            return (self.num_filters, output_rows, output_columns, batch_size)
+        if not self.dimshuffle:
+            # c01b to bc01
+            input_shape = (input_shape[3], input_shape[0],
+                           input_shape[1], input_shape[2])
+        shape = super(Conv2DCCLayer, self).get_output_shape_for(input_shape)
+        if not self.dimshuffle:
+            # bc01 to c01b
+            shape = (shape[1], shape[2], shape[3], shape[0])
+        return shape
 
     def get_output_for(self, input, **kwargs):
         if self.dimshuffle:
@@ -340,14 +294,15 @@ class Conv2DCCLayer(CCLayer):
         if self.stride != 1:
             # cuda-convnet calculates a non-standard strided output shape,
             # so we need to truncate the output in this case
+            pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * 2
             true_rows = conv_output_length(input.shape[1],
-                                           self.filter_size,
-                                           self.stride,
-                                           self.pad)
+                                           self.filter_size[0],
+                                           self.stride[0],
+                                           pad[0])
             true_columns = conv_output_length(input.shape[2],
-                                              self.filter_size,
-                                              self.stride,
-                                              self.pad)
+                                              self.filter_size[1],
+                                              self.stride[1],
+                                              pad[1])
             conved = conved[:, :true_rows, :true_columns, :]
 
         if self.b is not None:
@@ -365,7 +320,7 @@ class Conv2DCCLayer(CCLayer):
             return conved
 
 
-class MaxPool2DCCLayer(CCLayer):
+class MaxPool2DCCLayer(Layer):
     """
     2D max-pooling layer
 

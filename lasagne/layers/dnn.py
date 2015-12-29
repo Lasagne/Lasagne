@@ -5,7 +5,7 @@ from .. import init
 from .. import nonlinearities
 from .base import Layer
 
-from .conv import conv_output_length
+from .conv import conv_output_length, BaseConvLayer
 from .pool import pool_output_length
 from ..utils import as_tuple
 
@@ -21,11 +21,7 @@ __all__ = [
 ]
 
 
-class DNNLayer(Layer):
-    pass
-
-
-class Pool2DDNNLayer(DNNLayer):
+class Pool2DDNNLayer(Layer):
     """
     2D pooling layer
 
@@ -129,7 +125,7 @@ class MaxPool2DDNNLayer(Pool2DDNNLayer):
                                                 **kwargs)
 
 
-class Conv2DDNNLayer(DNNLayer):
+class Conv2DDNNLayer(BaseConvLayer):
     """
     lasagne.layers.Conv2DDNNLayer(incoming, num_filters, filter_size,
     stride=(1, 1), pad=0, untie_biases=False,
@@ -229,95 +225,33 @@ class Conv2DDNNLayer(DNNLayer):
 
     b : Theano shared variable or expression
         Variable or expression representing the biases.
-
-    Notes
-    -----
-    Unlike :class:`lasagne.layers.Conv2DLayer`, this layer properly supports
-    ``pad='same'``. It is not emulated. This should result in better
-    performance.
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  pad=0, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  flip_filters=False, **kwargs):
-        super(Conv2DDNNLayer, self).__init__(incoming, **kwargs)
-        if nonlinearity is None:
-            self.nonlinearity = nonlinearities.identity
-        else:
-            self.nonlinearity = nonlinearity
+        super(Conv2DDNNLayer, self).__init__(incoming, num_filters,
+                                             filter_size, stride, pad,
+                                             untie_biases, W, b, nonlinearity,
+                                             flip_filters, n=2, **kwargs)
 
-        self.num_filters = num_filters
-        self.filter_size = as_tuple(filter_size, 2)
-        self.stride = as_tuple(stride, 2)
-        self.untie_biases = untie_biases
-        self.flip_filters = flip_filters
-
-        if pad == 'valid':
-            self.pad = (0, 0)
-        elif pad == 'full':
-            self.pad = 'full'
-        elif pad == 'same':
-            if any(s % 2 == 0 for s in self.filter_size):
-                raise NotImplementedError(
-                    '`same` padding requires odd filter size.')
-            self.pad = (self.filter_size[0] // 2, self.filter_size[1] // 2)
-        else:
-            self.pad = as_tuple(pad, 2, int)
-
-        self.W = self.add_param(W, self.get_W_shape(), name="W")
-        if b is None:
-            self.b = None
-        else:
-            if self.untie_biases:
-                biases_shape = (num_filters, self.output_shape[2],
-                                self.output_shape[3])
-            else:
-                biases_shape = (num_filters,)
-            self.b = self.add_param(b, biases_shape, name="b",
-                                    regularizable=False)
-
-    def get_W_shape(self):
-        num_input_channels = self.input_shape[1]
-        return (self.num_filters, num_input_channels, self.filter_size[0],
-                self.filter_size[1])
-
-    def get_output_shape_for(self, input_shape):
-        batch_size = input_shape[0]
-        pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * 2
-
-        output_rows = conv_output_length(input_shape[2],
-                                         self.filter_size[0],
-                                         self.stride[0],
-                                         pad[0])
-
-        output_columns = conv_output_length(input_shape[3],
-                                            self.filter_size[1],
-                                            self.stride[1],
-                                            pad[1])
-
-        return (batch_size, self.num_filters, output_rows, output_columns)
-
-    def get_output_for(self, input, **kwargs):
+    def convolve(self, input, **kwargs):
         # by default we assume 'cross', consistent with corrmm.
         conv_mode = 'conv' if self.flip_filters else 'cross'
+        border_mode = self.pad
+        if border_mode == 'same':
+            border_mode = tuple(s // 2 for s in self.filter_size)
 
         conved = dnn.dnn_conv(img=input,
                               kerns=self.W,
                               subsample=self.stride,
-                              border_mode=self.pad,
+                              border_mode=border_mode,
                               conv_mode=conv_mode
                               )
-
-        if self.b is None:
-            activation = conved
-        elif self.untie_biases:
-            activation = conved + self.b.dimshuffle('x', 0, 1, 2)
-        else:
-            activation = conved + self.b.dimshuffle('x', 0, 'x', 'x')
-        return self.nonlinearity(activation)
+        return conved
 
 
-class Conv3DDNNLayer(DNNLayer):
+class Conv3DDNNLayer(BaseConvLayer):
     """
     lasagne.layers.Conv3DDNNLayer(incoming, num_filters, filter_size,
     stride=(1, 1, 1), pad=0, untie_biases=False,
@@ -421,85 +355,22 @@ class Conv3DDNNLayer(DNNLayer):
                  pad=0, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
                  flip_filters=False, **kwargs):
-        super(Conv3DDNNLayer, self).__init__(incoming, **kwargs)
-        if nonlinearity is None:
-            self.nonlinearity = nonlinearities.identity
-        else:
-            self.nonlinearity = nonlinearity
+        super(Conv3DDNNLayer, self).__init__(incoming, num_filters,
+                                             filter_size, stride, pad,
+                                             untie_biases, W, b, nonlinearity,
+                                             flip_filters, n=3, **kwargs)
 
-        self.num_filters = num_filters
-        self.filter_size = as_tuple(filter_size, 3)
-        self.stride = as_tuple(stride, 3)
-        self.untie_biases = untie_biases
-        self.flip_filters = flip_filters
-
-        if pad == 'valid':
-            self.pad = (0, 0, 0)
-        elif pad == 'full':
-            self.pad = 'full'
-        elif pad == 'same':
-            if any(s % 2 == 0 for s in self.filter_size):
-                raise NotImplementedError(
-                    '`same` padding requires odd filter size.')
-            self.pad = (self.filter_size[0] // 2, self.filter_size[1] // 2,
-                        self.filter_size[1] // 2)
-        else:
-            self.pad = as_tuple(pad, 3, int)
-
-        self.W = self.add_param(W, self.get_W_shape(), name="W")
-        if b is None:
-            self.b = None
-        else:
-            if self.untie_biases:
-                biases_shape = (num_filters, self.output_shape[2],
-                                self.output_shape[3], self.output_shape[4])
-            else:
-                biases_shape = (num_filters,)
-            self.b = self.add_param(b, biases_shape, name="b",
-                                    regularizable=False)
-
-    def get_W_shape(self):
-        num_input_channels = self.input_shape[1]
-        return (self.num_filters, num_input_channels, self.filter_size[0],
-                self.filter_size[1], self.filter_size[2])
-
-    def get_output_shape_for(self, input_shape):
-        batch_size = input_shape[0]
-        pad = self.pad if isinstance(self.pad, tuple) else (self.pad,) * 3
-
-        output_rows = conv_output_length(input_shape[2],
-                                         self.filter_size[0],
-                                         self.stride[0],
-                                         pad[0])
-
-        output_columns = conv_output_length(input_shape[3],
-                                            self.filter_size[1],
-                                            self.stride[1],
-                                            pad[1])
-
-        output_depth = conv_output_length(input_shape[4],
-                                          self.filter_size[2],
-                                          self.stride[2],
-                                          pad[2])
-
-        return (batch_size, self.num_filters, output_rows, output_columns,
-                output_depth)
-
-    def get_output_for(self, input, **kwargs):
+    def convolve(self, input, **kwargs):
         # by default we assume 'cross', consistent with corrmm.
         conv_mode = 'conv' if self.flip_filters else 'cross'
+        border_mode = self.pad
+        if border_mode == 'same':
+            border_mode = tuple(s // 2 for s in self.filter_size)
 
         conved = dnn.dnn_conv3d(img=input,
                                 kerns=self.W,
                                 subsample=self.stride,
-                                border_mode=self.pad,
+                                border_mode=border_mode,
                                 conv_mode=conv_mode
                                 )
-
-        if self.b is None:
-            activation = conved
-        elif self.untie_biases:
-            activation = conved + self.b.dimshuffle('x', 0, 1, 2, 3)
-        else:
-            activation = conved + self.b.dimshuffle('x', 0, 'x', 'x', 'x')
-        return self.nonlinearity(activation)
+        return conved

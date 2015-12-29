@@ -80,14 +80,14 @@ def convNd(input, kernel, pad, stride=1, n=None):
     return output
 
 
-def convNd_test_sets(n, pads=(0,)):
+def convNd_test_sets(n):
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
 
     extra_shape = (11, 16, 23)
     input_shape = (3, 1) + extra_shape[-n:]
 
-    for pad in pads + ('full', 'same'):
+    for pad in (0, 1, 2, 'full', 'same'):
         for stride in (1, 2, 3):
             for filter_size in (1, 3):
                 if stride > filter_size:
@@ -97,15 +97,24 @@ def convNd_test_sets(n, pads=(0,)):
                 output = convNd(input, kernel, pad, stride, n=n)
                 yield _convert(input, kernel, output, {'pad': pad,
                                                        'stride': stride,
+                                                       'flip_filters': True,
                                                        })
 
     # bias-less case
     input = np.random.random(input_shape)
     kernel = np.random.random((16, 1) + (3,) * n)
     output = convNd(input, kernel, pad='valid')
-    yield _convert(input, kernel, output, {'b': None})
+    yield _convert(input, kernel, output, {'b': None, 'flip_filters': True})
+    # untie_biases=True case
+    yield _convert(input, kernel, output, {'untie_biases': True,
+                                           'flip_filters': True})
     # pad='valid' case
-    yield _convert(input, kernel, output, {'pad': 'valid'})
+    yield _convert(input, kernel, output, {'pad': 'valid',
+                                           'flip_filters': True})
+    # flip_filters=False case
+    flip = (slice(None), slice(None)) + (slice(None, None, -1),) * n
+    output = convNd(input, kernel[flip], pad='valid')
+    yield _convert(input, kernel, output, {'flip_filters': False})
 
 
 def conv3d_test_sets():
@@ -117,7 +126,7 @@ def conv2d_test_sets():
 
 
 def conv1d_test_sets():
-    return convNd_test_sets(1, pads=(0, 1, 2))
+    return convNd_test_sets(1)
 
 
 def test_conv_output_length():
@@ -142,17 +151,37 @@ def DummyInputLayer():
     return factory
 
 
+class TestBaseConvLayer:
+
+    def test_infer_dimensionality(self):
+        from lasagne.layers.conv import BaseConvLayer
+        shape = (10, 20, 30, 40, 50, 60)
+        for n in range(1, 4):
+            layer = BaseConvLayer(shape[:n+2], 1, 3)
+            assert layer.n == n
+
+    def test_convolve_not_implemented(self):
+        from lasagne.layers.conv import BaseConvLayer
+        layer = BaseConvLayer((10, 20, 30), 1, 3)
+        with pytest.raises(NotImplementedError):
+            layer.convolve(theano.tensor.tensor3())
+
+    def test_fail_on_mismatching_dimensionality(self):
+        from lasagne.layers.conv import BaseConvLayer
+        with pytest.raises(ValueError) as exc:
+            BaseConvLayer((10, 20, 30), 1, 3, n=2)
+        assert "Expected 4 input dimensions" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            BaseConvLayer((10, 20, 30, 40), 1, 3, n=1)
+        assert "Expected 3 input dimensions" in exc.value.args[0]
+
+
 class TestConv1DLayer:
 
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(conv1d_test_sets()))
-    @pytest.mark.parametrize("extra_kwargs", [
-        {},
-        {'untie_biases': True},
-    ])
     def test_defaults(self, DummyInputLayer,
-                      input, kernel, output, kwargs, extra_kwargs):
-        kwargs.update(extra_kwargs)
+                      input, kernel, output, kwargs):
         b, c, w = input.shape.eval()
         input_layer = DummyInputLayer((b, c, w))
         try:
@@ -198,40 +227,25 @@ class TestConv2DLayerImplementations:
 
     @pytest.fixture(
         params=[
-            ('lasagne.layers', 'Conv2DLayer', {}),
-            ('lasagne.layers.cuda_convnet',
-             'Conv2DCCLayer',
-             {'flip_filters': True}),
-            ('lasagne.layers.corrmm', 'Conv2DMMLayer', {'flip_filters': True}),
-            ('lasagne.layers.dnn', 'Conv2DDNNLayer', {'flip_filters': True}),
+            ('lasagne.layers', 'Conv2DLayer'),
+            ('lasagne.layers.cuda_convnet', 'Conv2DCCLayer'),
+            ('lasagne.layers.corrmm', 'Conv2DMMLayer'),
+            ('lasagne.layers.dnn', 'Conv2DDNNLayer'),
         ],
     )
     def Conv2DImpl(self, request):
-        impl_module_name, impl_name, impl_default_kwargs = request.param
+        impl_module_name, impl_name = request.param
         try:
             mod = importlib.import_module(impl_module_name)
         except ImportError:
             pytest.skip("{} not available".format(impl_module_name))
 
-        impl = getattr(mod, impl_name)
-
-        def wrapper(*args, **kwargs):
-            kwargs2 = impl_default_kwargs.copy()
-            kwargs2.update(kwargs)
-            return impl(*args, **kwargs2)
-
-        wrapper.__name__ = impl_name
-        return wrapper
+        return getattr(mod, impl_name)
 
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(conv2d_test_sets()))
-    @pytest.mark.parametrize("extra_kwargs", [
-        {},
-        {'untie_biases': True},
-    ])
     def test_defaults(self, Conv2DImpl, DummyInputLayer,
-                      input, kernel, output, kwargs, extra_kwargs):
-        kwargs.update(extra_kwargs)
+                      input, kernel, output, kwargs):
         b, c, h, w = input.shape.eval()
         input_layer = DummyInputLayer((b, c, h, w))
         try:
@@ -254,6 +268,8 @@ class TestConv2DLayerImplementations:
         "input, kernel, output, kwargs", list(conv2d_test_sets()))
     def test_with_nones(self, Conv2DImpl, DummyInputLayer,
                         input, kernel, output, kwargs):
+        if kwargs.get('untie_biases', False):
+            pytest.skip()
         b, c, h, w = input.shape.eval()
         input_layer = DummyInputLayer((None, c, None, None))
         try:
@@ -311,35 +327,22 @@ class TestConv3DLayerImplementations:
 
     @pytest.fixture(
         params=[
-            ('lasagne.layers.dnn', 'Conv3DDNNLayer', {'flip_filters': True}),
+            ('lasagne.layers.dnn', 'Conv3DDNNLayer'),
         ],
     )
     def Conv3DImpl(self, request):
-        impl_module_name, impl_name, impl_default_kwargs = request.param
+        impl_module_name, impl_name = request.param
         try:
             mod = importlib.import_module(impl_module_name)
         except ImportError:
             pytest.skip("{} not available".format(impl_module_name))
 
-        impl = getattr(mod, impl_name)
-
-        def wrapper(*args, **kwargs):
-            kwargs2 = impl_default_kwargs.copy()
-            kwargs2.update(kwargs)
-            return impl(*args, **kwargs2)
-
-        wrapper.__name__ = impl_name
-        return wrapper
+        return getattr(mod, impl_name)
 
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(conv3d_test_sets()))
-    @pytest.mark.parametrize("extra_kwargs", [
-        {},
-        {'untie_biases': True},
-    ])
     def test_defaults(self, Conv3DImpl, DummyInputLayer,
-                      input, kernel, output, kwargs, extra_kwargs):
-        kwargs.update(extra_kwargs)
+                      input, kernel, output, kwargs):
         b, c, h, w, d = input.shape.eval()
         input_layer = DummyInputLayer((b, c, h, w, d))
         try:
@@ -362,6 +365,8 @@ class TestConv3DLayerImplementations:
         "input, kernel, output, kwargs", list(conv3d_test_sets()))
     def test_with_nones(self, Conv3DImpl, DummyInputLayer,
                         input, kernel, output, kwargs):
+        if kwargs.get('untie_biases', False):
+            pytest.skip()
         b, c, h, w, d = input.shape.eval()
         input_layer = DummyInputLayer((None, c, None, None, None))
         try:
@@ -427,18 +432,6 @@ class TestConv2DDNNLayer:
             with pytest.raises(ImportError):
                 import lasagne.layers.dnn
 
-    def test_pad(self, DummyInputLayer):
-        try:
-            from lasagne.layers.dnn import Conv2DDNNLayer
-        except ImportError:
-            pytest.skip("dnn not available")
-
-        input_layer = DummyInputLayer((1, 2, 3, 3))
-
-        layer = Conv2DDNNLayer(input_layer, num_filters=4, filter_size=(3, 3),
-                               pad=(3, 3))
-        assert layer.output_shape == (1, 4, 7, 7)
-
 
 class TestConv2DMMLayer:
     def test_import_without_gpu_raises(self):
@@ -447,18 +440,6 @@ class TestConv2DMMLayer:
         else:
             with pytest.raises(ImportError):
                 import lasagne.layers.corrmm
-
-    def test_pad(self, DummyInputLayer):
-        try:
-            from lasagne.layers.corrmm import Conv2DMMLayer
-        except ImportError:
-            pytest.skip("corrmm not available")
-
-        input_layer = DummyInputLayer((1, 2, 3, 3))
-
-        layer = Conv2DMMLayer(input_layer, num_filters=4, filter_size=(3, 3),
-                              pad=(3, 3))
-        assert layer.output_shape == (1, 4, 7, 7)
 
 
 class TestConv2DCCLayer:

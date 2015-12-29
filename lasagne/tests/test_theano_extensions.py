@@ -4,11 +4,23 @@ import theano.tensor as T
 import lasagne
 
 
+def conv1d(input, kernel, stride=1):
+    output = []
+    for b in input:
+        temp = []
+        for c in kernel:
+            temp.append(
+                np.convolve(b[0, :], c[0, :], mode='valid'))
+        output.append(temp)
+    return np.array(output)[:, :, ::stride]
+
+
 @pytest.mark.parametrize('impl', ['conv1d_sc', 'conv1d_mc0',
                                   'conv1d_mc1', 'conv1d_unstrided',
                                   'conv1d_sd', 'conv1d_md'])
+@pytest.mark.parametrize('filter_flip', [True, False])
 @pytest.mark.parametrize('stride', [1, 2])
-def test_conv(impl, stride):
+def test_conv(impl, stride, filter_flip):
     import lasagne.theano_extensions.conv
     conv = getattr(lasagne.theano_extensions.conv, impl)
 
@@ -17,17 +29,10 @@ def test_conv(impl, stride):
     input = lasagne.utils.floatX(np.ones((1, 1, 10)))
     kernel = lasagne.utils.floatX(np.random.uniform(-1, 1, (2, 1, 6)))
 
-    conv_theano = conv(X, W, input.shape, kernel.shape, subsample=(stride,)
-                       ).eval({X: input, W: kernel})
+    conv_theano = conv(X, W, input.shape, kernel.shape, subsample=(stride,),
+                       filter_flip=filter_flip).eval({X: input, W: kernel})
 
-    output = []
-    for b in input:
-        temp = []
-        for c in kernel:
-            temp.append(
-                np.convolve(b[0, :], c[0, :], mode='valid'))
-        output.append(temp)
-    conv_np = np.array(output)[:, :, ::stride]
+    conv_np = conv1d(input, kernel, stride)
 
     assert np.allclose(conv_theano, conv_np)
 
@@ -46,14 +51,29 @@ def test_conv_nones(impl):
         X: input, W: kernel
         })
 
-    output = []
-    for b in input:
-        temp = []
-        for c in kernel:
-            temp.append(
-                np.convolve(b[0, :], c[0, :], mode='valid'))
-        output.append(temp)
-    conv_np = np.array(output)
+    conv_np = conv1d(input, kernel)
+
+    assert np.allclose(conv_theano, conv_np)
+
+
+@pytest.mark.parametrize('impl', ['conv1d_mc0', 'conv1d_mc1'])
+@pytest.mark.parametrize('pad', [1, (2,)])
+def test_conv_pad(impl, pad):
+    import lasagne.theano_extensions.conv
+    conv = getattr(lasagne.theano_extensions.conv, impl)
+
+    X = T.tensor3()
+    W = T.tensor3()
+    input = lasagne.utils.floatX(np.ones((1, 1, 12)))
+    kernel = lasagne.utils.floatX(np.random.uniform(-1, 1, (2, 1, 3)))
+
+    conv_theano = conv(X, W, input.shape, kernel.shape, border_mode=pad).eval({
+        X: input, W: kernel
+        })
+
+    pad = pad[0] if isinstance(pad, tuple) else pad
+    input = np.pad(input, [(0, 0), (0, 0), (pad, pad)], mode='constant')
+    conv_np = conv1d(input, kernel)
 
     assert np.allclose(conv_theano, conv_np)
 
@@ -61,7 +81,7 @@ def test_conv_nones(impl):
 @pytest.mark.parametrize('impl', ['conv1d_sc', 'conv1d_mc0',
                                   'conv1d_mc1', 'conv1d_unstrided',
                                   'conv1d_sd', 'conv1d_md'])
-def test_conv_border_mode(impl):
+def test_conv_invalid_border_mode(impl):
     import lasagne.theano_extensions.conv
     conv = getattr(lasagne.theano_extensions.conv, impl)
 

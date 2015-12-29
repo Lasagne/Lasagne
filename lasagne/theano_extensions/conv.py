@@ -10,11 +10,11 @@ import theano.tensor as T
 # 1D convolutions
 
 def conv1d_sc(input, filters, image_shape=None, filter_shape=None,
-              border_mode='valid', subsample=(1,)):
+              border_mode='valid', subsample=(1,), filter_flip=True):
     """
     using conv2d with a single input channel
     """
-    if border_mode != 'valid':
+    if border_mode not in ('valid', 0, (0,)):
         raise RuntimeError("Unsupported border_mode for conv1d_sc: "
                            "%s" % border_mode)
 
@@ -34,14 +34,14 @@ def conv1d_sc(input, filters, image_shape=None, filter_shape=None,
     # We need to flip the channels dimension because it will be convolved over.
     filters_sc = filters.dimshuffle(0, 'x', 1, 2)[:, :, ::-1, :]
 
-    conved = T.nnet.conv2d(input_sc, filters_sc, image_shape=image_shape_sc,
-                           filter_shape=filter_shape_sc,
-                           subsample=(1, subsample[0]))
+    conved = T.nnet.conv2d(input_sc, filters_sc, image_shape_sc,
+                           filter_shape_sc, subsample=(1, subsample[0]),
+                           filter_flip=filter_flip)
     return conved[:, :, 0, :]  # drop the unused dimension
 
 
 def conv1d_mc0(input, filters, image_shape=None, filter_shape=None,
-               border_mode='valid', subsample=(1,)):
+               border_mode='valid', subsample=(1,), filter_flip=True):
     """
     using conv2d with width == 1
     """
@@ -57,18 +57,23 @@ def conv1d_mc0(input, filters, image_shape=None, filter_shape=None,
         filter_shape_mc0 = (filter_shape[0], filter_shape[1], 1,
                             filter_shape[2])
 
+    if isinstance(border_mode, tuple):
+        (border_mode,) = border_mode
+    if isinstance(border_mode, int):
+        border_mode = (0, border_mode)
+
     input_mc0 = input.dimshuffle(0, 1, 'x', 2)
     filters_mc0 = filters.dimshuffle(0, 1, 'x', 2)
 
     conved = T.nnet.conv2d(
-        input_mc0, filters_mc0, image_shape=image_shape_mc0,
-        filter_shape=filter_shape_mc0, subsample=(1, subsample[0]),
-        border_mode=border_mode)
+        input_mc0, filters_mc0, image_shape_mc0, filter_shape_mc0,
+        subsample=(1, subsample[0]), border_mode=border_mode,
+        filter_flip=filter_flip)
     return conved[:, :, 0, :]  # drop the unused dimension
 
 
 def conv1d_mc1(input, filters, image_shape=None, filter_shape=None,
-               border_mode='valid', subsample=(1,)):
+               border_mode='valid', subsample=(1,), filter_flip=True):
     """
     using conv2d with height == 1
     """
@@ -84,18 +89,23 @@ def conv1d_mc1(input, filters, image_shape=None, filter_shape=None,
         filter_shape_mc1 = (filter_shape[0], filter_shape[1],
                             filter_shape[2], 1)
 
+    if isinstance(border_mode, tuple):
+        (border_mode,) = border_mode
+    if isinstance(border_mode, int):
+        border_mode = (border_mode, 0)
+
     input_mc1 = input.dimshuffle(0, 1, 2, 'x')
     filters_mc1 = filters.dimshuffle(0, 1, 2, 'x')
 
     conved = T.nnet.conv2d(
-        input_mc1, filters_mc1, image_shape=image_shape_mc1,
-        filter_shape=filter_shape_mc1, subsample=(subsample[0], 1),
-        border_mode=border_mode)
+        input_mc1, filters_mc1, image_shape_mc1, filter_shape_mc1,
+        subsample=(subsample[0], 1), border_mode=border_mode,
+        filter_flip=filter_flip)
     return conved[:, :, :, 0]  # drop the unused dimension
 
 
 def conv1d_unstrided(input, filters, image_shape, filter_shape,
-                     border_mode='valid', subsample=(1,),
+                     border_mode='valid', subsample=(1,), filter_flip=True,
                      implementation=conv1d_sc):
     """
     perform a strided 1D convolution by reshaping input and filters so that the
@@ -111,7 +121,9 @@ def conv1d_unstrided(input, filters, image_shape, filter_shape,
         raise RuntimeError("Filter length (%d) is not a multiple of the "
                            "stride (%d)" % (filter_length, stride))
     # TODO: test if this works for border_mode='full'
-    assert border_mode == 'valid'
+    if border_mode not in ('valid', 0, (0,)):
+        raise RuntimeError("Unsupported border_mode for conv1d_unstrided: "
+                           "%s" % border_mode)
 
     num_steps = filter_length // stride
 
@@ -142,15 +154,15 @@ def conv1d_unstrided(input, filters, image_shape, filter_shape,
 
     return implementation(r_input_folded, r_filters_folded,
                           r_input_folded_shape, r_filter_folded_shape,
-                          border_mode, subsample=(1,))
+                          border_mode, subsample=(1,), filter_flip=filter_flip)
 
 
 def conv1d_sd(input, filters, image_shape, filter_shape, border_mode='valid',
-              subsample=(1,)):
+              subsample=(1,), filter_flip=True):
     """
     using a single dot product
     """
-    if border_mode != 'valid':
+    if border_mode not in ('valid', 0, (0,)):
         raise RuntimeError("Unsupported border_mode for conv1d_sd: "
                            "%s" % border_mode)
 
@@ -192,7 +204,7 @@ def conv1d_sd(input, filters, image_shape, filter_shape, border_mode='valid',
         inputs.append(r_input)
 
     inputs_stacked = T.stack(*inputs)  # shape is (n, b, c, w, f)
-    filters_flipped = filters[:, :, ::-1]
+    filters_flipped = filters[:, :, ::-1] if filter_flip else filters
 
     r_conved = T.tensordot(inputs_stacked, filters_flipped,
                            np.asarray([[2, 4], [1, 2]]))
@@ -208,11 +220,11 @@ def conv1d_sd(input, filters, image_shape, filter_shape, border_mode='valid',
 
 
 def conv1d_md(input, filters, image_shape, filter_shape, border_mode='valid',
-              subsample=(1,)):
+              subsample=(1,), filter_flip=True):
     """
     using multiple dot products
     """
-    if border_mode != 'valid':
+    if border_mode not in ('valid', 0, (0,)):
         raise RuntimeError("Unsupported border_mode for conv1d_md: "
                            "%s" % border_mode)
 
@@ -228,7 +240,7 @@ def conv1d_md(input, filters, image_shape, filter_shape, border_mode='valid',
     output_length = (input_length - filter_length + stride) // stride
     output_shape = (batch_size, num_filters, output_length)
 
-    filters_flipped = filters[:, :, ::-1]
+    filters_flipped = filters[:, :, ::-1] if filter_flip else filters
 
     conved = T.zeros(output_shape)
 

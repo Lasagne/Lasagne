@@ -121,18 +121,14 @@ class CustomRecurrentLayer(MergeLayer):
     nonlinearity : callable or None
         Nonlinearity to apply when computing new state (:math:`\sigma`). If
         None is provided, no nonlinearity will be applied.
-    hid_init : callable, np.ndarray, theano.shared, TensorVariable or Layer
-        Initializer for initial hidden state (:math:`h_0`).  If a
-        TensorVariable (Theano expression) is supplied, it will not be learned
-        regardless of the value of `learn_init`.
+    hid_init : callable, np.ndarray, theano.shared or :class:`Layer`
+        Initializer for initial hidden state (:math:`h_0`).
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If `hid_init` is a
-        TensorVariable then the TensorVariable is used and
-        `learn_init` is ignored.
+        If True, initial hidden values are learned.
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
@@ -315,13 +311,7 @@ class CustomRecurrentLayer(MergeLayer):
             self.nonlinearity = nonlinearity
 
         # Initialize hidden state
-        if isinstance(hid_init, T.TensorVariable):
-            if hid_init.ndim != len(hidden_to_hidden.output_shape):
-                raise ValueError(
-                    "When hid_init is provided as a TensorVariable, it should "
-                    "have the same shape as hidden_to_hidden.output_shape")
-            self.hid_init = hid_init
-        elif isinstance(hid_init, Layer):
+        if isinstance(hid_init, Layer):
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -450,12 +440,7 @@ class CustomRecurrentLayer(MergeLayer):
             sequences = input
             step_fun = step
 
-        if isinstance(self.hid_init, Layer):
-            pass
-        elif isinstance(self.hid_init, T.TensorVariable):
-            # When hid_init is provided as a TensorVariable, use it as-is
-            hid_init = self.hid_init
-        else:
+        if not isinstance(self.hid_init, Layer):
             # The code below simply repeats self.hid_init num_batch times in
             # its first dimension.  Turns out using a dot product and a
             # dimshuffle is faster than T.repeat.
@@ -535,17 +520,14 @@ class RecurrentLayer(CustomRecurrentLayer):
     nonlinearity : callable or None
         Nonlinearity to apply when computing new state (:math:`\sigma`). If
         None is provided, no nonlinearity will be applied.
-    hid_init : callable, np.ndarray, theano.shared, TensorVariable or Layer
-        Initializer for initial hidden state (:math:`h_0`).  If a
-        TensorVariable (Theano expression) is supplied, it will not be learned
-        regardless of the value of `learn_init`.
+    hid_init : callable, np.ndarray, theano.shared or :class:`Layer`
+        Initializer for initial hidden state (:math:`h_0`).
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If `hid_init` is a
-        TensorVariable then `learn_init` is ignored.
+        If True, initial hidden values are learned.
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
@@ -748,22 +730,16 @@ class LSTMLayer(MergeLayer):
     nonlinearity : callable or None
         The nonlinearity that is applied to the output (:math:`\sigma_h`). If
         None is provided, no nonlinearity will be applied.
-    cell_init : callable, np.ndarray, theano.shared, TensorVariable or Layer
-        Initializer for initial cell state (:math:`c_0`).  If a
-        TensorVariable (Theano expression) is supplied, it will not be learned
-        regardless of the value of `learn_init`.
-    hid_init : callable, np.ndarray, theano.shared, TensorVariable or Layer
-        Initializer for initial hidden state (:math:`h_0`).  If a
-        TensorVariable (Theano expression) is supplied, it will not be learned
-        regardless of the value of `learn_init`.
+    cell_init : callable, np.ndarray, theano.shared or :class:`Layer`
+        Initializer for initial cell state (:math:`c_0`).
+    hid_init : callable, np.ndarray, theano.shared or :class:`Layer`
+        Initializer for initial hidden state (:math:`h_0`).
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If `hid_init` or
-        `cell_init` are TensorVariables then the TensorVariable is used and
-        `learn_init` is ignored for that initial state.
+        If True, initial hidden values are learned.
     peepholes : bool
         If True, the LSTM uses peephole connections.
         When False, `ingate.W_cell`, `forgetgate.W_cell` and
@@ -909,26 +885,14 @@ class LSTMLayer(MergeLayer):
                 outgate.W_cell, (num_units, ), name="W_cell_to_outgate")
 
         # Setup initial values for the cell and the hidden units
-        if isinstance(cell_init, T.TensorVariable):
-            if cell_init.ndim != 2:
-                raise ValueError(
-                    "When cell_init is provided as a TensorVariable, it should"
-                    " have 2 dimensions and have shape (num_batch, num_units)")
-            self.cell_init = cell_init
-        elif isinstance(cell_init, Layer):
+        if isinstance(cell_init, Layer):
             self.cell_init = cell_init
         else:
             self.cell_init = self.add_param(
                 cell_init, (1, num_units), name="cell_init",
                 trainable=learn_init, regularizable=False)
 
-        if isinstance(hid_init, T.TensorVariable):
-            if hid_init.ndim != 2:
-                raise ValueError(
-                    "When hid_init is provided as a TensorVariable, it should "
-                    "have 2 dimensions and have shape (num_batch, num_units)")
-            self.hid_init = hid_init
-        elif isinstance(hid_init, Layer):
+        if isinstance(hid_init, Layer):
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -1092,19 +1056,11 @@ class LSTMLayer(MergeLayer):
             step_fun = step
 
         ones = T.ones((num_batch, 1))
-        if isinstance(self.cell_init, Layer):
-            pass
-        elif isinstance(self.cell_init, T.TensorVariable):
-            cell_init = self.cell_init
-        else:
+        if not isinstance(self.cell_init, Layer):
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             cell_init = T.dot(ones, self.cell_init)
 
-        if isinstance(self.hid_init, Layer):
-            pass
-        elif isinstance(self.hid_init, T.TensorVariable):
-            hid_init = self.hid_init
-        else:
+        if not isinstance(self.hid_init, Layer):
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             hid_init = T.dot(ones, self.hid_init)
 
@@ -1196,18 +1152,14 @@ class GRULayer(MergeLayer):
     hidden_update : Gate
         Parameters for the hidden update (:math:`c_t`): :math:`W_{xc}`,
         :math:`W_{hc}`, :math:`b_c`, and :math:`\sigma_c`.
-    hid_init : callable, np.ndarray, theano.shared, TensorVariable or Layer
-        Initializer for initial hidden state (:math:`h_0`).  If a
-        TensorVariable (Theano expression) is supplied, it will not be learned
-        regardless of the value of `learn_init`.
+    hid_init : callable, np.ndarray, theano.shared or :class:`Layer`
+        Initializer for initial hidden state (:math:`h_0`).
     backwards : bool
         If True, process the sequence backwards and then reverse the
         output again such that the output from the layer is always
         from :math:`x_1` to :math:`x_n`.
     learn_init : bool
-        If True, initial hidden values are learned. If `hid_init` is a
-        TensorVariable then the TensorVariable is used and
-        `learn_init` is ignored.
+        If True, initial hidden values are learned.
     gradient_steps : int
         Number of timesteps to include in the backpropagated gradient.
         If -1, backpropagate through the entire sequence.
@@ -1335,13 +1287,7 @@ class GRULayer(MergeLayer):
              hidden_update, 'hidden_update')
 
         # Initialize hidden state
-        if isinstance(hid_init, T.TensorVariable):
-            if hid_init.ndim != 2:
-                raise ValueError(
-                    "When hid_init is provided as a TensorVariable, it should "
-                    "have 2 dimensions and have shape (num_batch, num_units)")
-            self.hid_init = hid_init
-        elif isinstance(hid_init, Layer):
+        if isinstance(hid_init, Layer):
             self.hid_init = hid_init
         else:
             self.hid_init = self.add_param(
@@ -1487,11 +1433,7 @@ class GRULayer(MergeLayer):
             sequences = [input]
             step_fun = step
 
-        if isinstance(self.hid_init, Layer):
-            pass
-        elif isinstance(self.hid_init, T.TensorVariable):
-            hid_init = self.hid_init
-        else:
+        if not isinstance(self.hid_init, Layer):
             # Dot against a 1s vector to repeat to shape (num_batch, num_units)
             hid_init = T.dot(T.ones((num_batch, 1)), self.hid_init)
 

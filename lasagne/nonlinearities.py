@@ -287,7 +287,7 @@ def softplus(x):
 
 
 # Clipped Activation
-def ClippedActivation(object):
+class ClippedActivation(object):
     """Clipped Activation activation function
     :math:`\\varphi(x,c,a) = \\min(a(x),c)`
 
@@ -303,14 +303,32 @@ def ClippedActivation(object):
     activation : function
         An activation function that maps x onto a float32
 
-    Returns
+    Methods
     -------
-    float32
-        The output of the clipped activation functionapplied to the
-        activation.
+    __call__(x)
+        Apply the clipping to the to the activation `x`.
+
+    Examples
+    --------
+    In contrast to other activation functions in this module, this is
+    a class that needs to be instantiated to obtain a callable:
+
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((None, 100))
+    >>> from lasagne.nonlinearities import ClippedActivation, rectify
+    >>> custom_clipped_activation = ClippedActivation(clip=20,
+                                                      activation=rectify)
+    >>> l1 = DenseLayer(l_in, num_units=200,
+                        nonlinearity=custom_clipped_activation)
+
+    Alternatively, you can use the provided instance for clip=20,
+    activation=rectify
+
+    >>> from lasagne.nonlinearities import clipped_rectify
+    >>> l2 = DenseLayer(l_in, num_units=200, nonlinearity=clipped_rectify)
     """
 
-    def __init__(self, clip=1, activation=rectify):
+    def __init__(self, clip=20, activation=rectify):
         self.clip = clip
         self.activation = activation
 

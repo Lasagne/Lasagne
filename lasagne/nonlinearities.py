@@ -309,10 +309,17 @@ def ClippedActivation(x, clip=20.0, activation=rectify):
         The output of the clipped activation functionapplied to the
         activation.
     """
-    return theano.tensor.minimum(activation(x), clip)
+
+    def __init__(self, clip=1, activation=rectify):
+        self.clip = clip
+        self.activation = activation
+
+    def __call__(self, x):
+        return theano.tensor.minimum(self.activation(x), self.clip)
 
 
-clipped_rectify = ClippedActivation # shortcut with default activation and clip
+# shortcut with default activation and clip
+clipped_rectify = ClippedActivation()
 clipped_rectify.__doc__ = """clipped_rectify(x)
 
     Instance of :class:`ClippedActivation' such as used in [1]_.

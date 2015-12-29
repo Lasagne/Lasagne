@@ -287,7 +287,7 @@ def softplus(x):
 
 
 # Clipped Activation
-def ClippedActivation(x, clip=20.0, activation=rectify):
+def ClippedActivation(object):
     """Clipped Activation activation function
     :math:`\\varphi(x,c,a) = \\min(a(x),c)`
 

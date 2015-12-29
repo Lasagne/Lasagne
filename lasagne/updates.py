@@ -77,6 +77,7 @@ __all__ = [
     "rmsprop",
     "adadelta",
     "adam",
+    "adamax",
     "norm_constraint",
     "total_norm_constraint"
 ]
@@ -592,6 +593,65 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
 
         updates[m_prev] = m_t
         updates[v_prev] = v_t
+        updates[param] = param - step
+
+    updates[t_prev] = t
+    return updates
+
+
+def adamax(loss_or_grads, params, learning_rate=0.002, beta1=0.9,
+           beta2=0.999, epsilon=1e-8):
+    """Adamax updates
+
+    Adamax updates implemented as in [1]_. This is a variant of of the Adam
+    algorithm based on the infinity norm.
+
+    Parameters
+    ----------
+    loss_or_grads : symbolic expression or list of expressions
+        A scalar loss expression, or a list of gradient expressions
+    params : list of shared variables
+        The variables to generate update expressions for
+    learning_rate : float
+        Learning rate
+    beta1 : float
+        Exponential decay rate for the first moment estimates.
+    beta2 : float
+        Exponential decay rate for the weighted infinity norm estimates.
+    epsilon : float
+        Constant for numerical stability.
+
+    Returns
+    -------
+    OrderedDict
+        A dictionary mapping each parameter to its update expression
+
+    References
+    ----------
+    .. [1] Kingma, Diederik, and Jimmy Ba (2014):
+           Adam: A Method for Stochastic Optimization.
+           arXiv preprint arXiv:1412.6980.
+    """
+    all_grads = get_or_compute_grads(loss_or_grads, params)
+    t_prev = theano.shared(utils.floatX(0.))
+    updates = OrderedDict()
+
+    t = t_prev + 1
+    a_t = learning_rate/(1-beta1**t)
+
+    for param, g_t in zip(params, all_grads):
+        value = param.get_value(borrow=True)
+        m_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                               broadcastable=param.broadcastable)
+        u_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                               broadcastable=param.broadcastable)
+
+        m_t = beta1*m_prev + (1-beta1)*g_t
+        u_t = T.maximum(beta2*u_prev, abs(g_t))
+        step = a_t*m_t/(u_t + epsilon)
+
+        updates[m_prev] = m_t
+        updates[u_prev] = u_t
         updates[param] = param - step
 
     updates[t_prev] = t

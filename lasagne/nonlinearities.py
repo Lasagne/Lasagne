@@ -317,9 +317,9 @@ class ClippedActivation(object):
     >>> l_in = InputLayer((None, 100))
     >>> from lasagne.nonlinearities import ClippedActivation, rectify
     >>> custom_clipped_activation = ClippedActivation(clip=20,
-                                                      activation=rectify)
+    >>> activation=rectify)
     >>> l1 = DenseLayer(l_in, num_units=200,
-                        nonlinearity=custom_clipped_activation)
+    >>> nonlinearity=custom_clipped_activation)
 
     Alternatively, you can use the provided instance for clip=20,
     activation=rectify

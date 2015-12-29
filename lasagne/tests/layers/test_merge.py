@@ -93,6 +93,12 @@ class TestAutocrop:
         crop_test(crop_x, [x0, x1, x2],
                   [x0[:1, :2, :, :], x1[:1, :2, :, :], x2[:1, :2, :, :]])
 
+        # test that num outputs is correct when the number of inputs is
+        # larger than ndim of the inputs.
+        crop_test(crop_x, [x0, x1, x2, x0, x1, x2],
+                  [x0[:1, :2, :, :], x1[:1, :2, :, :], x2[:1, :2, :, :],
+                   x0[:1, :2, :, :], x1[:1, :2, :, :], x2[:1, :2, :, :]])
+
         with pytest.raises(ValueError):
             crop_test(crop_bad, [x0, x1, x2],
                       [x0[:1, :2, :, :], x1[:1, :2, :, :], x2[:1, :2, :, :]])

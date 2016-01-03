@@ -381,7 +381,7 @@ And finally a 10-unit softmax output layer, again with 50% dropout:
     network = lasagne.layers.DenseLayer(
             lasagne.layers.dropout(network, p=.5),
             num_units=10,
-            nonlinearity=lasagne.nonlinearities.rectify)
+            nonlinearity=lasagne.nonlinearities.softmax)
 
     return network
 

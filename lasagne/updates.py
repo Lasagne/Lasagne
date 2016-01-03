@@ -17,6 +17,7 @@ a list of parameters as input and return an ordered dictionary of updates:
     rmsprop
     adadelta
     adam
+    adamax
 
 Two functions can be used to further modify the updates to include momentum:
 

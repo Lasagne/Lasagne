@@ -174,18 +174,18 @@ class TestBatchNormLayer:
                             update_averages):
         input_shape = (20, 30, 40)
 
-        # random input tensor, beta, gamma, mean, var and alpha
+        # random input tensor, beta, gamma, mean, inv_std and alpha
         input = (np.random.randn(*input_shape).astype(theano.config.floatX) +
                  np.random.randn(1, 30, 1).astype(theano.config.floatX))
         beta = np.random.randn(30).astype(theano.config.floatX)
         gamma = np.random.randn(30).astype(theano.config.floatX)
         mean = np.random.randn(30).astype(theano.config.floatX)
-        var = np.random.rand(30).astype(theano.config.floatX)
+        inv_std = np.random.rand(30).astype(theano.config.floatX)
         alpha = np.random.rand()
 
         # create layer (with default axes: normalize over all but second axis)
         layer = BatchNormLayer(input_shape, beta=beta, gamma=gamma, mean=mean,
-                               var=var, alpha=alpha)
+                               inv_std=inv_std, alpha=alpha)
 
         # call get_output_for()
         kwargs = {'deterministic': deterministic}
@@ -202,24 +202,24 @@ class TestBatchNormLayer:
 
         # compute expected results and expected updated parameters
         input_mean = input.mean(axis=(0, 2))
-        input_var = input.var(axis=(0, 2))
+        input_inv_std = 1 / np.sqrt(input.var(axis=(0, 2)) + layer.epsilon)
         if use_averages:
-            use_mean, use_var = mean, var
+            use_mean, use_inv_std = mean, inv_std
         else:
-            use_mean, use_var = input_mean, input_var
-        use_std = np.sqrt(use_var + layer.epsilon)
-        exp_result = (input - use_mean[None, :, None]) / use_std[None, :, None]
-        exp_result = exp_result * gamma[None, :, None] + beta[None, :, None]
+            use_mean, use_inv_std = input_mean, input_inv_std
+        bcast = (np.newaxis, slice(None), np.newaxis)
+        exp_result = (input - use_mean[bcast]) * use_inv_std[bcast]
+        exp_result = exp_result * gamma[bcast] + beta[bcast]
         if update_averages:
             new_mean = (1 - alpha) * mean + alpha * input_mean
-            new_var = (1 - alpha) * var + alpha * input_var
+            new_inv_std = (1 - alpha) * inv_std + alpha * input_inv_std
         else:
-            new_mean, new_var = mean, var
+            new_mean, new_inv_std = mean, inv_std
 
         # compare expected results to actual results
         tol = {'atol': 1e-5, 'rtol': 1e-6}
         assert np.allclose(layer.mean.get_value(), new_mean, **tol)
-        assert np.allclose(layer.var.get_value(), new_var, **tol)
+        assert np.allclose(layer.inv_std.get_value(), new_inv_std, **tol)
         assert np.allclose(result, exp_result, **tol)
 
     def test_undefined_shape(self, BatchNormLayer):

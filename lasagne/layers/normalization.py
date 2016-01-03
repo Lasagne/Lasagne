@@ -122,7 +122,7 @@ class BatchNormLayer(Layer):
     lasagne.layers.BatchNormLayer(incoming, axes='auto', epsilon=1e-4,
     alpha=0.1, mode='low_mem',
     beta=lasagne.init.Constant(0), gamma=lasagne.init.Constant(1),
-    mean=lasagne.init.Constant(0), var=lasagne.init.Constant(1), **kwargs)
+    mean=lasagne.init.Constant(0), inv_std=lasagne.init.Constant(1), **kwargs)
 
     Batch Normalization
 
@@ -139,7 +139,9 @@ class BatchNormLayer(Layer):
     mean and variance of the current input mini-batch :math:`x`, and during
     testing, they are replaced with average statistics over the training
     data. Consequently, this layer has four stored parameters: :math:`\\beta`,
-    :math:`\\gamma`, and the averages :math:`\\mu` and :math:`\\sigma^2`.
+    :math:`\\gamma`, and the averages :math:`\\mu` and :math:`\\sigma^2`
+    (nota bene: instead of :math:`\\sigma^2`, the layer actually stores
+    :math:`1 / \\sqrt{\\sigma^2 + \\epsilon}`, for compatibility to cuDNN).
     By default, this layer learns the average statistics as exponential moving
     averages computed during training, so it can be plugged into an existing
     network without any changes of the training procedure (see Notes).
@@ -179,9 +181,10 @@ class BatchNormLayer(Layer):
         Initial value, expression or initializer for :math:`\\mu`. Must match
         the incoming shape, skipping all axes in `axes`.
         See :func:`lasagne.utils.create_param` for more information.
-    var : Theano shared variable, expression, numpy array, or callable
-        Initial value, expression or initializer for :math:`\\sigma^2`. Must
-        match the incoming shape, skipping all axes in `axes`.
+    inv_std : Theano shared variable, expression, numpy array, or callable
+        Initial value, expression or initializer for :math:`1 / \\sqrt{
+        \\sigma^2 + \\epsilon}`. Must match the incoming shape, skipping all
+        axes in `axes`.
         See :func:`lasagne.utils.create_param` for more information.
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
@@ -232,7 +235,7 @@ class BatchNormLayer(Layer):
     """
     def __init__(self, incoming, axes='auto', epsilon=1e-4, alpha=0.1,
                  mode='low_mem', beta=init.Constant(0), gamma=init.Constant(1),
-                 mean=init.Constant(0), var=init.Constant(1), **kwargs):
+                 mean=init.Constant(0), inv_std=init.Constant(1), **kwargs):
         super(BatchNormLayer, self).__init__(incoming, **kwargs)
 
         if axes == 'auto':
@@ -264,22 +267,24 @@ class BatchNormLayer(Layer):
                                         trainable=True, regularizable=True)
         self.mean = self.add_param(mean, shape, 'mean',
                                    trainable=False, regularizable=False)
-        self.var = self.add_param(var, shape, 'var',
-                                  trainable=False, regularizable=False)
+        self.inv_std = self.add_param(inv_std, shape, 'inv_std',
+                                      trainable=False, regularizable=False)
 
     def get_output_for(self, input, deterministic=False, **kwargs):
         input_mean = input.mean(self.axes)
-        input_var = input.var(self.axes)
+        input_std = T.sqrt(input.var(self.axes) + self.epsilon)
 
         # Decide whether to use the stored averages or mini-batch statistics
         use_averages = kwargs.get('batch_norm_use_averages',
                                   deterministic)
         if use_averages:
             mean = self.mean
-            var = self.var
+            std = None
+            inv_std = self.inv_std
         else:
             mean = input_mean
-            var = input_var
+            std = input_std
+            inv_std = None
 
         # Decide whether to update the stored averages
         update_averages = kwargs.get('batch_norm_update_averages',
@@ -288,17 +293,17 @@ class BatchNormLayer(Layer):
             # Trick: To update the stored statistics, we create memory-aliased
             # clones of the stored statistics:
             running_mean = theano.clone(self.mean, share_inputs=False)
-            running_var = theano.clone(self.var, share_inputs=False)
+            running_inv_std = theano.clone(self.inv_std, share_inputs=False)
             # set a default update for them:
             running_mean.default_update = ((1 - self.alpha) * running_mean +
                                            self.alpha * input_mean)
-            running_var.default_update = ((1 - self.alpha) * running_var +
-                                          self.alpha * input_var)
+            running_inv_std.default_update = ((1 - self.alpha) *
+                                              running_inv_std +
+                                              self.alpha / input_std)
             # and make sure they end up in the graph without participating in
             # the computation (this way their default_update will be collected
             # and applied, but the computation will be optimized away):
-            mean += 0 * running_mean
-            var += 0 * running_var
+            mean += 0 * running_mean + 0 * running_inv_std
 
         # prepare dimshuffle pattern inserting broadcastable axes as needed
         param_axes = iter(range(input.ndim - len(self.axes)))
@@ -310,12 +315,14 @@ class BatchNormLayer(Layer):
         beta = 0 if self.beta is None else self.beta.dimshuffle(pattern)
         gamma = 1 if self.gamma is None else self.gamma.dimshuffle(pattern)
         mean = mean.dimshuffle(pattern)
-        std = T.sqrt(var + self.epsilon).dimshuffle(pattern)
+        std = 1 if std is None else std.dimshuffle(pattern)
+        inv_std = 1 if inv_std is None else inv_std.dimshuffle(pattern)
 
         # normalize
-        # normalized = (input - mean) * (gamma / std) + beta
-        normalized = T.nnet.batch_normalization(input, gamma=gamma, beta=beta,
-                                                mean=mean, std=std,
+        # normalized = (input - mean) * (gamma * inv_std / std) + beta
+        # where either inv_std == 1 or std == 1, depending on which one is used
+        normalized = T.nnet.batch_normalization(input, gamma=gamma * inv_std,
+                                                beta=beta, mean=mean, std=std,
                                                 mode=self.mode)
         return normalized
 

@@ -14,6 +14,7 @@ Update functions
 .. autofunction:: rmsprop
 .. autofunction:: adadelta
 .. autofunction:: adam
+.. autofunction:: adamax
 
 
 Update modification functions

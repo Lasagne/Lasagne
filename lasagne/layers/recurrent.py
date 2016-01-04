@@ -705,7 +705,7 @@ class LSTMLayer(MergeLayer):
         f_t &= \sigma_f(x_t W_{xf} + h_{t-1} W_{hf}
                + w_{cf} \odot c_{t-1} + b_f)\\
         c_t &= f_t \odot c_{t - 1}
-               + i_t\sigma_c(x_t W_{xc} + h_{t-1} W_{hc} + b_c)\\
+               + i_t \odot \sigma_c(x_t W_{xc} + h_{t-1} W_{hc} + b_c)\\
         o_t &= \sigma_o(x_t W_{xo} + h_{t-1} W_{ho} + w_{co} \odot c_t + b_o)\\
         h_t &= o_t \odot \sigma_h(c_t)
 

@@ -2,18 +2,25 @@ import os
 import re
 from setuptools import find_packages
 from setuptools import setup
+# We need io.open() (Python 3's default open) to specify file encodings 
+import io
 
 here = os.path.abspath(os.path.dirname(__file__))
 try:
     # obtain version string from __init__.py
-    init_py = open(os.path.join(here, 'lasagne', '__init__.py')).read()
+    # Read ASCII file with builtin open() so __version__ is str in Python 2 and 3
+    with open(os.path.join(here, 'lasagne', '__init__.py'), 'r') as f:
+        init_py = f.read()
     version = re.search('__version__ = "(.*)"', init_py).groups()[0]
 except Exception:
     version = ''
 try:
     # obtain long description from README and CHANGES
-    README = open(os.path.join(here, 'README.rst')).read()
-    CHANGES = open(os.path.join(here, 'CHANGES.rst')).read()
+    # Specify encoding to get a unicode type in Python 2 and a str in Python 3
+    with io.open(os.path.join(here, 'README.rst'), 'r', encoding='utf-8') as f:
+        README = f.read()
+    with io.open(os.path.join(here, 'CHANGES.rst'), 'r', encoding='utf-8') as f:
+        CHANGES = f.read()
 except IOError:
     README = CHANGES = ''
 

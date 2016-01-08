@@ -153,9 +153,11 @@ def unique(l):
         A list of elements of `l` without duplicates and in the same order.
     """
     new_list = []
+    seen = set()
     for el in l:
-        if el not in new_list:
+        if el not in seen:
             new_list.append(el)
+            seen.add(el)
 
     return new_list
 

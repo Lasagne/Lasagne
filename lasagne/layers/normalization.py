@@ -162,11 +162,6 @@ class BatchNormLayer(Layer):
         Coefficient for the exponential moving average of batch-wise means and
         standard deviations computed during training; the closer to one, the
         more it will depend on the last batches seen
-    mode : {'low_mem', 'high_mem'}
-        Specify which batch normalization implementation to use: ``'low_mem'``
-        avoids storing intermediate representations and thus requires less
-        memory, while ``'high_mem'`` can reuse representations for the backward
-        pass and is thus 5-10% faster.
     beta : Theano shared variable, expression, numpy array, callable or None
         Initial value, expression or initializer for :math:`\\beta`. Must match
         the incoming shape, skipping all axes in `axes`. Set to ``None`` to fix
@@ -272,19 +267,17 @@ class BatchNormLayer(Layer):
 
     def get_output_for(self, input, deterministic=False, **kwargs):
         input_mean = input.mean(self.axes)
-        input_std = T.sqrt(input.var(self.axes) + self.epsilon)
+        input_inv_std = T.inv(T.sqrt(input.var(self.axes) + self.epsilon))
 
         # Decide whether to use the stored averages or mini-batch statistics
         use_averages = kwargs.get('batch_norm_use_averages',
                                   deterministic)
         if use_averages:
             mean = self.mean
-            std = None
             inv_std = self.inv_std
         else:
             mean = input_mean
-            std = input_std
-            inv_std = None
+            inv_std = input_inv_std
 
         # Decide whether to update the stored averages
         update_averages = kwargs.get('batch_norm_update_averages',
@@ -299,11 +292,12 @@ class BatchNormLayer(Layer):
                                            self.alpha * input_mean)
             running_inv_std.default_update = ((1 - self.alpha) *
                                               running_inv_std +
-                                              self.alpha / input_std)
+                                              self.alpha * input_inv_std)
             # and make sure they end up in the graph without participating in
             # the computation (this way their default_update will be collected
             # and applied, but the computation will be optimized away):
-            mean += 0 * running_mean + 0 * running_inv_std
+            mean += 0 * running_mean
+            inv_std += 0 * running_inv_std
 
         # prepare dimshuffle pattern inserting broadcastable axes as needed
         param_axes = iter(range(input.ndim - len(self.axes)))
@@ -315,15 +309,10 @@ class BatchNormLayer(Layer):
         beta = 0 if self.beta is None else self.beta.dimshuffle(pattern)
         gamma = 1 if self.gamma is None else self.gamma.dimshuffle(pattern)
         mean = mean.dimshuffle(pattern)
-        std = 1 if std is None else std.dimshuffle(pattern)
-        inv_std = 1 if inv_std is None else inv_std.dimshuffle(pattern)
+        inv_std = inv_std.dimshuffle(pattern)
 
         # normalize
-        # normalized = (input - mean) * (gamma * inv_std / std) + beta
-        # where either inv_std == 1 or std == 1, depending on which one is used
-        normalized = T.nnet.batch_normalization(input, gamma=gamma * inv_std,
-                                                beta=beta, mean=mean, std=std,
-                                                mode=self.mode)
+        normalized = (input - mean) * (gamma * inv_std) + beta
         return normalized
 
 
@@ -343,8 +332,7 @@ def batch_norm(layer, **kwargs):
         irreversibly modified as specified above
     **kwargs
         Any additional keyword arguments are passed on to the
-        :class:`BatchNormLayer` constructor. Especially note the `mode`
-        argument, which controls a memory usage to performance tradeoff.
+        :class:`BatchNormLayer` constructor.
 
     Returns
     -------

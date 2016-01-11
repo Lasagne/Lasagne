@@ -214,6 +214,15 @@ class TestMaxPool1DLayer:
         assert layer.get_output_shape_for((32, 64, None)) == (32, 64, None)
         assert layer.get_output_shape_for((32, 64, 128)) == (32, 64, 64)
 
+    def test_fail_on_mismatching_dimensionality(self):
+        from lasagne.layers.pool import MaxPool1DLayer
+        with pytest.raises(ValueError) as exc:
+            MaxPool1DLayer((10, 20), 3, 2)
+        assert "Expected 3 input dimensions" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            MaxPool1DLayer((10, 20, 30, 40), 3, 2)
+        assert "Expected 3 input dimensions" in exc.value.args[0]
+
 
 class TestMaxPool2DLayer:
     def pool_test_sets():
@@ -308,6 +317,15 @@ class TestMaxPool2DLayer:
                 input_shape) == output_shape
         except NotImplementedError:
             pytest.skip()
+
+    def test_fail_on_mismatching_dimensionality(self):
+        from lasagne.layers.pool import MaxPool2DLayer
+        with pytest.raises(ValueError) as exc:
+            MaxPool2DLayer((10, 20, 30), 3, 2)
+        assert "Expected 4 input dimensions" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            MaxPool2DLayer((10, 20, 30, 40, 50), 3, 2)
+        assert "Expected 4 input dimensions" in exc.value.args[0]
 
 
 class TestMaxPool2DCCLayer:
@@ -500,6 +518,18 @@ class TestMaxPool2DNNLayer:
                                       ignore_border=False)
         assert ("Pool2DDNNLayer does not support ignore_border=False" in
                 exc.value.args[0])
+
+    def test_fail_on_mismatching_dimensionality(self):
+        try:
+            from lasagne.layers.dnn import MaxPool2DDNNLayer
+        except ImportError:
+            pytest.skip("cuDNN not available")
+        with pytest.raises(ValueError) as exc:
+            MaxPool2DNNLayer((10, 20, 30), 3, 2)
+        assert "Expected 4 input dimensions" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            MaxPool2DNNLayer((10, 20, 30, 40, 50), 3, 2)
+        assert "Expected 4 input dimensions" in exc.value.args[0]
 
 
 class TestUpscale1DLayer:

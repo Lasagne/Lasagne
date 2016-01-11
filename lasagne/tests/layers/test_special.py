@@ -2,6 +2,7 @@ from mock import Mock
 import numpy as np
 import pytest
 import theano
+from lasagne.layers import InputLayer, standardize, get_output
 
 
 class TestExpressionLayer:
@@ -267,6 +268,27 @@ class TestScaleLayer:
         with pytest.raises(ValueError) as exc:
             ScaleLayer((64, None, 3), shared_axes=(0, 2))
         assert 'needs specified input sizes' in exc.value.args[0]
+
+
+def test_standardize():
+    # Simple example
+    X = np.random.standard_normal((1000, 20)).astype(theano.config.floatX)
+    l_in = InputLayer((None, 20))
+    l_std = standardize(
+        l_in, X.min(axis=0), (X.max(axis=0) - X.min(axis=0)), shared_axes=0)
+    out = get_output(l_std).eval({l_in.input_var: X})
+    assert np.allclose(out.max(axis=0), 1.)
+    assert np.allclose(out.min(axis=0), 0.)
+    # More complicated example
+    X = np.random.standard_normal(
+        (50, 3, 100, 10)).astype(theano.config.floatX)
+    mean = X.mean(axis=(0, 2))
+    std = X.std(axis=(0, 2))
+    l_in = InputLayer((None, 3, None, 10))
+    l_std = standardize(l_in, mean, std, shared_axes=(0, 2))
+    out = get_output(l_std).eval({l_in.input_var: X})
+    assert np.allclose(out.mean(axis=(0, 2)), 0., atol=1e-5)
+    assert np.allclose(out.std((0, 2)), 1., atol=1e-5)
 
 
 class TestInverseLayer:

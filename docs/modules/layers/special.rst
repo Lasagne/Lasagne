@@ -14,6 +14,8 @@ Special-purpose layers
 .. autoclass:: ScaleLayer
    :members:
 
+.. autofunction:: standardize
+
 .. autoclass:: ExpressionLayer
    :members:
 

@@ -74,6 +74,11 @@ class Pool2DDNNLayer(Layer):
     def __init__(self, incoming, pool_size, stride=None, pad=(0, 0),
                  ignore_border=True, mode='max', **kwargs):
         super(Pool2DDNNLayer, self).__init__(incoming, **kwargs)
+        if len(self.input_shape) != 4:
+            raise ValueError("Tried to create a 2D pooling layer with "
+                             "input shape %r. Expected 4 input dimensions "
+                             "(batchsize, channels, 2 spatial dimensions)."
+                             % (self.input_shape,))
         self.pool_size = as_tuple(pool_size, 2)
         if stride is None:
             self.stride = self.pool_size

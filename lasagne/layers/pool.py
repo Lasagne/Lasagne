@@ -127,6 +127,12 @@ class Pool1DLayer(Layer):
                  ignore_border=True, mode='max', **kwargs):
         super(Pool1DLayer, self).__init__(incoming, **kwargs)
 
+        if len(self.input_shape) != 3:
+            raise ValueError("Tried to create a 1D pooling layer with "
+                             "input shape %r. Expected 3 input dimensions "
+                             "(batchsize, channels, 1 spatial dimensions)."
+                             % (self.input_shape,))
+
         self.pool_size = as_tuple(pool_size, 1)
         self.stride = self.pool_size if stride is None else as_tuple(stride, 1)
         self.pad = as_tuple(pad, 1)
@@ -215,6 +221,12 @@ class Pool2DLayer(Layer):
         super(Pool2DLayer, self).__init__(incoming, **kwargs)
 
         self.pool_size = as_tuple(pool_size, 2)
+
+        if len(self.input_shape) != 4:
+            raise ValueError("Tried to create a 2D pooling layer with "
+                             "input shape %r. Expected 4 input dimensions "
+                             "(batchsize, channels, 2 spatial dimensions)."
+                             % (self.input_shape,))
 
         if stride is None:
             self.stride = self.pool_size

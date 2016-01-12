@@ -192,4 +192,6 @@
     dnn.Conv3DDNNLayer
     dnn.MaxPool2DDNNLayer
     dnn.Pool2DDNNLayer
+    dnn.MaxPool3DDNNLayer
+    dnn.Pool3DDNNLayer
 

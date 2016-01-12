@@ -16,6 +16,8 @@ if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
 __all__ = [
     "Pool2DDNNLayer",
     "MaxPool2DDNNLayer",
+    "Pool3DDNNLayer",
+    "MaxPool3DDNNLayer",
     "Conv2DDNNLayer",
     "Conv3DDNNLayer",
 ]
@@ -126,6 +128,121 @@ class MaxPool2DDNNLayer(Pool2DDNNLayer):
     def __init__(self, incoming, pool_size, stride=None,
                  pad=(0, 0), ignore_border=True, **kwargs):
         super(MaxPool2DDNNLayer, self).__init__(incoming, pool_size, stride,
+                                                pad, ignore_border, mode='max',
+                                                **kwargs)
+
+
+
+class Pool3DDNNLayer(Layer):
+    """
+    3D pooling layer
+
+    Performs 3D mean- or max-pooling over the 3 trailing axes of a 5D input
+    tensor. This is an alternative implementation which uses
+    ``theano.sandbox.cuda.dnn.dnn_pool`` directly.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_size : integer or iterable
+        The length of the pooling region in each dimension. If an integer, it
+        is promoted to a square pooling region. If an iterable, it should have
+        two elements.
+
+    stride : integer, iterable or ``None``
+        The strides between sucessive pooling regions in each dimension.
+        If ``None`` then ``stride = pool_size``.
+
+    pad : integer or iterable
+        Number of elements to be added on each side of the input
+        in each dimension. Each value must be less than
+        the corresponding stride.
+
+    ignore_border : bool (default: True)
+        This implementation never includes partial pooling regions, so this
+        argument must always be set to True. It exists only to make sure the
+        interface is compatible with :class:`lasagne.layers.MaxPool2DLayer`.
+
+    mode : string
+        Pooling mode, one of 'max', 'average_inc_pad' or 'average_exc_pad'.
+        Defaults to 'max'.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    The value used to pad the input is chosen to be less than
+    the minimum of the input, so that the output of each pooling region
+    always corresponds to some element in the unpadded input region.
+
+    """
+    def __init__(self, incoming, pool_size, stride=None, pad=(0, 0, 0),
+                 ignore_border=True, mode='max', **kwargs):
+        super(Pool3DDNNLayer, self).__init__(incoming, **kwargs)
+        if len(self.input_shape) != 5:
+            raise ValueError("Tried to create a 3D pooling layer with "
+                             "input shape %r. Expected 5 input dimensions "
+                             "(batchsize, channels, 3 spatial dimensions)."
+                             % (self.input_shape,))
+        self.pool_size = as_tuple(pool_size, 3)
+        if stride is None:
+            self.stride = self.pool_size
+        else:
+            self.stride = as_tuple(stride, 3)
+        self.pad = as_tuple(pad, 3)
+        self.mode = mode
+        # The ignore_border argument is for compatibility with MaxPool2DLayer.
+        # ignore_border=False is not supported. Borders are always ignored.
+        if not ignore_border:
+            raise NotImplementedError("Pool3DDNNLayer does not support "
+                                      "ignore_border=False.")
+
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)  # copy / convert to mutable list
+
+        output_shape[2] = pool_output_length(input_shape[2],
+                                             pool_size=self.pool_size[0],
+                                             stride=self.stride[0],
+                                             pad=self.pad[0],
+                                             ignore_border=True,
+                                             )
+
+        output_shape[3] = pool_output_length(input_shape[3],
+                                             pool_size=self.pool_size[1],
+                                             stride=self.stride[1],
+                                             pad=self.pad[1],
+                                             ignore_border=True,
+                                             )
+        
+        output_shape[4] = pool_output_length(input_shape[4],
+                                             pool_size=self.pool_size[2],
+                                             stride=self.stride[2],
+                                             pad=self.pad[2],
+                                             ignore_border=True,
+                                             )
+
+        return tuple(output_shape)
+
+    def get_output_for(self, input, **kwargs):
+        return dnn.dnn_pool(input, self.pool_size, self.stride,
+                            self.mode, self.pad)
+
+
+class MaxPool3DDNNLayer(Pool3DDNNLayer):
+    """
+    3D max-pooling layer
+
+    Subclass of :class:`Pool3DDNNLayer` fixing ``mode='max'``, provided for
+    consistency to ``MaxPool2DLayer`` classes.
+    """
+    def __init__(self, incoming, pool_size, stride=None,
+                 pad=(0, 0, 0), ignore_border=True, **kwargs):
+        super(MaxPool3DDNNLayer, self).__init__(incoming, pool_size, stride,
                                                 pad, ignore_border, mode='max',
                                                 **kwargs)
 

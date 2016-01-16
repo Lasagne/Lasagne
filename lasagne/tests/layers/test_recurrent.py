@@ -601,9 +601,9 @@ def test_lstm_nparams_hid_init_layer():
     l_lstm = LSTMLayer(l_inp, 7, hid_init=l_inp_h_de, cell_init=l_inp_cell_de)
 
     # directly check the layers can be seen through hid_init
-    layers_to_find = [l_inp, l_inp_h, l_inp_h_de, l_inp_cell, l_inp_cell_de,
-                      l_lstm]
-    assert lasagne.layers.get_all_layers(l_lstm) == layers_to_find
+    layers_to_find = {l_inp, l_inp_h, l_inp_h_de, l_inp_cell, l_inp_cell_de,
+                      l_lstm}
+    assert set(lasagne.layers.get_all_layers(l_lstm)) == layers_to_find
 
     # 3*n_gates + 4
     # the 3 is because we have  hid_to_gate, in_to_gate and bias for each gate

@@ -11,6 +11,11 @@ Special-purpose layers
 .. autoclass:: BiasLayer
    :members:
 
+.. autoclass:: ScaleLayer
+   :members:
+
+.. autofunction:: standardize
+
 .. autoclass:: ExpressionLayer
    :members:
 

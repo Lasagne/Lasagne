@@ -2,6 +2,7 @@ from mock import Mock
 import numpy as np
 import pytest
 import theano
+from lasagne.layers import InputLayer, standardize, get_output
 
 
 class TestExpressionLayer:
@@ -217,6 +218,77 @@ class TestBiasLayer:
         with pytest.raises(ValueError) as exc:
             BiasLayer((64, None, 3), shared_axes=(0, 2))
         assert 'needs specified input sizes' in exc.value.args[0]
+
+
+class TestScaleLayer:
+    @pytest.fixture
+    def ScaleLayer(self):
+        from lasagne.layers.special import ScaleLayer
+        return ScaleLayer
+
+    @pytest.fixture
+    def init_scales(self):
+        # initializer for a tensor of unique values
+        return lambda shape: np.arange(np.prod(shape)).reshape(shape)
+
+    def test_scales_init(self, ScaleLayer, init_scales):
+        input_shape = (2, 3, 4)
+        # default: share scales over all but second axis
+        b = ScaleLayer(input_shape, scales=init_scales).scales
+        assert np.allclose(b.get_value(), init_scales((3,)))
+        # share over first axis only
+        b = ScaleLayer(input_shape, scales=init_scales, shared_axes=0).scales
+        assert np.allclose(b.get_value(), init_scales((3, 4)))
+        # share over second and third axis
+        b = ScaleLayer(
+            input_shape, scales=init_scales, shared_axes=(1, 2)).scales
+        assert np.allclose(b.get_value(), init_scales((2,)))
+
+    def test_get_output_for(self, ScaleLayer, init_scales):
+        input_shape = (2, 3, 4)
+        # random input tensor
+        input = np.random.randn(*input_shape).astype(theano.config.floatX)
+        # default: share scales over all but second axis
+        layer = ScaleLayer(input_shape, scales=init_scales)
+        assert np.allclose(layer.get_output_for(input).eval(),
+                           input * init_scales((1, 3, 1)))
+        # share over first axis only
+        layer = ScaleLayer(input_shape, scales=init_scales, shared_axes=0)
+        assert np.allclose(layer.get_output_for(input).eval(),
+                           input * init_scales((1, 3, 4)))
+        # share over second and third axis
+        layer = ScaleLayer(input_shape, scales=init_scales, shared_axes=(1, 2))
+        assert np.allclose(layer.get_output_for(input).eval(),
+                           input * init_scales((2, 1, 1)))
+
+    def test_undefined_shape(self, ScaleLayer):
+        # should work:
+        ScaleLayer((64, None, 3), shared_axes=(1, 2))
+        # should not work:
+        with pytest.raises(ValueError) as exc:
+            ScaleLayer((64, None, 3), shared_axes=(0, 2))
+        assert 'needs specified input sizes' in exc.value.args[0]
+
+
+def test_standardize():
+    # Simple example
+    X = np.random.standard_normal((1000, 20)).astype(theano.config.floatX)
+    l_in = InputLayer((None, 20))
+    l_std = standardize(
+        l_in, X.min(axis=0), (X.max(axis=0) - X.min(axis=0)), shared_axes=0)
+    out = get_output(l_std).eval({l_in.input_var: X})
+    assert np.allclose(out.max(axis=0), 1.)
+    assert np.allclose(out.min(axis=0), 0.)
+    # More complicated example
+    X = np.random.standard_normal(
+        (50, 3, 100, 10)).astype(theano.config.floatX)
+    mean = X.mean(axis=(0, 2))
+    std = X.std(axis=(0, 2))
+    l_in = InputLayer((None, 3, None, 10))
+    l_std = standardize(l_in, mean, std, shared_axes=(0, 2))
+    out = get_output(l_std).eval({l_in.input_var: X})
+    assert np.allclose(out.mean(axis=(0, 2)), 0., atol=1e-5)
+    assert np.allclose(out.std((0, 2)), 1., atol=1e-5)
 
 
 class TestInverseLayer:

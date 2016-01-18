@@ -77,6 +77,7 @@ class TestDropoutLayer:
         set_rng(rng)  # reset to original RNG for other tests
         assert numpy.allclose(result_eval1, result_eval2)
 
+
 class TestGaussianNoiseLayer:
     @pytest.fixture
     def layer(self):

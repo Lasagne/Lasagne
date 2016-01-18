@@ -28,6 +28,11 @@ class TestDropoutLayer:
         from lasagne.layers.noise import DropoutLayer
         return DropoutLayer(input_layer, p=0.2)
 
+    def test_float64_leaks(self, input_layer) :
+        from lasagne.layers.noise import DropoutLayer
+	theano.config.floatX = 'float32'
+	assert DropoutLayer(input_layer,p=numpy.float32(0.5)).get_output_for(theano.shared(numpy.ones((100,100),dtype=numpy.float32))).eval().dtype is numpy.dtype('float32')
+
     def test_get_output_for_non_deterministic(self, layer):
         input = theano.shared(numpy.ones((100, 100)))
         result = layer.get_output_for(input)
@@ -71,7 +76,6 @@ class TestDropoutLayer:
 
         set_rng(rng)  # reset to original RNG for other tests
         assert numpy.allclose(result_eval1, result_eval2)
-
 
 class TestGaussianNoiseLayer:
     @pytest.fixture

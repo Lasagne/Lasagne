@@ -151,6 +151,8 @@ class RecurrentContainerLayer(MergeLayer):
                     regularizable=False)
 
     def get_params(self, **tags):
+        for tag in ('step', 'step_only', 'precompute_input'):
+            tags.pop(tag, None)
         # Get all parameters from this layer, the master layer
         params = super(RecurrentContainerLayer, self).get_params(**tags)
         # Combine with all parameters from the cells
@@ -305,6 +307,19 @@ class RecurrentContainerLayer(MergeLayer):
 
 
 class CellLayer(Layer):
+    def add_param(self, spec, shape, name=None, **tags):
+        tags['step'] = tags.get('step', True)
+        tags['step_only'] = tags.get('step_only', False)
+        tags['precompute_input'] = tags.get('precompute_input', True)
+        return super(CellLayer, self).add_param(spec, shape, name, **tags)
+
+    def get_params(self, **tags):
+        if not tags.get('step', False):
+            tags['step_only'] = tags.get('step_only', False)
+        if not tags.get('precompute_input', True):
+            tags.pop('precompute_input')
+        return super(CellLayer, self).get_params(**tags)
+
     def precompute_shape_for(self, input_shape):
         return input_shape
 
@@ -459,7 +474,11 @@ class CustomRecurrentCell(CellLayer):
         else:
             self.nonlinearity = nonlinearity
 
-    def get_params(self, step=False, precompute_input=False, **tags):
+    def get_params(self, **tags):
+        step = tags.pop('step', False)
+        tags.pop('step_only', None)
+        precompute_input = tags.pop('precompute_input', False)
+
         # Check that input_to_hidden and hidden_to_hidden output shapes match,
         # but don't check a dimension if it's None for either shape
         if not all(s1 is None or s2 is None or s1 == s2
@@ -503,11 +522,8 @@ class CustomRecurrentCell(CellLayer):
                     self.input_to_hidden.output_shape[0],
                     self.hidden_to_hidden.output_shape[0]))
 
-        # Get all parameters from this layer, the master layer
-        params = super(CellLayer, self).get_params(**tags)
-        # Combine with all parameters from the child layers
-        params += helper.get_all_params(self.hidden_to_hidden, **tags)
-        if not precompute_input:
+        params = helper.get_all_params(self.hidden_to_hidden, **tags)
+        if not (step and precompute_input):
             params += helper.get_all_params(self.input_to_hidden, **tags)
         return params
 
@@ -793,7 +809,7 @@ class Gate(object):
     """
     def __init__(self, W_in=init.Normal(0.1), W_hid=init.Normal(0.1),
                  W_cell=init.Normal(0.1), b=init.Constant(0.),
-                 nonlinearity=nonlinearities.sigmoid):
+                 nonlinearity=nonlinearities.sigmoid, name=''):
         self.W_in = W_in
         self.W_hid = W_hid
         # Don't store a cell weight vector when cell is None
@@ -805,6 +821,19 @@ class Gate(object):
             self.nonlinearity = nonlinearities.identity
         else:
             self.nonlinearity = nonlinearity
+        self.name = name
+
+    def add_params_to(self, layer, num_inputs, num_units, **tags):
+        """ Convenience function for adding layer parameters from a Gate
+        instance. """
+        return (layer.add_param(self.W_in, (num_inputs, num_units),
+                                name='W_in_to_{}'.format(self.name), **tags),
+                layer.add_param(self.W_hid, (num_units, num_units),
+                                name='W_hid_to_{}'.format(self.name), **tags),
+                layer.add_param(self.b, (num_units,),
+                                name='b_{}'.format(self.name),
+                                regularizable=False, **tags),
+                self.nonlinearity)
 
 
 class LSTMCell(CellLayer):
@@ -904,10 +933,11 @@ class LSTMCell(CellLayer):
            arXiv preprint arXiv:1308.0850 (2013).
     """
     def __init__(self, incoming, num_units,
-                 ingate=Gate(),
-                 forgetgate=Gate(),
-                 cell=Gate(W_cell=None, nonlinearity=nonlinearities.tanh),
-                 outgate=Gate(),
+                 ingate=Gate(name='ingate'),
+                 forgetgate=Gate(name='forgetgate'),
+                 cell=Gate(W_cell=None, nonlinearity=nonlinearities.tanh,
+                           name='cell'),
+                 outgate=Gate(name='outgate'),
                  nonlinearity=nonlinearities.tanh,
                  cell_init=init.Constant(0.),
                  hid_init=init.Constant(0.),
@@ -926,79 +956,54 @@ class LSTMCell(CellLayer):
 
         num_inputs = np.prod(get_cell_shape(incoming)[1:])
 
-        def add_gate_params(gate, gate_name):
-            """ Convenience function for adding layer parameters from a Gate
-            instance. """
-            return (self.add_param(gate.W_in, (num_inputs, num_units),
-                                   name='W_in_to_{}'.format(gate_name)),
-                    self.add_param(gate.W_hid, (num_units, num_units),
-                                   name='W_hid_to_{}'.format(gate_name)),
-                    self.add_param(gate.b, (num_units,),
-                                   name='b_{}'.format(gate_name),
-                                   regularizable=False),
-                    gate.nonlinearity)
-
         # Add in parameters from the supplied Gate instances
         (self.W_in_to_ingate, self.W_hid_to_ingate, self.b_ingate,
-         self.nonlinearity_ingate) = add_gate_params(ingate, 'ingate')
+         self.nonlinearity_ingate) = ingate.add_params_to(
+            self, num_inputs, num_units, step=False)
 
         (self.W_in_to_forgetgate, self.W_hid_to_forgetgate, self.b_forgetgate,
-         self.nonlinearity_forgetgate) = add_gate_params(forgetgate,
-                                                         'forgetgate')
+         self.nonlinearity_forgetgate) = forgetgate.add_params_to(
+            self, num_inputs, num_units, step=False)
 
         (self.W_in_to_cell, self.W_hid_to_cell, self.b_cell,
-         self.nonlinearity_cell) = add_gate_params(cell, 'cell')
+         self.nonlinearity_cell) = cell.add_params_to(
+            self, num_inputs, num_units, step=False)
 
         (self.W_in_to_outgate, self.W_hid_to_outgate, self.b_outgate,
-         self.nonlinearity_outgate) = add_gate_params(outgate, 'outgate')
+         self.nonlinearity_outgate) = outgate.add_params_to(
+            self, num_inputs, num_units, step=False)
 
         # If peephole (cell to gate) connections were enabled, initialize
         # peephole connections.  These are elementwise products with the cell
         # state, so they are represented as vectors.
         if self.peepholes:
             self.W_cell_to_ingate = self.add_param(
-                ingate.W_cell, (num_units, ), name='W_cell_to_ingate')
+                ingate.W_cell, (num_units,), name='W_cell_to_ingate')
 
             self.W_cell_to_forgetgate = self.add_param(
-                forgetgate.W_cell, (num_units, ), name='W_cell_to_forgetgate')
+                forgetgate.W_cell, (num_units,), name='W_cell_to_forgetgate')
 
             self.W_cell_to_outgate = self.add_param(
-                outgate.W_cell, (num_units, ), name='W_cell_to_outgate')
+                outgate.W_cell, (num_units,), name='W_cell_to_outgate')
 
         # Stack input weight matrices into a (num_inputs, 4*num_units)
         # matrix, which speeds up computation
-        self.W_in_stacked = T.concatenate(
+        self.W_in_stacked = self.add_param(T.concatenate(
             [self.W_in_to_ingate, self.W_in_to_forgetgate,
-             self.W_in_to_cell, self.W_in_to_outgate], axis=1)
+             self.W_in_to_cell, self.W_in_to_outgate], axis=1),
+            (num_inputs, 4*num_units), step_only=True, precompute_input=False)
 
         # Same for hidden weight matrices
-        self.W_hid_stacked = T.concatenate(
+        self.W_hid_stacked = self.add_param(T.concatenate(
             [self.W_hid_to_ingate, self.W_hid_to_forgetgate,
-             self.W_hid_to_cell, self.W_hid_to_outgate], axis=1)
+             self.W_hid_to_cell, self.W_hid_to_outgate], axis=1),
+            (num_units, 4*num_units), step_only=True)
 
         # Stack biases into a (4*num_units) vector
-        self.b_stacked = T.concatenate(
+        self.b_stacked = self.add_param(T.concatenate(
             [self.b_ingate, self.b_forgetgate,
-             self.b_cell, self.b_outgate], axis=0)
-
-    def get_params(self, step=False, precompute_input=False, **tags):
-        if not step:
-            return super(LSTMCell, self).get_params(**tags)
-
-        # The hidden-to-hidden weight matrix is always used in step
-        params = [self.W_hid_stacked]
-        # The "peephole" weight matrices are only used when self.peepholes=True
-        if self.peepholes:
-            params += [self.W_cell_to_ingate,
-                       self.W_cell_to_forgetgate,
-                       self.W_cell_to_outgate]
-
-        # When we aren't precomputing the input outside of scan, we need to
-        # provide the input weights and biases to the step function
-        if not precompute_input:
-            params += [self.W_in_stacked, self.b_stacked]
-
-        return params
+             self.b_cell, self.b_outgate], axis=0),
+            (4*num_units,), step_only=True, precompute_input=False)
 
     def get_output_shape_for(self, input_shape):
         return {
@@ -1214,8 +1219,8 @@ class GRUCell(CellLayer):
     operations in a single dot product.
     """
     def __init__(self, incoming, num_units,
-                 resetgate=Gate(W_cell=None),
-                 updategate=Gate(W_cell=None),
+                 resetgate=Gate(W_cell=None, name='resetgate'),
+                 updategate=Gate(W_cell=None, name='updategate'),
                  hidden_update=Gate(
                      W_cell=None, nonlinearity=nonlinearities.tanh,
                      name='hidden_update'),
@@ -1229,55 +1234,35 @@ class GRUCell(CellLayer):
 
         num_inputs = np.prod(get_cell_shape(incoming)[1:])
 
-        def add_gate_params(gate, gate_name):
-            """ Convenience function for adding layer parameters from a Gate
-            instance. """
-            return (self.add_param(gate.W_in, (num_inputs, num_units),
-                                   name='W_in_to_{}'.format(gate_name)),
-                    self.add_param(gate.W_hid, (num_units, num_units),
-                                   name='W_hid_to_{}'.format(gate_name)),
-                    self.add_param(gate.b, (num_units,),
-                                   name='b_{}'.format(gate_name),
-                                   regularizable=False),
-                    gate.nonlinearity)
-
         # Add in all parameters from gates
         (self.W_in_to_updategate, self.W_hid_to_updategate, self.b_updategate,
-         self.nonlinearity_updategate) = add_gate_params(updategate,
-                                                         'updategate')
+         self.nonlinearity_updategate) = updategate.add_params_to(
+            self, num_inputs, num_units, step=False)
         (self.W_in_to_resetgate, self.W_hid_to_resetgate, self.b_resetgate,
-         self.nonlinearity_resetgate) = add_gate_params(resetgate, 'resetgate')
-
+         self.nonlinearity_resetgate) = resetgate.add_params_to(
+            self, num_inputs, num_units, step=False)
         (self.W_in_to_hidden_update, self.W_hid_to_hidden_update,
-         self.b_hidden_update, self.nonlinearity_hid) = add_gate_params(
-             hidden_update, 'hidden_update')
+         self.b_hidden_update, self.nonlinearity_hid) = hidden_update\
+            .add_params_to(self, num_inputs, num_units, step=False)
 
         # Stack input weight matrices into a (num_inputs, 3*num_units)
         # matrix, which speeds up computation
-        self.W_in_stacked = T.concatenate(
+        self.W_in_stacked = self.add_param(T.concatenate(
             [self.W_in_to_resetgate, self.W_in_to_updategate,
-             self.W_in_to_hidden_update], axis=1)
+             self.W_in_to_hidden_update], axis=1),
+            (num_inputs, 3*num_units), step_only=True, precompute_input=False)
 
         # Same for hidden weight matrices
-        self.W_hid_stacked = T.concatenate(
+        self.W_hid_stacked = self.add_param(T.concatenate(
             [self.W_hid_to_resetgate, self.W_hid_to_updategate,
-             self.W_hid_to_hidden_update], axis=1)
+             self.W_hid_to_hidden_update], axis=1),
+            (num_units, 3*num_units), step_only=True)
 
         # Stack gate biases into a (3*num_units) vector
-        self.b_stacked = T.concatenate(
+        self.b_stacked = self.add_param(T.concatenate(
             [self.b_resetgate, self.b_updategate,
-             self.b_hidden_update], axis=0)
-
-    def get_params(self, step=False, precompute_input=False, **tags):
-        if not step:
-            return super(GRUCell, self).get_params(**tags)
-        # The hidden-to-hidden weight matrix is always used in step
-        params = [self.W_hid_stacked]
-        # When we aren't precomputing the input outside of scan, we need to
-        # provide the input weights and biases to the step function
-        if not precompute_input:
-            params += [self.W_in_stacked, self.b_stacked]
-        return params
+             self.b_hidden_update], axis=0),
+            (3*num_units,), step_only=True, precompute_input=False)
 
     def get_output_shape_for(self, input_shape):
         return {'output': (input_shape[0], self.num_units)}

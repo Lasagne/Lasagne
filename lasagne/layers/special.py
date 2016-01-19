@@ -179,7 +179,7 @@ class ScaleLayer(Layer):
         return input * self.scales.dimshuffle(*pattern)
 
 
-def standardize(layer, offset, scale, shared_axes):
+def standardize(layer, offset, scale, shared_axes='auto'):
     """
     Convenience function for standardizing inputs by applying a fixed offset
     and scale.  This is usually useful when you want the input to your network

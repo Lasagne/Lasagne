@@ -25,6 +25,9 @@ Special-purpose layers
 .. autoclass:: TransformerLayer
     :members:
 
+.. autoclass:: TPSTransformerLayer
+    :members:
+
 .. autoclass:: ParametricRectifierLayer
     :members:
 

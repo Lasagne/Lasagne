@@ -8,6 +8,7 @@ from .. import utils
 __all__ = [
     "Layer",
     "MergeLayer",
+    "SplitLayer",
 ]
 
 
@@ -275,6 +276,12 @@ class MergeLayer(Layer):
         self.params = OrderedDict()
         self.get_output_kwargs = []
 
+    def __getitem__(self, key):
+        return SplitLayer(self, key)
+
+    def __iter__(self):
+        raise TypeError
+
     @Layer.output_shape.getter
     def output_shape(self):
         shape = self.get_output_shape_for(self.input_shapes)
@@ -337,3 +344,15 @@ class MergeLayer(Layer):
         `NotImplementedError`.
         """
         raise NotImplementedError
+
+
+class SplitLayer(Layer):
+    def __init__(self, incoming, key, **kwargs):
+        super(SplitLayer, self).__init__(incoming, **kwargs)
+        self.key = key
+
+    def get_output_shape_for(self, input_shapes):
+        return input_shapes[self.key]
+
+    def get_output_for(self, inputs, **kwargs):
+        return inputs[self.key]

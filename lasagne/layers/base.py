@@ -41,7 +41,10 @@ class Layer(object):
         self.params = OrderedDict()
         self.get_output_kwargs = []
 
-        if any(d is not None and d <= 0 for d in self.input_shape):
+        input_shapes = self.input_shape.values() if isinstance(
+            self.input_shape, dict) else [self.input_shape]
+        if any(d is not None and d <= 0 for input_shape in input_shapes
+               for d in input_shape):
             raise ValueError((
                 "Cannot create Layer with a non-positive input_shape "
                 "dimension. input_shape=%r, self.name=%r") % (
@@ -254,12 +257,20 @@ class MergeLayer(Layer):
         An optional name to attach to this layer.
     """
     def __init__(self, incomings, name=None):
-        self.input_shapes = [incoming if isinstance(incoming, tuple)
-                             else incoming.output_shape
-                             for incoming in incomings]
-        self.input_layers = [None if isinstance(incoming, tuple)
-                             else incoming
-                             for incoming in incomings]
+        if isinstance(incomings, dict):
+            self.input_shapes = {name: incoming if isinstance(incoming, tuple)
+                                 else incoming.output_shape
+                                 for name, incoming in incomings.items()}
+            self.input_layers = {name: None if isinstance(incoming, tuple)
+                                 else incoming
+                                 for name, incoming in incomings.items()}
+        else:
+            self.input_shapes = [incoming if isinstance(incoming, tuple)
+                                 else incoming.output_shape
+                                 for incoming in incomings]
+            self.input_layers = [None if isinstance(incoming, tuple)
+                                 else incoming
+                                 for incoming in incomings]
         self.name = name
         self.params = OrderedDict()
         self.get_output_kwargs = []

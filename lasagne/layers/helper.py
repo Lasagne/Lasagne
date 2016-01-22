@@ -93,7 +93,10 @@ def get_all_layers(layer, treat_as_input=None):
             # be appended to the result list in the next iteration.
             seen.add(layer)
             if hasattr(layer, 'input_layers'):
-                queue.extendleft(reversed(layer.input_layers))
+                if isinstance(layer.input_layers, dict):
+                    queue.extendleft(layer.input_layers.values())
+                else:
+                    queue.extendleft(reversed(layer.input_layers))
             elif hasattr(layer, 'input_layer'):
                 queue.appendleft(layer.input_layer)
         else:
@@ -176,8 +179,13 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
         if layer not in all_outputs:
             try:
                 if isinstance(layer, MergeLayer):
-                    layer_inputs = [all_outputs[input_layer]
-                                    for input_layer in layer.input_layers]
+                    if isinstance(layer.input_layers, dict):
+                        layer_inputs = {name: all_outputs[input_layer]
+                                        for name, input_layer in
+                                        layer.input_layers.items()}
+                    else:
+                        layer_inputs = [all_outputs[input_layer]
+                                        for input_layer in layer.input_layers]
                 else:
                     layer_inputs = all_outputs[layer.input_layer]
             except KeyError:
@@ -275,8 +283,13 @@ def get_output_shape(layer_or_layers, input_shapes=None):
     for layer in all_layers:
         if layer not in all_shapes:
             if isinstance(layer, MergeLayer):
-                input_shapes = [all_shapes[input_layer]
-                                for input_layer in layer.input_layers]
+                if isinstance(layer.input_layers, dict):
+                    input_shapes = {name: all_shapes[input_layer]
+                                    for name, input_layer in
+                                    layer.input_layers.items()}
+                else:
+                    input_shapes = [all_shapes[input_layer]
+                                    for input_layer in layer.input_layers]
             else:
                 input_shapes = all_shapes[layer.input_layer]
             all_shapes[layer] = layer.get_output_shape_for(input_shapes)

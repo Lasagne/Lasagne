@@ -79,8 +79,8 @@ def test_recurrent_nparams_hid_init_layer():
     l_rec = RecurrentLayer(l_inp, 7, hid_init=l_inp_h_de)
 
     # directly check the layers can be seen through hid_init
-    assert lasagne.layers.get_all_layers(l_rec) == [l_inp, l_inp_h, l_inp_h_de,
-                                                    l_rec]
+    assert set(lasagne.layers.get_all_layers(l_rec)) == {
+        l_inp, l_inp_h, l_inp_h_de, l_rec}
 
     # b, W_hid_to_hid and W_in_to_hid + W + b
     assert len(lasagne.layers.get_all_params(l_rec, trainable=True)) == 5
@@ -154,7 +154,7 @@ def test_recurrent_hid_init_layer_eval():
 def test_recurrent_incoming_tuple():
     input_shape = (2, 3, 4)
     l_rec = lasagne.layers.RecurrentLayer(input_shape, 5)
-    assert l_rec.input_shapes[0] == input_shape
+    assert l_rec.input_shapes['input'] == input_shape
 
 
 def test_recurrent_name():
@@ -921,8 +921,8 @@ def test_gru_nparams_hid_init_layer():
     l_gru = GRULayer(l_inp, 7, hid_init=l_inp_h_de)
 
     # directly check the layers can be seen through hid_init
-    assert lasagne.layers.get_all_layers(l_gru) == [l_inp, l_inp_h, l_inp_h_de,
-                                                    l_gru]
+    assert set(lasagne.layers.get_all_layers(l_gru)) == {
+        l_inp, l_inp_h, l_inp_h_de, l_gru}
 
     # 3*n_gates + 2
     # the 3 is because we have  hid_to_gate, in_to_gate and bias for each gate

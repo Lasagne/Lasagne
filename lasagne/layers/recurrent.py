@@ -302,7 +302,14 @@ class RecurrentContainerLayer(MergeLayer):
         return out
 
 
-class CellLayer(Layer):
+class CellLayer(MergeLayer):
+    def __init__(self, incomings, inits, **kwargs):
+        for name, init in inits.items():
+            if isinstance(init, Layer):
+                incomings[name] = init
+        self.inits = inits
+        super(CellLayer, self).__init__(incomings, **kwargs)
+
     def add_param(self, spec, shape, name=None, **tags):
         tags['step'] = tags.get('step', True)
         tags['step_only'] = tags.get('step_only', False)
@@ -443,7 +450,8 @@ class CustomRecurrentCell(CellLayer):
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
                  **kwargs):
-        super(CustomRecurrentCell, self).__init__(incoming, **kwargs)
+        super(CustomRecurrentCell, self).__init__(
+            {'input': incoming}, {'output': hid_init}, **kwargs)
         input_to_hidden_in_layers = \
             [layer for layer in helper.get_all_layers(input_to_hidden)
              if isinstance(layer, InputLayer)]
@@ -463,7 +471,6 @@ class CustomRecurrentCell(CellLayer):
 
         self.input_to_hidden = input_to_hidden
         self.hidden_to_hidden = hidden_to_hidden
-        self.inits = {'output': hid_init}
         self.grad_clipping = grad_clipping
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -940,9 +947,10 @@ class LSTMCell(CellLayer):
                  peepholes=True,
                  grad_clipping=0,
                  **kwargs):
-        super(LSTMCell, self).__init__(incoming, **kwargs)
+        super(LSTMCell, self).__init__(
+            {'input': incoming},
+            {'cell': cell_init, 'output': hid_init}, **kwargs)
         self.num_units = num_units
-        self.inits = {'cell': cell_init, 'output': hid_init}
         self.peepholes = peepholes
         self.grad_clipping = grad_clipping
         if nonlinearity is None:
@@ -1223,9 +1231,9 @@ class GRUCell(CellLayer):
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
                  **kwargs):
-        super(GRUCell, self).__init__(incoming, **kwargs)
+        super(GRUCell, self).__init__(
+            {'input': incoming}, {'output': hid_init}, **kwargs)
         self.num_units = num_units
-        self.inits = {'output': hid_init}
         self.grad_clipping = grad_clipping
 
         num_inputs = np.prod(get_cell_shape(incoming)[1:])

@@ -146,7 +146,7 @@ class RecurrentContainerLayer(MergeLayer):
             else:
                 self.inits[name] = self.add_param(
                     init, (1,) + cell.get_output_shape_for(
-                        get_cell_shape(input_shape))[name][1:],
+                        {'input': get_cell_shape(input_shape)})[name][1:],
                     name='hid_init', trainable=learn_init,
                     regularizable=False)
 
@@ -167,12 +167,12 @@ class RecurrentContainerLayer(MergeLayer):
         # will be flattened
         if self.only_return_final:
             return (input_shape[0],) + self.cell.get_output_shape_for(
-                get_cell_shape(input_shape))['output'][1:]
+                {'input': get_cell_shape(input_shape)})['output'][1:]
         # Otherwise, the shape will be (n_batch, n_steps, trailing_dims...)
         else:
             return ((input_shape[0], input_shape[1]) +
-                    self.cell.get_output_shape_for(get_cell_shape(input_shape))
-                    ['output'][1:])
+                    self.cell.get_output_shape_for(
+                        {'input': get_cell_shape(input_shape)})['output'][1:])
 
     def get_output_for(self, inputs, **kwargs):
         """
@@ -550,7 +550,7 @@ class CustomRecurrentCell(CellLayer):
                             input_shape[0]*input_shape[1]))
         return input_shape
 
-    def get_output_shape_for(self, input_shape):
+    def get_output_shape_for(self, input_shapes):
         return {'output': self.hidden_to_hidden.output_shape}
 
     def precompute_for(self, input, **kwargs):
@@ -1009,10 +1009,10 @@ class LSTMCell(CellLayer):
              self.b_cell, self.b_outgate], axis=0),
             (4*num_units,), step_only=True, precompute_input=False)
 
-    def get_output_shape_for(self, input_shape):
+    def get_output_shape_for(self, input_shapes):
         return {
-            'cell': (input_shape[0], self.num_units),
-            'output': (input_shape[0], self.num_units),
+            'cell': (input_shapes['input'][0], self.num_units),
+            'output': (input_shapes['input'][0], self.num_units),
         }
 
     def precompute_for(self, input, **kwargs):
@@ -1268,8 +1268,8 @@ class GRUCell(CellLayer):
              self.b_hidden_update], axis=0),
             (3*num_units,), step_only=True, precompute_input=False)
 
-    def get_output_shape_for(self, input_shape):
-        return {'output': (input_shape[0], self.num_units)}
+    def get_output_shape_for(self, input_shapes):
+        return {'output': (input_shapes['input'][0], self.num_units)}
 
     def precompute_for(self, input, **kwargs):
         # Treat all dimensions after the second as flattened feature dimensions

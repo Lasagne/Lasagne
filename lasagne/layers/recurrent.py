@@ -101,13 +101,13 @@ class RecurrentContainerLayer(MergeLayer):
         # inputs - the layer input, the mask and the initial hidden state.  We
         # will just provide the layer input as incomings, unless a mask input
         # or initial hidden state was provided.
-        incomings = [incoming]
-        self.has_mask = mask_input is not None
-        if self.has_mask:
-            incomings.append(mask_input)
+        incomings = {'input': incoming}
+        if mask_input is not None:
+            incomings['mask'] = mask_input
+
         for name, init in cell.inits.items():
             if isinstance(init, Layer):
-                incomings.append(init)
+                incomings[name] = init
 
         super(RecurrentContainerLayer, self).__init__(incomings, **kwargs)
 
@@ -124,7 +124,7 @@ class RecurrentContainerLayer(MergeLayer):
                 "Gradient steps must be -1 when unroll_scan is true.")
 
         # Retrieve the dimensionality of the incoming layer
-        input_shape = self.input_shapes[0]
+        input_shape = self.input_shapes['input']
 
         if unroll_scan and input_shape[1] is None:
             raise ValueError("Input sequence length cannot be specified as "
@@ -160,9 +160,7 @@ class RecurrentContainerLayer(MergeLayer):
         return params
 
     def get_output_shape_for(self, input_shapes):
-        # The shape of the input to this layer will be the first element
-        # of input_shapes, whether or not a mask input is being used.
-        input_shape = input_shapes[0]
+        input_shape = input_shapes['input']
         if self.precompute_input:
             input_shape = self.cell.precompute_shape_for(input_shape)
         # When only_return_final is true, the second (sequence step) dimension
@@ -203,9 +201,9 @@ class RecurrentContainerLayer(MergeLayer):
             Symbolic output variable.
         """
         # Retrieve the layer input
-        input = inputs[0]
+        input = inputs['input']
         # Retrieve the mask when it is supplied
-        mask = inputs[1] if self.has_mask else None
+        mask = inputs.get('mask')
 
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first
@@ -240,7 +238,7 @@ class RecurrentContainerLayer(MergeLayer):
                 outs[i] = T.switch(mask_n, out, args[i + 2])
             return outs
 
-        if self.has_mask:
+        if 'mask' in inputs:
             mask = mask.dimshuffle(1, 0, 'x')
             sequences = [input, mask]
             step_fun = step_masked
@@ -250,12 +248,10 @@ class RecurrentContainerLayer(MergeLayer):
 
         inits = []
         ones = T.ones((num_batch, 1))
-        i = 2 if self.has_mask else 1
         for name in self.cell.inits:
             init = self.inits[name]
             if isinstance(init, Layer):
-                inits.append(inputs[i])
-                i += 1
+                inits.append(inputs[name])
             else:
                 # The code below simply repeats self.hid_init num_batch times
                 # in its first dimension.  Turns out using a dot product and a
@@ -265,7 +261,7 @@ class RecurrentContainerLayer(MergeLayer):
 
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer
-            input_shape = self.input_shapes[0]
+            input_shape = self.input_shapes['input']
             # Explicitly unroll the recurrence instead of using scan
             out = unroll_scan(
                 fn=step_fun,

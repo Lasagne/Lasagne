@@ -3,7 +3,7 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
-from ..utils import as_tuple
+from ..utils import as_tuple, floatX
 from ..random import get_rng
 from .base import Layer, MergeLayer
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -194,10 +194,10 @@ def standardize(layer, offset, scale, shared_axes='auto'):
     ----------
     layer : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape.
-    offset : Theano shared variable, expression, or numpy array
+    offset : Theano shared variable or numpy array
         The offset to apply (via subtraction) to the axis/axes being
         standardized.
-    scale : Theano shared variable, expression or numpy array
+    scale : Theano shared variable or numpy array
         The scale to apply (via division) to the axis/axes being standardized.
     shared_axes : 'auto', int or tuple of int
         The axis or axes to share the offset and scale over. If ``'auto'`` (the
@@ -229,7 +229,7 @@ def standardize(layer, offset, scale, shared_axes='auto'):
     # Do not optimize the offset parameter
     layer.params[layer.b].remove('trainable')
     # Divide by the scale
-    layer = ScaleLayer(layer, T.inv(scale), shared_axes)
+    layer = ScaleLayer(layer, floatX(1.)/scale, shared_axes)
     # Do not optimize the scales parameter
     layer.params[layer.scales].remove('trainable')
     return layer

@@ -164,8 +164,11 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
                        layer not in treat_as_input)
     # update layer-to-expression mapping from given input(s), if any
     if isinstance(inputs, dict):
-        all_outputs.update((layer, utils.as_theano_expression(expr))
-                           for layer, expr in inputs.items())
+        all_outputs.update((
+            layer, {name: utils.as_theano_expression(expr)
+                    for name, expr in expr.items()}
+            if isinstance(expr, dict) else utils.as_theano_expression(expr))
+            for layer, expr in inputs.items())
     elif inputs is not None:
         if len(all_outputs) > 1:
             raise ValueError("get_output() was called with a single input "

@@ -2,7 +2,7 @@ from mock import Mock
 import numpy as np
 import pytest
 import theano
-from lasagne.layers import InputLayer, standardize, get_output
+from lasagne.layers import InputLayer, standardize, get_output, get_all_params
 
 
 class TestExpressionLayer:
@@ -279,6 +279,7 @@ def test_standardize():
     out = get_output(l_std).eval({l_in.input_var: X})
     assert np.allclose(out.max(axis=0), 1.)
     assert np.allclose(out.min(axis=0), 0.)
+    assert len(get_all_params(l_std)) == 2
     # More complicated example
     X = np.random.standard_normal(
         (50, 3, 100, 10)).astype(theano.config.floatX)

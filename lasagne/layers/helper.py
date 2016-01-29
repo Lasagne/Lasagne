@@ -1,4 +1,5 @@
 from collections import deque
+from itertools import chain
 
 import theano
 import numpy as np
@@ -322,7 +323,7 @@ def get_all_params(layer, **tags):
     True
     """
     layers = get_all_layers(layer)
-    params = sum([l.get_params(**tags) for l in layers], [])
+    params = chain.from_iterable(l.get_params(**tags) for l in layers)
     return utils.unique(params)
 
 

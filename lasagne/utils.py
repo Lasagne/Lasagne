@@ -207,8 +207,8 @@ def compute_norms(array, norm_axes=None):
 
     Parameters
     ----------
-    array : ndarray
-        Weight array.
+    array : numpy array or Theano expression
+        Weight or bias.
     norm_axes : sequence (list or tuple)
         The axes over which to compute the norm.  This overrides the
         default norm axes defined for the number of dimensions
@@ -217,12 +217,16 @@ def compute_norms(array, norm_axes=None):
         set to a tuple listing all axes but axis 0. The former default is
         useful for working with dense layers, the latter is useful for 1D,
         2D and 3D convolutional layers.
+        Finally, in case `array` is a vector, `norm_axes` is set to an empty
+        tuple, and this function will simply return the absolute value for
+        each element. This is useful when the function is applied to all
+        parameters of the network, including the bias, without distinction.
         (Optional)
 
     Returns
     -------
-    norms : 1D array
-        1D array of incoming weight vector norms.
+    norms : 1D array or Theano vector (1D)
+        1D array or Theano vector of incoming weight/bias vector norms.
 
     Examples
     --------
@@ -235,21 +239,45 @@ def compute_norms(array, norm_axes=None):
     >>> norms.shape
     (100,)
     """
-    ndim = array.ndim
 
+    # Check if supported type
+    if not isinstance(array, theano.Variable) and \
+       not isinstance(array, np.ndarray):
+        raise RuntimeError(
+            "Unsupported type {}. "
+            "Only theano variables and numpy arrays "
+            "are supported".format(type(array))
+        )
+
+    # Compute default axes to sum over
+    ndim = array.ndim
     if norm_axes is not None:
         sum_over = tuple(norm_axes)
-    elif ndim == 2:  # DenseLayer
+    elif ndim == 1:          # For Biases that are in 1d (e.g. b of DenseLayer)
+        sum_over = ()
+    elif ndim == 2:          # DenseLayer
         sum_over = (0,)
     elif ndim in [3, 4, 5]:  # Conv{1,2,3}DLayer
         sum_over = tuple(range(1, ndim))
     else:
         raise ValueError(
-            "Unsupported tensor dimensionality {}."
+            "Unsupported tensor dimensionality {}. "
             "Must specify `norm_axes`".format(array.ndim)
         )
 
-    norms = np.sqrt(np.sum(array**2, axis=sum_over))
+    # Run numpy or Theano norm computation
+    if isinstance(array, theano.Variable):
+        # Apply theano version if it is a theano variable
+        if len(sum_over) == 0:
+            norms = T.abs_(array)   # abs if we have nothing to sum over
+        else:
+            norms = T.sqrt(T.sum(array**2, axis=sum_over))
+    elif isinstance(array, np.ndarray):
+        # Apply the numpy version if ndarray
+        if len(sum_over) == 0:
+            norms = abs(array)     # abs if we have nothing to sum over
+        else:
+            norms = np.sqrt(np.sum(array**2, axis=sum_over))
 
     return norms
 

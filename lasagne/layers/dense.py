@@ -87,7 +87,7 @@ class DenseLayer(Layer):
 
         # It needs a proper call in case the input is a SparseVariable.
         # Though it might be the case, the layer activation will remain
-        # dense since W represents a dense matrix. 
+        # dense since W represents a dense matrix.
         if type(input) == sparse.basic.SparseVariable:
             activation = sparse.basic.dot(input, self.W)
         else:

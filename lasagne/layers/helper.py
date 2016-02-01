@@ -1,5 +1,8 @@
 from collections import deque
+from difflib import get_close_matches
+from inspect import getargspec
 from itertools import chain
+from warnings import warn
 
 import theano
 import numpy as np
@@ -147,6 +150,8 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     """
     from .input import InputLayer
     from .base import MergeLayer
+    # track accepted kwargs used by get_output_for
+    accepted_kwargs = {'deterministic'}
     # obtain topological ordering of all layers the output layer(s) depend on
     treat_as_input = inputs.keys() if isinstance(inputs, dict) else []
     all_layers = get_all_layers(layer_or_layers, treat_as_input)
@@ -184,6 +189,27 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
                                  "mapping this layer to an input expression."
                                  % layer)
             all_outputs[layer] = layer.get_output_for(layer_inputs, **kwargs)
+            try:
+                names, _, _, defaults = getargspec(layer.get_output_for)
+            except TypeError:
+                # If introspection is not possible, skip it
+                pass
+            else:
+                if defaults is not None:
+                    accepted_kwargs |= set(names[-len(defaults):])
+            accepted_kwargs |= set(layer.get_output_kwargs)
+    unused_kwargs = set(kwargs.keys()) - accepted_kwargs
+    if unused_kwargs:
+        suggestions = []
+        for kwarg in unused_kwargs:
+            suggestion = get_close_matches(kwarg, accepted_kwargs)
+            if suggestion:
+                suggestions.append('%s (perhaps you meant %s)'
+                                   % (kwarg, suggestion[0]))
+            else:
+                suggestions.append(kwarg)
+        warn("get_output() was called with unused kwargs:\n\t%s"
+             % "\n\t".join(suggestions))
     # return the output(s) of the requested layer(s) only
     try:
         return [all_outputs[layer] for layer in layer_or_layers]

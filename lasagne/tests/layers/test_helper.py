@@ -1,3 +1,4 @@
+import warnings
 from mock import Mock, PropertyMock
 import pytest
 import numpy
@@ -122,13 +123,14 @@ class TestGetOutput_Layer:
         from lasagne.layers.base import Layer
         from lasagne.layers.input import InputLayer
         # create a mock that has the same attributes as an InputLayer instance
-        l1 = Mock(InputLayer((None,)), output_shape=(None,))
+        l1 = Mock(InputLayer((None,)), output_shape=(None,),
+                  get_output_kwargs=[])
         # create a mock that has the same attributes as a Layer instance
-        l2 = Mock(Layer(l1), output_shape=(None,))
+        l2 = Mock(Layer(l1), output_shape=(None,), get_output_kwargs=[])
         # link it to the InputLayer mock
         l2.input_layer = l1
         # create another mock that has the same attributes as a Layer instance
-        l3 = Mock(Layer(l2), output_shape=(None,))
+        l3 = Mock(Layer(l2), output_shape=(None,), get_output_kwargs=['kwarg'])
         # link it to the first mock, to get an "l1 --> l2 --> l3" chain
         l3.input_layer = l2
         return l1, l2, l3
@@ -226,6 +228,23 @@ class TestGetOutput_Layer:
         # l1.input_var should not have been accessed
         assert p.call_count == 0
 
+    def test_get_output_with_unused_kwarg(self, layers, get_output):
+        l1, l2, l3 = layers
+        unused_kwarg = object()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            get_output(l3, kwagg=unused_kwarg)
+            assert len(w) == 1
+            assert issubclass(w[0].category, UserWarning)
+            assert 'perhaps you meant kwarg' in str(w[0].message)
+
+    def test_get_output_with_no_unused_kwarg(self, layers, get_output):
+        l1, l2, l3 = layers
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            get_output(l3)
+            assert len(w) == 0
+
     @pytest.fixture
     def layer_from_shape(self):
         from lasagne.layers.base import Layer
@@ -263,16 +282,20 @@ class TestGetOutput_MergeLayer:
         from lasagne.layers.base import Layer, MergeLayer
         from lasagne.layers.input import InputLayer
         # create two mocks of the same attributes as an InputLayer instance
-        l1 = [Mock(InputLayer((None,)), output_shape=(None,)),
-              Mock(InputLayer((None,)), output_shape=(None,))]
+        l1 = [Mock(InputLayer((None,)), output_shape=(None,),
+                   get_output_kwargs=[]),
+              Mock(InputLayer((None,)), output_shape=(None,),
+                   get_output_kwargs=[])]
         # create two mocks of the same attributes as a Layer instance
-        l2 = [Mock(Layer(l1[0]), output_shape=(None,)),
-              Mock(Layer(l1[1]), output_shape=(None,))]
+        l2 = [Mock(Layer(l1[0]), output_shape=(None,),
+                   get_output_kwargs=[]),
+              Mock(Layer(l1[1]), output_shape=(None,),
+                   get_output_kwargs=[])]
         # link them to the InputLayer mocks
         l2[0].input_layer = l1[0]
         l2[1].input_layer = l1[1]
         # create a mock that has the same attributes as a MergeLayer
-        l3 = Mock(MergeLayer(l2))
+        l3 = Mock(MergeLayer(l2), get_output_kwargs=['kwarg'])
         # link it to the two layer mocks, to get the following network:
         # l1[0] --> l2[0] --> l3
         # l1[1] --> l2[1] ----^

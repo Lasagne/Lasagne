@@ -1,7 +1,7 @@
 import theano
 
-from .base import Layer
-from ..random import get_rng
+from ..base import Layer
+from ...random import get_rng
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 

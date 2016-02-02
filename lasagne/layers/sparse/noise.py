@@ -61,7 +61,7 @@ class DropoutLayer(Layer):
         """
         Parameters
         ----------
-        input : tensor
+        input : theano sparse matrix
             output from the previous layer
         deterministic : bool
             If true dropout and scaling is disabled, see notes
@@ -69,9 +69,11 @@ class DropoutLayer(Layer):
         if deterministic or self.p == 0:
             return input
         else:
+            assert type(input) == theano.sparse.basic.SparseVariable
+
             retain_prob = 1 - self.p
             if self.rescale:
-                input /= retain_prob
+                input = theano.sparse.basic.mul(input, 1/retain_prob)
 
             # use nonsymbolic shape for dropout mask if possible
             input_shape = self.input_shape

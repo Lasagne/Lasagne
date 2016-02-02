@@ -1,10 +1,11 @@
 import numpy as np
 import theano.tensor as T
+import theano.sparse as sparse
 
-from .. import init
-from .. import nonlinearities
+from ... import init
+from ... import nonlinearities
 
-from .base import Layer
+from ..base import Layer
 
 
 __all__ = [
@@ -14,7 +15,7 @@ __all__ = [
 
 class DenseLayer(Layer):
     """
-    lasagne.layers.DenseLayer(incoming, num_units,
+    lasagne.layers.sparse.DenseLayer(incoming, num_units,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
     nonlinearity=lasagne.nonlinearities.rectify, **kwargs)
 
@@ -45,16 +46,15 @@ class DenseLayer(Layer):
 
     Examples
     --------
-    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> from lasagne.layers import InputLayer
+    >>> from lasagne.layers.sparse import DenseLayer
     >>> l_in = InputLayer((100, 20))
     >>> l1 = DenseLayer(l_in, num_units=50)
 
     Notes
     -----
-    If the input to this layer has more than two axes, it will flatten the
-    trailing axes. This is useful for when a dense layer follows a
-    convolutional layer, for example. It is not necessary to insert a
-    :class:`FlattenLayer` in this case.
+
+    This layer expects a sparse matrix as input.
     """
     def __init__(self, incoming, num_units, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
@@ -78,12 +78,9 @@ class DenseLayer(Layer):
         return (input_shape[0], self.num_units)
 
     def get_output_for(self, input, **kwargs):
-        if input.ndim > 2:
-            # if the input has more than two dimensions, flatten it into a
-            # batch of feature vectors.
-            input = input.flatten(2)
+        assert type(input) == sparse.basic.SparseVariable
 
-        activation = T.dot(input, self.W)
+        activation = sparse.basic.dot(input, self.W)
         if self.b is not None:
             activation = activation + self.b.dimshuffle('x', 0)
         return self.nonlinearity(activation)

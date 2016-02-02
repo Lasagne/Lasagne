@@ -55,6 +55,7 @@ def test_as_tuple_fails():
 def test_compute_norms():
     from lasagne.utils import compute_norms
 
+    # Test numpy version of compute_norms
     array = np.random.randn(10, 20, 30, 40).astype(theano.config.floatX)
 
     norms = compute_norms(array)
@@ -62,16 +63,64 @@ def test_compute_norms():
     assert array.dtype == norms.dtype
     assert norms.shape[0] == array.shape[0]
 
+    # Test theano version of compute_norms
+    t_array = theano.shared(array)
+    t_norms = compute_norms(t_array)
+
+    # Check if they do not differ much
+    assert np.allclose(t_norms.eval(), norms)
+
 
 def test_compute_norms_axes():
     from lasagne.utils import compute_norms
 
+    # Test numpy versions of compute norms with axes
     array = np.random.randn(10, 20, 30, 40).astype(theano.config.floatX)
 
     norms = compute_norms(array, norm_axes=(0, 2))
 
     assert array.dtype == norms.dtype
     assert norms.shape == (array.shape[1], array.shape[3])
+
+    # Test theano version of compute_norms
+    t_array = theano.shared(array)
+    t_norms = compute_norms(t_array, norm_axes=(0, 2))
+
+    # Check if they do not differ much
+    assert np.allclose(t_norms.eval(), norms)
+
+
+def test_compute_norms_ndim1():
+    from lasagne.utils import compute_norms
+
+    # Test numpy versions of compute norms with axes
+    array = np.random.randn(10, ).astype(theano.config.floatX)
+
+    norms = compute_norms(array)
+
+    assert array.dtype == norms.dtype
+    assert norms.shape == array.shape
+
+    # Check if they do not differ much
+    assert np.allclose(norms, abs(array))
+
+    # Test theano version of compute_norms
+    t_array = theano.shared(array)
+    t_norms = compute_norms(t_array)
+
+    # Check if they do not differ much
+    assert np.allclose(t_norms.eval(), norms)
+
+
+def test_compute_norms_type_raises():
+    from lasagne.utils import compute_norms
+
+    array = [[1, 2], [3, 4]]
+
+    with pytest.raises(RuntimeError) as excinfo:
+        compute_norms(array)
+
+    assert ("Unsupported type") in str(excinfo.value)
 
 
 def test_compute_norms_ndim6_raises():

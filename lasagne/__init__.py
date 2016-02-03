@@ -21,6 +21,7 @@ else:
 
 from . import nonlinearities
 from . import init
+from . import network
 from . import layers
 from . import objectives
 from . import random

@@ -1,6 +1,7 @@
 from __future__ import print_function
 
-import time
+from collections import OrderedDict
+from time import time
 
 import numpy as np
 
@@ -13,101 +14,116 @@ from lasagne.layers import get_all_params, get_all_layers
 
 __all__ = ['Model']
 
+
 class Model:
 
-    def __init__(self, layer, objective, update, n_epochs=500, batch_size=64,
-                 update_kwargs=None, output_kwargs=None, output_one_hot=False,
-                 show_accuracy=False, shuffle=True, validation_split=0,
-                 verbose=0):
+    def __init__(self, layer, objective, update, target=None, evaluators=None,
+                 output_kwargs=None, update_kwargs=None,
+                 n_epochs=500, batch_size=64, shuffle=True, verbose=0):
         self.layer = layer
         self.objective = objective
         self.update = update
+        self.output_kwargs = output_kwargs
+        self.update_kwargs = update_kwargs
         self.n_epochs = n_epochs
         self.batch_size = batch_size
-        self.update_kwargs = update_kwargs
-        self.output_kwargs = output_kwargs
-        self.output_one_hot = output_one_hot
-        self.show_accuracy = show_accuracy
         self.shuffle = shuffle
-        self.validation_split = validation_split
         self.verbose = verbose
-
-        inputs = [layer.input_var for layer in get_all_layers(self.layer)
-                  if isinstance(layer, InputLayer)]
-        if len(inputs) != 1:
-            raise ValueError('%s only supports networks with only a single'
-                             'input layer' % self.__class__)
-        input_var = inputs[0]
 
         if output_kwargs is None:
             output_kwargs = {}
-
-        train_output = get_output(self.layer, input_var, **output_kwargs)
-        test_output = get_output(self.layer, input_var, deterministic=True,
-                                 **output_kwargs)
-
-        output_ndim = len(get_output_shape(self.layer))
-        if output_one_hot:
-            output_var = T.TensorType('int32', [False] * (output_ndim - 1))()
-        else:
-            output_var = T.TensorType(train_output.dtype,
-                                      [False] * output_ndim)()
-
-        train_loss = T.mean(objective(train_output, output_var))
-        test_loss = T.mean(objective(test_output, output_var))
-
         if update_kwargs is None:
             update_kwargs = {}
-        params = get_all_params(self.layer, trainable=True)
-        updates = update(train_loss, params, **update_kwargs)
 
-        self.train_fn = theano.function([input_var, output_var], [train_loss],
-                                        updates=updates)
-        self.test_fn = theano.function([input_var, output_var], [test_loss])
-        self.predict_fn = theano.function([input_var], test_output)
+        if evaluators is None:
+            evaluators = {}
+        loss_dict = OrderedDict({'loss': objective})
+        loss_dict.update(evaluators)
+        evaluators = loss_dict
+        self.evaluators = evaluators
+
+        if target is None:
+            output = get_output(layer, **output_kwargs)
+            ndim = len(get_output_shape(layer))
+            target = T.TensorType(output.dtype, [False] * ndim)()
+
+        inputs = [layer.input_var for layer in get_all_layers(layer)
+                      if isinstance(layer, InputLayer)]
+        if len(inputs) != 1:
+            raise ValueError('get_input expects a layer with only one input')
+        input = inputs[0]
+
+        output = get_output(layer, **output_kwargs)
+        loss = T.mean(objective(output, target))
+        params = get_all_params(layer, trainable=True)
+        updates = update(loss, params, **update_kwargs)
+        evaluations = [T.mean(evaluator(output, target))
+                       for evaluator in evaluators.values()]
+        self.fit_fn = theano.function([input, target], evaluations,
+                                      updates=updates)
+
+        output_kwargs = dict(output_kwargs)
+        output_kwargs['deterministic'] = True
+        output = get_output(layer, **output_kwargs)
+        self.predict_fn = theano.function([input], output)
+
+        evaluations = [T.mean(evaluator(output, target))
+                       for evaluator in evaluators.values()]
+        self.evaluate_fn = theano.function([input, target], evaluations)
 
 
     def fit(self, X, y, X_val=None, y_val=None):
         assert (X_val is None) == (y_val is None)
-        if X_val is None and self.validation_split:
-            split = len(X) * (1 - self.validation_split)
-            X_val, y_val = X[split:], y[split:]
-            X, y = X[:split], y[:split]
 
         for epoch in range(self.n_epochs):
-            start_time = time.time()
-            err = 0
+            start_time = time()
+            evaluations = 0
             batches = 0
             for batch in self.iter_batches(X, y):
-                err += len(batch[0]) * self.train_fn(*batch)
-                batches += len(batch[0])
+                size = len(batch[0])
+                evaluations += size * np.array(self.fit_fn(*batch))
+                batches += size
+            evaluations /= batches
 
             if X_val is not None:
-                val_err = 0
+                val_eval = 0
                 val_batches = 0
                 for batch in self.iter_batches(X_val, y_val):
-                    val_err += len(batch[0]) * self.test_fn(*batch)
-                    val_batches += len(batch[0])
+                    size = len(batch[0])
+                    val_eval += size *np.array(self.evaluate_fn(*batch))
+                    val_batches += size
+                val_eval /= val_batches
 
             if self.verbose:
                 print('Epoch %s of %s took %.3fs'
-                      % (epoch + 1, self.n_epochs, time.time() - start_time))
-                print('\ttrain loss:\t\t%.6f' % (err / batches))
+                      % (epoch + 1, self.n_epochs, time() - start_time))
+
+                for name, value in zip(self.evaluators, evaluations):
+                    print('\ttrain %s:\t\t\t%.6f' % (name, value))
                 if X_val is not None:
-                    print('\tvalidation loss:\t%.6f' % (val_err / val_batches))
+                    for name, value in zip(self.evaluators, val_eval):
+                        print('\tvalidation %s:\t\t%.6f' % (name, value))
+
+        return self
 
 
     def partial_fit(self, X, y):
         return self.train_fn(X, y)
 
 
-    def score(self, X, y):
-        err = 0
+    def loss(self, X, y):
+        return self.evaluate(X, y)['loss']
+
+
+    def evaluate(self, X, y):
+        evaluations = 0
         batches = 0
         for batch in self.iter_batches(X, y):
-            err += len(batch[0]) * self.test_fn(*batch)
-            batches += len(batch[0])
-        return err / batches
+            size = len(batch[0])
+            evaluations += size * np.array(self.evaluate_fn(*batch))
+            batches += size
+        evaluations /= batches
+        return OrderedDict(zip(self.evaluators, evaluations))
 
 
     def predict(self, X):
@@ -117,16 +133,25 @@ class Model:
         return np.concatenate(prediction)
 
 
-    def iter_batches(self, *args, shuffle=None):
+    def iter_batches(self, *args, batch_size=None, shuffle=None):
         if not all(len(arg) == len(args[0]) for arg in args):
             raise ValueError('All arguments to iter_batches must have the '
                              'same length')
+
+        if batch_size is None:
+            batch_size = self.batch_size
+
         if shuffle is None:
             shuffle = self.shuffle
+
         if shuffle:
             index = np.random.permutation(len(args[0]))
+
         for i in range(0, len(args[0]), self.batch_size):
             if shuffle:
-                yield [arg[index[i:i+self.batch_size]] for arg in args]
+                yield [arg[index[i:i+batch_size]] for arg in args]
             else:
-                yield [arg[i:i+self.batch_size] for arg in args]
+                yield [arg[i:i+batch_size] for arg in args]
+
+    def __repr__(self):
+        return ''

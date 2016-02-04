@@ -3,6 +3,8 @@ import theano.sparse as sparse
 
 from ..noise import DropoutLayer as Dropout
 
+from ...utils import floatX
+
 
 __all__ = [
     "DropoutLayer",
@@ -25,9 +27,9 @@ class DropoutLayer(Dropout):
         else:
             assert type(input) == sparse.basic.SparseVariable
 
-            retain_prob = 1 - self.p
+            retain_prob = floatX(1) - self.p
             if self.rescale:
-                input = sparse.basic.mul(input, 1/retain_prob)
+                input = sparse.basic.mul(input, floatX(1)/retain_prob)
 
             # use nonsymbolic shape for dropout mask if possible
             input_shape = self.input_shape

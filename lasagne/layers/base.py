@@ -37,6 +37,7 @@ class Layer(object):
 
         self.name = name
         self.params = OrderedDict()
+        self.get_output_kwargs = []
 
         if any(d is not None and d <= 0 for d in self.input_shape):
             raise ValueError((
@@ -241,6 +242,7 @@ class MergeLayer(Layer):
                              for incoming in incomings]
         self.name = name
         self.params = OrderedDict()
+        self.get_output_kwargs = []
 
     @Layer.output_shape.getter
     def output_shape(self):

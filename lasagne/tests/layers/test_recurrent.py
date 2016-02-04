@@ -925,7 +925,8 @@ def test_CustomRecurrentLayer_child_kwargs():
         Layer,
         output_shape=(in_shape[0]*in_shape[1], n_hid),
         input_shape=(in_shape[0]*in_shape[1], in_shape[2]),
-        input_layer=InputLayer((in_shape[0]*in_shape[1], in_shape[2])))
+        input_layer=InputLayer((in_shape[0]*in_shape[1], in_shape[2])),
+        get_output_kwargs=['foo'])
     # These two functions get called, need to return dummy values for them
     in_to_hid.get_output_for.return_value = T.matrix()
     in_to_hid.get_params.return_value = []
@@ -934,7 +935,8 @@ def test_CustomRecurrentLayer_child_kwargs():
         Layer,
         output_shape=(in_shape[0], n_hid),
         input_shape=(in_shape[0], n_hid),
-        input_layer=InputLayer((in_shape[0], n_hid)))
+        input_layer=InputLayer((in_shape[0], n_hid)),
+        get_output_kwargs=[])
     hid_to_hid.get_output_for.return_value = T.matrix()
     hid_to_hid.get_params.return_value = []
     # Construct a CustomRecurrentLayer using these Mocks

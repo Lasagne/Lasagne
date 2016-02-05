@@ -431,6 +431,16 @@ class TestTPSTransformLayer():
             l_trans = lasagne.layers.TPSTransformerLayer(
                     l_in_a, l_loc_a, control_points=num_control_points)
 
+        # Check that error is raised when precompute_grid is set to True
+        # with unknown input size
+        with pytest.raises(ValueError):
+            l_in = lasagne.layers.InputLayer((None, 3, None, 28))
+            l_loc = lasagne.layers.DenseLayer(
+                    lasagne.layers.ReshapeLayer(l_in, ([0], 3*28*28)),
+                    num_units=32)
+            l_trans = lasagne.layers.TPSTransformerLayer(l_in, l_loc,
+                                                         precompute_grid=True)
+
         # Check that input is right size
         with pytest.raises(ValueError):
             l_in_b = lasagne.layers.InputLayer((3, 28, 28))
@@ -455,7 +465,35 @@ class TestTPSTransformLayer():
             )
             l_trans = lasagne.layers.TPSTransformerLayer(l_in_b, l_loc_b)
 
-    def test_transform_thine_plate_spline_downsample(self):
+    def test_transform_thin_plate_spline_variable_input(self):
+        import lasagne
+        from lasagne.utils import floatX
+        from theano.tensor import constant
+
+        x = np.random.random((10, 3, 28, 28)).astype('float32')
+        x_sym = theano.tensor.tensor4()
+
+        l_in = lasagne.layers.InputLayer((None, 3, None, 28))
+        l_loc = lasagne.layers.DenseLayer(
+                lasagne.layers.ReshapeLayer(l_in, ([0], 3*28*28)),
+                num_units=32)
+        l_trans = lasagne.layers.TPSTransformerLayer(
+                l_in, l_loc, precompute_grid='auto')
+
+        # check that shape propagation works
+        assert l_trans.output_shape[0] is None
+        assert l_trans.output_shape[1] == 3
+        assert l_trans.output_shape[2] is None
+        assert l_trans.output_shape[3] == 28
+
+        # check that data propagation works
+        dest_offset = np.zeros(shape=(10, 32))
+        inputs = floatX(np.arange(np.prod(x.shape)).reshape(x.shape))
+        outputs = l_trans.get_output_for([constant(inputs),
+                                          constant(dest_offset)]).eval()
+        np.testing.assert_allclose(inputs, outputs, atol=5e-4)
+
+    def test_transform_thin_plate_spline_downsample(self):
         import lasagne
         downsample = (0.7, 2.3)
         x = np.random.random((10, 3, 28, 28)).astype('float32')
@@ -465,7 +503,8 @@ class TestTPSTransformLayer():
         l_in = lasagne.layers.InputLayer((None, 3, 28, 28))
         l_loc = lasagne.layers.DenseLayer(l_in, num_units=32)
         l_trans = lasagne.layers.TPSTransformerLayer(
-                l_in, l_loc, downsample_factor=downsample
+                l_in, l_loc, downsample_factor=downsample,
+                precompute_grid=False
         )
 
         # check that shape propagation works
@@ -484,7 +523,8 @@ class TestTPSTransformLayer():
                 lasagne.layers.ReshapeLayer(l_in, ([0], 3*28*28)),
                 num_units=32, W=l_loc.W, b=l_loc.b)
         l_trans = lasagne.layers.TPSTransformerLayer(
-                l_in, l_loc, downsample_factor=downsample
+                l_in, l_loc, downsample_factor=downsample,
+                precompute_grid=False
         )
 
         # check that shape propagation works
@@ -514,7 +554,7 @@ class TestTPSTransformLayer():
         inputs = floatX(np.arange(np.prod(l_in.shape)).reshape(l_in.shape))
         outputs = layer.get_output_for([constant(inputs),
                                         constant(dest_offset)]).eval()
-        np.testing.assert_allclose(inputs, outputs, atol=1e-5)
+        np.testing.assert_allclose(inputs, outputs, atol=5e-4)
 
     def test_transform_thin_plate_spline_shift(self):
         from lasagne.layers import InputLayer, TPSTransformerLayer

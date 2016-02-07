@@ -48,6 +48,11 @@ class TestDropoutLayer:
         assert 0.4 < result_eval.mean() < 0.6
         assert (numpy.unique(result_eval) == [0., 1.]).all()
 
+    def test_get_output_for_no_rescale_dtype(self, layer_no_rescale):
+        input = theano.shared(numpy.ones((100, 100), dtype=numpy.int32))
+        result = layer_no_rescale.get_output_for(input)
+        assert result.dtype == input.dtype
+
     def test_get_output_for_p_02(self, layer_p_02):
         input = theano.shared(numpy.ones((100, 100)))
         result = layer_p_02.get_output_for(input)

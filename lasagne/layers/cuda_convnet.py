@@ -25,8 +25,10 @@ __all__ = [
 ]
 
 
-if not theano.config.device.startswith("gpu"):
-    raise ImportError("requires a GPU to work")  # pragma: no cover
+if not theano.sandbox.cuda.cuda_enabled:
+    raise ImportError(
+            "requires GPU support -- see http://lasagne.readthedocs.org/en/"
+            "latest/user/installation.html#gpu-support")  # pragma: no cover
 
 
 class Conv2DCCLayer(BaseConvLayer):

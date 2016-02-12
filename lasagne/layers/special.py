@@ -581,6 +581,15 @@ class TPSTransformerLayer(MergeLayer):
         transformation. These points will be arranged as a grid along the
         image, so the value must be a perfect square. Default is 16.
 
+    precompute_grid : 'auto' or boolean
+        Flag to precompute the U function [2]_ for the grid and source
+        points. If 'auto', will be set to true as long as the input height
+        and width are specified. If true, the U function is computed when the
+        layer is constructed for a fixed input shape. If false, grid will be
+        computed as part of the Theano computational graph, which is
+        substantially slower as this computation scales with
+        num_pixels*num_control_points. Default is 'auto'.
+
     References
     ----------
     .. [1]  Max Jaderberg, Karen Simonyan, Andrew Zisserman,
@@ -623,7 +632,7 @@ class TPSTransformerLayer(MergeLayer):
     """
 
     def __init__(self, incoming, localization_network, downsample_factor=1,
-                 control_points=16, **kwargs):
+                 control_points=16, precompute_grid='auto', **kwargs):
         super(TPSTransformerLayer, self).__init__(
                 [incoming, localization_network], **kwargs)
 
@@ -648,9 +657,20 @@ class TPSTransformerLayer(MergeLayer):
                              "output shape: (batch_size, num_input_channels, "
                              "input_rows, input_columns)")
 
+        # Process precompute grid
+        can_precompute_grid = all(s is not None for s in input_shp[2:])
+        if precompute_grid == 'auto':
+            precompute_grid = can_precompute_grid
+        elif precompute_grid and not can_precompute_grid:
+            raise ValueError("Grid can only be precomputed if the input "
+                             "height and width are pre-specified.")
+        self.precompute_grid = precompute_grid
+
         # Create source points and L matrix
-        self.source_points, self.L_inv = _initialize_tps(
-                control_points)
+        self.right_mat, self.L_inv, self.source_points, self.out_height, \
+            self.out_width = _initialize_tps(
+                control_points, input_shp, self.downsample_factor,
+                precompute_grid)
 
     def get_output_shape_for(self, input_shapes):
         shape = input_shapes[0]
@@ -662,15 +682,16 @@ class TPSTransformerLayer(MergeLayer):
         # see eq. (1) and sec 3.1 in [1]
         # Get input and destination control points
         input, dest_offsets = inputs
-        return _transform_thin_thin_plate_spline(dest_offsets,
-                                                 input,
-                                                 self.source_points,
-                                                 self.L_inv,
-                                                 self.downsample_factor)
+        return _transform_thin_plate_spline(
+                dest_offsets, input, self.right_mat, self.L_inv,
+                self.source_points, self.out_height, self.out_width,
+                self.precompute_grid, self.downsample_factor)
 
 
-def _transform_thin_thin_plate_spline(dest_offsets, input, source_points,
-                                      L_inv, downsample_factor):
+def _transform_thin_plate_spline(
+        dest_offsets, input, right_mat, L_inv, source_points, out_height,
+        out_width, precompute_grid, downsample_factor):
+
     num_batch, num_channels, height, width = input.shape
     num_control_points = source_points.shape[1]
 
@@ -682,18 +703,25 @@ def _transform_thin_thin_plate_spline(dest_offsets, input, source_points,
     # Solve as in ref [2]
     coefficients = T.dot(dest_points, L_inv[:, 3:].T)
 
-    # Transformed grid
-    out_height = T.cast(height / downsample_factor[0], 'int64')
-    out_width = T.cast(width / downsample_factor[1], 'int64')
-    orig_grid = _meshgrid(out_height, out_width)
-    orig_grid = orig_grid[0:2, :]
-    orig_grid = T.tile(orig_grid, (num_batch, 1, 1))
+    if precompute_grid:
 
-    # Transform each point on the source grid (image_size x image_size)
-    transformed_points = _get_transformed_points_tps(orig_grid, source_points,
-                                                     coefficients,
-                                                     num_control_points,
-                                                     num_batch)
+        # Transform each point on the source grid (image_size x image_size)
+        right_mat = T.tile(right_mat.dimshuffle('x', 0, 1), (num_batch, 1, 1))
+        transformed_points = T.batched_dot(coefficients, right_mat)
+
+    else:
+
+        # Transformed grid
+        out_height = T.cast(height / downsample_factor[0], 'int64')
+        out_width = T.cast(width / downsample_factor[1], 'int64')
+        orig_grid = _meshgrid(out_height, out_width)
+        orig_grid = orig_grid[0:2, :]
+        orig_grid = T.tile(orig_grid, (num_batch, 1, 1))
+
+        # Transform each point on the source grid (image_size x image_size)
+        transformed_points = _get_transformed_points_tps(
+                orig_grid, source_points, coefficients, num_control_points,
+                num_batch)
 
     # Get out new points
     x_transformed = transformed_points[:, 0].flatten()
@@ -734,9 +762,8 @@ def _get_transformed_points_tps(new_points, source_points, coefficients,
     # Calculate the squared dist between the new point and the source points
     to_transform = new_points.dimshuffle(0, 'x', 1, 2)
     stacked_transform = T.tile(to_transform, (1, num_points, 1, 1))
-    r_2 = T.sum(((stacked_transform - source_points.dimshuffle('x', 1, 0,
-                                                               'x')) ** 2),
-                axis=2)
+    r_2 = T.sum(((stacked_transform - source_points.dimshuffle(
+            'x', 1, 0, 'x')) ** 2), axis=2)
 
     # Take the product (r^2 * log(r^2)), being careful to avoid NaNs
     log_r_2 = T.log(r_2)
@@ -775,18 +802,31 @@ def _U_func_numpy(x1, y1, x2, y2):
     return r_2 * np.log(r_2)
 
 
-def _initialize_tps(num_control_points):
+def _initialize_tps(num_control_points, input_shape, downsample_factor,
+                    precompute_grid):
     """
     Initializes the thin plate spline calculation by creating the source
     point array and the inverted L matrix used for calculating the
     transformations as in ref [2]_
 
     :param num_control_points: the number of control points. Must be a
-    perfect square. Points will be used to generate an evenly spaced grid.
+        perfect square. Points will be used to generate an evenly spaced grid.
+    :param input_shape: tuple with 4 elements specifying the input shape
+    :param downsample_factor: tuple with 2 elements specifying the
+        downsample for the height and width, respectively
+    :param precompute_grid: boolean specifying whether to precompute the
+        grid matrix
     :return:
-        source_points: shape (2, num_control_points) tensor
+        right_mat: shape (num_control_points + 3, out_height*out_width) tensor
         L_inv: shape (num_control_points + 3, num_control_points + 3) tensor
+        source_points: shape (2, num_control_points) tensor
+        out_height: tensor constant specifying the ouptut height
+        out_width: tensor constant specifying the output width
+
     """
+
+    # break out input_shape
+    _, _, height, width = input_shape
 
     # Create source grid
     grid_size = np.sqrt(num_control_points)
@@ -798,11 +838,14 @@ def _initialize_tps(num_control_points):
     source_points = np.vstack(
             (x_control_source.flatten(), y_control_source.flatten()))
 
+    # Convert to floatX
+    source_points = source_points.astype(theano.config.floatX)
+
     # Get number of equations
     num_equations = num_control_points + 3
 
     # Initialize L to be num_equations square matrix
-    L = np.zeros((num_equations, num_equations))
+    L = np.zeros((num_equations, num_equations), dtype=theano.config.floatX)
 
     # Create P matrix components
     L[0, 3:num_equations] = 1.
@@ -824,15 +867,56 @@ def _initialize_tps(num_control_points):
     # Invert
     L_inv = np.linalg.inv(L)
 
-    # Convert to floatX
-    L_inv = L_inv.astype(theano.config.floatX)
-    source_points = source_points.astype(theano.config.floatX)
+    if precompute_grid:
+        # Construct grid
+        out_height = np.array(height / downsample_factor[0]).astype('int64')
+        out_width = np.array(width / downsample_factor[1]).astype('int64')
+        x_t, y_t = np.meshgrid(np.linspace(-1, 1, out_width),
+                               np.linspace(-1, 1, out_height))
+        ones = np.ones(np.prod(x_t.shape))
+        orig_grid = np.vstack([x_t.flatten(), y_t.flatten(), ones])
+        orig_grid = orig_grid[0:2, :]
+        orig_grid = orig_grid.astype(theano.config.floatX)
+
+        # Construct right mat
+
+        # First Calculate the U function for the new point and each source
+        # point as in ref [2]
+        # The U function is simply U(r) = r^2 * log(r^2), where r^2 is the
+        # squared distance
+        to_transform = orig_grid[:, :, np.newaxis].transpose(2, 0, 1)
+        stacked_transform = np.tile(to_transform, (num_control_points, 1, 1))
+        stacked_source_points = \
+            source_points[:, :, np.newaxis].transpose(1, 0, 2)
+        r_2 = np.sum((stacked_transform - stacked_source_points) ** 2, axis=1)
+
+        # Take the product (r^2 * log(r^2)), being careful to avoid NaNs
+        log_r_2 = np.log(r_2)
+        log_r_2[np.isinf(log_r_2)] = 0.
+        distances = r_2 * log_r_2
+
+        # Add in the coefficients for the affine translation (1, x, and y,
+        # corresponding to a_1, a_x, and a_y)
+        upper_array = np.ones(shape=(1, orig_grid.shape[1]),
+                              dtype=theano.config.floatX)
+        upper_array = np.concatenate([upper_array, orig_grid], axis=0)
+        right_mat = np.concatenate([upper_array, distances], axis=0)
+
+        # Convert to tensors
+        out_height = T.as_tensor_variable(out_height)
+        out_width = T.as_tensor_variable(out_width)
+        right_mat = T.as_tensor_variable(right_mat)
+
+    else:
+        out_height = None
+        out_width = None
+        right_mat = None
 
     # Convert to tensors
     L_inv = T.as_tensor_variable(L_inv)
     source_points = T.as_tensor_variable(source_points)
 
-    return source_points, L_inv
+    return right_mat, L_inv, source_points, out_height, out_width
 
 
 class ParametricRectifierLayer(Layer):

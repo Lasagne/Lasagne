@@ -163,8 +163,8 @@ class RecurrentContainerLayer(MergeLayer):
         for cell_m in self.seq_incomings:
             input_shapes[cell_m] = get_cell_shape(
                 input_shapes[cell_m], cell=False)
-        all_shapes = helper.get_output_shape(self.cells, input_shapes)
-        for cell_m, shape_m in zip(self.cells, all_shapes):
+        self.all_shapes = helper.get_output_shape(self.cells, input_shapes)
+        for cell_m, shape_m in zip(self.cells, self.all_shapes):
             if isinstance(cell_m, CellLayer):
                 for name, init in cell_m.inits.items():
                     if isinstance(init, Layer):
@@ -261,6 +261,14 @@ class RecurrentContainerLayer(MergeLayer):
                         all_outputs[cell_m.input_layers[name]] = input
         return all_outputs
 
+    @staticmethod
+    def _output_to_dict(output):
+        return output if isinstance(output, dict) else {'output': output}
+
+    def _output_from_dict(self, output):
+        return output if isinstance(self.all_shapes[-1], dict) else \
+            output['output']
+
     def get_output_shape_for(self, input_shapes):
         input_shape = input_shapes[next(iter(self.seq_incomings))]
         input_shapes = self._get_cell_input_shape_for(input_shapes)
@@ -270,15 +278,18 @@ class RecurrentContainerLayer(MergeLayer):
         for cell_m in self.seq_incomings:
             input_shapes[cell_m] = get_cell_shape(
                 input_shapes[cell_m], cell=False)
-        output_shape = helper.get_output_shape(
-            self.cell, input_shapes)
-        if self.only_return_final:
-            # When only_return_final is true, the second (sequence step)
-            # dimension will be flattened
-            return (input_shape[0],) + output_shape[1:]
-        else:
-            # Otherwise, the shape will be (n_batch, n_steps, trailing_dims...)
-            return (input_shape[0], input_shape[1]) + output_shape[1:]
+        output_shape = self._output_to_dict(helper.get_output_shape(
+            self.cell, input_shapes))
+        for name, output_shape_m in output_shape.items():
+            if self.only_return_final:
+                # When only_return_final is true, the second (sequence step)
+                # dimension will be flattened
+                output_shape[name] = (input_shape[0],) + output_shape_m[1:]
+            else:
+                # Otherwise, the shape will be (n_batch, n_steps, trailing_dims...)
+                output_shape[name] = (input_shape[0], input_shape[1]) + \
+                                      output_shape_m[1:]
+        return self._output_from_dict(output_shape)
 
     def get_output_for(self, inputs, **kwargs):
         """
@@ -349,18 +360,23 @@ class RecurrentContainerLayer(MergeLayer):
             inputs[cell_m] = inputs[cell_m][0]
         outputs_n = helper.get_output(
             self.cells, inputs, layer_kwargs=cell_kwargs, **kwargs)
-        for cell_m, outputs_m in zip(self.cells[:-1], outputs_n[:-1]):
-            if isinstance(cell_m, CellLayer):
-                if outputs_n[-1] in outputs_m.values():
-                    name = next(name for name, value in outputs_m.items()
-                                if value == outputs_n[-1])
-                    output_index = -len(inits_uniq) + inits_index[
-                        cell_m.input_layers[name]]
-                    output = None
-                    break
-        else:
-            output_index = 0
-            output = T.zeros(get_cell_shape(self.output_shape, cell=False))
+        output_uniq, output_index = [], {}
+        output_n = self._output_to_dict(outputs_n[-1])
+        output_shape_n = self._output_to_dict(self.output_shape)
+        for name in output_n:
+            for cell_m, outputs_m in zip(self.cells[:-1], outputs_n[:-1]):
+                if isinstance(cell_m, CellLayer):
+                    if output_n[name] in outputs_m.values():
+                        cell_name = next(
+                            cell_name for cell_name, value in outputs_m.items()
+                            if value == output_n[name])
+                        output_index[name] = -len(inits_uniq) + inits_index[
+                            cell_m.input_layers[cell_name]]
+                        break
+            else:
+                output_uniq.append(T.zeros(
+                    get_cell_shape(output_shape_n[name], cell=False)))
+                output_index[name] = len(output_uniq) - 1
 
         # Pass the cell params to step
         non_seqs = self._get_cell_params(
@@ -379,8 +395,10 @@ class RecurrentContainerLayer(MergeLayer):
                 if isinstance(cell_m, CellLayer):
                     for name in cell_m.inits:
                         step_outputs_n.append(cell_output_n[name])
-            if output:
-                step_outputs_n.append(outputs_n[-1])
+            output_n = self._output_to_dict(outputs_n[-1])
+            for name, index in output_index.items():
+                if index >= 0:
+                    step_outputs_n.append(output_n[name])
             return step_outputs_n
 
         def step_masked(*args):
@@ -401,10 +419,7 @@ class RecurrentContainerLayer(MergeLayer):
             sequences = seqs_uniq
             step_fun = step
 
-        if output is None:
-            outputs_info = inits_uniq
-        else:
-            outputs_info = inits_uniq + [output]
+        outputs_info = inits_uniq + output_uniq
 
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer
@@ -432,21 +447,25 @@ class RecurrentContainerLayer(MergeLayer):
                 outputs = [outputs]
 
         # retrieve the output state
-        output = outputs[len(inits_uniq) + output_index]
+        output = {}
+        for name, index in output_index.items():
+            output_m = outputs[len(inits_uniq) + index]
 
-        # When it is requested that we only return the final sequence step,
-        # we need to slice it out immediately after scan is applied
-        if self.only_return_final:
-            output = output[-1]
-        else:
-            # dimshuffle back to (n_batch, n_time_steps, n_features))
-            output = output.dimshuffle(1, 0, *range(2, output.ndim))
+            # When it is requested that we only return the final sequence step,
+            # we need to slice it out immediately after scan is applied
+            if self.only_return_final:
+                output_m = output_m[-1]
+            else:
+                # dimshuffle back to (n_batch, n_time_steps, n_features))
+                output_m = output_m.dimshuffle(1, 0, *range(2, output_m.ndim))
 
-            # if scan is backward reverse the output
-            if self.backwards:
-                output = output[:, ::-1]
+                # if scan is backward reverse the output
+                if self.backwards:
+                    output_m = output_m[:, ::-1]
 
-        return output
+            output[name] = output_m
+
+        return self._output_from_dict(output)
 
 
 class StepInputLayer(Layer):

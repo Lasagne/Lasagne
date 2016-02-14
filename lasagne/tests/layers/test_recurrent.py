@@ -1294,3 +1294,31 @@ def test_cell_dense_lstm():
     output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
     output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
     assert np.allclose(output_1, output_2)
+
+
+def test_cell_multi_output():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 5
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = LSTMLayer(l_inp, num_units=num_units)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = LSTMCell(cell_inp, num_units)
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    assert helper.get_output_shape(l_rec_2, x_in.shape) == \
+        {'output': (2, 3, 5), 'cell': (2, 3, 5)}
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2_cell = helper.get_output(l_rec_2)['cell'].eval(
+        {l_inp.input_var: x_in})
+    output_2_output = helper.get_output(l_rec_2)['output'].eval(
+        {l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2_output)
+    assert output_2_cell.shape == (2, 3, 5)

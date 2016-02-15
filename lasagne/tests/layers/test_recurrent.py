@@ -4,7 +4,7 @@ from lasagne.layers import (
     Layer, InputLayer, DenseLayer, ReshapeLayer,
     RecurrentContainerLayer, CustomRecurrentCell, CustomRecurrentLayer,
     DenseRecurrentCell, RecurrentLayer, Gate, LSTMCell, LSTMLayer, GRUCell,
-    GRULayer, helper
+    GRULayer, IdentityLayer, helper
 )
 import theano
 import theano.tensor as T
@@ -1322,3 +1322,33 @@ def test_cell_multi_output():
         {l_inp.input_var: x_in})
     assert np.allclose(output_1, output_2_output)
     assert output_2_cell.shape == (2, 3, 5)
+
+
+def test_cell_multi_precompute():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units_1, num_units_2 = 5, 6
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = LSTMLayer(l_inp, num_units=num_units_1)
+    l_rec_2 = GRULayer(l_inp, num_units=num_units_2)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell_1 = LSTMCell(cell_inp, num_units_1)['output']
+    cell_2 = GRUCell(cell_inp, num_units_2)['output']
+    cell = IdentityLayer({1: cell_1, 2: cell_2})
+    l_rec_3 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    assert helper.get_output_shape(l_rec_3, x_in.shape) == \
+        {1: (2, 3, 5), 2: (2, 3, 6)}
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    output_3_1 = helper.get_output(l_rec_3)[1].eval({l_inp.input_var: x_in})
+    output_3_2 = helper.get_output(l_rec_3)[2].eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_3_1)
+    assert np.allclose(output_2, output_3_2)

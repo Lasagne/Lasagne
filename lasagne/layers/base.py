@@ -8,6 +8,7 @@ from .. import utils
 __all__ = [
     "Layer",
     "MergeLayer",
+    "IdentityLayer",
     "SplitLayer",
 ]
 
@@ -344,6 +345,14 @@ class MergeLayer(Layer):
         `NotImplementedError`.
         """
         raise NotImplementedError
+
+
+class IdentityLayer(MergeLayer):
+    def get_output_shape_for(self, input_shapes):
+        return input_shapes
+
+    def get_output_for(self, inputs, **kwargs):
+        return inputs
 
 
 class SplitLayer(Layer):

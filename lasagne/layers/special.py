@@ -926,7 +926,7 @@ class ParametricRectifierLayer(Layer):
     alpha=init.Constant(0.25), shared_axes='auto', **kwargs)
 
     A layer that applies parametric rectify nonlinearity to its input
-    following [1]_ (http://arxiv.org/abs/1502.01852)
+    following [1]_.
 
     Equation for the parametric rectifier linear unit:
     :math:`\\varphi(x) = \\max(x,0) + \\alpha \\min(x,0)`
@@ -958,7 +958,7 @@ class ParametricRectifierLayer(Layer):
     .. [1] K He, X Zhang et al. (2015):
        Delving Deep into Rectifiers: Surpassing Human-Level Performance on
        ImageNet Classification,
-       http://link.springer.com/chapter/10.1007/3-540-49430-8_2
+       http://arxiv.org/abs/1502.01852
 
     Notes
     -----

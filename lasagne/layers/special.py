@@ -1018,6 +1018,7 @@ def prelu(layer, **kwargs):
     Examples
     --------
     Note that this function modifies an existing layer, like this:
+
     >>> from lasagne.layers import InputLayer, DenseLayer, prelu
     >>> layer = InputLayer((32, 100))
     >>> layer = DenseLayer(layer, num_units=200)
@@ -1140,6 +1141,7 @@ def rrelu(layer, **kwargs):
     Examples
     --------
     Note that this function modifies an existing layer, like this:
+
     >>> from lasagne.layers import InputLayer, DenseLayer, rrelu
     >>> layer = InputLayer((32, 100))
     >>> layer = DenseLayer(layer, num_units=200)

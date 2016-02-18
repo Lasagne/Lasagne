@@ -35,3 +35,4 @@ Detailed description
 .. autofunction:: elu
 .. autofunction:: softplus
 .. autofunction:: linear
+.. autofunction:: identity

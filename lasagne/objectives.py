@@ -250,7 +250,7 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
 
 
 def multiclass_hinge_loss(predictions, targets, delta=1):
-    """Computes the item-wise multi-class hinge loss between predictions and targets.
+    """Computes the multi-class hinge loss between predictions and targets.
 
     .. math:: L_i = \\max_{j \\not = t_i} (0, p_j - p_{t_i} + \\delta)
 

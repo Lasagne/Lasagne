@@ -44,9 +44,14 @@ class FlattenLayer(Layer):
             raise ValueError('Dim must be >0, was %i', outdim)
 
     def get_output_shape_for(self, input_shape):
-        shp = [input_shape[i] for i in range(self.outdim-1)]
-        shp += [int(np.prod(input_shape[(self.outdim-1):]))]
-        return tuple(shp)
+        to_flatten = input_shape[self.outdim - 1:]
+
+        if any(s is None for s in to_flatten):
+            flattened = None
+        else:
+            flattened = int(np.prod(to_flatten))
+
+        return input_shape[:self.outdim - 1] + (flattened,)
 
     def get_output_for(self, input, **kwargs):
         return input.flatten(self.outdim)

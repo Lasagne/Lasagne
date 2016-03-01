@@ -2,9 +2,9 @@ import pytest
 
 from lasagne.layers import (
     Layer, InputLayer, DenseLayer, ReshapeLayer,
-    RecurrentContainerLayer, CustomRecurrentCell, CustomRecurrentLayer,
-    DenseRecurrentCell, RecurrentLayer, Gate, LSTMCell, LSTMLayer, GRUCell,
-    GRULayer, IdentityLayer, helper
+    RecurrentContainerLayer, CellLayer, CustomRecurrentCell,
+    CustomRecurrentLayer, DenseRecurrentCell, RecurrentLayer, Gate,
+    LSTMCell, LSTMLayer, GRUCell, GRULayer, IdentityLayer, helper
 )
 import theano
 import theano.tensor as T
@@ -1376,3 +1376,29 @@ def test_cell_no_input_sequence():
     output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
     output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
     assert np.allclose(output_1, output_2)
+
+
+def test_cell_fixed_init():
+    class Cell(CellLayer):
+        def __init__(self, add_init, output_init, **kwargs):
+            super(Cell, self).__init__(
+                {}, {'add': add_init, 'output': output_init}, **kwargs)
+
+        def get_output_shape_for(self, input_shapes):
+            return {'output': (input_shapes['output'])}
+
+        def get_output_for(self, inputs, **kwargs):
+            return {'output': inputs['output'] + inputs['add']}
+
+    num_batch, seq_len, n_features = 2, 3, 4
+    add_in = np.ones((num_batch, n_features)).astype('float32')
+    add_init = InputLayer((num_batch, n_features))
+    output_in = np.zeros((num_batch, n_features)).astype('float32')
+    output_init = InputLayer((num_batch, n_features))
+    cell = Cell(add_init, output_init)
+    l_rec = lasagne.layers.RecurrentContainerLayer({}, cell, n_steps=seq_len)
+
+    output = helper.get_output(l_rec)['output'].eval(
+        {add_init.input_var: add_in, output_init.input_var: output_in})
+    ones = np.ones(n_features)
+    assert np.allclose(output, [[ones*1, ones*2, ones*3]]*num_batch)

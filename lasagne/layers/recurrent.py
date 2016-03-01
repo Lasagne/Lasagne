@@ -345,10 +345,20 @@ class RecurrentContainerLayer(MergeLayer):
         inits_uniq, inits_index = [], {}
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
-                for name in cell_m.inits:
+                for name in cell_m.output_shape:
                     input_layer = cell_m.input_layers[name]
                     inits_uniq.append(inputs[input_layer])
                     inits_index[input_layer] = len(inits_uniq) - 1
+
+        # Create non-sequence states
+        non_seqs, non_seqs_index = self._get_cell_params(
+            step=True, precompute_input=self.precompute_input), {}
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                for name in set(cell_m.inits) - set(cell_m.output_shape):
+                    input_layer = cell_m.input_layers[name]
+                    non_seqs.append(inputs[input_layer])
+                    non_seqs_index[input_layer] = len(non_seqs) - 1
 
         # Create output states. Only create when they don't already belong
         # to an intermediate cell's step output. This is necessary when the
@@ -385,22 +395,20 @@ class RecurrentContainerLayer(MergeLayer):
                     get_cell_shape(output_shape_n[name], cell=False)))
                 output_index[name] = len(output_uniq) - 1
 
-        # Pass the cell params to step
-        non_seqs = self._get_cell_params(
-            step=True, precompute_input=self.precompute_input)
-
         # Create single recurrent computation step function
         def step(*args):
             inputs_n = {}
             inputs_n.update({seq: args[i] for seq, i in seqs_index.items()})
             inputs_n.update({init: args[len(seqs_uniq) + i]
                              for init, i in inits_index.items()})
+            inputs_n.update({non_seq: non_seqs[i]
+                             for non_seq, i in non_seqs_index.items()})
             outputs_n = helper.get_output(
                 self.cells, inputs_n, layer_kwargs=cell_kwargs, **kwargs)
             step_outputs_n = []
             for cell_m, cell_output_n in zip(self.cells, outputs_n):
                 if isinstance(cell_m, CellLayer):
-                    for name in cell_m.inits:
+                    for name in cell_m.output_shape:
                         step_outputs_n.append(cell_output_n[name])
             output_n = self._output_to_dict(outputs_n[-1])
             for name, index in output_index.items():

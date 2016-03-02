@@ -1352,3 +1352,27 @@ def test_cell_multi_precompute():
     output_3_2 = helper.get_output(l_rec_3)[2].eval({l_inp.input_var: x_in})
     assert np.allclose(output_1, output_3_1)
     assert np.allclose(output_2, output_3_2)
+
+
+def test_cell_no_input_sequence():
+    num_batch, seq_len, n_features = 2, 3, 4
+    x_in = np.random.random((num_batch, n_features)).astype('float32')
+    l_inp = InputLayer((num_batch, n_features))
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = CustomRecurrentCell(
+        None, None, DenseLayer(cell_inp, n_features), hid_init=l_inp)['output']
+    l_rec_1 = lasagne.layers.RecurrentContainerLayer(
+        {}, cell, n_steps=seq_len, only_return_final=True)
+
+    l_rec_2 = l_inp
+    for i in range(seq_len):
+        lasagne.random.get_rng().seed(1234)
+        l_rec_2 = DenseLayer(l_rec_2, n_features)
+
+    assert helper.get_output_shape(l_rec_1, x_in.shape) == (2, 4)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)

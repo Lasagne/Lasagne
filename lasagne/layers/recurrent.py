@@ -104,6 +104,7 @@ class RecurrentContainerLayer(MergeLayer):
                  precompute_input=True,
                  mask_input=None,
                  only_return_final=False,
+                 n_steps=None,
                  **kwargs):
         """
         Parameters
@@ -139,6 +140,7 @@ class RecurrentContainerLayer(MergeLayer):
         self.unroll_scan = unroll_scan
         self.precompute_input = precompute_input
         self.only_return_final = only_return_final
+        self.n_steps = n_steps
 
         if unroll_scan and gradient_steps != -1:
             raise ValueError(
@@ -224,7 +226,6 @@ class RecurrentContainerLayer(MergeLayer):
         return all_shapes
 
     def _get_cell_input_for(self, inputs):
-        input = inputs[next(iter(self.seq_incomings))]
         # initialize layer-to-expression mapping from all input layers
         all_outputs = dict((cell_m, cell_m.input_var)
                            for cell_m in self.cells
@@ -234,8 +235,8 @@ class RecurrentContainerLayer(MergeLayer):
         all_outputs.update((layer, utils.as_theano_expression(expr))
                            for layer, expr in inputs.items())
         # update inits
-        seq_len, num_batch = input.shape[0], input.shape[1]
-        ones = T.ones((num_batch, 1))
+        n_batch = next(iter(inputs.values())).shape[0]
+        ones = T.ones((n_batch, 1))
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
                 for name, init in cell_m.inits.items():
@@ -272,7 +273,9 @@ class RecurrentContainerLayer(MergeLayer):
             output['output']
 
     def get_output_shape_for(self, input_shapes):
-        input_shape = input_shapes[next(iter(self.seq_incomings))]
+        n_batch = next(iter(input_shapes.values()))[0]
+        n_steps = self.n_steps if self.n_steps is not None else \
+            self.input_shapes[next(iter(self.seq_incomings))][1]
         input_shapes = self._get_cell_input_shape_for(input_shapes)
         input_shapes = self._precompute_cell_output_shape_for(
             input_shapes)
@@ -288,11 +291,9 @@ class RecurrentContainerLayer(MergeLayer):
             if self.only_return_final:
                 # When only_return_final is true, the second (sequence step)
                 # dimension will be flattened
-                output_shape[name] = (input_shape[0],) + output_shape_m[1:]
+                output_shape[name] = (n_batch,) + output_shape_m[1:]
             else:
-                # Otherwise, the shape will be (n_batch, n_steps, trailing_dims...)
-                output_shape[name] = (input_shape[0], input_shape[1]) + \
-                                      output_shape_m[1:]
+                output_shape[name] = (n_batch, n_steps) + output_shape_m[1:]
         return self._output_from_dict(output_shape)
 
     def get_output_for(self, inputs, **kwargs):
@@ -321,14 +322,13 @@ class RecurrentContainerLayer(MergeLayer):
         layer_output : theano.TensorType
             Symbolic output variable.
         """
+        inputs = self._get_cell_input_for(inputs)
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
         for seq_incoming in self.seq_incomings:
             inputs[seq_incoming] = inputs[seq_incoming].dimshuffle(
                 1, 0, *range(2, inputs[seq_incoming].ndim))
-
-        inputs = self._get_cell_input_for(inputs)
         inputs = self._precompute_cell_output_for(inputs, **kwargs)
 
         # Create seq states
@@ -430,7 +430,8 @@ class RecurrentContainerLayer(MergeLayer):
 
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer
-            input_shape = self.input_shapes[next(iter(self.seq_incomings))]
+            n_steps = self.n_steps if self.n_steps is not None else \
+                self.input_shapes[next(iter(self.seq_incomings))][1]
             # Explicitly unroll the recurrence instead of using scan
             outputs = unroll_scan(
                 fn=step_fun,
@@ -438,7 +439,7 @@ class RecurrentContainerLayer(MergeLayer):
                 outputs_info=outputs_info,
                 go_backwards=self.backwards,
                 non_sequences=non_seqs,
-                n_steps=input_shape[1])
+                n_steps=n_steps)
         else:
             # Scan op iterates over first dimension of input and repeatedly
             # applies the step function
@@ -448,6 +449,7 @@ class RecurrentContainerLayer(MergeLayer):
                 go_backwards=self.backwards,
                 outputs_info=outputs_info,
                 non_sequences=non_seqs,
+                n_steps=self.n_steps,
                 truncate_gradient=self.gradient_steps,
                 strict=True)[0]
             if len(outputs_info) == 1:
@@ -636,7 +638,8 @@ class CustomRecurrentCell(CellLayer):
                  grad_clipping=0,
                  **kwargs):
         super(CustomRecurrentCell, self).__init__(
-            {'input': incoming}, {'output': hid_init}, **kwargs)
+            {'input': incoming} if input_to_hidden is not None else {},
+            {'output': hid_init}, **kwargs)
         input_to_hidden_in_layers = \
             [layer for layer in helper.get_all_layers(input_to_hidden)
              if isinstance(layer, InputLayer)]
@@ -667,48 +670,52 @@ class CustomRecurrentCell(CellLayer):
         tags.pop('step_only', None)
         precompute_input = tags.pop('precompute_input', False)
 
-        # Check that input_to_hidden and hidden_to_hidden output shapes match,
-        # but don't check a dimension if it's None for either shape
-        if not all(s1 is None or s2 is None or s1 == s2
-                   for s1, s2 in zip(self.input_to_hidden.output_shape[1:],
-                                     self.hidden_to_hidden.output_shape[1:])):
-            raise ValueError("The output shape for input_to_hidden and "
-                             "hidden_to_hidden must be equal after the first "
-                             "dimension, but input_to_hidden.output_shape={} "
-                             "and hidden_to_hidden.output_shape={}".format(
-                                 self.input_to_hidden.output_shape,
-                                 self.hidden_to_hidden.output_shape))
+        if self.input_to_hidden is not None:
+            # Check that input_to_hidden and hidden_to_hidden output shapes
+            #  match, but don't check a dimension if it's None for either shape
+            if not all(s1 is None or s2 is None or s1 == s2 for s1, s2
+                       in zip(self.input_to_hidden.output_shape[1:],
+                              self.hidden_to_hidden.output_shape[1:])):
+                raise ValueError("The output shape for input_to_hidden and "
+                                 "hidden_to_hidden must be equal after the "
+                                 "first dimension, but "
+                                 "input_to_hidden.output_shape={} and "
+                                 "hidden_to_hidden.output_shape={}".format(
+                                     self.input_to_hidden.output_shape,
+                                     self.hidden_to_hidden.output_shape))
 
-        # Check that input_to_hidden's output shape is the same as
-        # hidden_to_hidden's input shape but don't check a dimension if it's
-        # None for either shape
-        h_to_h_input_shape = self.hidden_to_hidden_in_layer.output_shape
-        if not all(s1 is None or s2 is None or s1 == s2
-                   for s1, s2 in zip(self.input_to_hidden.output_shape[1:],
-                                     h_to_h_input_shape[1:])):
-            raise ValueError(
-                "The output shape for input_to_hidden must be equal to the "
-                "input shape of hidden_to_hidden after the first dimension, "
-                "but input_to_hidden.output_shape={} and "
-                "hidden_to_hidden:input_layer.shape={}".format(
-                    self.input_to_hidden.output_shape, h_to_h_input_shape))
+            # Check that input_to_hidden's output shape is the same as
+            # hidden_to_hidden's input shape but don't check a dimension if
+            # it's None for either shape
+            h_to_h_input_shape = self.hidden_to_hidden_in_layer.output_shape
+            if not all(s1 is None or s2 is None or s1 == s2 for s1, s2
+                       in zip(self.input_to_hidden.output_shape[1:],
+                              h_to_h_input_shape[1:])):
+                raise ValueError("The output shape for input_to_hidden "
+                                 "must be equal to the input shape of "
+                                 "hidden_to_hidden after the first "
+                                 "dimension, but "
+                                 "input_to_hidden.output_shape={} and "
+                                 "hidden_to_hidden.input_shape={}".format(
+                                     self.input_to_hidden.output_shape,
+                                     h_to_h_input_shape))
 
-        # Check that the first dimension of input_to_hidden and
-        # hidden_to_hidden's outputs match when we won't precompute the input
-        # dot product
-        if (not precompute_input and
-                self.input_to_hidden.output_shape[0] is not None and
-                self.hidden_to_hidden.output_shape[0] is not None and
-                (self.input_to_hidden.output_shape[0] !=
-                 self.hidden_to_hidden.output_shape[0])):
-            raise ValueError(
-                'When precompute_input == False, '
-                'input_to_hidden.output_shape[0] must equal '
-                'hidden_to_hidden.output_shape[0] but '
-                'input_to_hidden.output_shape[0] = {} and '
-                'hidden_to_hidden.output_shape[0] = {}'.format(
-                    self.input_to_hidden.output_shape[0],
-                    self.hidden_to_hidden.output_shape[0]))
+            # Check that the first dimension of input_to_hidden and
+            # hidden_to_hidden's outputs match when we won't precompute the
+            # input dot product
+            if (not precompute_input and
+                    self.input_to_hidden.output_shape[0] is not None and
+                    self.hidden_to_hidden.output_shape[0] is not None and
+                    (self.input_to_hidden.output_shape[0] !=
+                     self.hidden_to_hidden.output_shape[0])):
+                raise ValueError(
+                    'When precompute_input == False, '
+                    'input_to_hidden.output_shape[0] must equal '
+                    'hidden_to_hidden.output_shape[0] but '
+                    'input_to_hidden.output_shape[0] = {} and '
+                    'hidden_to_hidden.output_shape[0] = {}'.format(
+                        self.input_to_hidden.output_shape[0],
+                        self.hidden_to_hidden.output_shape[0]))
 
         params = helper.get_all_params(self.hidden_to_hidden, **tags)
         if not (step and precompute_input):
@@ -716,48 +723,50 @@ class CustomRecurrentCell(CellLayer):
         return params
 
     def precompute_shape_for(self, input_shapes):
-        input_shape = input_shapes['input']
-        # Check that the input_to_hidden connection can appropriately handle
-        # a first dimension of input_shape[0]*input_shape[1] when we will
-        # precompute the input dot product
-        if (self.input_to_hidden.output_shape[0] is not None and
-                input_shape[0] is not None and
-                input_shape[1] is not None and
-                (self.input_to_hidden.output_shape[0] !=
-                 input_shape[0]*input_shape[1])):
-            raise ValueError(
-                'When precompute_input == True, '
-                'input_to_hidden.output_shape[0] must equal '
-                'incoming.output_shape[0]*incoming.output_shape[1] '
-                '(i.e. batch_size*sequence_length) or be None but '
-                'input_to_hidden.output_shape[0] = {} and '
-                'incoming.output_shape[0]*incoming.output_shape[1] = '
-                '{}'.format(self.input_to_hidden.output_shape[0],
-                            input_shape[0]*input_shape[1]))
+        if self.input_to_hidden is not None:
+            input_shape = input_shapes['input']
+            # Check that the input_to_hidden connection can appropriately
+            # handle a first dimension of input_shape[0]*input_shape[1] when
+            # we will precompute the input dot product
+            if (self.input_to_hidden.output_shape[0] is not None and
+                    input_shape[0] is not None and
+                    input_shape[1] is not None and
+                    (self.input_to_hidden.output_shape[0] !=
+                     input_shape[0]*input_shape[1])):
+                raise ValueError(
+                    'When precompute_input == True, '
+                    'input_to_hidden.output_shape[0] must equal '
+                    'incoming.output_shape[0]*incoming.output_shape[1] '
+                    '(i.e. n_batch*sequence_length) or be None but '
+                    'input_to_hidden.output_shape[0] = {} and '
+                    'incoming.output_shape[0]*incoming.output_shape[1] = '
+                    '{}'.format(self.input_to_hidden.output_shape[0],
+                                input_shape[0]*input_shape[1]))
         return input_shapes
 
     def get_output_shape_for(self, input_shapes):
         return {'output': self.hidden_to_hidden.output_shape}
 
     def precompute_for(self, inputs, **kwargs):
-        input = inputs['input']
-        seq_len, num_batch = input.shape[0], input.shape[1]
+        if self.input_to_hidden is not None:
+            input = inputs['input']
+            seq_len, n_batch = input.shape[0], input.shape[1]
 
-        # Because the input is given for all time steps, we can precompute
-        # the inputs to hidden before scanning. First we need to reshape
-        # from (seq_len, batch_size, trailing dimensions...) to
-        # (seq_len*batch_size, trailing dimensions...)
-        # This strange use of a generator in a tuple was because
-        # input.shape[2:] was raising a Theano error
-        trailing_dims = tuple(input.shape[n] for n in range(2, input.ndim))
-        input = T.reshape(input, (seq_len*num_batch,) + trailing_dims)
-        input = helper.get_output(
-            self.input_to_hidden, input, **kwargs)
+            # Because the input is given for all time steps, we can precompute
+            # the inputs to hidden before scanning. First we need to reshape
+            # from (seq_len, n_batch, trailing dimensions...) to
+            # (seq_len*n_batch, trailing dimensions...)
+            # This strange use of a generator in a tuple was because
+            # input.shape[2:] was raising a Theano error
+            trailing_dims = tuple(input.shape[n] for n in range(2, input.ndim))
+            input = T.reshape(input, (seq_len*n_batch,) + trailing_dims)
+            input = helper.get_output(
+                self.input_to_hidden, input, **kwargs)
 
-        # Reshape back to (seq_len, batch_size, trailing dimensions...)
-        trailing_dims = tuple(input.shape[n] for n in range(1, input.ndim))
-        input = T.reshape(input, (seq_len, num_batch) + trailing_dims)
-        inputs['input'] = input
+            # Reshape back to (seq_len, n_batch, trailing dimensions...)
+            trailing_dims = tuple(input.shape[n] for n in range(1, input.ndim))
+            input = T.reshape(input, (seq_len, n_batch) + trailing_dims)
+            inputs['input'] = input
         return inputs
 
     def get_output_for(self, inputs, precompute_input=False, **kwargs):
@@ -786,19 +795,21 @@ class CustomRecurrentCell(CellLayer):
         layer_output : theano.TensorType
             Symbolic output variable.
         """
-        input, hidden = inputs['input'], inputs['output']
+        hidden = inputs['output']
 
         # Compute the hidden-to-hidden activation
         hid_pre = helper.get_output(
             self.hidden_to_hidden, hidden, **kwargs)
 
-        # If the dot product is precomputed then add it, otherwise
-        # calculate the input_to_hidden values and add them
-        if precompute_input:
-            hid_pre += input
-        else:
-            hid_pre += helper.get_output(
-                self.input_to_hidden, input, **kwargs)
+        if self.input_to_hidden is not None:
+            input = inputs['input']
+            # If the dot product is precomputed then add it, otherwise
+            # calculate the input_to_hidden values and add them
+            if precompute_input:
+                hid_pre += input
+            else:
+                hid_pre += helper.get_output(
+                    self.input_to_hidden, input, **kwargs)
 
         # Clip gradients
         if self.grad_clipping:

@@ -25,6 +25,10 @@ class TestFlattenLayer:
         input_shape = (2, 3, 4, 5)
         assert layer.get_output_shape_for(input_shape) == (2, 3 * 4 * 5)
 
+    def test_get_output_shape_for_contain_none(self, layer):
+        input_shape = (2, 3, None, 5)
+        assert layer.get_output_shape_for(input_shape) == (2, None)
+
     def test_get_output_for(self, layer):
         input = np.random.random((2, 3, 4, 5))
         result = layer.get_output_for(theano.shared(input)).eval()

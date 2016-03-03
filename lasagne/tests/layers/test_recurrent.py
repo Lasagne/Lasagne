@@ -719,9 +719,9 @@ def test_lstm_bck():
 
 
 def test_lstm_precompute():
-    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_batch, seq_len, n_features1, n_features2 = 2, 3, 4, 5
     num_units = 2
-    in_shp = (num_batch, seq_len, n_features1)
+    in_shp = (num_batch, seq_len, n_features1, n_features2)
     l_inp = InputLayer(in_shp)
     l_mask_inp = InputLayer(in_shp[:2])
 
@@ -1097,9 +1097,9 @@ def test_gru_unroll_scan_bck():
 
 
 def test_gru_precompute():
-    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_batch, seq_len, n_features1, n_features2 = 2, 3, 4, 5
     num_units = 2
-    in_shp = (num_batch, seq_len, n_features1)
+    in_shp = (num_batch, seq_len, n_features1, n_features2)
     l_inp = InputLayer(in_shp)
     l_mask_inp = InputLayer(in_shp[:2])
 

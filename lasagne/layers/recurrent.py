@@ -87,14 +87,6 @@ __all__ = [
 ]
 
 
-def get_cell_shape(incoming, cell=True):
-    if isinstance(incoming, Layer):
-        incoming = incoming.output_shape
-    # We will be passing the input at each time step to the dense layer,
-    # so we need to remove the second dimension (the time dimension)
-    return incoming if cell else (incoming[0],) + incoming[2:]
-
-
 class RecurrentContainerLayer(MergeLayer):
     def __init__(self, incomings, cell,
                  backwards=False,
@@ -165,8 +157,8 @@ class RecurrentContainerLayer(MergeLayer):
             if cell_m in self.seq_incomings or (
                     isinstance(cell_m, tuple) and cell_m[0].input_layers[
                     cell_m[1]] in self.seq_incomings):
-                input_shapes[cell_m] = get_cell_shape(
-                    input_shapes[cell_m], cell=False)
+                input_shapes[cell_m] = self._get_cell_shape(
+                    input_shapes[cell_m])
         self.all_shapes = helper.get_output_shape(self.cells, input_shapes)
         for cell_m, shape_m in zip(self.cells, self.all_shapes):
             if isinstance(cell_m, CellLayer):
@@ -178,6 +170,14 @@ class RecurrentContainerLayer(MergeLayer):
                             init, (1,) + shape_m[name][1:],
                             name='hid_init', trainable=learn_init,
                             regularizable=False)
+
+    @staticmethod
+    def _get_cell_shape(incoming):
+        # We will be passing the input at each time step to the dense layer,
+        # so we need to remove the second dimension (the time dimension)
+        if isinstance(incoming, Layer):
+            incoming = incoming.output_shape
+        return (incoming[0],) + incoming[2:]
 
     def _get_cell_params(self, **tags):
         params = []
@@ -283,8 +283,8 @@ class RecurrentContainerLayer(MergeLayer):
             if cell_m in self.seq_incomings or (
                     isinstance(cell_m, tuple) and cell_m[0].input_layers[
                     cell_m[1]] in self.seq_incomings):
-                input_shapes[cell_m] = get_cell_shape(
-                    input_shapes[cell_m], cell=False)
+                input_shapes[cell_m] = self._get_cell_shape(
+                    input_shapes[cell_m])
         output_shape = self._output_to_dict(helper.get_output_shape(
             self.cell, input_shapes))
         for name, output_shape_m in output_shape.items():
@@ -392,7 +392,7 @@ class RecurrentContainerLayer(MergeLayer):
                         break
             else:
                 output_uniq.append(T.zeros(
-                    get_cell_shape(output_shape_n[name], cell=False)))
+                    self._get_cell_shape(output_shape_n[name])))
                 output_index[name] = len(output_uniq) - 1
 
         # Create single recurrent computation step function
@@ -833,8 +833,8 @@ class CustomRecurrentLayer(RecurrentContainerLayer):
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
                  **kwargs):
+        cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
-        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = CustomRecurrentCell(
             cell_in, input_to_hidden, hidden_to_hidden, nonlinearity, hid_init,
             grad_clipping, **cell_kwargs)['output']
@@ -922,7 +922,7 @@ class DenseRecurrentCell(CustomRecurrentCell):
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
                  **kwargs):
-        input_shape = get_cell_shape(incoming)
+        input_shape = incoming.output_shape[1:]
 
         # Retrieve the supplied name, if it exists; otherwise use ''
         if 'name' in kwargs:
@@ -935,7 +935,7 @@ class DenseRecurrentCell(CustomRecurrentCell):
             basename = ''
             layer_kwargs = kwargs
 
-        in_to_hid = DenseLayer(InputLayer((None,) + input_shape[1:]),
+        in_to_hid = DenseLayer(InputLayer((None,) + input_shape),
                                num_units, W=W_in_to_hid, b=b,
                                nonlinearity=None,
                                name=basename + 'input_to_hidden',
@@ -962,8 +962,8 @@ class RecurrentLayer(RecurrentContainerLayer):
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
                  **kwargs):
+        cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
-        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = DenseRecurrentCell(
             cell_in, num_units, W_in_to_hid, W_hid_to_hid, b, nonlinearity,
             hid_init, grad_clipping, **cell_kwargs)['output']
@@ -1169,7 +1169,7 @@ class LSTMCell(CellLayer):
         else:
             self.nonlinearity = nonlinearity
 
-        num_inputs = np.prod(get_cell_shape(incoming)[1:])
+        num_inputs = np.prod(incoming.output_shape[1:])
 
         # Add in parameters from the supplied Gate instances
         (self.W_in_to_ingate, self.W_hid_to_ingate, self.b_ingate,
@@ -1337,8 +1337,8 @@ class LSTMLayer(RecurrentContainerLayer):
                  peepholes=True,
                  grad_clipping=0,
                  **kwargs):
+        cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
-        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = LSTMCell(
             cell_in, num_units, ingate, forgetgate, cell, outgate,
             nonlinearity, cell_init, hid_init, peepholes, grad_clipping,
@@ -1453,7 +1453,7 @@ class GRUCell(CellLayer):
         self.num_units = num_units
         self.grad_clipping = grad_clipping
 
-        num_inputs = np.prod(get_cell_shape(incoming)[1:])
+        num_inputs = np.prod(incoming.output_shape[1:])
 
         # Add in all parameters from gates
         (self.W_in_to_updategate, self.W_hid_to_updategate, self.b_updategate,
@@ -1584,8 +1584,8 @@ class GRULayer(RecurrentContainerLayer):
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
                  **kwargs):
+        cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
-        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = GRUCell(
             cell_in, num_units, resetgate, updategate, hidden_update, hid_init,
             grad_clipping, **cell_kwargs)['output']

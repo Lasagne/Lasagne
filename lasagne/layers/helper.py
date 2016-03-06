@@ -111,7 +111,8 @@ def get_all_layers(layer, treat_as_input=None):
     return result
 
 
-def get_output(layer_or_layers, inputs=None, layer_kwargs=None, **kwargs):
+def get_output(layer_or_layers, inputs=None,
+               layer_inputs=None, layer_kwargs=None, **kwargs):
     """
     Computes the output of the network at one or more given layers.
     Optionally, you can define the input(s) to propagate through the network
@@ -152,6 +153,8 @@ def get_output(layer_or_layers, inputs=None, layer_kwargs=None, **kwargs):
     """
     from .input import InputLayer
     from .base import MergeLayer
+    layer_inputs = layer_inputs or {}
+    layer_kwargs = layer_kwargs or {}
     # track accepted kwargs used by get_output_for
     accepted_kwargs = {'deterministic'}
     # obtain topological ordering of all layers the output layer(s) depend on
@@ -183,16 +186,17 @@ def get_output(layer_or_layers, inputs=None, layer_kwargs=None, **kwargs):
             try:
                 if isinstance(layer, MergeLayer):
                     if isinstance(layer.input_layers, dict):
-                        layer_inputs = {name: all_outputs.get(
-                            (layer, name), all_outputs[input_layer])
-                            for name, input_layer in
-                            layer.input_layers.items()}
+                        inputs_n = {name: layer_inputs.get(layer, {}).get(
+                                    name, None) or all_outputs[input_layer]
+                                    for name, input_layer
+                                    in layer.input_layers.items()}
                     else:
-                        layer_inputs = [
-                            all_outputs[input_layer]
-                            for input_layer in layer.input_layers]
+                        inputs_n = [layer_inputs.get(layer, {}).get(i, None) or
+                                    all_outputs[input_layer] for i, input_layer
+                                    in enumerate(layer.input_layers)]
                 else:
-                    layer_inputs = all_outputs[layer.input_layer]
+                    inputs_n = layer_inputs.get(layer, None) or \
+                               all_outputs[layer.input_layer]
             except KeyError:
                 # one of the input_layer attributes must have been `None`
                 raise ValueError("get_output() was called without giving an "
@@ -200,11 +204,9 @@ def get_output(layer_or_layers, inputs=None, layer_kwargs=None, **kwargs):
                                  "layer %r. Please call it with a dictionary "
                                  "mapping this layer to an input expression."
                                  % layer)
-            layer_kwargs_n = kwargs
-            layer_kwargs_n.update(
-                layer_kwargs.get(layer, {}) if layer_kwargs else {})
-            all_outputs[layer] = layer.get_output_for(
-                layer_inputs, **layer_kwargs_n)
+            kwargs_n = kwargs
+            kwargs_n.update(layer_kwargs.get(layer, {}))
+            all_outputs[layer] = layer.get_output_for(inputs_n, **kwargs_n)
             try:
                 accepted_kwargs |= set(utils.inspect_kwargs(
                         layer.get_output_for))
@@ -231,7 +233,8 @@ def get_output(layer_or_layers, inputs=None, layer_kwargs=None, **kwargs):
         return all_outputs[layer_or_layers]
 
 
-def get_output_shape(layer_or_layers, input_shapes=None):
+def get_output_shape(layer_or_layers, input_shapes=None,
+                     layer_input_shapes=None):
     """
     Computes the output shape of the network at one or more given layers.
 
@@ -256,8 +259,11 @@ def get_output_shape(layer_or_layers, input_shapes=None):
     tuple or list
         the output shape of the given layer(s) for the given network input
     """
+    input_shapes = input_shapes or {}
+    layer_input_shapes = layer_input_shapes or {}
+
     # shortcut: return precomputed shapes if we do not need to propagate any
-    if input_shapes is None or input_shapes == {}:
+    if not input_shapes and not layer_input_shapes:
         try:
             return [layer.output_shape for layer in layer_or_layers]
         except TypeError:
@@ -293,16 +299,18 @@ def get_output_shape(layer_or_layers, input_shapes=None):
         if layer not in all_shapes:
             if isinstance(layer, MergeLayer):
                 if isinstance(layer.input_layers, dict):
-                    input_shapes = {name: all_shapes.get(
-                        (layer, name), all_shapes[input_layer])
-                        for name, input_layer in layer.input_layers.items()}
+                    shapes_n = {name: layer_input_shapes.get(layer, {}).get(
+                                name, None) or all_shapes[input_layer]
+                                for name, input_layer
+                                in layer.input_layers.items()}
                 else:
-                    input_shapes = [
-                        all_shapes[input_layer]
-                        for input_layer in layer.input_layers]
+                    shapes_n = [layer_input_shapes.get(layer, {}).get(
+                                i, None) or all_shapes[input_layer] for i,
+                                input_layer in enumerate(layer.input_layers)]
             else:
-                input_shapes = all_shapes[layer.input_layer]
-            all_shapes[layer] = layer.get_output_shape_for(input_shapes)
+                shapes_n = layer_input_shapes.get(layer, None) or \
+                           all_shapes[layer.input_layer]
+            all_shapes[layer] = layer.get_output_shape_for(shapes_n)
     # return the output shape(s) of the requested layer(s) only
     try:
         return [all_shapes[layer] for layer in layer_or_layers]

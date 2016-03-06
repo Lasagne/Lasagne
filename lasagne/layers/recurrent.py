@@ -151,15 +151,19 @@ class RecurrentContainerLayer(MergeLayer):
         # Initialize states
         self.inits = {}
         input_shapes = self._get_cell_input_shape_for(self.input_shapes)
-        input_shapes = self._precompute_cell_output_shape_for(
+        cell_input_shapes = self._precompute_cell_output_shape_for(
             input_shapes)
-        for cell_m in input_shapes:
-            if cell_m in self.seq_incomings or (
-                    isinstance(cell_m, tuple) and cell_m[0].input_layers[
-                    cell_m[1]] in self.seq_incomings):
-                input_shapes[cell_m] = self._get_cell_shape(
-                    input_shapes[cell_m])
-        self.all_shapes = helper.get_output_shape(self.cells, input_shapes)
+        for cell_m, shape_m in input_shapes.items():
+            if cell_m in self.seq_incomings:
+                input_shapes[cell_m] = self._get_cell_shape(shape_m)
+        for cell_m, shapes_m in cell_input_shapes.items():
+            cell_input_shapes[cell_m] = {}
+            for name, shape in shapes_m.items():
+                if cell_m.input_layers[name] in self.seq_incomings:
+                    cell_input_shapes[cell_m][name] = self._get_cell_shape(
+                        shape) if shape is not None else shape
+        self.all_shapes = helper.get_output_shape(
+            self.cells, input_shapes, cell_input_shapes)
         for cell_m, shape_m in zip(self.cells, self.all_shapes):
             if isinstance(cell_m, CellLayer):
                 for name, init in cell_m.inits.items():
@@ -214,16 +218,17 @@ class RecurrentContainerLayer(MergeLayer):
         return all_shapes
 
     def _precompute_cell_output_shape_for(self, input_shapes):
-        all_shapes = input_shapes.copy()
+        cell_input_shapes = {}
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
                 if self.precompute_input and cell_m.is_precomputable():
+                    cell_input_shapes[cell_m] = {}
                     for name, shape in cell_m.precompute_shape_for({
                         name: input_shapes[input_layer]
                         for name, input_layer in cell_m.input_layers.items()
                     }).items():
-                        all_shapes[cell_m, name] = shape
-        return all_shapes
+                        cell_input_shapes[cell_m][name] = shape
+        return cell_input_shapes
 
     def _get_cell_input_for(self, inputs):
         # initialize layer-to-expression mapping from all input layers
@@ -253,16 +258,17 @@ class RecurrentContainerLayer(MergeLayer):
         return all_outputs
 
     def _precompute_cell_output_for(self, inputs, **kwargs):
-        all_outputs = inputs.copy()
+        cell_inputs = {}
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
                 if self.precompute_input and cell_m.is_precomputable():
+                    cell_inputs[cell_m] = {}
                     for name, input in cell_m.precompute_for({
                         name: inputs[input_layer]
                         for name, input_layer in cell_m.input_layers.items()
                     }, **kwargs).items():
-                        all_outputs[cell_m, name] = input
-        return all_outputs
+                        cell_inputs[cell_m][name] = input
+        return cell_inputs
 
     @staticmethod
     def _output_to_dict(output):
@@ -277,16 +283,18 @@ class RecurrentContainerLayer(MergeLayer):
         n_steps = self.n_steps if self.n_steps is not None else \
             self.input_shapes[next(iter(self.seq_incomings))][1]
         input_shapes = self._get_cell_input_shape_for(input_shapes)
-        input_shapes = self._precompute_cell_output_shape_for(
+        cell_input_shapes = self._precompute_cell_output_shape_for(
             input_shapes)
-        for cell_m in input_shapes:
-            if cell_m in self.seq_incomings or (
-                    isinstance(cell_m, tuple) and cell_m[0].input_layers[
-                    cell_m[1]] in self.seq_incomings):
-                input_shapes[cell_m] = self._get_cell_shape(
-                    input_shapes[cell_m])
+        for cell_m, shape_m in input_shapes.items():
+            if cell_m in self.seq_incomings:
+                input_shapes[cell_m] = self._get_cell_shape(shape_m)
+        for cell_m, shapes_m in cell_input_shapes.items():
+            for name, shape in shapes_m.items():
+                if cell_m.input_layers[name] in self.seq_incomings:
+                    cell_input_shapes[cell_m][name] = self._get_cell_shape(
+                        shape) if shape is not None else shape
         output_shape = self._output_to_dict(helper.get_output_shape(
-            self.cell, input_shapes))
+            self.cell, input_shapes, cell_input_shapes))
         for name, output_shape_m in output_shape.items():
             if self.only_return_final:
                 # When only_return_final is true, the second (sequence step)
@@ -329,17 +337,28 @@ class RecurrentContainerLayer(MergeLayer):
         for seq_incoming in self.seq_incomings:
             inputs[seq_incoming] = inputs[seq_incoming].dimshuffle(
                 1, 0, *range(2, inputs[seq_incoming].ndim))
-        inputs = self._precompute_cell_output_for(inputs, **kwargs)
+        cell_inputs = self._precompute_cell_output_for(inputs, **kwargs)
 
         # Create seq states
-        seqs = {}
+        seqs, layer_seqs, all_seqs = {}, {}, []
         for cell_m in inputs:
-            if cell_m in self.seq_incomings or (
-                    isinstance(cell_m, tuple) and cell_m[0].input_layers[
-                    cell_m[1]] in self.seq_incomings):
+            if cell_m in self.seq_incomings:
                 seqs[cell_m] = inputs[cell_m]
-        seqs_uniq, seqs_index = utils.unique(seqs.values(), return_index=True)
-        seqs_index = dict(zip(seqs, seqs_index))
+        all_seqs.extend(seqs.values())
+        for cell_m, inputs_m in cell_inputs.items():
+            layer_seqs[cell_m] = {}
+            for name, input in inputs_m.items():
+                if cell_m.input_layers[name] in self.seq_incomings:
+                    layer_seqs[cell_m][name] = cell_inputs[cell_m][name]
+            all_seqs.extend(layer_seqs[cell_m].values())
+        all_seqs_uniq, all_seqs_index = utils.unique(
+            all_seqs, return_index=True)
+        all_seqs_index_iter = iter(all_seqs_index)
+        seqs_index = dict(zip(seqs, all_seqs_index_iter))
+        layer_seqs_index = {}
+        for cell_m, inputs_m in cell_inputs.items():
+            layer_seqs_index[cell_m] = dict(zip(
+                layer_seqs[cell_m], all_seqs_index_iter))
 
         # Create init states
         inits_uniq, inits_index = [], {}
@@ -371,12 +390,15 @@ class RecurrentContainerLayer(MergeLayer):
                     'precompute_input':
                         self.precompute_input and cell_m.is_precomputable()}
         for cell_m in inputs:
-            if cell_m in self.seq_incomings or (
-                    isinstance(cell_m, tuple) and cell_m[0].input_layers[
-                    cell_m[1]] in self.seq_incomings):
+            if cell_m in self.seq_incomings:
                 inputs[cell_m] = inputs[cell_m][0]
+        for cell_m, input_m in cell_inputs.items():
+            for name, input in input_m.items():
+                if cell_m.input_layers[name] in self.seq_incomings:
+                    cell_inputs[cell_m][name] = cell_inputs[cell_m][name][0]
         outputs_n = helper.get_output(
-            self.cells, inputs, layer_kwargs=cell_kwargs, **kwargs)
+            self.cells, inputs, layer_inputs=cell_inputs,
+            layer_kwargs=cell_kwargs, **kwargs)
         output_uniq, output_index = [], {}
         output_n = self._output_to_dict(outputs_n[-1])
         output_shape_n = self._output_to_dict(self.output_shape)
@@ -399,12 +421,17 @@ class RecurrentContainerLayer(MergeLayer):
         def step(*args):
             inputs_n = {}
             inputs_n.update({seq: args[i] for seq, i in seqs_index.items()})
-            inputs_n.update({init: args[len(seqs_uniq) + i]
+            inputs_n.update({init: args[len(all_seqs_uniq) + i]
                              for init, i in inits_index.items()})
             inputs_n.update({non_seq: non_seqs[i]
                              for non_seq, i in non_seqs_index.items()})
+            cell_inputs_n = {}
+            for cell_m, inputs_m in cell_inputs.items():
+                cell_inputs_n[cell_m] = {seq: args[i] for seq, i in
+                                         layer_seqs_index[cell_m].items()}
             outputs_n = helper.get_output(
-                self.cells, inputs_n, layer_kwargs=cell_kwargs, **kwargs)
+                self.cells, inputs_n, layer_inputs=cell_inputs_n,
+                layer_kwargs=cell_kwargs, **kwargs)
             step_outputs_n = []
             for cell_m, cell_output_n in zip(self.cells, outputs_n):
                 if isinstance(cell_m, CellLayer):
@@ -423,15 +450,15 @@ class RecurrentContainerLayer(MergeLayer):
             outputs = step(*inputs)
             for i, output in enumerate(outputs):
                 outputs[i] = T.switch(mask, output, inputs[
-                    len(seqs_uniq) + i])
+                    len(all_seqs_uniq) + i])
             return outputs
 
         if 'mask' in inputs:
             mask = inputs['mask'].dimshuffle(1, 0, 'x')
-            sequences = [mask] + seqs_uniq
+            sequences = [mask] + all_seqs_uniq
             step_fun = step_masked
         else:
-            sequences = seqs_uniq
+            sequences = all_seqs_uniq
             step_fun = step
 
         outputs_info = inits_uniq + output_uniq

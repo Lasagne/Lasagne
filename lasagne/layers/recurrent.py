@@ -89,6 +89,7 @@ __all__ = [
 
 class RecurrentContainerLayer(MergeLayer):
     def __init__(self, incomings, cell,
+                 step_incomings=None,
                  backwards=False,
                  learn_init=False,
                  gradient_steps=-1,
@@ -104,7 +105,6 @@ class RecurrentContainerLayer(MergeLayer):
         precompute_input : Because the input is given for all time steps,
             we can precompute the inputs to hidden before scanning.
         """
-
         # This layer inherits from a MergeLayer, because it can have multiple
         # inputs - the layer inputs, the mask and the initial hidden state.  We
         # will just provide the layer inputs as incomings, unless a mask input
@@ -114,9 +114,13 @@ class RecurrentContainerLayer(MergeLayer):
         # depend on
         self.cells = helper.get_all_layers(cell)
 
-        self.seq_incomings = incomings.copy()
+        self.seq_incomings = incomings or {}
+        self.step_incomings = step_incomings or {}
+        incomings = incomings.copy()
         if mask_input is not None:
             incomings['mask'] = mask_input
+        if step_incomings is not None:
+            incomings.update(step_incomings)
         for i, cell_m in enumerate(self.cells):
             if isinstance(cell_m, CellLayer):
                 for name, init in cell_m.inits.items():
@@ -379,6 +383,9 @@ class RecurrentContainerLayer(MergeLayer):
         # Create non-sequence states
         non_seqs, non_seqs_index = self._get_cell_params(
             step=True, precompute_input=self.precompute_input), {}
+        for cell_m in self.step_incomings:
+            non_seqs.append(inputs[cell_m])
+            non_seqs_index[cell_m] = len(non_seqs) - 1
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
                 for name in set(cell_m.inits) - set(cell_m.output_shape):

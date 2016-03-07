@@ -1402,3 +1402,27 @@ def test_cell_fixed_init():
         {add_init.input_var: add_in, output_init.input_var: output_in})
     ones = np.ones(n_features)
     assert np.allclose(output, [[ones*1, ones*2, ones*3]]*num_batch)
+
+
+def test_cell_fixed_step_input():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 5
+
+    x_in = np.random.random((num_batch, n_features)).astype('float32')
+
+    lasagne.random.get_rng().seed(1234)
+    l_inp_1 = InputLayer((num_batch, seq_len, n_features))
+    l_rec_1 = RecurrentLayer(l_inp_1, num_units=num_units, n_steps=seq_len)
+
+    lasagne.random.get_rng().seed(1234)
+    l_inp_2 = InputLayer((num_batch, n_features))
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseRecurrentCell(cell_inp, num_units)['output']
+    l_rec_2 = RecurrentContainerLayer(
+        {}, cell, {cell_inp: l_inp_2}, n_steps=seq_len)
+
+    output_1 = helper.get_output(l_rec_1).eval({
+        l_inp_1.input_var: np.tile(x_in, seq_len).reshape(
+            (num_batch, seq_len, n_features))})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp_2.input_var: x_in})
+    assert np.allclose(output_1, output_2)

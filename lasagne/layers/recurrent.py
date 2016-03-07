@@ -175,6 +175,10 @@ class RecurrentContainerLayer(MergeLayer):
                             name='hid_init', trainable=learn_init,
                             regularizable=False)
 
+    def _is_precomputable(self, cell):
+        return all(cell.input_layers[name] in self.seq_incomings
+                   for name in set(cell.input_layers) - set(cell.inits))
+
     @staticmethod
     def _get_cell_shape(incoming):
         # We will be passing the input at each time step to the dense layer,
@@ -185,12 +189,15 @@ class RecurrentContainerLayer(MergeLayer):
 
     def _get_cell_params(self, **tags):
         params = []
-        tags_ = tags.copy()
-        for tag in ('step', 'step_only', 'precompute_input'):
-            tags_.pop(tag, None)
-        for l in self.cells:
-            params.extend(l.get_params(**(
-                tags if isinstance(l, CellLayer) else tags_)))
+        for cell_m in self.cells:
+            tags_m = tags.copy()
+            if isinstance(cell_m, CellLayer):
+                if tags_m.get('precompute_input', True):
+                    tags_m['precompute_input'] = self._is_precomputable(cell_m)
+            else:
+                for tag in ('step', 'step_only', 'precompute_input'):
+                    tags_m.pop(tag, None)
+            params.extend(cell_m.get_params(**tags_m))
         return utils.unique(params)
 
     def get_params(self, **tags):
@@ -221,7 +228,7 @@ class RecurrentContainerLayer(MergeLayer):
         cell_input_shapes = {}
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
-                if self.precompute_input and cell_m.is_precomputable():
+                if self.precompute_input and self._is_precomputable(cell_m):
                     cell_input_shapes[cell_m] = {}
                     for name, shape in cell_m.precompute_shape_for({
                         name: input_shapes[input_layer]
@@ -261,7 +268,7 @@ class RecurrentContainerLayer(MergeLayer):
         cell_inputs = {}
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
-                if self.precompute_input and cell_m.is_precomputable():
+                if self.precompute_input and self._is_precomputable(cell_m):
                     cell_inputs[cell_m] = {}
                     for name, input in cell_m.precompute_for({
                         name: inputs[input_layer]
@@ -387,8 +394,8 @@ class RecurrentContainerLayer(MergeLayer):
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
                 cell_kwargs[cell_m] = {
-                    'precompute_input':
-                        self.precompute_input and cell_m.is_precomputable()}
+                    'precompute_input': (self.precompute_input and
+                                         self._is_precomputable(cell_m))}
         for cell_m in inputs:
             if cell_m in self.seq_incomings:
                 inputs[cell_m] = inputs[cell_m][0]
@@ -535,15 +542,9 @@ class CellLayer(MergeLayer):
     def get_params(self, **tags):
         if not tags.get('step', False):
             tags['step_only'] = tags.get('step_only', False)
-        if not (tags.get('precompute_input', True) and
-                self.is_precomputable()):
+        if not tags.get('precompute_input', True):
             tags.pop('precompute_input')
         return super(CellLayer, self).get_params(**tags)
-
-    def is_precomputable(self):
-        return all(isinstance(self.input_layers[name], InputLayer)
-                   for name in set(self.input_layers.keys()) -
-                   set(self.inits.keys()))
 
     def precompute_shape_for(self, input_shapes):
         return input_shapes

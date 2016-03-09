@@ -119,8 +119,9 @@ class RecurrentContainerLayer(MergeLayer):
         incomings = incomings.copy()
         if mask_input is not None:
             incomings['mask'] = mask_input
-        if step_incomings is not None:
-            incomings.update(step_incomings)
+        for input_m, cell_m in self.step_incomings.items():
+            if cell_m not in self.cells:
+                incomings[input_m] = cell_m
         for i, cell_m in enumerate(self.cells):
             if isinstance(cell_m, CellLayer):
                 for name, init in cell_m.inits.items():
@@ -281,6 +282,18 @@ class RecurrentContainerLayer(MergeLayer):
                         cell_inputs[cell_m][name] = input
         return cell_inputs
 
+    def _new_inits_output_for(self, cells, inits):
+        # Copy init states to find which goes to the output
+        inits_index, inputs = {}, {}
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                inputs[cell_m] = {}
+                for name in cell_m.output_shape:
+                    input_m = cell_m.input_layers[name]
+                    inputs[cell_m][name] = T.zeros_like(inits[input_m])
+                    inits_index[inputs[cell_m][name]] = input_m
+        return inits_index, helper.get_output(cells, inputs)
+
     @staticmethod
     def _output_to_dict(output):
         return output if isinstance(output, dict) else {'output': output}
@@ -383,9 +396,10 @@ class RecurrentContainerLayer(MergeLayer):
         # Create non-sequence states
         non_seqs, non_seqs_index = self._get_cell_params(
             step=True, precompute_input=self.precompute_input), {}
-        for cell_m in self.step_incomings:
-            non_seqs.append(inputs[cell_m])
-            non_seqs_index[cell_m] = len(non_seqs) - 1
+        for input_m, cell_m in self.step_incomings.items():
+            if cell_m not in self.cells:
+                non_seqs.append(inputs[input_m])
+                non_seqs_index[input_m] = len(non_seqs) - 1
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
                 for name in set(cell_m.inits) - set(cell_m.output_shape):
@@ -396,28 +410,34 @@ class RecurrentContainerLayer(MergeLayer):
         # Create output states. Find the output init from init states if
         # possible, e.g. a single layer RNN, otherwise set to 0.
         output_uniq, output_index = [], {}
-        inits_uniq_new = [T.zeros_like(init) for init in inits_uniq]
-        inputs_m = {}
-        for cell_m in self.cells:
-            if isinstance(cell_m, CellLayer):
-                inputs_m[cell_m] = {name: inits_uniq_new[inits_index[
-                    cell_m.input_layers[name]]]
-                    for name in cell_m.output_shape}
-        output_n = self._output_to_dict(helper.get_output(
-            self.cell, inputs_m))
+        inits_new_index, output_n = \
+            self._new_inits_output_for(self.cell, inputs)
+        output_n = self._output_to_dict(output_n)
         output_shape_n = self._output_to_dict(self.all_shapes[-1])
         for name in output_n:
             try:
-                output_index[name] = -len(
-                    inits_uniq) + inits_uniq_new.index(output_n[name])
-            except ValueError:
+                output_index[name] = -len(inits_uniq) + \
+                    inits_index[inits_new_index[output_n[name]]]
+            except KeyError:
                 output_uniq.append(T.zeros(output_shape_n[name]))
                 output_index[name] = len(output_uniq) - 1
+
+        # Create step states. Find the output init from init states.
+        steps_index = {}
+        step_incomings_updated = {
+            input_m: cell_m for input_m, cell_m in self.step_incomings.items()
+            if cell_m in self.cells}
+        inits_new_index, outputs_n = self._new_inits_output_for(
+            list(step_incomings_updated.values()), inputs)
+        for output_n, input_m in zip(outputs_n, step_incomings_updated):
+            steps_index[input_m] = inits_index[inits_new_index[output_n]]
 
         # Create single recurrent computation step function
         def step(*args):
             inputs_n = {}
             inputs_n.update({seq: args[i] for seq, i in seqs_index.items()})
+            inputs_n.update({step: args[len(all_seqs_uniq) + i]
+                             for step, i in steps_index.items()})
             inputs_n.update({init: args[len(all_seqs_uniq) + i]
                              for init, i in inits_index.items()})
             inputs_n.update({non_seq: non_seqs[i]

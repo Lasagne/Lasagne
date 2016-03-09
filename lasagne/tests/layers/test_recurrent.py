@@ -1,7 +1,7 @@
 import pytest
 
 from lasagne.layers import (
-    Layer, InputLayer, DenseLayer, ReshapeLayer,
+    Layer, InputLayer, DenseLayer, ReshapeLayer, ConcatLayer,
     RecurrentContainerLayer, CellLayer, CustomRecurrentCell,
     CustomRecurrentLayer, DenseRecurrentCell, RecurrentLayer, Gate,
     LSTMCell, LSTMLayer, GRUCell, GRULayer, IdentityLayer, helper
@@ -1424,5 +1424,37 @@ def test_cell_fixed_step_input():
     output_1 = helper.get_output(l_rec_1).eval({
         l_inp_1.input_var: np.tile(x_in, seq_len).reshape(
             (num_batch, seq_len, n_features))})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp_2.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_step_input():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = n_features
+
+    lasagne.random.get_rng().seed(1234)
+    x_in = np.ones((num_batch, num_units)).astype('float32')
+    W_in_to_hid = np.random.random((n_features, num_units))
+    W_hid_to_hid = np.random.random((n_features, num_units))
+
+    l_inp_1 = InputLayer((num_batch, n_features))
+    l_rec = ReshapeLayer(l_inp_1, (num_batch, 1, n_features))
+    l_recs = [l_rec]
+    for i in range(seq_len):
+        l_recs.append(RecurrentLayer(
+            l_recs[-1], num_units, W_in_to_hid=W_in_to_hid,
+            W_hid_to_hid=W_hid_to_hid,
+            hid_init=ReshapeLayer(l_recs[-1], (num_batch, n_features))))
+    l_rec_1 = ConcatLayer(l_recs[1:])
+
+    l_inp_2 = InputLayer((num_batch, num_units))
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseRecurrentCell(
+        cell_inp, num_units, W_in_to_hid=W_in_to_hid,
+        W_hid_to_hid=W_hid_to_hid, hid_init=l_inp_2)['output']
+    l_rec_2 = RecurrentContainerLayer(
+        {}, cell, {cell_inp: cell}, n_steps=seq_len)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp_1.input_var: x_in})
     output_2 = helper.get_output(l_rec_2).eval({l_inp_2.input_var: x_in})
     assert np.allclose(output_1, output_2)

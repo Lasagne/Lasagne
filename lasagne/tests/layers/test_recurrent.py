@@ -1,8 +1,11 @@
 import pytest
 
-from lasagne.layers import RecurrentLayer, LSTMLayer, CustomRecurrentLayer
-from lasagne.layers import InputLayer, DenseLayer, GRULayer, Gate, Layer
-from lasagne.layers import helper
+from lasagne.layers import (
+    Layer, InputLayer, DenseLayer, ReshapeLayer,
+    RecurrentContainerLayer, CustomRecurrentCell, CustomRecurrentLayer,
+    DenseRecurrentCell, RecurrentLayer, Gate, LSTMCell, LSTMLayer, GRUCell,
+    GRULayer, helper
+)
 import theano
 import theano.tensor as T
 import numpy as np
@@ -154,7 +157,7 @@ def test_recurrent_hid_init_layer_eval():
 def test_recurrent_incoming_tuple():
     input_shape = (2, 3, 4)
     l_rec = lasagne.layers.RecurrentLayer(input_shape, 5)
-    assert l_rec.input_shapes['input'] == input_shape
+    assert list(l_rec.input_shapes.values()) == [input_shape]
 
 
 def test_recurrent_name():
@@ -1222,3 +1225,72 @@ def test_CustomRecurrentLayer_child_kwargs():
     args, kwargs = hid_to_hid.get_output_for.call_args
     assert len(args) == 1
     assert kwargs == {'foo': 'bar'}
+
+
+def test_cell_dense():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 4
+    x_in = np.random.random((num_batch, seq_len, n_features)).astype('float32')
+    l_inp = InputLayer((num_batch, seq_len, n_features))
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = ReshapeLayer(l_inp, (num_batch * seq_len, -1))
+    l_rec_1 = DenseLayer(l_rec_1, num_units)
+    l_rec_1 = ReshapeLayer(l_rec_1, (num_batch, seq_len, -1))
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseLayer(cell_inp, num_units)
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_lstm():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units_1, num_units_2 = 5, 6
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = LSTMLayer(l_inp, num_units=num_units_1)
+    l_rec_1 = LSTMLayer(l_rec_1, num_units=num_units_2)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = LSTMCell(cell_inp, num_units_1)['output']
+    cell = LSTMCell(cell, num_units_2)['output']
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_dense_lstm():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units_1, num_units_2 = 5, 6
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = ReshapeLayer(l_inp, (num_batch * seq_len, -1))
+    l_rec_1 = DenseLayer(l_rec_1, num_units_1)
+    l_rec_1 = ReshapeLayer(l_rec_1, (num_batch, seq_len, -1))
+    l_rec_1 = LSTMLayer(l_rec_1, num_units=num_units_2)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseLayer(cell_inp, num_units_1)
+    cell = LSTMCell(cell, num_units_2)['output']
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)

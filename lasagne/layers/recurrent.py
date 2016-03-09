@@ -57,11 +57,14 @@ network with variable batch size and number of time steps.
 >>> # variables we retrieved above.
 >>> l_out = ReshapeLayer(l_dense, (batchsize, seqlen, num_classes))
 """
+from collections import OrderedDict
+
 import numpy as np
 import theano
 import theano.tensor as T
 from .. import nonlinearities
 from .. import init
+from .. import utils
 from ..utils import unroll_scan
 
 from .base import MergeLayer, Layer
@@ -70,10 +73,16 @@ from .dense import DenseLayer
 from . import helper
 
 __all__ = [
+    "RecurrentContainerLayer",
+    "CellLayer",
+    "CustomRecurrentCell",
     "CustomRecurrentLayer",
+    "DenseRecurrentCell",
     "RecurrentLayer",
     "Gate",
+    "LSTMCell",
     "LSTMLayer",
+    "GRUCell",
     "GRULayer"
 ]
 
@@ -87,7 +96,7 @@ def get_cell_shape(incoming, cell=True):
 
 
 class RecurrentContainerLayer(MergeLayer):
-    def __init__(self, incoming, cell,
+    def __init__(self, incomings, cell,
                  backwards=False,
                  learn_init=False,
                  gradient_steps=-1,
@@ -96,18 +105,30 @@ class RecurrentContainerLayer(MergeLayer):
                  mask_input=None,
                  only_return_final=False,
                  **kwargs):
+        """
+        Parameters
+        ----------
+        precompute_input : Because the input is given for all time steps,
+            we can precompute the inputs to hidden before scanning.
+        """
 
-        # This layer inherits from a MergeLayer, because it can have three
-        # inputs - the layer input, the mask and the initial hidden state.  We
-        # will just provide the layer input as incomings, unless a mask input
+        # This layer inherits from a MergeLayer, because it can have multiple
+        # inputs - the layer inputs, the mask and the initial hidden state.  We
+        # will just provide the layer inputs as incomings, unless a mask input
         # or initial hidden state was provided.
-        incomings = {'input': incoming}
+
+        # Obtain topological ordering of all layers the output layer(s)
+        # depend on
+        self.cells = helper.get_all_layers(cell)
+
+        self.seq_incomings = incomings.copy()
         if mask_input is not None:
             incomings['mask'] = mask_input
-
-        for name, init in cell.inits.items():
-            if isinstance(init, Layer):
-                incomings[name] = init
+        for i, cell_m in enumerate(self.cells):
+            if isinstance(cell_m, CellLayer):
+                for name, init in cell_m.inits.items():
+                    if isinstance(init, Layer):
+                        incomings[cell_m.input_layers[name]] = init
 
         super(RecurrentContainerLayer, self).__init__(incomings, **kwargs)
 
@@ -123,32 +144,46 @@ class RecurrentContainerLayer(MergeLayer):
             raise ValueError(
                 "Gradient steps must be -1 when unroll_scan is true.")
 
-        # Retrieve the dimensionality of the incoming layer
-        input_shape = self.input_shapes['input']
-
-        if unroll_scan and input_shape[1] is None:
-            raise ValueError("Input sequence length cannot be specified as "
-                             "None when unroll_scan is True")
+        for cell_m in self.seq_incomings:
+            input_shape = self.input_shapes[cell_m]
+            if unroll_scan and input_shape[1] is None:
+                raise ValueError("Input sequence length cannot be specified "
+                                 "as None when unroll_scan is True")
 
         # Check that params are valid as early as possible
-        helper.get_all_params(
-            self.cell, step=True, precompute_input=self.precompute_input)
-
-        # Precompute shape
-        if precompute_input:
-            input_shape = cell.precompute_shape_for(input_shape)
+        self._get_cell_params(
+            step=True, precompute_input=self.precompute_input)
 
         # Initialize states
         self.inits = {}
-        for name, init in cell.inits.items():
-            if isinstance(init, Layer):
-                self.inits[name] = init
-            else:
-                self.inits[name] = self.add_param(
-                    init, (1,) + cell.get_output_shape_for(
-                        {'input': get_cell_shape(input_shape)})[name][1:],
-                    name='hid_init', trainable=learn_init,
-                    regularizable=False)
+        input_shapes = self._get_cell_input_shape_for(self.input_shapes)
+        if precompute_input:
+            input_shapes = self._precompute_cell_output_shape_for(
+                input_shapes)
+        for cell_m in self.seq_incomings:
+            input_shapes[cell_m] = get_cell_shape(
+                input_shapes[cell_m], cell=False)
+        all_shapes = helper.get_output_shape(self.cells, input_shapes)
+        for cell_m, shape_m in zip(self.cells, all_shapes):
+            if isinstance(cell_m, CellLayer):
+                for name, init in cell_m.inits.items():
+                    if isinstance(init, Layer):
+                        self.inits[cell_m.input_layers[name]] = init
+                    else:
+                        self.inits[cell_m.input_layers[name]] = self.add_param(
+                            init, (1,) + shape_m[name][1:],
+                            name='hid_init', trainable=learn_init,
+                            regularizable=False)
+
+    def _get_cell_params(self, **tags):
+        params = []
+        tags_ = tags.copy()
+        for tag in ('step', 'step_only', 'precompute_input'):
+            tags_.pop(tag, None)
+        for l in self.cells:
+            params.extend(l.get_params(**(
+                tags if isinstance(l, CellLayer) else tags_)))
+        return utils.unique(params)
 
     def get_params(self, **tags):
         for tag in ('step', 'step_only', 'precompute_input'):
@@ -156,23 +191,94 @@ class RecurrentContainerLayer(MergeLayer):
         # Get all parameters from this layer, the master layer
         params = super(RecurrentContainerLayer, self).get_params(**tags)
         # Combine with all parameters from the cells
-        params += helper.get_all_params(self.cell, **tags)
+        params += self._get_cell_params(**tags)
         return params
 
+    def _get_cell_input_shape_for(self, input_shapes):
+        # initialize layer-to-shape mapping from all input layers
+        all_shapes = dict((cell_m, cell_m.shape) for cell_m in self.cells
+                          if isinstance(cell_m, InputLayer) and
+                          cell_m not in input_shapes)
+        # update layer-to-shape mapping from given input(s), if any
+        all_shapes.update(input_shapes)
+        # update inits
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                for name, init in cell_m.inits.items():
+                    if not isinstance(init, Layer):
+                        all_shapes[cell_m.input_layers[name]] = None
+        return all_shapes
+
+    def _precompute_cell_output_shape_for(self, input_shapes):
+        all_shapes = input_shapes.copy()
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                if cell_m.is_precomputable():
+                    for name, shape in cell_m.precompute_shape_for({
+                        name: input_shapes[input_layer]
+                        for name, input_layer in cell_m.input_layers.items()
+                    }).items():
+                        all_shapes[cell_m.input_layers[name]] = shape
+        return all_shapes
+
+    def _get_cell_input_for(self, inputs):
+        input = inputs[next(iter(self.seq_incomings))]
+        # initialize layer-to-expression mapping from all input layers
+        all_outputs = dict((cell_m, cell_m.input_var)
+                           for cell_m in self.cells
+                           if isinstance(cell_m, InputLayer) and
+                           cell_m not in inputs)
+        # update layer-to-expression mapping from given input(s), if any
+        all_outputs.update((layer, utils.as_theano_expression(expr))
+                           for layer, expr in inputs.items())
+        # update inits
+        seq_len, num_batch = input.shape[0], input.shape[1]
+        ones = T.ones((num_batch, 1))
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                for name, init in cell_m.inits.items():
+                    if not isinstance(init, Layer):
+                        init = self.inits[cell_m.input_layers[name]]
+                        # The code below simply repeats self.hid_init
+                        # num_batch times in its first dimension.  Turns
+                        # out using a dot product and a dimshuffle is
+                        # faster than T.repeat.
+                        dot_dims = list(range(1, init.ndim - 1)) + [
+                            0, init.ndim - 1]
+                        init = T.dot(ones, init.dimshuffle(dot_dims))
+                        all_outputs[cell_m.input_layers[name]] = init
+        return all_outputs
+
+    def _precompute_cell_output_for(self, inputs, **kwargs):
+        all_outputs = inputs.copy()
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                if cell_m.is_precomputable():
+                    for name, input in cell_m.precompute_for({
+                        name: inputs[input_layer]
+                        for name, input_layer in cell_m.input_layers.items()
+                    }, **kwargs).items():
+                        all_outputs[cell_m.input_layers[name]] = input
+        return all_outputs
+
     def get_output_shape_for(self, input_shapes):
-        input_shape = input_shapes['input']
+        input_shape = input_shapes[next(iter(self.seq_incomings))]
+        input_shapes = self._get_cell_input_shape_for(input_shapes)
         if self.precompute_input:
-            input_shape = self.cell.precompute_shape_for(input_shape)
-        # When only_return_final is true, the second (sequence step) dimension
-        # will be flattened
+            input_shapes = self._precompute_cell_output_shape_for(
+                input_shapes)
+        for cell_m in self.seq_incomings:
+            input_shapes[cell_m] = get_cell_shape(
+                input_shapes[cell_m], cell=False)
+        output_shape = helper.get_output_shape(
+            self.cell, input_shapes)
         if self.only_return_final:
-            return (input_shape[0],) + self.cell.get_output_shape_for(
-                {'input': get_cell_shape(input_shape)})['output'][1:]
-        # Otherwise, the shape will be (n_batch, n_steps, trailing_dims...)
+            # When only_return_final is true, the second (sequence step)
+            # dimension will be flattened
+            return (input_shape[0],) + output_shape[1:]
         else:
-            return ((input_shape[0], input_shape[1]) +
-                    self.cell.get_output_shape_for(
-                        {'input': get_cell_shape(input_shape)})['output'][1:])
+            # Otherwise, the shape will be (n_batch, n_steps, trailing_dims...)
+            return (input_shape[0], input_shape[1]) + output_shape[1:]
 
     def get_output_for(self, inputs, **kwargs):
         """
@@ -200,113 +306,160 @@ class RecurrentContainerLayer(MergeLayer):
         layer_output : theano.TensorType
             Symbolic output variable.
         """
-        # Retrieve the layer input
-        input = inputs['input']
-        # Retrieve the mask when it is supplied
-        mask = inputs.get('mask')
-
         # Input should be provided as (n_batch, n_time_steps, n_features)
         # but scan requires the iterable dimension to be first
         # So, we need to dimshuffle to (n_time_steps, n_batch, n_features)
-        input = input.dimshuffle(1, 0, *range(2, input.ndim))
-        seq_len, num_batch = input.shape[0], input.shape[1]
+        for seq_incoming in self.seq_incomings:
+            inputs[seq_incoming] = inputs[seq_incoming].dimshuffle(
+                1, 0, *range(2, inputs[seq_incoming].ndim))
 
+        inputs = self._get_cell_input_for(inputs)
         if self.precompute_input:
-            # Because the input is given for all time steps, we can precompute
-            # the inputs to hidden before scanning.
-            input = self.cell.precompute_for(input, **kwargs)
+            inputs = self._precompute_cell_output_for(
+                inputs, **kwargs)
+
+        # Create seq states. All precomputable cells have InputLayers for
+        # sequence inputs.
+        seqs = {}
+        for cell_m in self.seq_incomings:
+            seqs[cell_m] = inputs[cell_m]
+        seqs_uniq, seqs_index = utils.unique(seqs.values(), return_index=True)
+        seqs_index = dict(zip(seqs, seqs_index))
+
+        # Create init states
+        inits_uniq, inits_index = [], {}
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                for name in cell_m.inits:
+                    input_layer = cell_m.input_layers[name]
+                    inits_uniq.append(inputs[input_layer])
+                    inits_index[input_layer] = len(inits_uniq) - 1
+
+        # Create output states. Only create when they don't already belong
+        # to an intermediate cell's step output. This is necessary when the
+        # mask is all 0 so we can use the cell's init, and beneficial when
+        # the final layer is an index layer.
+        cell_kwargs = {}
+        for cell_m in self.cells:
+            if isinstance(cell_m, CellLayer):
+                cell_kwargs[cell_m] = {
+                    'precompute_input':
+                        self.precompute_input and cell_m.is_precomputable()}
+        for cell_m in self.seq_incomings:
+            inputs[cell_m] = inputs[cell_m][0]
+        outputs_n = helper.get_output(
+            self.cells, inputs, layer_kwargs=cell_kwargs, **kwargs)
+        for cell_m, outputs_m in zip(self.cells[:-1], outputs_n[:-1]):
+            if isinstance(cell_m, CellLayer):
+                if outputs_n[-1] in outputs_m.values():
+                    name = next(name for name, value in outputs_m.items()
+                                if value == outputs_n[-1])
+                    output_index = -len(inits_uniq) + inits_index[
+                        cell_m.input_layers[name]]
+                    output = None
+                    break
+        else:
+            output_index = 0
+            output = T.zeros(get_cell_shape(self.output_shape, cell=False))
 
         # Pass the cell params to step
-        non_seqs = helper.get_all_params(
-            self.cell, step=True, precompute_input=self.precompute_input)
+        non_seqs = self._get_cell_params(
+            step=True, precompute_input=self.precompute_input)
 
         # Create single recurrent computation step function
         def step(*args):
-            inputs_n = {'input': args[0]}
-            for i, name in enumerate(self.cell.inits):
-                inputs_n[name] = args[i + 1]
-            cell_outs_n = self.cell.get_output_for(
-                inputs_n, precompute_input=self.precompute_input, **kwargs)
-            return [cell_outs_n[name] for name in self.cell.inits]
+            inputs_n = {}
+            inputs_n.update({seq: args[i] for seq, i in seqs_index.items()})
+            inputs_n.update({init: args[len(seqs_uniq) + i]
+                             for init, i in inits_index.items()})
+            outputs_n = helper.get_output(
+                self.cells, inputs_n, layer_kwargs=cell_kwargs, **kwargs)
+            step_outputs_n = []
+            for cell_m, cell_output_n in zip(self.cells, outputs_n):
+                if isinstance(cell_m, CellLayer):
+                    for name in cell_m.inits:
+                        step_outputs_n.append(cell_output_n[name])
+            if output:
+                step_outputs_n.append(outputs_n[-1])
+            return step_outputs_n
 
         def step_masked(*args):
             # Skip over any input with mask 0 by copying the previous
             # hidden state; proceed normally for any input with mask 1.
-            input_n, mask_n = args[0], args[1]
-            outs = step(input_n, *args[2:])
-            for i, out in enumerate(outs):
-                outs[i] = T.switch(mask_n, out, args[i + 2])
-            return outs
+            mask, inputs = args[0], args[1:]
+            outputs = step(*inputs)
+            for i, output in enumerate(outputs):
+                outputs[i] = T.switch(mask, output, inputs[
+                    len(seqs_uniq) + i])
+            return outputs
 
         if 'mask' in inputs:
-            mask = mask.dimshuffle(1, 0, 'x')
-            sequences = [input, mask]
+            mask = inputs['mask'].dimshuffle(1, 0, 'x')
+            sequences = [mask] + seqs_uniq
             step_fun = step_masked
         else:
-            sequences = input
+            sequences = seqs_uniq
             step_fun = step
 
-        inits = []
-        ones = T.ones((num_batch, 1))
-        for name in self.cell.inits:
-            init = self.inits[name]
-            if isinstance(init, Layer):
-                inits.append(inputs[name])
-            else:
-                # The code below simply repeats self.hid_init num_batch times
-                # in its first dimension.  Turns out using a dot product and a
-                # dimshuffle is faster than T.repeat.
-                dot_dims = list(range(1, init.ndim - 1)) + [0, init.ndim - 1]
-                inits.append(T.dot(ones, init.dimshuffle(dot_dims)))
+        if output is None:
+            outputs_info = inits_uniq
+        else:
+            outputs_info = inits_uniq + [output]
 
         if self.unroll_scan:
             # Retrieve the dimensionality of the incoming layer
-            input_shape = self.input_shapes['input']
+            input_shape = self.input_shapes[next(iter(self.seq_incomings))]
             # Explicitly unroll the recurrence instead of using scan
-            out = unroll_scan(
+            outputs = unroll_scan(
                 fn=step_fun,
                 sequences=sequences,
-                outputs_info=inits,
+                outputs_info=outputs_info,
                 go_backwards=self.backwards,
                 non_sequences=non_seqs,
                 n_steps=input_shape[1])
         else:
             # Scan op iterates over first dimension of input and repeatedly
             # applies the step function
-            out = theano.scan(
+            outputs = theano.scan(
                 fn=step_fun,
                 sequences=sequences,
                 go_backwards=self.backwards,
-                outputs_info=inits,
+                outputs_info=outputs_info,
                 non_sequences=non_seqs,
                 truncate_gradient=self.gradient_steps,
                 strict=True)[0]
-            if len(inits) == 1:
-                out = [out]
+            if len(outputs_info) == 1:
+                outputs = [outputs]
 
-        # retrieve the output state when there are multiple states per step
-        out = out[list(self.cell.inits).index('output')]
+        # retrieve the output state
+        output = outputs[len(inits_uniq) + output_index]
 
         # When it is requested that we only return the final sequence step,
         # we need to slice it out immediately after scan is applied
         if self.only_return_final:
-            out = out[-1]
+            output = output[-1]
         else:
             # dimshuffle back to (n_batch, n_time_steps, n_features))
-            out = out.dimshuffle(1, 0, *range(2, out.ndim))
+            output = output.dimshuffle(1, 0, *range(2, output.ndim))
 
             # if scan is backward reverse the output
             if self.backwards:
-                out = out[:, ::-1]
+                output = output[:, ::-1]
 
-        return out
+        return output
+
+
+class StepInputLayer(Layer):
+    def __init__(self, **kwargs):
+        self.input_layer = None
+        self.input_shape = None
+        self.params = OrderedDict()
 
 
 class CellLayer(MergeLayer):
     def __init__(self, incomings, inits, **kwargs):
-        for name, init in inits.items():
-            if isinstance(init, Layer):
-                incomings[name] = init
+        # states may change over time, so assign new input layers
+        incomings.update({name: StepInputLayer() for name in inits})
         self.inits = inits
         super(CellLayer, self).__init__(incomings, **kwargs)
 
@@ -319,15 +472,21 @@ class CellLayer(MergeLayer):
     def get_params(self, **tags):
         if not tags.get('step', False):
             tags['step_only'] = tags.get('step_only', False)
-        if not tags.get('precompute_input', True):
+        if not (tags.get('precompute_input', True) and
+                self.is_precomputable()):
             tags.pop('precompute_input')
         return super(CellLayer, self).get_params(**tags)
 
-    def precompute_shape_for(self, input_shape):
-        return input_shape
+    def is_precomputable(self):
+        return all(isinstance(self.input_layers[name], InputLayer)
+                   for name in set(self.input_layers.keys()) -
+                   set(self.inits.keys()))
 
-    def precompute_for(self, input):
-        return input
+    def precompute_shape_for(self, input_shapes):
+        return input_shapes
+
+    def precompute_for(self, inputs, **kwargs):
+        return inputs
 
 
 class CustomRecurrentCell(CellLayer):
@@ -530,7 +689,8 @@ class CustomRecurrentCell(CellLayer):
             params += helper.get_all_params(self.input_to_hidden, **tags)
         return params
 
-    def precompute_shape_for(self, input_shape):
+    def precompute_shape_for(self, input_shapes):
+        input_shape = input_shapes['input']
         # Check that the input_to_hidden connection can appropriately handle
         # a first dimension of input_shape[0]*input_shape[1] when we will
         # precompute the input dot product
@@ -548,12 +708,13 @@ class CustomRecurrentCell(CellLayer):
                 'incoming.output_shape[0]*incoming.output_shape[1] = '
                 '{}'.format(self.input_to_hidden.output_shape[0],
                             input_shape[0]*input_shape[1]))
-        return input_shape
+        return input_shapes
 
     def get_output_shape_for(self, input_shapes):
         return {'output': self.hidden_to_hidden.output_shape}
 
-    def precompute_for(self, input, **kwargs):
+    def precompute_for(self, inputs, **kwargs):
+        input = inputs['input']
         seq_len, num_batch = input.shape[0], input.shape[1]
 
         # Because the input is given for all time steps, we can precompute
@@ -569,7 +730,9 @@ class CustomRecurrentCell(CellLayer):
 
         # Reshape back to (seq_len, batch_size, trailing dimensions...)
         trailing_dims = tuple(input.shape[n] for n in range(1, input.ndim))
-        return T.reshape(input, (seq_len, num_batch) + trailing_dims)
+        input = T.reshape(input, (seq_len, num_batch) + trailing_dims)
+        inputs['input'] = input
+        return inputs
 
     def get_output_for(self, inputs, precompute_input=False, **kwargs):
         """
@@ -626,10 +789,12 @@ class CustomRecurrentLayer(RecurrentContainerLayer):
                  grad_clipping=0,
                  **kwargs):
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
+        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = CustomRecurrentCell(
-            get_cell_shape(incoming, cell=False), input_to_hidden,
-            hidden_to_hidden, nonlinearity, hid_init, grad_clipping, **cell_kwargs)
-        super(CustomRecurrentLayer, self).__init__(incoming, cell, **kwargs)
+            cell_in, input_to_hidden, hidden_to_hidden, nonlinearity, hid_init,
+            grad_clipping, **cell_kwargs)['output']
+        super(CustomRecurrentLayer, self).__init__(
+            {cell_in: incoming}, cell, **kwargs)
 
 
 class DenseRecurrentCell(CustomRecurrentCell):
@@ -753,17 +918,18 @@ class RecurrentLayer(RecurrentContainerLayer):
                  grad_clipping=0,
                  **kwargs):
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
+        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = DenseRecurrentCell(
-            get_cell_shape(incoming, cell=False), num_units, W_in_to_hid,
-            W_hid_to_hid, b, nonlinearity, hid_init, grad_clipping,
-            **cell_kwargs)
+            cell_in, num_units, W_in_to_hid, W_hid_to_hid, b, nonlinearity,
+            hid_init, grad_clipping, **cell_kwargs)['output']
 
         # Make child layer parameters intuitively accessible
-        self.W_in_to_hid = cell.input_to_hidden.W
-        self.W_hid_to_hid = cell.hidden_to_hidden.W
-        self.b = cell.input_to_hidden.b
+        self.W_in_to_hid = cell.input_layer.input_to_hidden.W
+        self.W_hid_to_hid = cell.input_layer.hidden_to_hidden.W
+        self.b = cell.input_layer.input_to_hidden.b
 
-        super(RecurrentLayer, self).__init__(incoming, cell, **kwargs)
+        super(RecurrentLayer, self).__init__(
+            {cell_in: incoming}, cell, **kwargs)
 
 
 class Gate(object):
@@ -1015,7 +1181,9 @@ class LSTMCell(CellLayer):
             'output': (input_shapes['input'][0], self.num_units),
         }
 
-    def precompute_for(self, input, **kwargs):
+    def precompute_for(self, inputs, **kwargs):
+        input = inputs['input']
+
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
             input = T.flatten(input, 3)
@@ -1024,7 +1192,9 @@ class LSTMCell(CellLayer):
         # precompute_input the inputs dot weight matrices before scanning.
         # W_in_stacked is (n_features, 4*num_units). input is then
         # (n_time_steps, n_batch, 4*num_units).
-        return T.dot(input, self.W_in_stacked) + self.b_stacked
+        input = T.dot(input, self.W_in_stacked) + self.b_stacked
+        inputs['input'] = input
+        return inputs
 
     def get_output_for(self, inputs, precompute_input=False, **kwargs):
         """
@@ -1123,11 +1293,13 @@ class LSTMLayer(RecurrentContainerLayer):
                  grad_clipping=0,
                  **kwargs):
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
+        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = LSTMCell(
-            get_cell_shape(incoming, cell=False), num_units, ingate,
-            forgetgate, cell, outgate, nonlinearity, cell_init, hid_init,
-            peepholes, grad_clipping, **cell_kwargs)
-        super(LSTMLayer, self).__init__(incoming, cell, **kwargs)
+            cell_in, num_units, ingate, forgetgate, cell, outgate,
+            nonlinearity, cell_init, hid_init, peepholes, grad_clipping,
+            **cell_kwargs)['output']
+        super(LSTMLayer, self).__init__(
+            {cell_in: incoming}, cell, **kwargs)
 
 
 class GRUCell(CellLayer):
@@ -1271,14 +1443,18 @@ class GRUCell(CellLayer):
     def get_output_shape_for(self, input_shapes):
         return {'output': (input_shapes['input'][0], self.num_units)}
 
-    def precompute_for(self, input, **kwargs):
+    def precompute_for(self, inputs, **kwargs):
+        input = inputs['input']
+
         # Treat all dimensions after the second as flattened feature dimensions
         if input.ndim > 3:
             input = T.flatten(input, 3)
 
         # precompute_input inputs*W. W_in is (n_features, 3*num_units).
         # input is then (n_batch, n_time_steps, 3*num_units).
-        return T.dot(input, self.W_in_stacked) + self.b_stacked
+        input = T.dot(input, self.W_in_stacked) + self.b_stacked
+        inputs['input'] = input
+        return inputs
 
     def get_output_for(self, inputs, precompute_input=False, **kwargs):
         """
@@ -1364,8 +1540,9 @@ class GRULayer(RecurrentContainerLayer):
                  grad_clipping=0,
                  **kwargs):
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
+        cell_in = InputLayer(get_cell_shape(incoming, cell=False))
         cell = GRUCell(
-            get_cell_shape(incoming, cell=False), num_units, resetgate,
-            updategate, hidden_update, hid_init,
-            grad_clipping, **cell_kwargs)
-        super(GRULayer, self).__init__(incoming, cell, **kwargs)
+            cell_in, num_units, resetgate, updategate, hidden_update, hid_init,
+            grad_clipping, **cell_kwargs)['output']
+        super(GRULayer, self).__init__(
+            {cell_in: incoming}, cell, **kwargs)

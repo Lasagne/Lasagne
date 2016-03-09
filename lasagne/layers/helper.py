@@ -111,7 +111,7 @@ def get_all_layers(layer, treat_as_input=None):
     return result
 
 
-def get_output(layer_or_layers, inputs=None, **kwargs):
+def get_output(layer_or_layers, inputs=None, layer_kwargs=None, **kwargs):
     """
     Computes the output of the network at one or more given layers.
     Optionally, you can define the input(s) to propagate through the network
@@ -198,7 +198,11 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
                                  "layer %r. Please call it with a dictionary "
                                  "mapping this layer to an input expression."
                                  % layer)
-            all_outputs[layer] = layer.get_output_for(layer_inputs, **kwargs)
+            layer_kwargs_n = kwargs
+            layer_kwargs_n.update(
+                layer_kwargs.get(layer, {}) if layer_kwargs else {})
+            all_outputs[layer] = layer.get_output_for(
+                layer_inputs, **layer_kwargs_n)
             try:
                 accepted_kwargs |= set(utils.inspect_kwargs(
                         layer.get_output_for))

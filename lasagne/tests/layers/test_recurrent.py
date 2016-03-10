@@ -1296,6 +1296,16 @@ def test_cell_dense_lstm():
     assert np.allclose(output_1, output_2)
 
 
+def test_cell_init_fixed():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 5
+    cell_inp = InputLayer((num_batch, n_features))
+
+    with pytest.raises(ValueError):
+        DenseRecurrentCell(cell_inp, num_units, inits_fixed={
+            'non_existent_init'})
+
+
 def test_cell_multi_output():
     num_batch, seq_len, n_features = 2, 3, 4
     num_units = 5

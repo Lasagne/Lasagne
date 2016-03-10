@@ -177,7 +177,8 @@ class RecurrentContainerLayer(MergeLayer):
                     else:
                         self.inits[cell_m.input_layers[name]] = self.add_param(
                             init, (1,) + shape_m[name][1:],
-                            name='hid_init', trainable=learn_init,
+                            name='{}_init'.format(name),
+                            trainable=(name not in cell_m.inits_fixed),
                             regularizable=False)
 
     def _is_precomputable(self, cell):
@@ -543,10 +544,14 @@ class StepInputLayer(Layer):
 
 
 class CellLayer(MergeLayer):
-    def __init__(self, incomings, inits, **kwargs):
+    def __init__(self, incomings, inits, inits_fixed=None, **kwargs):
         # states may change over time, so assign new input layers
         incomings.update({name: StepInputLayer() for name in inits})
         self.inits = inits
+        self.inits_fixed = inits_fixed or set()
+        for name in self.inits_fixed - set(inits):
+            raise ValueError("The non-existent init {} is set to "
+                             "fixed".format(repr(name)))
         super(CellLayer, self).__init__(incomings, **kwargs)
 
     def add_param(self, spec, shape, name=None, **tags):
@@ -876,14 +881,16 @@ class CustomRecurrentLayer(RecurrentContainerLayer):
                  nonlinearity=nonlinearities.rectify,
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
+                 learn_init=True,
                  **kwargs):
         cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
         cell = CustomRecurrentCell(
             cell_in, input_to_hidden, hidden_to_hidden, nonlinearity, hid_init,
-            grad_clipping, **cell_kwargs)['output']
+            grad_clipping, **cell_kwargs)
+        cell.inits_fixed = set() if learn_init else set(cell.inits)
         super(CustomRecurrentLayer, self).__init__(
-            {cell_in: incoming}, cell, **kwargs)
+            {cell_in: incoming}, cell['output'], **kwargs)
 
 
 class DenseRecurrentCell(CustomRecurrentCell):
@@ -969,15 +976,13 @@ class DenseRecurrentCell(CustomRecurrentCell):
         input_shape = incoming.output_shape[1:]
 
         # Retrieve the supplied name, if it exists; otherwise use ''
+        layer_kwargs = kwargs.copy()
+        layer_kwargs.pop('inits_fixed', None)
         if 'name' in kwargs:
             basename = kwargs['name'] + '.'
-            # Create a separate version of kwargs for the contained layers
-            # which does not include 'name'
-            layer_kwargs = dict((key, arg) for key, arg in kwargs.items()
-                                if key != 'name')
+            layer_kwargs.pop('name')
         else:
             basename = ''
-            layer_kwargs = kwargs
 
         in_to_hid = DenseLayer(InputLayer((None,) + input_shape),
                                num_units, W=W_in_to_hid, b=b,
@@ -1005,20 +1010,22 @@ class RecurrentLayer(RecurrentContainerLayer):
                  nonlinearity=nonlinearities.rectify,
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
+                 learn_init=True,
                  **kwargs):
         cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
         cell = DenseRecurrentCell(
             cell_in, num_units, W_in_to_hid, W_hid_to_hid, b, nonlinearity,
-            hid_init, grad_clipping, **cell_kwargs)['output']
+            hid_init, grad_clipping, **cell_kwargs)
+        cell.inits_fixed = set() if learn_init else set(cell.inits)
 
         # Make child layer parameters intuitively accessible
-        self.W_in_to_hid = cell.input_layer.input_to_hidden.W
-        self.W_hid_to_hid = cell.input_layer.hidden_to_hidden.W
-        self.b = cell.input_layer.input_to_hidden.b
+        self.W_in_to_hid = cell.input_to_hidden.W
+        self.W_hid_to_hid = cell.hidden_to_hidden.W
+        self.b = cell.input_to_hidden.b
 
         super(RecurrentLayer, self).__init__(
-            {cell_in: incoming}, cell, **kwargs)
+            {cell_in: incoming}, cell['output'], **kwargs)
 
 
 class Gate(object):
@@ -1380,15 +1387,17 @@ class LSTMLayer(RecurrentContainerLayer):
                  hid_init=init.Constant(0.),
                  peepholes=True,
                  grad_clipping=0,
+                 learn_init=True,
                  **kwargs):
         cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
         cell = LSTMCell(
             cell_in, num_units, ingate, forgetgate, cell, outgate,
             nonlinearity, cell_init, hid_init, peepholes, grad_clipping,
-            **cell_kwargs)['output']
+            **cell_kwargs)
+        cell.inits_fixed = set() if learn_init else set(cell.inits)
         super(LSTMLayer, self).__init__(
-            {cell_in: incoming}, cell, **kwargs)
+            {cell_in: incoming}, cell['output'], **kwargs)
 
 
 class GRUCell(CellLayer):
@@ -1627,11 +1636,13 @@ class GRULayer(RecurrentContainerLayer):
                      name='hidden_update'),
                  hid_init=init.Constant(0.),
                  grad_clipping=0,
+                 learn_init=True,
                  **kwargs):
         cell_in = InputLayer(self._get_cell_shape(incoming))
         cell_kwargs = {'name': kwargs['name']} if 'name' in kwargs else {}
         cell = GRUCell(
             cell_in, num_units, resetgate, updategate, hidden_update, hid_init,
-            grad_clipping, **cell_kwargs)['output']
+            grad_clipping, **cell_kwargs)
+        cell.inits_fixed = set() if learn_init else set(cell.inits)
         super(GRULayer, self).__init__(
-            {cell_in: incoming}, cell, **kwargs)
+            {cell_in: incoming}, cell['output'], **kwargs)

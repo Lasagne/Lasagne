@@ -365,6 +365,7 @@ class RecurrentContainerLayer(MergeLayer):
         cell_inputs = self._precompute_cell_output_for(inputs, **kwargs)
 
         # Create seq states
+        seqs_offset = 0
         seqs, layer_seqs, all_seqs = {}, {}, []
         for cell_m in inputs:
             if cell_m in self.seq_incomings:
@@ -386,6 +387,7 @@ class RecurrentContainerLayer(MergeLayer):
                 layer_seqs[cell_m], all_seqs_index_iter))
 
         # Create init states
+        inits_offset = seqs_offset + len(all_seqs_uniq)
         inits_uniq, inits_index = [], {}
         for cell_m in self.cells:
             if isinstance(cell_m, CellLayer):
@@ -395,6 +397,7 @@ class RecurrentContainerLayer(MergeLayer):
                     inits_index[input_layer] = len(inits_uniq) - 1
 
         # Create non-sequence states
+        non_seqs_offset = inits_offset + len(inits_uniq)
         non_seqs, non_seqs_index = self._get_cell_params(
             step=True, precompute_input=self.precompute_input), {}
         for input_m, cell_m in self.step_incomings.items():
@@ -410,6 +413,7 @@ class RecurrentContainerLayer(MergeLayer):
 
         # Create output states. Find the output init from init states if
         # possible, e.g. a single layer RNN, otherwise set to 0.
+        output_offset = len(inits_uniq)
         output_uniq, output_index = [], {}
         inits_new_index, output_n = \
             self._new_inits_output_for(self.cell, inputs)
@@ -417,13 +421,14 @@ class RecurrentContainerLayer(MergeLayer):
         output_shape_n = self._output_to_dict(self.all_shapes[-1])
         for name in output_n:
             try:
-                output_index[name] = -len(inits_uniq) + \
+                output_index[name] = -output_offset + \
                     inits_index[inits_new_index[output_n[name]]]
             except KeyError:
                 output_uniq.append(T.zeros(output_shape_n[name]))
                 output_index[name] = len(output_uniq) - 1
 
         # Create step states. Find the output init from init states.
+        steps_offset = inits_offset
         steps_index = {}
         step_incomings_updated = {
             input_m: cell_m for input_m, cell_m in self.step_incomings.items()
@@ -436,12 +441,13 @@ class RecurrentContainerLayer(MergeLayer):
         # Create single recurrent computation step function
         def step(*args):
             inputs_n = {}
-            inputs_n.update({seq: args[i] for seq, i in seqs_index.items()})
-            inputs_n.update({step: args[len(all_seqs_uniq) + i]
+            inputs_n.update({seq: args[seqs_offset + i]
+                             for seq, i in seqs_index.items()})
+            inputs_n.update({step: args[steps_offset + i]
                              for step, i in steps_index.items()})
-            inputs_n.update({init: args[len(all_seqs_uniq) + i]
+            inputs_n.update({init: args[inits_offset + i]
                              for init, i in inits_index.items()})
-            inputs_n.update({non_seq: non_seqs[i]
+            inputs_n.update({non_seq: args[non_seqs_offset + i]
                              for non_seq, i in non_seqs_index.items()})
             cell_inputs_n = {}
             for cell_m, inputs_m in cell_inputs.items():
@@ -473,8 +479,7 @@ class RecurrentContainerLayer(MergeLayer):
             mask, inputs = args[0], args[1:]
             outputs = step(*inputs)
             for i, output in enumerate(outputs):
-                outputs[i] = T.switch(mask, output, inputs[
-                    len(all_seqs_uniq) + i])
+                outputs[i] = T.switch(mask, output, inputs[inits_offset + i])
             return outputs
 
         if 'mask' in inputs:
@@ -517,7 +522,7 @@ class RecurrentContainerLayer(MergeLayer):
         # retrieve the output state
         output = {}
         for name, index in output_index.items():
-            output_m = outputs[len(inits_uniq) + index]
+            output_m = outputs[output_offset + index]
 
             # When it is requested that we only return the final sequence step,
             # we need to slice it out immediately after scan is applied

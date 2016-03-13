@@ -190,12 +190,18 @@ class TestElemwiseSumLayer:
         assert layer.get_output_shape_for([(3, 2), (3, None)]) == (3, 2)
         assert layer.get_output_shape_for([(None, 2), (3, 2)]) == (3, 2)
         assert layer.get_output_shape_for([(None, 2), (None, 2)]) == (None, 2)
+        assert layer.get_output_shape_for([(None, 5), (None, 1)]) == (None, 5)
+        assert layer.get_output_shape_for([(None, 1), (None, 5)]) == (None, 5)
+        assert layer.get_output_shape_for(
+            [(None, None), (None, 5)]) == (None, 5)
         with pytest.raises(ValueError):
             layer.get_output_shape_for([(3, None), (4, 2)])
         with pytest.raises(ValueError):
             layer.get_output_shape_for([(3, 2), (4, None)])
         with pytest.raises(ValueError):
             layer.get_output_shape_for([(None, 2), (3, 2), (4, 2)])
+        with pytest.raises(ValueError):
+            layer.get_output_shape_for([(None, 2), (3, 2, 10), (4, 2)])
 
     def test_get_output_for(self, layer):
         a = numpy.array([[0, 1], [2, 3]])
@@ -221,6 +227,35 @@ class TestElemwiseSumLayer:
         from lasagne.layers.merge import ElemwiseSumLayer
         with pytest.raises(ValueError):
             ElemwiseSumLayer([Mock(), Mock()], coeffs=[2, 3, -1])
+
+    def test_broadcasting_pattern(self):
+        from lasagne.layers import ElemwiseSumLayer, InputLayer
+        import lasagne
+        import theano.tensor as T
+        import numpy as np
+        import theano
+        a, b = T.matrices('a', 'b')
+        a_ = np.ones((2, 1), dtype=theano.config.floatX)
+        b_ = np.ones((2, 5), dtype=theano.config.floatX)
+        l_a = InputLayer((2, 1))
+        l_b = InputLayer((2, 5))
+        l_o = ElemwiseSumLayer([l_a, l_b])
+        shp = l_o.output_shape  # set broadcastable table
+        output = lasagne.layers.get_output(
+            l_o, {l_a: a, l_b: b}).eval({a: a_, b: b_})
+        np.testing.assert_array_almost_equal(output, np.ones((2, 5))+1.0)
+        assert shp == output.shape
+
+        # test that None dimensions are not modified
+        l_a = InputLayer((2, None))
+        l_b = InputLayer((2, None))
+        l_o = ElemwiseSumLayer([l_a, l_b])
+        shp = l_o.output_shape  # set broadcastable table
+        a = T.addbroadcast(a, 1)
+        output = lasagne.layers.get_output(
+            l_o, {l_a: a, l_b: b}).eval({a: a_, b: b_})
+        np.testing.assert_array_almost_equal(output, np.ones((2, 5))+1.0)
+        assert shp == (2, None)
 
 
 class TestElemwiseMergeLayerMul:

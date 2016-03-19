@@ -290,9 +290,10 @@ def get_output_shape(layer_or_layers, input_shapes=None):
         return all_shapes[layer_or_layers]
 
 
-def get_all_params(layer, **tags):
+def get_all_params(layer, unwrap_shared=True, **tags):
     """
-    Returns a list of Theano shared variables that parameterize the layer.
+    Returns a list of Theano shared variables or expressions that
+    parameterize the layer.
 
     This function gathers all parameter variables of all layers below one or
     more given :class:`Layer` instances, including the layer(s) itself. Its
@@ -311,6 +312,11 @@ def get_all_params(layer, **tags):
         The :class:`Layer` instance for which to gather all parameters, or a
         list of :class:`Layer` instances.
 
+    unwrap_shared : bool (default: True)
+        Affects only parameters that were set to a Theano expression. If
+        ``True`` the function returns the shared variables contained in
+        the expression, otherwise the Theano expression itself.
+
     **tags (optional)
         tags can be specified to filter the list. Specifying ``tag1=True``
         will limit the list to parameters that are tagged with ``tag1``.
@@ -321,7 +327,8 @@ def get_all_params(layer, **tags):
     Returns
     -------
     params : list
-        A list of Theano shared variables representing the parameters.
+        A list of Theano shared variables or expressions representing
+        the parameters.
 
     Examples
     --------
@@ -334,10 +341,12 @@ def get_all_params(layer, **tags):
 
     Notes
     -----
-    If any layer's parameter was set to a Theano expression instead of a shared
-    variable, the shared variables involved in that expression will be returned
-    rather than the expression itself. Tag filtering considers all variables
-    within an expression to be tagged the same.
+    If any of the layers' parameters was set to a Theano expression instead
+    of a shared variable, `unwrap_shared` controls whether to return the
+    shared variables involved in that expression (``unwrap_shared=True``,
+    the default), or the expression itself (``unwrap_shared=False``). In
+    either case, tag filtering applies to the expressions, considering all
+    variables within an expression to be tagged the same.
     >>> import theano
     >>> import numpy as np
     >>> from lasagne.utils import floatX
@@ -349,7 +358,8 @@ def get_all_params(layer, **tags):
     True
     """
     layers = get_all_layers(layer)
-    params = chain.from_iterable(l.get_params(**tags) for l in layers)
+    params = chain.from_iterable(l.get_params(
+            unwrap_shared=unwrap_shared, **tags) for l in layers)
     return utils.unique(params)
 
 

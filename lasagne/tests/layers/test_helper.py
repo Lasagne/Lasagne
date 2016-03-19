@@ -718,6 +718,23 @@ class TestGetAllParams:
                 (l2.get_params(regularizable=True) +
                  l3.get_params(regularizable=True)))
 
+    def test_get_all_params_with_unwrap_shared(self):
+        from lasagne.layers import (InputLayer, DenseLayer, get_all_params)
+        import theano.tensor as T
+        from lasagne.utils import floatX
+
+        l1 = InputLayer((10, 20))
+        l2 = DenseLayer(l1, 30)
+
+        W1 = theano.shared(floatX(numpy.zeros((30, 2))))
+        W2 = theano.shared(floatX(numpy.zeros((2, 40))))
+        W_expr = T.dot(W1, W2)
+        l3 = DenseLayer(l2, 40, W=W_expr, b=None)
+
+        l2_params = get_all_params(l2)
+        assert get_all_params(l3) == l2_params + [W1, W2]
+        assert get_all_params(l3, unwrap_shared=False) == l2_params + [W_expr]
+
 
 class TestCountParams:
     def test_get_all_params(self):

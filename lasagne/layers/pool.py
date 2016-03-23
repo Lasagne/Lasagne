@@ -3,7 +3,7 @@ import theano.tensor as T
 from .base import Layer
 from ..utils import as_tuple
 
-from theano.tensor.signal import downsample
+from theano.tensor.signal.pool import pool_2d
 
 
 __all__ = [
@@ -154,13 +154,13 @@ class Pool1DLayer(Layer):
     def get_output_for(self, input, **kwargs):
         input_4d = T.shape_padright(input, 1)
 
-        pooled = downsample.max_pool_2d(input_4d,
-                                        ds=(self.pool_size[0], 1),
-                                        st=(self.stride[0], 1),
-                                        ignore_border=self.ignore_border,
-                                        padding=(self.pad[0], 0),
-                                        mode=self.mode,
-                                        )
+        pooled = pool_2d(input_4d,
+                         ds=(self.pool_size[0], 1),
+                         st=(self.stride[0], 1),
+                         ignore_border=self.ignore_border,
+                         padding=(self.pad[0], 0),
+                         mode=self.mode,
+                         )
         return pooled[:, :, :, 0]
 
 
@@ -258,13 +258,13 @@ class Pool2DLayer(Layer):
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
-        pooled = downsample.max_pool_2d(input,
-                                        ds=self.pool_size,
-                                        st=self.stride,
-                                        ignore_border=self.ignore_border,
-                                        padding=self.pad,
-                                        mode=self.mode,
-                                        )
+        pooled = pool_2d(input,
+                         ds=self.pool_size,
+                         st=self.stride,
+                         ignore_border=self.ignore_border,
+                         padding=self.pad,
+                         mode=self.mode,
+                         )
         return pooled
 
 

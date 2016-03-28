@@ -341,7 +341,8 @@ clipped_rectify.__doc__ = """clipped_rectify(x)
 
 Instance of :class:`LeakyRectify` with leakiness :math:`\\alpha=1/3`
 
-    Instance of :class:`ClippedActivation' with :math:`\\a_min=0.0 \\a_max=20.0 \\activation=rectify`
+    Instance of :class:`ClippedActivation' with :math:`\\a_min=0.0
+        \\a_max=20.0 \\activation=rectify`
 
     References
     ----------

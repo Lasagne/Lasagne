@@ -288,20 +288,19 @@ def softplus(x):
 
 # Clipped Activation
 class ClippedActivation(object):
-    """Clipped Activation activation function
+    """Clip an activation function
     :math:`\\varphi(x,c,a) = \\min(a(x),c)`
 
-    This function clips the activation function. Usefull for non-saturating
-    functions such as the rectify to avoid exploding activations.
+    Wraps an existing activation fujnction to clip its output range. Useful
+    for non-saturating functions such as the linear rectifier to avoid
+    exploding activations [1]_.
 
     Parameters
     ----------
-    x : float32
-        The activation (the summed, weighted input of a neuron).
     clip : float32
         The upper bound for the activation function.
-    activation : function
-        An activation function that maps x onto a float32
+    activation : callable
+        The activation function to clip
 
     Methods
     -------
@@ -326,20 +325,22 @@ class ClippedActivation(object):
     >>> l2 = DenseLayer(l_in, num_units=200, nonlinearity=clipped_rectify)
     """
 
-    def __init__(self, clip=20, activation=rectify):
-        self.clip = clip
+    def __init__(self, a_min=0, a_max=20, activation=rectify):
+        self.a_min = a_min
+        self.a_max = a_max
         self.activation = activation
 
     def __call__(self, x):
-        return theano.tensor.minimum(self.activation(x), self.clip)
+        return theano.tensor.clip(self.activation(x), self.a_min, self.a_max)
 
 
 # shortcut with default activation and clip
 clipped_rectify = ClippedActivation()
 clipped_rectify.__doc__ = """clipped_rectify(x)
 
-    Instance of :class:`ClippedActivation' such as used in [1]_.
-    :math:`\\clip=20.0 \\activation=rectify`
+Instance of :class:`LeakyRectify` with leakiness :math:`\\alpha=1/3`
+
+    Instance of :class:`ClippedActivation' with :math:`\\a_min=0.0 \\a_max=20.0 \\activation=rectify`
 
     References
     ----------

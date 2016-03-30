@@ -335,7 +335,8 @@ class InverseLayer(MergeLayer):
     >>> l_in = InputLayer((100, 3, 28, 28))
     >>> l1 = Conv2DLayer(l_in, num_filters=16, filter_size=5)
     >>> l2 = DenseLayer(l1, num_units=20)
-    >>> l_u = InverseLayer(l2, l1)  # As Deconv2DLayer
+    >>> l_u2 = InverseLayer(l2, l2)  # backprop through l2
+    >>> l_u1 = InverseLayer(l_u2, l1)  # backprop through l1
     """
     def __init__(self, incoming, layer, **kwargs):
 

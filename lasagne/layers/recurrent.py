@@ -396,8 +396,24 @@ class RecurrentContainerLayer(MergeLayer):
                     inits_uniq.append(inputs[input_layer])
                     inits_index[input_layer] = len(inits_uniq) - 1
 
+        # Create output states. Find the output init from init states if
+        # possible, e.g. a single layer RNN, otherwise set to 0.
+        output_offset = len(inits_uniq)
+        output_uniq, output_index = [], {}
+        inits_new_index, output_n = \
+            self._new_inits_output_for(self.cell, inputs)
+        output_n = self._output_to_dict(output_n)
+        output_shape_n = self._output_to_dict(self.all_shapes[-1])
+        for name in output_n:
+            try:
+                output_index[name] = -output_offset + inits_index[
+                    inits_new_index[output_n[name]]]
+            except KeyError:
+                output_uniq.append(T.zeros(output_shape_n[name]))
+                output_index[name] = len(output_uniq) - 1
+
         # Create non-sequence states
-        non_seqs_offset = inits_offset + len(inits_uniq)
+        non_seqs_offset = inits_offset + len(inits_uniq) + len(output_uniq)
         non_seqs, non_seqs_index = self._get_cell_params(
             step=True, precompute_input=self.precompute_input), {}
         for input_m, cell_m in self.step_incomings.items():
@@ -410,22 +426,6 @@ class RecurrentContainerLayer(MergeLayer):
                     input_layer = cell_m.input_layers[name]
                     non_seqs.append(inputs[input_layer])
                     non_seqs_index[input_layer] = len(non_seqs) - 1
-
-        # Create output states. Find the output init from init states if
-        # possible, e.g. a single layer RNN, otherwise set to 0.
-        output_offset = len(inits_uniq)
-        output_uniq, output_index = [], {}
-        inits_new_index, output_n = \
-            self._new_inits_output_for(self.cell, inputs)
-        output_n = self._output_to_dict(output_n)
-        output_shape_n = self._output_to_dict(self.all_shapes[-1])
-        for name in output_n:
-            try:
-                output_index[name] = -output_offset + \
-                    inits_index[inits_new_index[output_n[name]]]
-            except KeyError:
-                output_uniq.append(T.zeros(output_shape_n[name]))
-                output_index[name] = len(output_uniq) - 1
 
         # Create step states. Find the output init from init states.
         steps_offset = inits_offset

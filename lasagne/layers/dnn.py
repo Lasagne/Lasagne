@@ -8,20 +8,16 @@ from .conv import conv_output_length, BaseConvLayer
 from .pool import pool_output_length
 from ..utils import as_tuple
 
-if theano.sandbox.cuda.cuda_enabled:
+if theano.sandbox.cuda.dnn.dnn_available():
     from theano.sandbox.cuda import dnn
     print("Using Old Theano Backend")     
-    
-    if not theano.sandbox.cuda.dnn.dnn_available():
-        raise ImportError(
-                "cuDNN not available: %s\nSee http://lasagne.readthedocs.org/en/"
-                "latest/user/installation.html#cudnn" %
-                dnn.dnn_available.msg)  # pragma: no cover
-
 elif theano.sandbox.gpuarray.dnn.dnn_present():
     from theano.sandbox.gpuarray import dnn 
     print("Using New Theano Backend")
-
+else:
+    raise ImportError(
+        "requires GPU support with cuDNN available -- see http://lasagne.readthedocs.org/en/"
+        "latest/user/installation.html#gpu-support")  # pragma: no cover
 
 
 __all__ = [

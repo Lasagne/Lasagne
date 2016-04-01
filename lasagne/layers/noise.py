@@ -80,7 +80,7 @@ class DropoutLayer(Layer):
                 input_shape = input.shape
 
             return input * self._srng.binomial(input_shape, p=retain_prob,
-                                               dtype=theano.config.floatX)
+                                               dtype=input.dtype)
 
 dropout = DropoutLayer  # shortcut
 

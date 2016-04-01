@@ -39,6 +39,10 @@ extensions = [
 #    'sphinx.ext.napoleon',  # alternative to numpydoc -- looks a bit worse.
 ]
 
+# See https://github.com/rtfd/readthedocs.org/issues/283
+mathjax_path = ('https://cdn.mathjax.org/mathjax/latest/MathJax.js?'
+                'config=TeX-AMS-MML_HTMLorMML')
+
 # see http://stackoverflow.com/q/12206334/562769
 numpydoc_show_class_members = False
 
@@ -322,6 +326,7 @@ import theano
 import theano.sandbox.cuda
 
 theano.config = Mock(device='gpu')
+theano.sandbox.cuda.cuda_enabled = True
 theano.sandbox.cuda.dnn = Mock(dnn_available=lambda: True)
 
 import sys

@@ -425,8 +425,8 @@ class TestConv3DLayerImplementations:
 
 class TestConv2DDNNLayer:
     def test_import_without_gpu_or_cudnn_raises(self):
-        from theano.sandbox.cuda import dnn
-        if theano.config.device.startswith("gpu") and dnn.dnn_available():
+        from theano.sandbox import cuda
+        if cuda.cuda_enabled and cuda.dnn.dnn_available():
             pytest.skip()
         else:
             with pytest.raises(ImportError):
@@ -435,7 +435,8 @@ class TestConv2DDNNLayer:
 
 class TestConv2DMMLayer:
     def test_import_without_gpu_raises(self):
-        if theano.config.device.startswith("gpu"):
+        from theano.sandbox import cuda
+        if cuda.cuda_enabled:
             pytest.skip()
         else:
             with pytest.raises(ImportError):
@@ -444,7 +445,8 @@ class TestConv2DMMLayer:
 
 class TestConv2DCCLayer:
     def test_import_without_gpu_raises(self):
-        if theano.config.device.startswith("gpu"):
+        from theano.sandbox import cuda
+        if cuda.cuda_enabled:
             pytest.skip()
         else:
             with pytest.raises(ImportError):

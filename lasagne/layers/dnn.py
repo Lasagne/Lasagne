@@ -9,8 +9,15 @@ from .conv import conv_output_length, BaseConvLayer
 from .pool import pool_output_length
 from ..utils import as_tuple
 
-if not theano.config.device.startswith("gpu") or not dnn.dnn_available():
-    raise ImportError("dnn not available")  # pragma: no cover
+if not theano.sandbox.cuda.cuda_enabled:
+    raise ImportError(
+            "requires GPU support -- see http://lasagne.readthedocs.org/en/"
+            "latest/user/installation.html#gpu-support")  # pragma: no cover
+elif not dnn.dnn_available():
+    raise ImportError(
+            "cuDNN not available: %s\nSee http://lasagne.readthedocs.org/en/"
+            "latest/user/installation.html#cudnn" %
+            dnn.dnn_available.msg)  # pragma: no cover
 
 
 __all__ = [

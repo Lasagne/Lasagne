@@ -1,5 +1,4 @@
 import theano
-from theano.sandbox.cuda import dnn
 
 from .. import init
 from .. import nonlinearities
@@ -9,15 +8,20 @@ from .conv import conv_output_length, BaseConvLayer
 from .pool import pool_output_length
 from ..utils import as_tuple
 
-if not theano.sandbox.cuda.cuda_enabled:
-    raise ImportError(
-            "requires GPU support -- see http://lasagne.readthedocs.org/en/"
-            "latest/user/installation.html#gpu-support")  # pragma: no cover
-elif not dnn.dnn_available():
-    raise ImportError(
-            "cuDNN not available: %s\nSee http://lasagne.readthedocs.org/en/"
-            "latest/user/installation.html#cudnn" %
-            dnn.dnn_available.msg)  # pragma: no cover
+if theano.sandbox.cuda.cuda_enabled:
+    from theano.sandbox.cuda import dnn
+    print("Using Old Theano Backend")     
+    
+    if not theano.sandbox.cuda.dnn.dnn_available():
+        raise ImportError(
+                "cuDNN not available: %s\nSee http://lasagne.readthedocs.org/en/"
+                "latest/user/installation.html#cudnn" %
+                dnn.dnn_available.msg)  # pragma: no cover
+
+elif theano.sandbox.gpuarray.dnn.dnn_present():
+    from theano.sandbox.gpuarray import dnn 
+    print("Using New Theano Backend")
+
 
 
 __all__ = [
@@ -36,7 +40,7 @@ class Pool2DDNNLayer(Layer):
 
     Performs 2D mean- or max-pooling over the two trailing axes of a 4D input
     tensor. This is an alternative implementation which uses
-    ``theano.sandbox.cuda.dnn.dnn_pool`` directly.
+    ``theano.sandbox.cuda.dnn.dnn_pool`` or ''theano.sandbox.gpuarray.dnn.dnn_pool'' directly.
 
     Parameters
     ----------
@@ -146,7 +150,7 @@ class Pool3DDNNLayer(Layer):
 
     Performs 3D mean- or max-pooling over the 3 trailing axes of a 5D input
     tensor. This is an alternative implementation which uses
-    ``theano.sandbox.cuda.dnn.dnn_pool`` directly.
+    ``theano.sandbox.cuda.dnn.dnn_pool`` or ''theano.sandbox.gpuarray.dnn.dnn_pool'' directly.
 
     Parameters
     ----------
@@ -266,7 +270,7 @@ class Conv2DDNNLayer(BaseConvLayer):
 
     Performs a 2D convolution on its input and optionally adds a bias and
     applies an elementwise nonlinearity.  This is an alternative implementation
-    which uses ``theano.sandbox.cuda.dnn.dnn_conv`` directly.
+    which uses ``theano.sandbox.cuda.dnn.dnn_conv`` or ''theano.sandbox.gpuarray.dnn.dnn_conv'' directly.
 
     Parameters
     ----------
@@ -392,7 +396,7 @@ class Conv3DDNNLayer(BaseConvLayer):
 
     Performs a 3D convolution on its input and optionally adds a bias and
     applies an elementwise nonlinearity.  This implementation uses
-    ``theano.sandbox.cuda.dnn.dnn_conv3d`` directly.
+    ``theano.sandbox.cuda.dnn.dnn_conv3d``or ''theano.sandbox.gpuarray.dnn.dnn_conv3d'' directly.
 
     Parameters
     ----------

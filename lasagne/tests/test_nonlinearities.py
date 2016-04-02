@@ -62,7 +62,7 @@ class TestNonlinearities(object):
         elif nonlinearity == 'clipped_activation':
             from lasagne.nonlinearities import ClippedActivation
             from lasagne.nonlinearities import rectify
-            theano_nonlinearity = ClippedActivation(clip=20,
+            theano_nonlinearity = ClippedActivation(a_min=0, a_max=20,
                                                     activation=rectify)
         else:
             theano_nonlinearity = getattr(lasagne.nonlinearities,

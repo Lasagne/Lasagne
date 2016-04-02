@@ -38,7 +38,7 @@ class TestNonlinearities(object):
         return (np.exp(x).T / np.exp(x).sum(-1)).T
 
     def clipped_activation(self, x):
-        return np.minimum(np.maximum(0, x), 20)
+        return np.clip(x, 0, 20)
 
     @pytest.mark.parametrize('nonlinearity',
                              ['linear', 'rectify',

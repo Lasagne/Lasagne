@@ -289,7 +289,7 @@ def softplus(x):
 # Clipped Activation
 class ClippedActivation(object):
     """Clip an activation function
-    :math:`\\varphi(x,c,a) = \\min(a(x),c)`
+    :math:`\\varphi(x, a_min, a_max) = \\clip(a(x), a_min, a_max)`
 
     Wraps an existing activation fujnction to clip its output range. Useful
     for non-saturating functions such as the linear rectifier to avoid

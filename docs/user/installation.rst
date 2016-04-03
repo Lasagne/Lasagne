@@ -10,9 +10,10 @@ tight coupling to Theano, you will have to install a recent version of Theano
 (usually more recent than the latest official release!) fitting the version of
 Lasagne you choose to install.
 
-Most of the instructions below assume you are running a Linux or Mac system;
-please do not hesitate to suggest instructions for Windows via the *Edit on
-GitHub* link on the top right!
+Most of the instructions below assume you are running a Linux or Mac system,
+but are otherwise very generic. For detailed step-by-step instructions for
+specific platforms including Windows, check our `From Zero to Lasagne
+<https://github.com/Lasagne/Lasagne/wiki/From-Zero-to-Lasagne>`_ guides.
 
 If you run into any trouble, please check the `Theano installation instructions
 <http://deeplearning.net/software/theano/install.html>`_ which cover installing

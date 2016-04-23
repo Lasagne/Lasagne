@@ -23,7 +23,7 @@ def conv_output_length(input_length, filter_size, stride, pad=0):
 
     Parameters
     ----------
-    input_length : int
+    input_length : int or None
         The size of the input.
 
     filter_size : int
@@ -52,13 +52,14 @@ def conv_output_length(input_length, filter_size, stride, pad=0):
 
     Returns
     -------
-    int
-        The output size corresponding to the given convolution parameters.
+    int or None
+        The output size corresponding to the given convolution parameters, or
+        ``None`` if `input_size` is ``None``.
 
     Raises
     ------
-    RuntimeError
-        When an invalid padding is specified, a `RuntimeError` is raised.
+    ValueError
+        When an invalid padding is specified, a `ValueError` is raised.
     """
     if input_length is None:
         return None

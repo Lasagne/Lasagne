@@ -121,6 +121,16 @@ class TestLayer:
             Layer(zero_input_layer)
         Layer(pos_input_layer)
 
+    def test_symbolic_output_shape(self):
+        from lasagne.layers.base import Layer
+
+        class WrongLayer(Layer):
+            def get_output_shape_for(self, input_shape):
+                return theano.tensor.vector().shape
+        with pytest.raises(ValueError) as exc:
+            WrongLayer((None,)).output_shape
+        assert "symbolic output shape" in exc.value.args[0]
+
 
 class TestMergeLayer:
     @pytest.fixture
@@ -158,3 +168,13 @@ class TestMergeLayer:
     def test_get_output_for_notimplemented(self, layer):
         with pytest.raises(NotImplementedError):
             layer.get_output_for(Mock())
+
+    def test_symbolic_output_shape(self):
+        from lasagne.layers.base import MergeLayer
+
+        class WrongLayer(MergeLayer):
+            def get_output_shape_for(self, input_shapes):
+                return theano.tensor.vector().shape
+        with pytest.raises(ValueError) as exc:
+            WrongLayer([(None,)]).output_shape
+        assert "symbolic output shape" in exc.value.args[0]

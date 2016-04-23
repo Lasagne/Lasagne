@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+import theano.tensor as T
+
 from .. import utils
 
 
@@ -47,7 +49,14 @@ class Layer(object):
 
     @property
     def output_shape(self):
-        return self.get_output_shape_for(self.input_shape)
+        shape = self.get_output_shape_for(self.input_shape)
+        if any(isinstance(s, T.Variable) for s in shape):
+            raise ValueError("%s returned a symbolic output shape from its "
+                             "get_output_shape_for() method: %r. This is not "
+                             "allowed; shapes must be tuples of integers for "
+                             "fixed-size dimensions and Nones for variable "
+                             "dimensions." % (self.__class__.__name__, shape))
+        return shape
 
     def get_params(self, **tags):
         """
@@ -246,7 +255,14 @@ class MergeLayer(Layer):
 
     @Layer.output_shape.getter
     def output_shape(self):
-        return self.get_output_shape_for(self.input_shapes)
+        shape = self.get_output_shape_for(self.input_shapes)
+        if any(isinstance(s, T.Variable) for s in shape):
+            raise ValueError("%s returned a symbolic output shape from its "
+                             "get_output_shape_for() method: %r. This is not "
+                             "allowed; shapes must be tuples of integers for "
+                             "fixed-size dimensions and Nones for variable "
+                             "dimensions." % (self.__class__.__name__, shape))
+        return shape
 
     def get_output_shape_for(self, input_shapes):
         """

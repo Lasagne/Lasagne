@@ -1,5 +1,6 @@
 import numpy as np
 import theano.tensor as T
+import theano.sparse as sparse
 
 from .. import init
 from .. import nonlinearities
@@ -84,7 +85,14 @@ class DenseLayer(Layer):
             # batch of feature vectors.
             input = input.flatten(2)
 
-        activation = T.dot(input, self.W)
+        # It needs a proper call in case the input is a SparseVariable.
+        # Though it might be the case, the layer activation will remain
+        # dense since W represents a dense matrix.
+        if type(input) == sparse.basic.SparseVariable:
+            activation = sparse.basic.dot(input, self.W)
+        else:
+            activation = T.dot(input, self.W)
+
         if self.b is not None:
             activation = activation + self.b.dimshuffle('x', 0)
         return self.nonlinearity(activation)

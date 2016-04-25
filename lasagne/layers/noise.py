@@ -1,4 +1,5 @@
 import theano
+import theano.sparse as sparse
 
 from .base import Layer
 from ..random import get_rng
@@ -72,7 +73,11 @@ class DropoutLayer(Layer):
         else:
             retain_prob = 1 - self.p
             if self.rescale:
-                input /= retain_prob
+                # It needs a proper call in case the input is a SparseVariable
+                if type(input) == sparse.basic.SparseVariable:
+                    input = sparse.basic.mul(input, 1/retain_prob)
+                else:
+                    input /= retain_prob
 
             # use nonsymbolic shape for dropout mask if possible
             input_shape = self.input_shape

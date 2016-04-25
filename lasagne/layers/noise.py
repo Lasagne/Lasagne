@@ -2,7 +2,7 @@ import theano
 
 from .base import Layer
 from ..random import get_rng
-
+from .. import utils
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 
@@ -70,7 +70,7 @@ class DropoutLayer(Layer):
         if deterministic or self.p == 0:
             return input
         else:
-            retain_prob = 1 - self.p
+            retain_prob = utils.floatX(1) - self.p
             if self.rescale:
                 input /= retain_prob
 

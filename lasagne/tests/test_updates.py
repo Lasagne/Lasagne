@@ -65,6 +65,54 @@ class TestUpdateFunctions(object):
         assert np.allclose(A.get_value(), B.get_value())
         assert np.allclose(A.get_value(), self.torch_values[method])
 
+    @pytest.mark.parametrize('method, kwargs', [
+        ['sgd', {'learning_rate': 0.1}],
+        ['momentum', {'learning_rate': 0.1,
+                      'momentum': 0.5}],
+        ['nesterov_momentum', {'learning_rate': 0.1,
+                               'momentum': 0.5}],
+        ['adagrad', {'learning_rate': 0.1,
+                     'epsilon': 1e-6}],
+        ['rmsprop', {'learning_rate': 0.01,
+                     'rho': 0.9,
+                     'epsilon': 1e-6}],
+        ['adadelta', {'learning_rate': 0.01,
+                      'rho': 0.9,
+                      'epsilon': 1e-6}],
+        ['adam', {'learning_rate': 0.01,
+                  'beta1': 0.9,
+                  'beta2': 0.999,
+                  'epsilon': 1e-8}],
+        ['adamax', {'learning_rate': 0.01,
+                    'beta1': 0.9,
+                    'beta2': 0.999,
+                    'epsilon': 1e-8}],
+        ])
+    def test_update_returntype(self, method, kwargs):
+        '''Checks whether lasagne.updates handles float32 inputs correctly'''
+        floatX_ = theano.config.floatX
+        theano.config.floatX = 'float32'
+        try:
+            A = theano.shared(lasagne.utils.floatX([1, 1, 1]))
+            B = theano.shared(lasagne.utils.floatX([1, 1, 1]))
+            update_func = getattr(lasagne.updates, method)
+            updates = update_func(self.f(A) + self.f(B),
+                                  [A, B],
+                                  **kwargs)
+
+            assert all(v.dtype == 'float32' for v in updates)
+
+            # Checking for float32 arguments
+            for param in kwargs:
+                kwargs[param] = np.float32(kwargs[param])
+            updates = update_func(self.f(A) + self.f(B),
+                                  [A, B],
+                                  **kwargs)
+
+            assert all(v.dtype == 'float32' for v in updates)
+        finally:
+            theano.config.floatX = floatX_
+
 
 def test_get_or_compute_grads():
 

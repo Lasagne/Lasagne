@@ -1,4 +1,5 @@
 import theano
+import theano.tensor as T
 
 from .base import Layer
 from ..random import get_rng
@@ -70,7 +71,10 @@ class DropoutLayer(Layer):
         if deterministic or self.p == 0:
             return input
         else:
-            retain_prob = 1 - self.p
+            # Using theano constant to prevent upcasting
+            one = T.constant(1)
+
+            retain_prob = one - self.p
             if self.rescale:
                 input /= retain_prob
 

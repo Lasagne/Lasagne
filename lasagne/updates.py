@@ -443,11 +443,14 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
     grads = get_or_compute_grads(loss_or_grads, params)
     updates = OrderedDict()
 
+    # Using theano constant to prevent upcasting of float32
+    one = T.constant(1)
+
     for param, grad in zip(params, grads):
         value = param.get_value(borrow=True)
         accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
                              broadcastable=param.broadcastable)
-        accu_new = rho * accu + (1 - rho) * grad ** 2
+        accu_new = rho * accu + (one - rho) * grad ** 2
         updates[accu] = accu_new
         updates[param] = param - (learning_rate * grad /
                                   T.sqrt(accu_new + epsilon))
@@ -511,6 +514,9 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     grads = get_or_compute_grads(loss_or_grads, params)
     updates = OrderedDict()
 
+    # Using theano constant to prevent upcasting of float32
+    one = T.constant(1)
+
     for param, grad in zip(params, grads):
         value = param.get_value(borrow=True)
         # accu: accumulate gradient magnitudes
@@ -521,7 +527,7 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
                                    broadcastable=param.broadcastable)
 
         # update accu (as in rmsprop)
-        accu_new = rho * accu + (1 - rho) * grad ** 2
+        accu_new = rho * accu + (one - rho) * grad ** 2
         updates[accu] = accu_new
 
         # compute parameter update, using the 'old' delta_accu
@@ -530,7 +536,7 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
         updates[param] = param - learning_rate * update
 
         # update delta_accu (as accu, but accumulating updates)
-        delta_accu_new = rho * delta_accu + (1 - rho) * update ** 2
+        delta_accu_new = rho * delta_accu + (one - rho) * update ** 2
         updates[delta_accu] = delta_accu_new
 
     return updates
@@ -578,8 +584,11 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
     t_prev = theano.shared(utils.floatX(0.))
     updates = OrderedDict()
 
+    # Using theano constant to prevent upcasting of float32
+    one = T.constant(1)
+
     t = t_prev + 1
-    a_t = learning_rate*T.sqrt(1-beta2**t)/(1-beta1**t)
+    a_t = learning_rate*T.sqrt(one-beta2**t)/(one-beta1**t)
 
     for param, g_t in zip(params, all_grads):
         value = param.get_value(borrow=True)
@@ -588,8 +597,8 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
         v_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
                                broadcastable=param.broadcastable)
 
-        m_t = beta1*m_prev + (1-beta1)*g_t
-        v_t = beta2*v_prev + (1-beta2)*g_t**2
+        m_t = beta1*m_prev + (one-beta1)*g_t
+        v_t = beta2*v_prev + (one-beta2)*g_t**2
         step = a_t*m_t/(T.sqrt(v_t) + epsilon)
 
         updates[m_prev] = m_t
@@ -637,8 +646,11 @@ def adamax(loss_or_grads, params, learning_rate=0.002, beta1=0.9,
     t_prev = theano.shared(utils.floatX(0.))
     updates = OrderedDict()
 
+    # Using theano constant to prevent upcasting of float32
+    one = T.constant(1)
+
     t = t_prev + 1
-    a_t = learning_rate/(1-beta1**t)
+    a_t = learning_rate/(one-beta1**t)
 
     for param, g_t in zip(params, all_grads):
         value = param.get_value(borrow=True)
@@ -647,7 +659,7 @@ def adamax(loss_or_grads, params, learning_rate=0.002, beta1=0.9,
         u_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
                                broadcastable=param.broadcastable)
 
-        m_t = beta1*m_prev + (1-beta1)*g_t
+        m_t = beta1*m_prev + (one-beta1)*g_t
         u_t = T.maximum(beta2*u_prev, abs(g_t))
         step = a_t*m_t/(u_t + epsilon)
 

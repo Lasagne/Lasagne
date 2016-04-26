@@ -60,6 +60,12 @@ class TestDropoutLayer:
         assert 0.9 < result_eval.mean() < 1.1
         assert (numpy.round(numpy.unique(result_eval), 2) == [0., 1.25]).all()
 
+    def test_get_output_for_p_float32(self, input_layer):
+        from lasagne.layers.noise import DropoutLayer
+        layer = DropoutLayer(input_layer, p=numpy.float32(0.5))
+        input = theano.shared(numpy.ones((100, 100), dtype=numpy.float32))
+        assert layer.get_output_for(input).dtype == input.dtype
+
     def test_specified_rng(self, input_layer):
         from lasagne.layers.noise import DropoutLayer
         input = theano.shared(numpy.ones((100, 100)))

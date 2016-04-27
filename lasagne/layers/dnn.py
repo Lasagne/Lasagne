@@ -27,6 +27,7 @@ __all__ = [
     "MaxPool3DDNNLayer",
     "Conv2DDNNLayer",
     "Conv3DDNNLayer",
+    "SpatialPyramidPoolingDNNLayer",
 ]
 
 
@@ -139,7 +140,6 @@ class MaxPool2DDNNLayer(Pool2DDNNLayer):
                                                 **kwargs)
 
 
-
 class Pool3DDNNLayer(Layer):
     """
     3D pooling layer
@@ -208,7 +208,6 @@ class Pool3DDNNLayer(Layer):
             raise NotImplementedError("Pool3DDNNLayer does not support "
                                       "ignore_border=False.")
 
-
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
 
@@ -225,7 +224,7 @@ class Pool3DDNNLayer(Layer):
                                              pad=self.pad[1],
                                              ignore_border=True,
                                              )
-        
+
         output_shape[4] = pool_output_length(input_shape[4],
                                              pool_size=self.pool_size[2],
                                              stride=self.stride[2],
@@ -503,3 +502,92 @@ class Conv3DDNNLayer(BaseConvLayer):
                                 conv_mode=conv_mode
                                 )
         return conved
+
+
+class SpatialPyramidPoolingDNNLayer(Layer):
+    """
+    Spatial Pyramid Pooling Layer
+
+    Performs spatial pyramid pooling (SPP) over the input.
+    It will turn a 2D input of arbitrary size into an output of fixed
+    dimension.
+    Hence, the convolutional part of a DNN can be connected to a dense part
+    with a fixed number of nodes even if the dimensions of the
+    input image are unknown.
+
+    The pooling is performed over :math:`l` pooling levels.
+    Each pooling level :math:`i` will create :math:`M_i` output features.
+    :math:`M_i` is given by :math:`n_i * n_i`,
+    with :math:`n_i` as the number of pooling operation per dimension in
+    level :math:`i`, and we use a list of the :math:`n_i`'s as a
+    parameter for SPP-Layer.
+    The length of this list is the level of the spatial pyramid.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_dims : list of integers
+        The list of :math:`n_i`'s that define the output dimension of each
+        pooling level :math:`i`. The length of pool_dims is the level of
+        the spatial pyramid.
+
+    mode : string
+        Pooling mode, one of 'max', 'average_inc_pad' or 'average_exc_pad'.
+        Defaults to 'max'.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    This layer should be inserted between the convolutional part of a
+    DNN and its dense part. Convolutions can be used for
+    arbitrary input dimensions, but the size of their output will
+    depend on their input dimensions. Connecting the output of the
+    convolutional to the dense part then usually demands us to fix
+    the dimensions of the network's InputLayer.
+    The spatial pyramid pooling layer, however, allows us to leave the
+    network input dimensions arbitrary. The advantage over a global
+    pooling layer is the added robustness against object deformations
+    due to the pooling on different scales.
+
+    References
+    ----------
+    .. [1] He, Kaiming et al (2015):
+           Spatial Pyramid Pooling in Deep Convolutional Networks
+           for Visual Recognition.
+           http://arxiv.org/pdf/1406.4729.pdf.
+    """
+    def __init__(self, incoming, pool_dims=[4, 2, 1], mode='max', **kwargs):
+            super(SpatialPyramidPoolingDNNLayer, self).__init__(incoming,
+                                                                **kwargs)
+            if len(self.input_shape) != 4:
+                raise ValueError("Tried to create a SPP layer with "
+                                 "input shape %r. Expected 4 input dimensions "
+                                 "(batchsize, channels, 2 spatial dimensions)."
+                                 % (self.input_shape,))
+            self.mode = mode
+            self.pool_dims = pool_dims
+
+    def get_output_for(self, input, **kwargs):
+        input_size = tuple(symb if fixed is None else fixed
+                           for fixed, symb
+                           in zip(self.input_shape[2:], input.shape[2:]))
+        pool_list = []
+        for pool_dim in self.pool_dims:
+            win_size = tuple((i + pool_dim - 1) // pool_dim
+                             for i in input_size)
+            str_size = tuple(i // pool_dim for i in input_size)
+
+            pool = dnn.dnn_pool(input, win_size, str_size, self.mode, (0, 0))
+            pool = pool.flatten(2)
+            pool_list.append(pool)
+
+        return theano.tensor.concatenate(pool_list, axis=1)
+
+    def get_output_shape_for(self, input_shape):
+        num_features = sum(p*p for p in self.pool_dims)
+        return (input_shape[0], input_shape[1], num_features)

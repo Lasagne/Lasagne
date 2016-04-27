@@ -205,4 +205,5 @@
     dnn.Pool2DDNNLayer
     dnn.MaxPool3DDNNLayer
     dnn.Pool3DDNNLayer
+    dnn.SpatialPyramidPoolingDNNLayer
 

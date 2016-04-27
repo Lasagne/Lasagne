@@ -116,6 +116,29 @@ def upscale_2d(data, scale_factor):
     return upscaled
 
 
+def spatial_pool(data, pool_dims):
+
+    def ceildiv(a, b):
+        return (a + b - 1) // b
+
+    def floordiv(a, b):
+        return a // b
+
+    input_size = data.shape[2:]
+    pooled_data_list = []
+    for pool_dim in pool_dims:
+        pool_size = tuple(ceildiv(i, pool_dim) for i in input_size)
+        stride_size = tuple(floordiv(i, pool_dim) for i in input_size)
+
+        pooled_part = max_pool_2d_ignoreborder(
+                data, pool_size, stride_size, (0, 0))
+        pooled_part = pooled_part.reshape(
+                np.shape(data)[0], np.shape(data)[1] * pool_dim ** 2)
+        pooled_data_list.append(pooled_part)
+
+    return np.concatenate(pooled_data_list, axis=1)
+
+
 class TestFeaturePoolLayer:
     def pool_test_sets():
         for pool_size in [2, 3]:
@@ -815,3 +838,67 @@ class TestGlobalPoolLayer(object):
         np_result = input.get_value().reshape((2, 3, -1)).mean(-1)
 
         assert np.allclose(result, np_result)
+
+
+class TestSpatialPyramidPoolingDNNLayer:
+    def pool_dims_test_sets():
+        for pyramid_level in [2, 3, 4]:
+            pool_dims = list(range(1, pyramid_level))
+            yield pool_dims
+
+    def input_layer(self, output_shape):
+        return Mock(output_shape=output_shape)
+
+    def layer(self, input_layer, pool_dims):
+        try:
+            from lasagne.layers.dnn import SpatialPyramidPoolingDNNLayer
+        except ImportError:
+            pytest.skip("cuDNN not available")
+
+        return SpatialPyramidPoolingDNNLayer(input_layer, pool_dims=pool_dims)
+
+    @pytest.mark.parametrize(
+        "pool_dims", list(pool_dims_test_sets()))
+    def test_get_output_for_ignoreborder(self, pool_dims):
+        try:
+            input = floatX(np.random.randn(8, 16, 17, 13))
+            input_layer = self.input_layer(input.shape)
+            input_theano = theano.shared(input)
+
+            result = self.layer(input_layer, pool_dims).get_output_for(
+                    input_theano)
+
+            result_eval = result.eval()
+            numpy_result = spatial_pool(input, pool_dims)
+
+            assert np.all(numpy_result.shape == result_eval.shape)
+            assert np.allclose(result_eval, numpy_result)
+        except NotImplementedError:
+            pytest.skip()
+
+    @pytest.mark.parametrize(
+        "input_shape,output_shape",
+        [((32, 64, 24, 24), (32, 64, 21)),
+         ((None, 64, 24, 24), (None, 64, 21)),
+         ((32, None, 24, 24), (32, None, 21)),
+         ((None, None, None, None), (None, None, 21))],
+    )
+    def test_get_output_shape_for(self, input_shape, output_shape):
+        try:
+            input_layer = self.input_layer(input_shape)
+            layer = self.layer(input_layer, pool_dims=[1, 2, 4])
+            assert layer.get_output_shape_for(input_shape) == output_shape
+        except NotImplementedError:
+            raise
+
+    def test_fail_on_mismatching_dimensionality(self):
+        try:
+            from lasagne.layers.dnn import SpatialPyramidPoolingDNNLayer
+        except ImportError:
+            pytest.skip("cuDNN not available")
+        with pytest.raises(ValueError) as exc:
+            SpatialPyramidPoolingDNNLayer((10, 20, 30))
+        assert "Expected 4 input dimensions" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            SpatialPyramidPoolingDNNLayer((10, 20, 30, 40, 50))
+        assert "Expected 4 input dimensions" in exc.value.args[0]

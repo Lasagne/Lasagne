@@ -722,8 +722,8 @@ class TransposedConv2DLayer(BaseConvLayer):
     padding it with ``filter_size - 1 - crop`` zeros, and cross-correlating it
     with the filters. See [1]_ for more background.
 
-    Example
-    -------
+    Examples
+    --------
     To transpose an existing convolution, with tied filter weights:
 
     >>> from lasagne.layers import Conv2DLayer, TransposedConv2DLayer
@@ -734,10 +734,10 @@ class TransposedConv2DLayer(BaseConvLayer):
 
     References
     ----------
-    .. [1]: Vincent Dumoulin, Francesco Visin (2016):
-            A guide to convolution arithmetic for deep learning. arXiv.
-            http://arxiv.org/abs/1603.07285,
-            https://github.com/vdumoulin/conv_arithmetic
+    .. [1] Vincent Dumoulin, Francesco Visin (2016):
+           A guide to convolution arithmetic for deep learning. arXiv.
+           http://arxiv.org/abs/1603.07285,
+           https://github.com/vdumoulin/conv_arithmetic
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  crop=0, untie_biases=False,

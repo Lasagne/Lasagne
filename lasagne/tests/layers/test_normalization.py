@@ -299,3 +299,29 @@ def test_batch_norm_macro():
     bnstack = batch_norm(layer, name='foo')
     assert isinstance(bnstack, BatchNormLayer)
     assert bnstack.name == 'foo'
+
+    # check if created layers are named with kwargs name
+    layer = Mock(Layer, output_shape=input_shape, nonlinearity=obj)
+    layer.name = 'foo'
+    bnstack = batch_norm(layer, name='foo_bnorm')
+    assert isinstance(bnstack, NonlinearityLayer)
+    assert isinstance(bnstack.input_layer, BatchNormLayer)
+    assert bnstack.name == 'foo_bnorm_nonlin'
+    assert bnstack.input_layer.name == 'foo_bnorm'
+
+    # check if created layers are named with wrapped layer name
+    layer = Mock(Layer, output_shape=input_shape, nonlinearity=obj)
+    layer.name = 'foo'
+    bnstack = batch_norm(layer)
+    assert isinstance(bnstack, NonlinearityLayer)
+    assert isinstance(bnstack.input_layer, BatchNormLayer)
+    assert bnstack.name == 'foo_bn_nonlin'
+    assert bnstack.input_layer.name == 'foo_bn'
+
+    # check if created layers remain unnamed if no names are given
+    layer = Mock(Layer, output_shape=input_shape, nonlinearity=obj)
+    bnstack = batch_norm(layer)
+    assert isinstance(bnstack, NonlinearityLayer)
+    assert isinstance(bnstack.input_layer, BatchNormLayer)
+    assert bnstack.name is None
+    assert bnstack.input_layer.name is None

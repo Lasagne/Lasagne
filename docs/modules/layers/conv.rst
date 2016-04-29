@@ -32,3 +32,6 @@ Convolutional layers
     :members:
 
 .. autoclass:: Deconv2DLayer
+
+.. autoclass:: DilatedConv2DLayer
+    :members:

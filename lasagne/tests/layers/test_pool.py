@@ -133,10 +133,10 @@ def spatial_pool(data, pool_dims):
         pooled_part = max_pool_2d_ignoreborder(
                 data, pool_size, stride_size, (0, 0))
         pooled_part = pooled_part.reshape(
-                np.shape(data)[0], np.shape(data)[1] * pool_dim ** 2)
+                data.shape[0], data.shape[1], pool_dim ** 2)
         pooled_data_list.append(pooled_part)
 
-    return np.concatenate(pooled_data_list, axis=1)
+    return np.concatenate(pooled_data_list, axis=2)
 
 
 class TestFeaturePoolLayer:
@@ -859,28 +859,29 @@ class TestSpatialPyramidPoolingDNNLayer:
 
     @pytest.mark.parametrize(
         "pool_dims", list(pool_dims_test_sets()))
-    def test_get_output_for_ignoreborder(self, pool_dims):
+    def test_get_output_for(self, pool_dims):
         try:
             input = floatX(np.random.randn(8, 16, 17, 13))
             input_layer = self.input_layer(input.shape)
             input_theano = theano.shared(input)
+            layer = self.layer(input_layer, pool_dims)
 
-            result = self.layer(input_layer, pool_dims).get_output_for(
-                    input_theano)
+            result = layer.get_output_for(input_theano)
 
             result_eval = result.eval()
             numpy_result = spatial_pool(input, pool_dims)
 
-            assert np.all(numpy_result.shape == result_eval.shape)
+            assert result_eval.shape == numpy_result.shape
             assert np.allclose(result_eval, numpy_result)
+            assert result_eval.shape == layer.output_shape
         except NotImplementedError:
             pytest.skip()
 
     @pytest.mark.parametrize(
         "input_shape,output_shape",
         [((32, 64, 24, 24), (32, 64, 21)),
-         ((None, 64, 24, 24), (None, 64, 21)),
-         ((32, None, 24, 24), (32, None, 21)),
+         ((None, 64, 23, 25), (None, 64, 21)),
+         ((32, None, 22, 26), (32, None, 21)),
          ((None, None, None, None), (None, None, 21))],
     )
     def test_get_output_shape_for(self, input_shape, output_shape):

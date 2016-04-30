@@ -583,10 +583,10 @@ class SpatialPyramidPoolingDNNLayer(Layer):
             str_size = tuple(i // pool_dim for i in input_size)
 
             pool = dnn.dnn_pool(input, win_size, str_size, self.mode, (0, 0))
-            pool = pool.flatten(2)
+            pool = pool.flatten(3)
             pool_list.append(pool)
 
-        return theano.tensor.concatenate(pool_list, axis=1)
+        return theano.tensor.concatenate(pool_list, axis=2)
 
     def get_output_shape_for(self, input_shape):
         num_features = sum(p*p for p in self.pool_dims)

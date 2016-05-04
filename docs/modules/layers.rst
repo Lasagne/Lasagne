@@ -71,6 +71,9 @@
 
     Conv1DLayer
     Conv2DLayer
+    TransposedConv2DLayer
+    Deconv2DLayer
+    DilatedConv2DLayer
 
 
 .. rubric:: :doc:`layers/pool`

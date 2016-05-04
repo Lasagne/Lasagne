@@ -105,6 +105,14 @@ def transposed_convNd(input, kernel, crop, stride=1, n=None):
     return convNd(dilated_input, kernel, pad, stride=1, n=n)
 
 
+def dilated_convNd(input, kernel, pad, dilation=1, n=None):
+    if n is None:
+        n = input.ndim - 2
+    dilation = as_tuple(dilation, n, int)
+    dilated_kernel = dilate(kernel, (1, 1) + dilation)
+    return convNd(input, dilated_kernel, pad, stride=1, n=n)
+
+
 def convNd_test_sets(n):
     def _convert(input, kernel, output, kwargs):
         return [theano.shared(floatX(input)), floatX(kernel), output, kwargs]
@@ -187,6 +195,28 @@ def transp_conv2d_test_sets():
     # flip_filters=False case
     output = transposed_convNd(input, kernel[:, :, ::-1, ::-1], 'valid')
     yield _convert(input, kernel, output, {'flip_filters': False})
+
+
+def dilated_conv2d_test_sets():
+    def _convert(input, kernel, output, kwargs):
+        return [floatX(input), floatX(kernel), output, kwargs]
+
+    input_shape = (3, 1, 11, 16)
+    for dilation in (1, 2, 3):
+        for filter_size in (1, 3):
+            input = np.random.random(input_shape)
+            kernel = np.random.random((16, 1, filter_size, filter_size))
+            kernel_flip = kernel[:, :, ::-1, ::-1]
+            output = dilated_convNd(input, kernel_flip, 'valid', dilation, 2)
+            yield _convert(input, kernel, output, {'dilation': dilation})
+
+    # bias-less case
+    input = np.random.random(input_shape)
+    kernel = np.random.random((16, 1, 3, 3))
+    output = dilated_convNd(input, kernel[:, :, ::-1, ::-1], pad='valid')
+    yield _convert(input, kernel, output, {'b': None})
+    # untie_biases=True case
+    yield _convert(input, kernel, output, {'untie_biases': True})
 
 
 def test_conv_output_length():
@@ -540,6 +570,55 @@ class TestTransposedConv2DLayer:
         actual = layer.get_output_for(input).eval()
         assert actual.shape == output.shape
         assert np.allclose(actual, output)
+
+
+class TestDilatedConv2DLayer:
+    @pytest.mark.parametrize(
+        "input, kernel, output, kwargs", list(dilated_conv2d_test_sets()))
+    def test_defaults(self, DummyInputLayer, input, kernel, output, kwargs):
+        from lasagne.layers import DilatedConv2DLayer
+        b, c, h, w = input.shape
+        input_layer = DummyInputLayer((b, c, h, w))
+        layer = DilatedConv2DLayer(
+                input_layer,
+                num_filters=kernel.shape[0],
+                filter_size=kernel.shape[2:],
+                W=kernel.transpose(1, 0, 2, 3),
+                **kwargs)
+        actual = layer.get_output_for(theano.shared(input)).eval()
+        assert actual.shape == output.shape
+        assert actual.shape == layer.output_shape
+        assert np.allclose(actual, output)
+
+    @pytest.mark.parametrize(
+        "input, kernel, output, kwargs", list(dilated_conv2d_test_sets()))
+    def test_with_nones(self, DummyInputLayer, input, kernel, output, kwargs):
+        if kwargs.get('untie_biases', False):
+            pytest.skip()
+        from lasagne.layers import DilatedConv2DLayer
+        b, c, h, w = input.shape
+        input_layer = DummyInputLayer((None, c, None, None))
+        layer = DilatedConv2DLayer(
+                input_layer,
+                num_filters=kernel.shape[0],
+                filter_size=kernel.shape[2:],
+                W=kernel.transpose(1, 0, 2, 3),
+                **kwargs)
+        assert layer.output_shape == (None, output.shape[1], None, None)
+        actual = layer.get_output_for(input).eval()
+        assert actual.shape == output.shape
+        assert np.allclose(actual, output)
+
+    def test_unsupported_settings(self, DummyInputLayer):
+        from lasagne.layers import DilatedConv2DLayer
+        input_layer = DummyInputLayer((10, 20, 30, 40))
+        for pad in 'same', 'full', 1:
+            with pytest.raises(NotImplementedError) as exc:
+                DilatedConv2DLayer(input_layer, 2, 3, pad=pad)
+            assert "requires pad=0" in exc.value.args[0]
+        with pytest.raises(NotImplementedError) as exc:
+            DilatedConv2DLayer(input_layer, 2, 3, flip_filters=True)
+        assert "requires flip_filters=False" in exc.value.args[0]
 
 
 class TestConv2DDNNLayer:

@@ -58,9 +58,10 @@ class Layer(object):
                              "dimensions." % (self.__class__.__name__, shape))
         return shape
 
-    def get_params(self, **tags):
+    def get_params(self, unwrap_shared=True, **tags):
         """
-        Returns a list of Theano shared variables that parameterize the layer.
+        Returns a list of Theano shared variables or expressions that
+        parameterize the layer.
 
         By default, all shared variables that participate in the forward pass
         will be returned (in the order they were registered in the Layer's
@@ -71,12 +72,19 @@ class Layer(object):
         regularized (e.g., by L2 decay).
 
         If any of the layer's parameters was set to a Theano expression instead
-        of a shared variable, the shared variables involved in that expression
-        will be returned rather than the expression itself. Tag filtering
-        considers all variables within an expression to be tagged the same.
+        of a shared variable, `unwrap_shared` controls whether to return the
+        shared variables involved in that expression (``unwrap_shared=True``,
+        the default), or the expression itself (``unwrap_shared=False``). In
+        either case, tag filtering applies to the expressions, considering all
+        variables within an expression to be tagged the same.
 
         Parameters
         ----------
+        unwrap_shared : bool (default: True)
+            Affects only parameters that were set to a Theano expression. If
+            ``True`` the function returns the shared variables contained in
+            the expression, otherwise the Theano expression itself.
+
         **tags (optional)
             tags can be specified to filter the list. Specifying ``tag1=True``
             will limit the list to parameters that are tagged with ``tag1``.
@@ -86,7 +94,7 @@ class Layer(object):
 
         Returns
         -------
-        list of Theano shared variables
+        list of Theano shared variables or expressions
             A list of variables that parameterize the layer
 
         Notes
@@ -107,7 +115,10 @@ class Layer(object):
             result = [param for param in result
                       if not (self.params[param] & exclude)]
 
-        return utils.collect_shared_vars(result)
+        if unwrap_shared:
+            return utils.collect_shared_vars(result)
+        else:
+            return result
 
     def get_output_shape_for(self, input_shape):
         """

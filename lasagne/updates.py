@@ -461,8 +461,8 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6):
 def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     """ Adadelta updates
 
-    Scale learning rates by a the ratio of accumulated gradients to accumulated
-    step sizes, see [1]_ and notes for further description.
+    Scale learning rates by the ratio of accumulated gradients to accumulated
+    updates, see [1]_ and notes for further description.
 
     Parameters
     ----------

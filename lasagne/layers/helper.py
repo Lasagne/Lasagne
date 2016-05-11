@@ -295,14 +295,13 @@ def get_all_params(layer, unwrap_shared=True, **tags):
     Returns a list of Theano shared variables or expressions that
     parameterize the layer.
 
-    This function gathers all parameter variables of all layers below one or
-    more given :class:`Layer` instances, including the layer(s) itself. Its
-    main use is to collect all parameters of a network just given the output
-    layer(s).
+    This function gathers all parameters of all layers below one or more given
+    :class:`Layer` instances, including the layer(s) itself. Its main use is to
+    collect all parameters of a network just given the output layer(s).
 
     By default, all shared variables that participate in the forward pass will
     be returned. The list can optionally be filtered by specifying tags as
-    keyword  arguments. For example, ``trainable=True`` will only return
+    keyword arguments. For example, ``trainable=True`` will only return
     trainable parameters, and ``regularizable=True`` will only return
     parameters that can be regularized (e.g., by L2 decay).
 
@@ -330,15 +329,6 @@ def get_all_params(layer, unwrap_shared=True, **tags):
         A list of Theano shared variables or expressions representing
         the parameters.
 
-    Examples
-    --------
-    >>> from lasagne.layers import InputLayer, DenseLayer
-    >>> l_in = InputLayer((100, 20))
-    >>> l1 = DenseLayer(l_in, num_units=50)
-    >>> all_params = get_all_params(l1)
-    >>> all_params == [l1.W, l1.b]
-    True
-
     Notes
     -----
     If any of the layers' parameters was set to a Theano expression instead
@@ -347,14 +337,35 @@ def get_all_params(layer, unwrap_shared=True, **tags):
     the default), or the expression itself (``unwrap_shared=False``). In
     either case, tag filtering applies to the expressions, considering all
     variables within an expression to be tagged the same.
-    >>> import theano
-    >>> import numpy as np
+
+    Examples
+    --------
+    Collecting all parameters from a two-layer network:
+
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((100, 20))
+    >>> l1 = DenseLayer(l_in, num_units=50)
+    >>> l2 = DenseLayer(l1, num_units=30)
+    >>> all_params = get_all_params(l2)
+    >>> all_params == [l1.W, l1.b, l2.W, l2.b]
+    True
+
+    Parameters can be filtered by tags, and parameter expressions are
+    unwrapped to return involved shared variables by default:
+
     >>> from lasagne.utils import floatX
     >>> w1 = theano.shared(floatX(.01 * np.random.randn(50, 30)))
     >>> w2 = theano.shared(floatX(1))
     >>> l2 = DenseLayer(l1, num_units=30, W=theano.tensor.exp(w1) - w2, b=None)
     >>> all_params = get_all_params(l2, regularizable=True)
     >>> all_params == [l1.W, w1, w2]
+    True
+
+    When disabling unwrapping, the expression for ``l2.W`` is returned instead:
+
+    >>> all_params = get_all_params(l2, regularizable=True,
+    ...                             unwrap_shared=False)
+    >>> all_params == [l1.W, l2.W]
     True
     """
     layers = get_all_layers(layer)

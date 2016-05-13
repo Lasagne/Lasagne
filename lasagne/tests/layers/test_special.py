@@ -707,13 +707,14 @@ class TestRandomizedRectifierLayer:
     def test_low_eq_high(self, RandomizedRectifierLayer):
         input = np.ones((3, 3, 28, 28)).astype(theano.config.floatX) * -1
         layer = RandomizedRectifierLayer(input.shape, lower=0.5, upper=0.5)
-        out = layer.get_output_for(input)
+        out = layer.get_output_for(theano.tensor.constant(input)).eval()
         assert np.allclose(out, -0.5)
 
     def test_deterministic(self, RandomizedRectifierLayer):
         input = np.ones((3, 3, 28, 28)).astype(theano.config.floatX) * -1
         layer = RandomizedRectifierLayer(input.shape, lower=0.4, upper=0.6)
-        out = layer.get_output_for(input, deterministic=True)
+        out = layer.get_output_for(theano.tensor.constant(input),
+                                   deterministic=True).eval()
         assert np.allclose(out, -0.5)
 
     def test_dim_None(self, RandomizedRectifierLayer):

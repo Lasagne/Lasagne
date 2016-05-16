@@ -209,6 +209,9 @@ def build_cnn(input_var=None):
 # own custom data iteration function. For small datasets, you can also copy
 # them to GPU at once for slightly improved performance. This would involve
 # several changes in the main program, though, and is not demonstrated here.
+# Notice that this function returns only mini-batches of size `batchsize`.
+# If the size of the data is not a multiple of `batchsize`, it will not
+# return the last (remaining) mini-batch.
 
 def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
     assert len(inputs) == len(targets)

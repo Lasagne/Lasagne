@@ -926,7 +926,7 @@ class ParametricRectifierLayer(Layer):
     alpha=init.Constant(0.25), shared_axes='auto', **kwargs)
 
     A layer that applies parametric rectify nonlinearity to its input
-    following [1]_ (http://arxiv.org/abs/1502.01852)
+    following [1]_.
 
     Equation for the parametric rectifier linear unit:
     :math:`\\varphi(x) = \\max(x,0) + \\alpha \\min(x,0)`
@@ -958,7 +958,7 @@ class ParametricRectifierLayer(Layer):
     .. [1] K He, X Zhang et al. (2015):
        Delving Deep into Rectifiers: Surpassing Human-Level Performance on
        ImageNet Classification,
-       http://link.springer.com/chapter/10.1007/3-540-49430-8_2
+       http://arxiv.org/abs/1502.01852
 
     Notes
     -----
@@ -1018,6 +1018,7 @@ def prelu(layer, **kwargs):
     Examples
     --------
     Note that this function modifies an existing layer, like this:
+
     >>> from lasagne.layers import InputLayer, DenseLayer, prelu
     >>> layer = InputLayer((32, 100))
     >>> layer = DenseLayer(layer, num_units=200)
@@ -1140,6 +1141,7 @@ def rrelu(layer, **kwargs):
     Examples
     --------
     Note that this function modifies an existing layer, like this:
+
     >>> from lasagne.layers import InputLayer, DenseLayer, rrelu
     >>> layer = InputLayer((32, 100))
     >>> layer = DenseLayer(layer, num_units=200)

@@ -386,6 +386,12 @@ class SliceLayer(Layer):
         elif input_shape[self.axis] is not None:
             output_shape[self.axis] = len(
                 range(*self.slice.indices(input_shape[self.axis])))
+        elif (self.slice.stop is None and
+              self.slice.start is not None and
+              self.slice.start < 0):
+
+            output_shape[self.axis] = len(
+                range(0, -self.slice.start, self.slice.step or 1))
         else:
             output_shape[self.axis] = None
         return tuple(output_shape)

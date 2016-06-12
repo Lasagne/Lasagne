@@ -308,18 +308,17 @@ class RecurrentContainerLayer(MergeLayer):
         n_steps = self.n_steps if self.n_steps is not None else \
             self.input_shapes[next(iter(self.seq_incomings))][1]
         input_shapes = self._get_cell_input_shape_for(input_shapes)
-        cell_input_shapes = self._precompute_cell_output_shape_for(
+        layer_seq_shapes = self._precompute_cell_output_shape_for(
             input_shapes)
         for cell_m, shape_m in input_shapes.items():
             if cell_m in self.seq_incomings:
                 input_shapes[cell_m] = self._get_cell_shape(shape_m)
-        for cell_m, shapes_m in cell_input_shapes.items():
+        for cell_m, shapes_m in layer_seq_shapes.items():
             for name, shape in shapes_m.items():
-                if cell_m.input_layers[name] in self.seq_incomings:
-                    cell_input_shapes[cell_m][name] = self._get_cell_shape(
-                        shape) if shape is not None else shape
+                layer_seq_shapes[cell_m][name] = self._get_cell_shape(
+                    shape) if shape is not None else shape
         output_shape = self._output_to_dict(helper.get_output_shape(
-            self.cell, input_shapes, cell_input_shapes))
+            self.cell, input_shapes, layer_seq_shapes))
         for name, output_shape_m in output_shape.items():
             if self.only_return_final:
                 # When only_return_final is true, the second (sequence step)
@@ -362,27 +361,23 @@ class RecurrentContainerLayer(MergeLayer):
         for seq_incoming in self.seq_incomings:
             inputs[seq_incoming] = inputs[seq_incoming].dimshuffle(
                 1, 0, *range(2, inputs[seq_incoming].ndim))
-        cell_inputs = self._precompute_cell_output_for(inputs, **kwargs)
 
         # Create seq states
         seqs_offset = 0
-        seqs, layer_seqs, all_seqs = {}, {}, []
+        seqs, layer_seqs, all_seqs = {}, self._precompute_cell_output_for(
+            inputs, **kwargs), []
         for cell_m in inputs:
             if cell_m in self.seq_incomings:
                 seqs[cell_m] = inputs[cell_m]
         all_seqs.extend(seqs.values())
-        for cell_m, inputs_m in cell_inputs.items():
-            layer_seqs[cell_m] = {}
-            for name, input in inputs_m.items():
-                if cell_m.input_layers[name] in self.seq_incomings:
-                    layer_seqs[cell_m][name] = cell_inputs[cell_m][name]
-            all_seqs.extend(layer_seqs[cell_m].values())
+        for cell_m, inputs_m in layer_seqs.items():
+            all_seqs.extend(inputs_m.values())
         all_seqs_uniq, all_seqs_index = utils.unique(
             all_seqs, return_index=True)
         all_seqs_index_iter = iter(all_seqs_index)
         seqs_index = dict(zip(seqs, all_seqs_index_iter))
         layer_seqs_index = {}
-        for cell_m, inputs_m in cell_inputs.items():
+        for cell_m, inputs_m in layer_seqs.items():
             layer_seqs_index[cell_m] = dict(zip(
                 layer_seqs[cell_m], all_seqs_index_iter))
 
@@ -450,7 +445,7 @@ class RecurrentContainerLayer(MergeLayer):
             inputs_n.update({non_seq: args[non_seqs_offset + i]
                              for non_seq, i in non_seqs_index.items()})
             cell_inputs_n = {}
-            for cell_m, inputs_m in cell_inputs.items():
+            for cell_m, inputs_m in layer_seqs.items():
                 cell_inputs_n[cell_m] = {seq: args[i] for seq, i in
                                          layer_seqs_index[cell_m].items()}
             cell_kwargs = {}
@@ -573,10 +568,10 @@ class CellLayer(MergeLayer):
         return super(CellLayer, self).get_params(**tags)
 
     def precompute_shape_for(self, input_shapes):
-        return input_shapes
+        return {}
 
     def precompute_for(self, inputs, **kwargs):
-        return inputs
+        return {}
 
 
 class CustomRecurrentCell(CellLayer):
@@ -804,7 +799,7 @@ class CustomRecurrentCell(CellLayer):
                     'incoming.output_shape[0]*incoming.output_shape[1] = '
                     '{}'.format(self.input_to_hidden.output_shape[0],
                                 input_shape[0]*input_shape[1]))
-        return input_shapes
+        return {}
 
     def get_output_shape_for(self, input_shapes):
         return {'output': self.hidden_to_hidden.output_shape}
@@ -828,8 +823,8 @@ class CustomRecurrentCell(CellLayer):
             # Reshape back to (seq_len, n_batch, trailing dimensions...)
             trailing_dims = tuple(input.shape[n] for n in range(1, input.ndim))
             input = T.reshape(input, (seq_len, n_batch) + trailing_dims)
-            inputs['input'] = input
-        return inputs
+            return {'input': input}
+        return {}
 
     def get_output_for(self, inputs, precompute_input=False, **kwargs):
         """
@@ -1294,8 +1289,7 @@ class LSTMCell(CellLayer):
         # W_in_stacked is (n_features, 4*num_units). input is then
         # (n_time_steps, n_batch, 4*num_units).
         input = T.dot(input, self.W_in_stacked) + self.b_stacked
-        inputs['input'] = input
-        return inputs
+        return {'input': input}
 
     def get_output_for(self, inputs, precompute_input=False, **kwargs):
         """
@@ -1556,8 +1550,7 @@ class GRUCell(CellLayer):
         # precompute_input inputs*W. W_in is (n_features, 3*num_units).
         # input is then (n_batch, n_time_steps, 3*num_units).
         input = T.dot(input, self.W_in_stacked) + self.b_stacked
-        inputs['input'] = input
-        return inputs
+        return {'input': input}
 
     def get_output_for(self, inputs, precompute_input=False, **kwargs):
         """

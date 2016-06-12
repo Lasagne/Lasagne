@@ -186,14 +186,16 @@ def get_output(layer_or_layers, inputs=None,
             try:
                 if isinstance(layer, MergeLayer):
                     if isinstance(layer.input_layers, dict):
-                        inputs_n = {name: layer_inputs.get(layer, {}).get(
-                                    name, None) or all_outputs[input_layer]
-                                    for name, input_layer
-                                    in layer.input_layers.items()}
+                        inputs_n = layer_inputs.get(layer, {})
+                        for name, input_layer in layer.input_layers.items():
+                            if name not in inputs_n:
+                                inputs_n[name] = all_outputs[input_layer]
                     else:
-                        inputs_n = [layer_inputs.get(layer, {}).get(i, None) or
-                                    all_outputs[input_layer] for i, input_layer
-                                    in enumerate(layer.input_layers)]
+                        inputs_n = layer_inputs.get(layer, {})
+                        for i, input_layer in enumerate(layer.input_layers):
+                            if i not in inputs_n:
+                                inputs_n[i] = all_outputs[input_layer]
+                        inputs_n = [v for k, v in sorted(inputs_n.items())]
                 else:
                     inputs_n = layer_inputs.get(layer, None) or \
                                all_outputs[layer.input_layer]

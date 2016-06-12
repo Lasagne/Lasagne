@@ -1334,6 +1334,41 @@ def test_cell_multi_output():
     assert output_2_cell.shape == (2, 3, 5)
 
 
+def test_cell_precompute_inputs():
+    # precompute inputs may supplement actual inputs
+    class Cell(CellLayer):
+        def __init__(self, incoming):
+            super(Cell, self).__init__(
+                {'input': incoming}, {'output': lasagne.init.Constant(0.)})
+
+        def get_output_shape_for(self, input_shapes):
+            return {'output': input_shapes['input']}
+
+        def precompute_for(self, inputs, **kwargs):
+            return {'precompute': inputs['input'] + 1}
+
+        def get_output_for(self, inputs, precompute_input=False, **kwargs):
+            return {'output': inputs['precompute'] if precompute_input else
+                    inputs['input'] + 1}
+
+    num_batch, seq_len, n_features = 2, 3, 4
+    x_in = np.random.random((num_batch, seq_len, n_features)).astype('float32')
+
+    lasagne.random.get_rng().seed(1234)
+    l_inp = InputLayer((num_batch, seq_len, n_features))
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = Cell(cell_inp)['output']
+
+    l_rec_1 = RecurrentContainerLayer(
+        {cell_inp: l_inp}, cell, precompute_input=True)
+    l_rec_2 = RecurrentContainerLayer(
+        {cell_inp: l_inp}, cell, precompute_input=False)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
 def test_cell_multi_precompute():
     num_batch, seq_len, n_features = 2, 3, 4
     num_units_1, num_units_2 = 5, 6
@@ -1389,6 +1424,7 @@ def test_cell_no_input_sequence():
 
 
 def test_cell_fixed_init():
+    # test cell where an init is fixed and not updated
     class Cell(CellLayer):
         def __init__(self, add_init, output_init, **kwargs):
             super(Cell, self).__init__(
@@ -1415,6 +1451,7 @@ def test_cell_fixed_init():
 
 
 def test_cell_fixed_step_input():
+    # test cell where each step has the same input
     num_batch, seq_len, n_features = 2, 3, 4
     num_units = 5
 
@@ -1439,6 +1476,7 @@ def test_cell_fixed_step_input():
 
 
 def test_cell_step_input():
+    # test cell where the step input of a cell comes from another cell
     num_batch, seq_len, n_features = 2, 3, 4
     num_units = n_features
 

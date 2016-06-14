@@ -542,6 +542,10 @@ class StepInputLayer(Layer):
         self.input_shape = None
         self.params = OrderedDict()
 
+    @property
+    def output_shape(self):
+        return None
+
 
 class CellLayer(MergeLayer):
     def __init__(self, incomings, inits, inits_fixed=None, **kwargs):

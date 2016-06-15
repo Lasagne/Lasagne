@@ -90,6 +90,7 @@ class DropoutLayer(Layer):
 
 dropout = DropoutLayer  # shortcut
 
+
 class SpatialDropoutLayer(Layer):
     """Spatial dropout layer
     Sets whole filter activations to zero with probability p. See notes for
@@ -124,7 +125,7 @@ class SpatialDropoutLayer(Layer):
            2016.
     """
     def __init__(self, incoming, p=0.5, rescale=True, **kwargs):
-        super(DropoutLayer, self).__init__(incoming, **kwargs)
+        super(SpatialDropoutLayer, self).__init__(incoming, **kwargs)
         self._srng = RandomStreams(get_rng().randint(1, 2147462579))
         self.p = p
         self.rescale = rescale
@@ -149,7 +150,7 @@ class SpatialDropoutLayer(Layer):
                 input /= retain_prob
 
             mask = self._srng.binomial(input.shape[:2], p=retain_prob,
-                                      dtype=theano.config.floatX)
+                                       dtype=input.dtype)
             axes = [0, 1] + (['x'] * (input.ndim - 2))
             mask = mask.dimshuffle(*axes)
 

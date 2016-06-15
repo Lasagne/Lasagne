@@ -85,7 +85,7 @@ class TestDropoutLayer:
 
 
 class TestSpatialDropoutLayer:
-    @pytest.fixture(params=[(100, 100), (None, 100)])
+    @pytest.fixture(params=[(10, 100, 100, 100), (None, 100)])
     def input_layer(self, request):
         from lasagne.layers.input import InputLayer
         return InputLayer(request.param)

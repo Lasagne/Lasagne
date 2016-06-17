@@ -289,45 +289,66 @@ def create_param(spec, shape, name=None):
 
     Parameters
     ----------
-    spec : numpy array, Theano expression, or callable
+    spec : scalar number, numpy array, Theano expression, or callable
         Either of the following:
 
-        * a numpy array with the initial parameter values
+        * a scalar or a numpy array with the initial parameter values
         * a Theano expression or shared variable representing the parameters
         * a function or callable that takes the desired shape of
           the parameter array as its single argument and returns
-          a numpy array.
+          a numpy array, a Theano expression, or a shared variable
+          representing the parameters.
 
     shape : iterable of int
         a tuple or other iterable of integers representing the desired
         shape of the parameter array.
 
     name : string, optional
-        If a new variable is created, the name to give to the parameter
-        variable. This is ignored if `spec` is already a Theano expression
-        or shared variable.
+        The name to give to the parameter variable. Ignored if `spec`
+        is or returns a Theano expression or shared variable that
+        already has a name.
+
 
     Returns
     -------
     Theano shared variable or Theano expression
         A Theano shared variable or expression representing layer parameters.
-        If a numpy array was provided, a shared variable is initialized to
-        contain this array. If a shared variable or expression was provided,
-        it is simply returned. If a callable was provided, it is called, and
-        its output is used to initialize a shared variable.
+        If a scalar or a numpy array was provided, a shared variable is
+        initialized to contain this array. If a shared variable or expression
+        was provided, it is simply returned. If a callable was provided, it is
+        called, and its output is used to initialize a shared variable.
 
     Notes
     -----
     This function is called by :meth:`Layer.add_param()` in the constructor
     of most :class:`Layer` subclasses. This enables those layers to
-    support initialization with numpy arrays, existing Theano shared variables
-    or expressions, and callables for generating initial parameter values.
+    support initialization with scalars, numpy arrays, existing Theano shared
+    variables or expressions, and callables for generating initial parameter
+    values, Theano expressions, or shared variables.
     """
+    import numbers  # to check if argument is a number
     shape = tuple(shape)  # convert to tuple if needed
     if any(d <= 0 for d in shape):
         raise ValueError((
             "Cannot create param with a non-positive shape dimension. "
             "Tried to create param with shape=%r, name=%r") % (shape, name))
+
+    err_prefix = "cannot initialize parameter %s: " % name
+    if callable(spec):
+        spec = spec(shape)
+        err_prefix += "the %s returned by the provided callable"
+    else:
+        err_prefix += "the provided %s"
+
+    if isinstance(spec, numbers.Number) or isinstance(spec, np.generic) \
+            and spec.dtype.kind in 'biufc':
+        spec = np.asarray(spec)
+
+    if isinstance(spec, np.ndarray):
+        if spec.shape != shape:
+            raise ValueError("%s has shape %s, should be %s" %
+                             (err_prefix % "numpy array", spec.shape, shape))
+        spec = theano.shared(spec)
 
     if isinstance(spec, theano.Variable):
         # We cannot check the shape here, Theano expressions (even shared
@@ -337,34 +358,20 @@ def create_param(spec, shape, name=None):
         # `name` attribute of the variable, but the user may have already
         # named the variable and we don't want to override this.
         if spec.ndim != len(shape):
-            raise RuntimeError("parameter variable has %d dimensions, "
-                               "should be %d" % (spec.ndim, len(shape)))
+            raise ValueError("%s has %d dimensions, should be %d" %
+                             (err_prefix % "Theano variable", spec.ndim,
+                              len(shape)))
+        if not spec.name:
+            spec.name = name
         return spec
 
-    elif isinstance(spec, np.ndarray):
-        if spec.shape != shape:
-            raise RuntimeError("parameter array has shape %s, should be "
-                               "%s" % (spec.shape, shape))
-        return theano.shared(spec, name=name)
-
-    elif hasattr(spec, '__call__'):
-        arr = spec(shape)
-        try:
-            arr = floatX(arr)
-        except Exception:
-            raise RuntimeError("cannot initialize parameters: the "
-                               "provided callable did not return an "
-                               "array-like value")
-        if arr.shape != shape:
-            raise RuntimeError("cannot initialize parameters: the "
-                               "provided callable did not return a value "
-                               "with the correct shape")
-        return theano.shared(arr, name=name)
-
     else:
-        raise RuntimeError("cannot initialize parameters: 'spec' is not "
-                           "a numpy array, a Theano expression, or a "
-                           "callable")
+        if "callable" in err_prefix:
+            raise TypeError("%s is not a numpy array or a Theano expression" %
+                            (err_prefix % "value"))
+        else:
+            raise TypeError("%s is not a numpy array, a Theano expression, "
+                            "or a callable" % (err_prefix % "spec"))
 
 
 def unroll_scan(fn, sequences, outputs_info, non_sequences, n_steps,

@@ -811,7 +811,8 @@ class DilatedConv2DLayer(BaseConvLayer):
 
     dilation : int or iterable of int
         An integer or a 2-element tuple specifying the dilation factor of the
-        filters, i.e., the number of zeros inserted between filter elements.
+        filters. A factor of :math:`x` corresponds to :math:`x - 1` zeros
+        inserted between adjacent filter elements.
 
     pad : int, iterable of int, or 'valid' (default: 0)
         The amount of implicit zero padding of the input.

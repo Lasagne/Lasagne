@@ -274,6 +274,15 @@ def test_create_param_retain_ndarray_dtype():
     assert (result.dtype == param.dtype)
 
 
+def test_create_param_broadcast_pattern():
+    from lasagne.utils import create_param
+    for shape in (10, 1, 20), (1, 2), (3, 1), (2, 3):
+        bcast = tuple(s == 1 for s in shape)
+        assert create_param(np.zeros, shape).broadcastable == bcast
+        assert create_param(np.zeros(shape, np.float32),
+                            shape).broadcastable == bcast
+
+
 def test_unroll_scan():
     from lasagne.utils import unroll_scan
     k = 2

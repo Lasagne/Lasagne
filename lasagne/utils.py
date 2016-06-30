@@ -348,7 +348,11 @@ def create_param(spec, shape, name=None):
         if spec.shape != shape:
             raise ValueError("%s has shape %s, should be %s" %
                              (err_prefix % "numpy array", spec.shape, shape))
-        spec = theano.shared(spec)
+        # We assume parameter variables do not change shape after creation.
+        # We can thus fix their broadcast pattern, to allow Theano to infer
+        # broadcastable dimensions of expressions involving these parameters.
+        bcast = tuple(s == 1 for s in shape)
+        spec = theano.shared(spec, broadcastable=bcast)
 
     if isinstance(spec, theano.Variable):
         # We cannot check the shape here, Theano expressions (even shared

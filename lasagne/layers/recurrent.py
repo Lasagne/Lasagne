@@ -91,7 +91,6 @@ class RecurrentContainerLayer(MergeLayer):
     def __init__(self, incomings, cell,
                  step_incomings=None,
                  backwards=False,
-                 learn_init=False,
                  gradient_steps=-1,
                  unroll_scan=False,
                  precompute_input=True,
@@ -131,7 +130,6 @@ class RecurrentContainerLayer(MergeLayer):
         super(RecurrentContainerLayer, self).__init__(incomings, **kwargs)
 
         self.cell = cell
-        self.learn_init = learn_init
         self.backwards = backwards
         self.gradient_steps = gradient_steps
         self.unroll_scan = unroll_scan

@@ -454,8 +454,8 @@ class TestConv3DLayerImplementations:
         "input, kernel, output, kwargs", list(conv3d_test_sets()))
     def test_defaults(self, Conv3DImpl, DummyInputLayer,
                       input, kernel, output, kwargs):
-        b, c, h, w, d = input.shape.eval()
-        input_layer = DummyInputLayer((b, c, h, w, d))
+        b, c, d, h, w = input.shape.eval()
+        input_layer = DummyInputLayer((b, c, d, h, w))
         try:
             layer = Conv3DImpl(
                 input_layer,
@@ -478,7 +478,7 @@ class TestConv3DLayerImplementations:
                         input, kernel, output, kwargs):
         if kwargs.get('untie_biases', False):
             pytest.skip()
-        b, c, h, w, d = input.shape.eval()
+        b, c, d, h, w = input.shape.eval()
         input_layer = DummyInputLayer((None, c, None, None, None))
         try:
             layer = Conv3DImpl(

@@ -398,7 +398,7 @@ class Conv3DDNNLayer(BaseConvLayer):
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape. The
         output of this layer should be a 5D tensor, with shape ``(batch_size,
-        num_input_channels, input_rows, input_columns, input_depth)``.
+        num_input_channels, input_depth, input_rows, input_columns)``.
 
     num_filters : int
         The number of learnable convolutional filters this layer has.
@@ -446,7 +446,7 @@ class Conv3DDNNLayer(BaseConvLayer):
     W : Theano shared variable, expression, numpy array or callable
         Initial value, expression or initializer for the weights.
         These should be a 5D tensor with shape ``(num_filters,
-        num_input_channels, filter_rows, filter_columns, filter_depth)``.
+        num_input_channels, filter_depth, filter_rows, filter_columns)``.
         See :func:`lasagne.utils.create_param` for more information.
 
     b : Theano shared variable, expression, numpy array, callable or ``None``
@@ -454,7 +454,7 @@ class Conv3DDNNLayer(BaseConvLayer):
         ``None``, the layer will have no biases. Otherwise, biases should be
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filters, output_rows, output_columns, output_depth)`` instead.
+        ``(num_filters, output_depth, output_rows, output_columns)`` instead.
         See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None

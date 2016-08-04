@@ -6,7 +6,8 @@ from lasagne.random import get_rng
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-__all__ = ['Accumulator', 'NormalApproximation', 'NormalApproximationScMix', 'bbpwrap']
+__all__ = ['Accumulator', 'NormalApproximation',
+           'NormalApproximationScMix', 'bbpwrap']
 
 
 class Accumulator(object):
@@ -25,7 +26,7 @@ class Accumulator(object):
         Theano scalar
             all the cost collected before
         """
-        return sum(map(T.sum,self.total))
+        return sum(map(T.sum, self.total))
 
     def add_cost(self, new):
         """Adds cost to accumulator
@@ -65,15 +66,18 @@ class NormalApproximation(object):
         ----------
         layer : wrapped layer instance
         shape : tuple of int
-                a tuple of integers representing the desired shape of the
-                parameter tensor.
-        tags : See :func: `lasagne.layers.base.Layer.add_param` for more information
+                a tuple of integers representing the desired shape
+                of the parameter tensor.
+        tags : See :func: `lasagne.layers.base.Layer.add_param`
+               for more information
         spec : Theano shared variable, expression, numpy array or callable
-               Initial value, expression or initializer for the embedding matrix.
-               This should be a matrix with shape ``(input_size, output_size)``.
+               Initial value, expression or initializer for the embedding
+               matrix. This should be a matrix with shape
+                ``(input_size, output_size)``.
                See :func:`lasagne.utils.create_param` for more information.
                .. Note
-                    can also be a dict of same instances {'mu': spec, 'rho':spec}
+                    can also be a dict of same instances
+                        {'mu': spec, 'rho':spec}
                     to avoid default rho initialization
 
         Returns
@@ -115,15 +119,16 @@ class NormalApproximationScMix(NormalApproximation):
         with prior
            pi*N(pm1, pstd1^2) + (1-pi)*N(pm2, pstd2^2)
 
-        where `mean`, `rho` are variational params fitted while training
+        where `mean`, `rho` are variational
+        params fitted while training
 
-        Parameters
-        ----------
-        pm1 : float - prior mean for first Gaussian
-        pstd1 : float - prior std for first Gaussian
-        pm2 : float - prior mean for second Gaussian
-        pstd2 : float - prior std for second Gaussian
-        pi : float in [0, 1] - first Gaussian weight
+    Parameters
+    ----------
+    pm1 : float - prior mean for first Gaussian
+    pstd1 : float - prior std for first Gaussian
+    pm2 : float - prior mean for second Gaussian
+    pstd2 : float - prior std for second Gaussian
+    pi : float in [0, 1] - first Gaussian weight
     """
     def __init__(self, pm1=.0, pstd1=.5, pm2=.0, pstd2=1e-3, pi=.5):
         assert .0 <= pi <= 1., 'Weight %d not in [0, 1]' % pi
@@ -141,6 +146,7 @@ class NormalApproximationScMix(NormalApproximation):
 def bbpwrap(approximation=NormalApproximation()):
     """Wrapper function that allows to transform any
         reasonable layer to variational one.
+
     Parameters
     ----------
     approximation - callable
@@ -152,6 +158,7 @@ def bbpwrap(approximation=NormalApproximation()):
     Returns
     -------
         Wrapped layer
+
     Notes
     -----
         A layer should initialize weights in canonical way
@@ -160,14 +167,17 @@ def bbpwrap(approximation=NormalApproximation()):
 
     References
     ----------
-    .. [1] Charles Blundell, Julien Cornebise, Koray Kavukcuoglu, Daan Wierstra (2015):
+    .. [1] Charles Blundell, Julien Cornebise,
+           Koray Kavukcuoglu, Daan Wierstra (2015):
            Weight Uncertainty in Neural Networks arXiv:1505.05424
 
     Usage
     -----
     >>> import lasagne
     >>> import theano.tensor as T
-    >>> from lasagne.layers.bayes import bbpwrap, NormalApproximation, Accumulator
+    >>> from lasagne.layers.bayes import (bbpwrap,
+    ...                                   NormalApproximation,
+    ...                                   Accumulator)
     >>> from lasagne.layers.dense import DenseLayer
     >>> from lasagne.layers.input import InputLayer
     >>> from lasagne.init import Normal
@@ -186,11 +196,13 @@ def bbpwrap(approximation=NormalApproximation()):
 
     >>> l_in = InputLayer((10,100))
         # 4) Pass `acc` as first argument
-    >>> l1_hidden = BayesDenseLayer(acc, l_in, num_units=N_HIDDEN, W=Normal(1), b=Normal(1),
+    >>> l1_hidden = BayesDenseLayer(acc, l_in, num_units=N_HIDDEN,
+    ...                             W=Normal(1), b=Normal(1),
     ...                             nonlinearity=lasagne.nonlinearities.tanh)
         # Also possible to specify both mu and rho
     >>> myW = {'mu':Normal(1.5), 'rho':Normal(.1)}
-    >>> l_output = BayesDenseLayer(acc, l1_hidden, num_units=N_HIDDEN, W=myW, b=Normal(1),
+    >>> l_output = BayesDenseLayer(acc, l1_hidden, num_units=N_HIDDEN,
+    ...                            W=myW, b=Normal(1),
     ...                            nonlinearity=lasagne.nonlinearities.sigmoid)
     >>> net_output = lasagne.layers.get_output(l_output).ravel()
     >>> true_output = T.ivector('true_output')
@@ -198,8 +210,10 @@ def bbpwrap(approximation=NormalApproximation()):
         #    all we need is to get it and add to our objective
         #    Do not forget to scale variational cost!
         #    .. Note
-        #        Binary crossentropy is exactly the same as binomial likelihood
-    >>> objective = lasagne.objectives.binary_crossentropy(net_output, true_output)
+        #        Binary crossentropy is exactly the same as binomial
+        #        likelihood
+    >>> objective = lasagne.objectives.binary_crossentropy(net_output,
+    ...                                                    true_output)
     >>> objective += (acc.get_cost() / N_BATCHES)
         # 6) Choose adam optimizer for training
     >>> all_params = lasagne.layers.get_all_params(l_output)
@@ -211,7 +225,8 @@ def bbpwrap(approximation=NormalApproximation()):
             def wrapped(self, spec, shape, name=None, **tags):
                 # we should take care about some user specification
                 # to avoid bbp hook just set tags['variational'] = True
-                if not tags.get('trainable', True) or tags.get('variational', False):
+                if not tags.get('trainable', True) or \
+                        tags.get('variational', False):
                     return add_param(self, spec, shape, name, **tags)
                 else:
                     # they don't need to be regularized, strictly

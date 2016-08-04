@@ -137,16 +137,16 @@ def test_compute_norms_ndim6_raises():
 def test_create_param_bad_callable_raises():
     from lasagne.utils import create_param
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError):
         create_param(lambda x: {}, (1, 2, 3))
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         create_param(lambda x: np.array(1), (1, 2, 3))
 
 
 def test_create_param_bad_spec_raises():
     from lasagne.utils import create_param
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError):
         create_param({}, (1, 2, 3))
 
 
@@ -161,7 +161,7 @@ def test_create_param_numpy_bad_shape_raises_error():
     from lasagne.utils import create_param
 
     param = np.array([[1, 2, 3], [4, 5, 6]])
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         create_param(param, (3, 2))
 
 
@@ -187,7 +187,7 @@ def test_create_param_shared_bad_ndim_raises_error():
     from lasagne.utils import create_param
 
     param = theano.shared(np.array([[1, 2, 3], [4, 5, 6]]))
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         create_param(param, (2, 3, 4))
 
 
@@ -202,6 +202,42 @@ def test_create_param_callable_returns_return_value():
     factory.assert_called_with((2, 3))
 
 
+def test_create_param_callable_returns_shared():
+    from lasagne.utils import create_param
+
+    array = np.array([[1, 2, 3], [4, 5, 6]])
+    param = theano.shared(array)
+    factory = Mock()
+    factory.return_value = param
+    result = create_param(factory, (2, 3))
+    assert (result.get_value() == array).all()
+    factory.assert_called_with((2, 3))
+    assert result is param
+
+
+def test_create_param_callable_returns_shared_bad_ndim_raises_error():
+    from lasagne.utils import create_param
+
+    array = np.array([[1, 2], [3, 4]])
+    param = theano.shared(array)
+    factory = Mock()
+    factory.return_value = param
+    with pytest.raises(ValueError):
+        create_param(factory, (2, 3, 4))
+
+
+def test_create_param_callable_returns_theano_expr():
+    from lasagne.utils import create_param
+
+    array = np.array([[1, 2, 3], [4, 5, 6]])
+    param = theano.shared(array) * 2
+    factory = Mock()
+    factory.return_value = param
+    result = create_param(factory, (2, 3))
+    assert (result.eval() == array * 2).all()
+    assert result is param
+
+
 def test_nonpositive_dims_raises_value_error():
     from lasagne.utils import create_param
     neg_shape = (-1, -1)
@@ -213,6 +249,38 @@ def test_nonpositive_dims_raises_value_error():
     with pytest.raises(ValueError):
         create_param(spec, zero_shape)
     create_param(spec, pos_shape)
+
+
+def test_create_param_callable_returns_wrong_type():
+    from lasagne.utils import create_param
+
+    param = 'string'
+    factory = Mock()
+    factory.return_value = param
+    with pytest.raises(TypeError):
+        create_param(factory, (1, 2))
+
+
+def test_create_param_retain_ndarray_dtype():
+    from lasagne.utils import create_param
+    param = np.array([[1, 2, 3], [4, 5, 6]])
+
+    param = param.astype('float64')
+    result = create_param(param, (2, 3))
+    assert (result.dtype == param.dtype)
+
+    param = param.astype('int16')
+    result = create_param(param, (2, 3))
+    assert (result.dtype == param.dtype)
+
+
+def test_create_param_broadcast_pattern():
+    from lasagne.utils import create_param
+    for shape in (10, 1, 20), (1, 2), (3, 1), (2, 3):
+        bcast = tuple(s == 1 for s in shape)
+        assert create_param(np.zeros, shape).broadcastable == bcast
+        assert create_param(np.zeros(shape, np.float32),
+                            shape).broadcastable == bcast
 
 
 def test_unroll_scan():

@@ -238,7 +238,7 @@ very_leaky_rectify.__doc__ = """very_leaky_rectify(x)
 def elu(x):
     """Exponential Linear Unit :math:`\\varphi(x) = (x > 0) ? x : e^x - 1`
 
-    The Exponential Linear Unit (EUL) was introduced in [1]_. Compared to the
+    The Exponential Linear Unit (ELU) was introduced in [1]_. Compared to the
     linear rectifier :func:`rectify`, it has a mean activation closer to zero
     and nonzero gradient for negative input, which can help convergence.
     Compared to the leaky rectifier :class:`LeakyRectify`, it saturates for

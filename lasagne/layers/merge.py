@@ -274,8 +274,9 @@ class ConcatLayer(MergeLayer):
                         for sizes in zip(*input_shapes)]
 
         def match(shape1, shape2):
+            axis = self.axis if self.axis >= 0 else len(shape1) + self.axis
             return (len(shape1) == len(shape2) and
-                    all(i == self.axis or s1 is None or s2 is None or s1 == s2
+                    all(i == axis or s1 is None or s2 is None or s1 == s2
                         for i, (s1, s2) in enumerate(zip(shape1, shape2))))
 
         # Check for compatibility with inferred output shape

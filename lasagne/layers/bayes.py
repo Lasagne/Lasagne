@@ -151,7 +151,7 @@ def bbpwrap(approximation=NormalApproximation()):
     ----------
     approximation - callable
         supposed to take (layer, spec, shape, **tags) as params
-        and return weight initialized weight
+        and return initialized weights
         See :class: `lasagne.layers.bayes.NormalApproximation`
             for more information and explanations
 
@@ -212,7 +212,7 @@ def bbpwrap(approximation=NormalApproximation()):
 
     Also possible to specify both mu and rho
     >>> myW = {'mu':Normal(1.5), 'rho':Normal(.1)}
-    >>> l_output = BayesDenseLayer2(acc, l1_hidden, num_units=N_HIDDEN,
+    >>> l_output = BayesDenseLayer2(acc, l1_hidden, num_units=1,
     ...                             W=myW, b=Normal(1),
     ...                             nonlinearity=lasagne.nonlinearities.sigmoid)
     >>> net_output = lasagne.layers.get_output(l_output).ravel()

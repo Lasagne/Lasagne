@@ -214,6 +214,7 @@ def bbpwrap(approximation=NormalApproximation()):
         #        likelihood
     >>> objective = lasagne.objectives.binary_crossentropy(net_output,
     ...                                                    true_output)
+    >>> objective = objective.sum()
     >>> objective += (acc.get_cost() / N_BATCHES)
         # 6) Choose adam optimizer for training
     >>> all_params = lasagne.layers.get_all_params(l_output)

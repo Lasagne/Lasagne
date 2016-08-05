@@ -181,44 +181,52 @@ def bbpwrap(approximation=NormalApproximation()):
     >>> from lasagne.layers.dense import DenseLayer
     >>> from lasagne.layers.input import InputLayer
     >>> from lasagne.init import Normal
-        # 1) Choose your favorite Layer
-        # 2) Wrap your favorite Layer
+
+    1. Choose your favorite Layer
+    2. Wrap your favorite Layer
     >>> @bbpwrap(NormalApproximation(pstd=1))
     ... class BayesDenseLayer(DenseLayer):
     ...     pass
-        # Gracias! It's bayesian!
-        # Constants for more clear code
+
+    Gracias! It's bayesian!
+    Constants for more clear code
     >>> N_HIDDEN = 5
     >>> N_BATCHES = 100
-        # 3) Create the thing that will do some dirty work for us,
-        #    it will collect all variational cost
+
+    3. Create the thing that will do some dirty work for us,
+        it will collect all variational cost
     >>> acc = Accumulator()
 
     >>> l_in = InputLayer((10,100))
-        # 4) Pass `acc` as first argument
+
+    4. Pass `acc` as first argument
     >>> l1_hidden = BayesDenseLayer(acc, l_in, num_units=N_HIDDEN,
     ...                             W=Normal(1), b=Normal(1),
     ...                             nonlinearity=lasagne.nonlinearities.tanh)
-        # Also possible to specify both mu and rho
+
+    Also possible to specify both mu and rho
     >>> myW = {'mu':Normal(1.5), 'rho':Normal(.1)}
     >>> l_output = BayesDenseLayer(acc, l1_hidden, num_units=N_HIDDEN,
     ...                            W=myW, b=Normal(1),
     ...                            nonlinearity=lasagne.nonlinearities.sigmoid)
     >>> net_output = lasagne.layers.get_output(l_output).ravel()
     >>> true_output = T.ivector('true_output')
-        # 5) That thing has collected the variational cost,
-        #    all we need is to get it and add to our objective
-        #    Do not forget to scale variational cost!
-        #    .. Note
-        #        Binary crossentropy is exactly the same as binomial
-        #        likelihood
+
+    5. That thing has collected the variational cost,
+       all we need is to get it and add to our objective
+       Do not forget to scale variational cost!
+       .. Note
+           Binary crossentropy is exactly the same as binomial
+           likelihood
     >>> objective = lasagne.objectives.binary_crossentropy(net_output,
     ...                                                    true_output)
     >>> objective = objective.sum()
     >>> objective += (acc.get_cost() / N_BATCHES)
-        # 6) Choose adam optimizer for training
+
+    6. Choose adam optimizer for training
     >>> all_params = lasagne.layers.get_all_params(l_output)
     >>> updates = lasagne.updates.adam(objective, all_params)
+
     """
     def decorator(cls):
         def add_param_wrap(add_param):

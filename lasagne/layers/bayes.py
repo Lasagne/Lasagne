@@ -49,8 +49,8 @@ class NormalApproximation(object):
 
         Parameters
         ----------
-        pm1 : float - weight for first Gaussian
-        pstd1 : float - prior mean for first Gaussian
+        pm : float - weight for first Gaussian
+        pstd : float - prior mean for first Gaussian
     """
     def __init__(self, pm=0, pstd=T.exp(-3)):
         self.pm = pm
@@ -157,7 +157,7 @@ def bbpwrap(approximation=NormalApproximation()):
 
     Returns
     -------
-        Wrapped layer
+    wrapped layer
 
     Notes
     -----
@@ -213,8 +213,9 @@ def bbpwrap(approximation=NormalApproximation()):
     Also possible to specify both mu and rho
     >>> myW = {'mu':Normal(1.5), 'rho':Normal(.1)}
     >>> l_output = BayesDenseLayer2(acc, l1_hidden, num_units=1,
-    ...                             W=myW, b=Normal(1),
-    ...                             nonlinearity=lasagne.nonlinearities.sigmoid)
+    ...                            W=myW, b=Normal(1),
+    ...                            nonlinearity=lasagne.nonlinearities.sigmoid
+    ...                            )
     >>> net_output = lasagne.layers.get_output(l_output).ravel()
     >>> true_output = T.ivector('true_output')
 

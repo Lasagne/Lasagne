@@ -2,6 +2,9 @@ import numpy as np
 
 import theano
 import theano.tensor as T
+from lasagne.random import get_rng
+from theano import tensor as T
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 
 def floatX(arr):
@@ -448,3 +451,33 @@ def unroll_scan(fn, sequences, outputs_info, non_sequences, n_steps,
             output_scan.append(T.stack(*l))
 
         return output_scan
+
+
+class Accumulator(object):
+    """General purpose class for collecting cost and
+        providing RandomStreams
+    """
+    def __init__(self, seed=get_rng().randint(1, 2147462579)):
+        self.srng = RandomStreams(seed)
+        self.total = []
+
+    def get_cost(self):
+        """Computes and the total cost
+            at first T.sum is called on all instances in
+            `self.total` list to prepare for summing along list
+        Returns
+        -------
+        Theano scalar
+            all the cost collected before
+        """
+        return sum(map(T.sum, self.total))
+
+    def add_cost(self, new):
+        """Adds cost to accumulator
+
+        Parameters
+        ----------
+        new : Theano tensor
+
+        """
+        self.total.append(new)

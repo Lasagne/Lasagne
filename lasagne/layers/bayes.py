@@ -1,56 +1,29 @@
 from functools import wraps
 
-from lasagne import init
-from lasagne.distributions import log_normal, log_normal3
-from lasagne.random import get_rng
 from theano import tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-__all__ = ['Accumulator', 'NormalApproximation',
-           'NormalApproximationScMix', 'bbpwrap']
+import lasagne
+from lasagne.distributions import log_normal, log_normal3
 
-
-class Accumulator(object):
-    """Simple class for collecting cost and providing RandomStreams
-    """
-    def __init__(self, seed=get_rng().randint(1, 2147462579)):
-        self.srng = RandomStreams(seed)
-        self.total = []
-
-    def get_cost(self):
-        """Computes and the total cost
-            at first T.sum is called on all instances
-            in total list to prepare for summing along list
-        Returns
-        -------
-        Theano scalar
-            all the cost collected before
-        """
-        return sum(map(T.sum, self.total))
-
-    def add_cost(self, new):
-        """Adds cost to accumulator
-
-        Parameters
-        ----------
-        new : Theano tensor
-
-        """
-        self.total.append(new)
+__all__ = [
+    'NormalApproximation',
+    'NormalApproximationScMix',
+    'bbpwrap'
+]
 
 
 class NormalApproximation(object):
     """Helper class for providing logics of initializing
-        random variable distributed like
-            N(mean, (log(1+exp(rho))^2)
-        with prior
-            N(pm, pstd^2)
-        where `mean`, `rho` are variational params fitted while training
+    random variable distributed like
+        N(mean, (log(1+exp(rho))^2)
+    with prior
+        N(pm, pstd^2)
+    where `mean`, `rho` are variational params fitted while training
 
-        Parameters
-        ----------
-        pm : float - weight for first Gaussian
-        pstd : float - prior mean for first Gaussian
+    Parameters
+    ----------
+    pm : float - weight for first Gaussian
+    pstd : float - prior mean for first Gaussian
     """
     def __init__(self, pm=0, pstd=T.exp(-3)):
         self.pm = pm
@@ -68,7 +41,7 @@ class NormalApproximation(object):
         shape : tuple of int
                 a tuple of integers representing the desired shape
                 of the parameter tensor.
-        tags : See :func: `lasagne.layers.base.Layer.add_param`
+        tags : See :func:`lasagne.layers.base.Layer.add_param`
                for more information
         spec : Theano shared variable, expression, numpy array or callable
                Initial value, expression or initializer for the embedding
@@ -77,14 +50,14 @@ class NormalApproximation(object):
                See :func:`lasagne.utils.create_param` for more information.
                .. Note
                     can also be a dict of same instances
-                        {'mu': spec, 'rho':spec}
+                    ``{'mu': spec, 'rho':spec}``
                     to avoid default rho initialization
 
         Returns
         -------
         Theano tensor
         """
-        # case when user uses default init specs
+        # case when user leaves default init specs
         if not isinstance(spec, dict):
             spec = {'mu': spec}
         # important!
@@ -93,8 +66,8 @@ class NormalApproximation(object):
         # they are variational
         tags['variational'] = True
 
-        rho_spec = spec.get('rho', init.Normal(1))
-        mu_spec = spec.get('mu', init.Normal(1))
+        rho_spec = spec.get('rho', lasagne.init.Normal(1))
+        mu_spec = spec.get('mu', lasagne.init.Normal(1))
 
         rho = layer.add_param(rho_spec, shape, **tags)
         mean = layer.add_param(mu_spec, shape, **tags)
@@ -113,14 +86,14 @@ class NormalApproximation(object):
 
 class NormalApproximationScMix(NormalApproximation):
     """Helper class for providing logics of initializing
-        random variable distributed like
-            N(mean, (log(1+exp(rho))^2)
+    random variable distributed like
+        N(mean, (log(1+exp(rho))^2)
 
-        with prior
-           pi*N(pm1, pstd1^2) + (1-pi)*N(pm2, pstd2^2)
+    with prior
+       pi*N(pm1, pstd1^2) + (1-pi)*N(pm2, pstd2^2)
 
-        where `mean`, `rho` are variational
-        params fitted while training
+    where `mean`, `rho` are variational
+    params fitted while training
 
     Parameters
     ----------
@@ -144,16 +117,30 @@ class NormalApproximationScMix(NormalApproximation):
 
 
 def bbpwrap(approximation=NormalApproximation()):
-    """Wrapper function that allows to transform any
-        reasonable layer to variational one.
+    """Wrapper function that allows to transform just
+    any layer to variational one.
+
+    It is a lightweight implementation of Bayes By Backprop[1]_
+    algorithm that is aimed on fitting posterior distribution of weights.
+
+    The approach allows to make some decisions about out belief in prediction.
+    It is possible to compute some metrics like mode, median, mean, variance
+    of prediction and so on. For instance, we can construct posterior
+    confidence interval for prediction or compute the chance of mistake in
+    binary tasks. In most real world problems it is crucial to know risks,
+    i.e. medicine.
+
+    This implementation is supposed to cope with most Layers that exist
+    in Lasagne package and custom ones. They only need to add param with
+    traditional add_param method.
 
     Parameters
     ----------
-    approximation - callable
+    approximation : callable
         supposed to take (layer, spec, shape, **tags) as params
-        and return initialized weights
-        See :class: `lasagne.layers.bayes.NormalApproximation`
-            for more information and explanations
+        and return initialized weight.
+        See :class:`lasagne.layers.bayes.NormalApproximation`
+        for more information and explanations
 
     Returns
     -------
@@ -173,12 +160,12 @@ def bbpwrap(approximation=NormalApproximation()):
 
     Usage
     -----
-    >>> import lasagne
     >>> import theano.tensor as T
+    >>> import lasagne
+    >>> from lasagne.utils import Accumulator
     >>> from lasagne.layers.bayes import (bbpwrap,
     ...                                   NormalApproximation,
-    ...                                   NormalApproximationScMix,
-    ...                                   Accumulator)
+    ...                                   NormalApproximationScMix)
     >>> from lasagne.layers.dense import DenseLayer
     >>> from lasagne.layers.input import InputLayer
     >>> from lasagne.init import Normal
@@ -223,14 +210,14 @@ def bbpwrap(approximation=NormalApproximation()):
        all we need is to get it and add to our objective
        Do not forget to scale variational cost!
        .. Note
-           Binary crossentropy is exactly the same as binomial
+           Binary crossentropy is exactly the same as negative binomial
            likelihood
     >>> objective = lasagne.objectives.binary_crossentropy(net_output,
     ...                                                    true_output)
     >>> objective = objective.sum()
     >>> objective += (acc.get_cost() / N_BATCHES)
 
-    6. Choose adam optimizer for training
+    6. Adam optimizer is suggested for training
     >>> all_params = lasagne.layers.get_all_params(l_output)
     >>> updates = lasagne.updates.adam(objective, all_params)
 
@@ -254,7 +241,7 @@ def bbpwrap(approximation=NormalApproximation()):
         def init_wrap(__init__):
             @wraps(__init__)
             def wrapped(self, acc, *args, **kwargs):
-                self.acc = acc  # type: Accumulator
+                self.acc = acc  # type: lasagne.utils.Accumulator
                 __init__(self, *args, **kwargs)
             return wrapped
 

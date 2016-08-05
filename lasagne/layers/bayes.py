@@ -177,6 +177,7 @@ def bbpwrap(approximation=NormalApproximation()):
     >>> import theano.tensor as T
     >>> from lasagne.layers.bayes import (bbpwrap,
     ...                                   NormalApproximation,
+    ...                                   NormalApproximationScMix,
     ...                                   Accumulator)
     >>> from lasagne.layers.dense import DenseLayer
     >>> from lasagne.layers.input import InputLayer
@@ -189,6 +190,11 @@ def bbpwrap(approximation=NormalApproximation()):
     ...     pass
 
     Gracias! It's bayesian!
+    And another
+    >>> @bbpwrap(NormalApproximationScMix())
+    ... class BayesDenseLayer2(DenseLayer):
+    ...     pass
+
     Constants for more clear code
     >>> N_HIDDEN = 5
     >>> N_BATCHES = 100
@@ -206,9 +212,9 @@ def bbpwrap(approximation=NormalApproximation()):
 
     Also possible to specify both mu and rho
     >>> myW = {'mu':Normal(1.5), 'rho':Normal(.1)}
-    >>> l_output = BayesDenseLayer(acc, l1_hidden, num_units=N_HIDDEN,
-    ...                            W=myW, b=Normal(1),
-    ...                            nonlinearity=lasagne.nonlinearities.sigmoid)
+    >>> l_output = BayesDenseLayer2(acc, l1_hidden, num_units=N_HIDDEN,
+    ...                             W=myW, b=Normal(1),
+    ...                             nonlinearity=lasagne.nonlinearities.sigmoid)
     >>> net_output = lasagne.layers.get_output(l_output).ravel()
     >>> true_output = T.ivector('true_output')
 

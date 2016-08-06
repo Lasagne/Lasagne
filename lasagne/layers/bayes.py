@@ -73,6 +73,7 @@ class NormalApproximation(object):
         mean = layer.add_param(mu_spec, shape, **tags)
 
         e = layer.acc.srng.normal(shape, std=1)
+        # reparametrization trick
         W = mean + T.log1p(T.exp(rho)) * e
 
         q_p = self.log_posterior_approx(W, mean, rho) - self.log_prior(W)
@@ -121,14 +122,15 @@ def bbpwrap(approximation=NormalApproximation()):
     any layer to variational one.
 
     It is a lightweight implementation of Bayes By Backprop[1]_
-    algorithm that is aimed on fitting posterior distribution of weights.
+    algorithm based on reparametrization trick that is aimed
+    on fitting posterior distribution of weights.
 
-    The approach allows to make some decisions about out belief in prediction.
-    It is possible to compute some metrics like mode, median, mean, variance
-    of prediction and so on. For instance, we can construct posterior
-    confidence interval for prediction or compute the chance of mistake in
-    binary tasks. In most real world problems it is crucial to know risks,
-    i.e. medicine.
+    Results of this approach allow to make some decisions about out belief in
+    prediction. It is possible to compute some metrics like mode, median,
+    mean, variance of prediction and so on. For instance, we can construct
+    posterior confidence interval for prediction or compute the chance of
+    mistake in binary tasks. In most real world problems it is crucial to
+    know risks, i.e. medicine.
 
     This implementation is supposed to cope with most Layers that exist
     in Lasagne package and custom ones. They only need to add param with

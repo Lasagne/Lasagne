@@ -37,7 +37,7 @@ def log_normal3(x, mean, rho, eps=.0):
     Returns
     -------
     Theano tensor
-        pointwise density of N(mean,(log(1+rho))^2) at x
+        pointwise density of N(mean,(log(1+exp(rho)))^2) at x
     """
     std = T.log1p(T.exp(rho))
     return log_normal(x, mean, std, eps)

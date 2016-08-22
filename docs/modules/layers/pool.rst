@@ -23,6 +23,9 @@ Pooling layers
 .. autoclass:: Upscale2DLayer
     :members:
 
+.. autoclass:: Upscale3DLayer
+    :members:
+
 .. autoclass:: GlobalPoolLayer
     :members:
 

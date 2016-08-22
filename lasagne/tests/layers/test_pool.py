@@ -116,6 +116,22 @@ def upscale_2d(data, scale_factor):
     return upscaled
 
 
+def upscale_3d_shape(shape, scale_factor):
+    return (shape[0], shape[1],
+            shape[2] * scale_factor[0], shape[3] * scale_factor[1],
+            shape[4] * scale_factor[2])
+
+
+def upscale_3d(data, scale_factor):
+    upscaled = np.zeros(upscale_3d_shape(data.shape, scale_factor))
+    for j in range(scale_factor[0]):
+        for i in range(scale_factor[1]):
+            for k in range(scale_factor[2]):
+                upscaled[:, :, j::scale_factor[0], i::scale_factor[1],
+                         k::scale_factor[2]] = data
+    return upscaled
+
+
 def spatial_pool(data, pool_dims):
 
     def ceildiv(a, b):
@@ -784,6 +800,70 @@ class TestUpscale2DLayer:
         input_layer = self.input_layer(input_shape)
         layer = self.layer(input_layer,
                            scale_factor=(2, 2))
+        assert layer.get_output_shape_for(
+            input_shape) == output_shape
+
+
+class TestUpscale3DLayer:
+    def scale_factor_test_sets():
+        for scale_factor in [2, 3]:
+                yield scale_factor
+
+    def input_layer(self, output_shape):
+        return Mock(output_shape=output_shape)
+
+    def layer(self, input_layer, scale_factor):
+        from lasagne.layers.pool import Upscale3DLayer
+        return Upscale3DLayer(
+            input_layer,
+            scale_factor=scale_factor,
+        )
+
+    def test_invalid_scale_factor(self):
+        from lasagne.layers.pool import Upscale3DLayer
+        inlayer = self.input_layer((128, 3, 32, 32, 32))
+        with pytest.raises(ValueError):
+            Upscale3DLayer(inlayer, scale_factor=0)
+        with pytest.raises(ValueError):
+            Upscale3DLayer(inlayer, scale_factor=-1)
+        with pytest.raises(ValueError):
+            Upscale3DLayer(inlayer, scale_factor=(0, 2, 0))
+        with pytest.raises(ValueError):
+            Upscale3DLayer(inlayer, scale_factor=(2, 0, -1))
+
+    @pytest.mark.parametrize(
+        "scale_factor", list(scale_factor_test_sets()))
+    def test_get_output_for(self, scale_factor):
+        input = floatX(np.random.randn(8, 16, 17, 13, 15))
+        input_layer = self.input_layer(input.shape)
+        input_theano = theano.shared(input)
+        result = self.layer(
+            input_layer,
+            (scale_factor, scale_factor, scale_factor),
+        ).get_output_for(input_theano)
+
+        result_eval = result.eval()
+        numpy_result = upscale_3d(input, (scale_factor, scale_factor,
+                                          scale_factor))
+
+        assert np.all(numpy_result.shape == result_eval.shape)
+        assert np.allclose(result_eval, numpy_result)
+
+    @pytest.mark.parametrize(
+        "input_shape,output_shape",
+        [((32, 64, 24, 24, 24), (32, 64, 48, 48, 48)),
+         ((None, 64, 24, 24, 24), (None, 64, 48, 48, 48)),
+         ((32, None, 24, 24, 24), (32, None, 48, 48, 48)),
+         ((32, 64, None, 24, 24), (32, 64, None, 48, 48)),
+         ((32, 64, 24, None, 24), (32, 64, 48, None, 48)),
+         ((32, 64, None, None, 24), (32, 64, None, None, 48)),
+         ((32, 64, None, None, None), (32, 64, None, None, None)),
+         ((32, 64, 24, 24, None), (32, 64, 48, 48, None))]
+    )
+    def test_get_output_shape_for(self, input_shape, output_shape):
+        input_layer = self.input_layer(input_shape)
+        layer = self.layer(input_layer,
+                           scale_factor=(2, 2, 2))
         assert layer.get_output_shape_for(
             input_shape) == output_shape
 

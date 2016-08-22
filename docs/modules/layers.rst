@@ -87,6 +87,7 @@
     Pool2DLayer
     Upscale1DLayer
     Upscale2DLayer
+    Upscale3DLayer
     GlobalPoolLayer
     FeaturePoolLayer
     FeatureWTALayer

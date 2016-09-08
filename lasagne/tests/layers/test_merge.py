@@ -24,6 +24,9 @@ class TestAutocrop:
         assert autocrop_array_shapes(
             [(1, 2, 3, 4), (5, 6, 7, 8), (5, 4, 3, 2)], crop2) == \
             [(1, 2, 3, 4), (1, 2, 7, 8), (1, 2, 3, 2)]
+        assert autocrop_array_shapes(
+            [(None, 2, 3, 4), (5, 6, 7, 8), (5, 4, 3, 2)], crop2) == \
+            [(None, 2, 3, 4), (None, 2, 7, 8), (None, 2, 3, 2)]
 
         with pytest.raises(ValueError):
             autocrop_array_shapes(

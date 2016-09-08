@@ -233,7 +233,8 @@ def autocrop_array_shapes(input_shapes, cropping):
             if cr is None:
                 result.append(sh)
             elif cr in {'lower', 'center', 'upper'}:
-                result.append([min(sh)] * len(sh))
+                min_sh = None if any(x is None for x in sh) else min(sh)
+                result.append([min_sh] * len(sh))
             else:
                 raise ValueError('Unknown crop mode \'{0}\''.format(cr))
         return [tuple(sh) for sh in zip(*result)]

@@ -3,7 +3,7 @@ import theano.tensor as T
 from .. import init
 from .. import nonlinearities
 from ..utils import as_tuple
-from ..theano_extensions import conv, padding
+from ..theano_extensions import conv
 
 from .base import Layer
 
@@ -704,6 +704,11 @@ class TransposedConv2DLayer(BaseConvLayer):
         correlation (this is the default). Note that this flag is inverted
         compared to a non-transposed convolution.
 
+    output_size : int or iterable of int or symbolic tuple of ints
+        The output size of the transposed convolution. Allows to specify
+        which of the possible output shapes to return when stride > 1.
+        If not specified, the smallest shape will be returned.
+
     **kwargs
         Any additional keyword arguments are passed to the `Layer` superclass.
 
@@ -744,7 +749,12 @@ class TransposedConv2DLayer(BaseConvLayer):
                  crop=0, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, flip_filters=False,
-                 **kwargs):
+                 output_size=None, **kwargs):
+        # output_size must be set before calling the super constructor
+        if (not isinstance(output_size, T.Variable) and
+                output_size is not None):
+            output_size = as_tuple(output_size, 2, int)
+        self.output_size = output_size
         super(TransposedConv2DLayer, self).__init__(
                 incoming, num_filters, filter_size, stride, crop, untie_biases,
                 W, b, nonlinearity, flip_filters, n=2, **kwargs)
@@ -758,6 +768,13 @@ class TransposedConv2DLayer(BaseConvLayer):
         return (num_input_channels, self.num_filters) + self.filter_size
 
     def get_output_shape_for(self, input_shape):
+        if self.output_size is not None:
+            size = self.output_size
+            if isinstance(self.output_size, T.Variable):
+                size = (None, None)
+            return input_shape[0], self.num_filters, size[0], size[1]
+
+        # If self.output_size is not specified, return the smallest shape
         # when called from the constructor, self.crop is still called self.pad:
         crop = getattr(self, 'crop', getattr(self, 'pad', None))
         crop = crop if isinstance(crop, tuple) else (crop,) * self.n
@@ -776,7 +793,9 @@ class TransposedConv2DLayer(BaseConvLayer):
             subsample=self.stride, border_mode=border_mode,
             filter_flip=not self.flip_filters)
         output_size = self.output_shape[2:]
-        if any(s is None for s in output_size):
+        if isinstance(self.output_size, T.Variable):
+            output_size = self.output_size
+        elif any(s is None for s in output_size):
             output_size = self.get_output_shape_for(input.shape)[2:]
         conved = op(self.W, input, output_size)
         return conved

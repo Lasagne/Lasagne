@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import importlib
 import theano
+from theano import tensor as T
 
 import lasagne
 from lasagne.utils import floatX, as_tuple
@@ -88,7 +89,7 @@ def dilate(input, factors):
     return output
 
 
-def transposed_convNd(input, kernel, crop, stride=1, n=None):
+def transposed_convNd(input, kernel, crop, stride=1, n=None, extend=None):
     if n is None:
         n = input.ndim - 2
     if crop == 'valid':
@@ -102,6 +103,10 @@ def transposed_convNd(input, kernel, crop, stride=1, n=None):
         pad = tuple(f - 1 - c for f, c in zip(kernel.shape[2:], crop))
     stride = as_tuple(stride, n, int)
     dilated_input = dilate(input, (1, 1) + stride)
+    if extend is not None:
+        extend = as_tuple(extend, n, int)
+        extend = [(0, p) for p in (0, 0) + extend]
+        dilated_input = np.pad(dilated_input, extend, mode='constant')
     return convNd(dilated_input, kernel, pad, stride=1, n=n)
 
 
@@ -195,6 +200,21 @@ def transp_conv2d_test_sets():
     # flip_filters=False case
     output = transposed_convNd(input, kernel[:, :, ::-1, ::-1], 'valid')
     yield _convert(input, kernel, output, {'flip_filters': False})
+    # extend (w/ and w/out symbolic output shape)
+    for symbolic in [False, True]:
+        input_shape = (4, 3, 7, 9)
+        input = np.random.random(input_shape)
+        kernel = np.random.random((16, 3, 2, 3))
+        stride = (2, 3)
+        for extend in [(0, 1), (1, 2)]:
+            output = transposed_convNd(input, kernel, 0, stride, extend=extend)
+            kwargs = {'stride': stride, 'flip_filters': True}
+            if symbolic:
+                kwargs['output_size'] = theano.shared(
+                    np.array(output.shape[2:]))
+            else:
+                kwargs['output_size'] = output.shape[2:]
+            yield _convert(input, kernel, output, kwargs)
 
 
 def dilated_conv2d_test_sets():
@@ -549,8 +569,15 @@ class TestTransposedConv2DLayer:
                 **kwargs)
         actual = layer.get_output_for(input).eval()
         assert actual.shape == output.shape
-        assert actual.shape == layer.output_shape
+        # layer.output_shape == actual.shape or None
+        assert all([s1 == s2 for (s1, s2) in
+                    zip(actual.shape, output.shape) if s2])
         assert np.allclose(actual, output)
+        # Check get_output_shape_for for symbolic output
+        if 'output_size' in kwargs and isinstance(kwargs['output_size'],
+                                                  T.Variable):
+            assert all(el is None for el in
+                       layer.get_output_shape_for(input.shape)[2:])
 
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(transp_conv2d_test_sets()))
@@ -566,10 +593,20 @@ class TestTransposedConv2DLayer:
                 filter_size=kernel.shape[2:],
                 W=kernel.transpose(1, 0, 2, 3),
                 **kwargs)
-        assert layer.output_shape == (None, output.shape[1], None, None)
+        if 'output_size' not in kwargs or isinstance(kwargs['output_size'],
+                                                     T.Variable):
+            assert layer.output_shape == (None, output.shape[1], None, None)
         actual = layer.get_output_for(input).eval()
         assert actual.shape == output.shape
         assert np.allclose(actual, output)
+        # Check get_output_shape_for for non symbolic output
+        if 'output_size' in kwargs and not isinstance(kwargs['output_size'],
+                                                      T.Variable):
+            assert layer.get_output_shape_for(input.shape) == output.shape
+            # The layer should report the output size even when it
+            # doesn't know most of the input size
+            assert layer.output_shape == (
+                None, output.shape[1]) + kwargs['output_size']
 
 
 class TestDilatedConv2DLayer:

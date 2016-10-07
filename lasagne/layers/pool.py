@@ -5,7 +5,6 @@ from ..utils import as_tuple
 
 from theano.tensor.signal.pool import pool_2d
 
-
 __all__ = [
     "MaxPool1DLayer",
     "MaxPool2DLayer",
@@ -392,12 +391,16 @@ class Upscale1DLayer(Layer):
     scale_factor : integer or iterable
         The scale factor. If an iterable, it should have one element.
 
+    mode : {'repeat', 'dilate'}
+        Upscaling mode: repeat element values or upscale leaving zeroes between
+        upscaled elements. Default is 'repeat'.
+
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
         superclass.
     """
 
-    def __init__(self, incoming, scale_factor, **kwargs):
+    def __init__(self, incoming, scale_factor, mode='repeat', **kwargs):
         super(Upscale1DLayer, self).__init__(incoming, **kwargs)
 
         self.scale_factor = as_tuple(scale_factor, 1)
@@ -405,6 +408,11 @@ class Upscale1DLayer(Layer):
         if self.scale_factor[0] < 1:
             raise ValueError('Scale factor must be >= 1, not {0}'.format(
                 self.scale_factor))
+
+        if mode not in {'repeat', 'dilate'}:
+            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
+            raise ValueError(msg.format(mode))
+        self.mode = mode
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
@@ -415,8 +423,14 @@ class Upscale1DLayer(Layer):
     def get_output_for(self, input, **kwargs):
         a, = self.scale_factor
         upscaled = input
-        if a > 1:
-            upscaled = T.extra_ops.repeat(upscaled, a, 2)
+        if self.mode == 'repeat':
+            if a > 1:
+                upscaled = T.extra_ops.repeat(upscaled, a, 2)
+        elif self.mode == 'dilate':
+            if a > 1:
+                output_shape = self.get_output_shape_for(input.shape)
+                upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
+                upscaled = T.set_subtensor(upscaled[:, :, ::a], input)
         return upscaled
 
 
@@ -436,12 +450,22 @@ class Upscale2DLayer(Layer):
         a square scale factor region. If an iterable, it should have two
         elements.
 
+    mode : {'repeat', 'dilate'}
+        Upscaling mode: repeat element values or upscale leaving zeroes between
+        upscaled elements. Default is 'repeat'.
+
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
         superclass.
+
+    Notes
+    -----
+    Using ``mode='dilate'`` followed by a convolution can be
+    realized more efficiently with a transposed convolution, see
+    :class:`lasagne.layers.TransposedConv2DLayer`.
     """
 
-    def __init__(self, incoming, scale_factor, **kwargs):
+    def __init__(self, incoming, scale_factor, mode='repeat', **kwargs):
         super(Upscale2DLayer, self).__init__(incoming, **kwargs)
 
         self.scale_factor = as_tuple(scale_factor, 2)
@@ -449,6 +473,11 @@ class Upscale2DLayer(Layer):
         if self.scale_factor[0] < 1 or self.scale_factor[1] < 1:
             raise ValueError('Scale factor must be >= 1, not {0}'.format(
                 self.scale_factor))
+
+        if mode not in {'repeat', 'dilate'}:
+            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
+            raise ValueError(msg.format(mode))
+        self.mode = mode
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
@@ -461,10 +490,16 @@ class Upscale2DLayer(Layer):
     def get_output_for(self, input, **kwargs):
         a, b = self.scale_factor
         upscaled = input
-        if b > 1:
-            upscaled = T.extra_ops.repeat(upscaled, b, 3)
-        if a > 1:
-            upscaled = T.extra_ops.repeat(upscaled, a, 2)
+        if self.mode == 'repeat':
+            if b > 1:
+                upscaled = T.extra_ops.repeat(upscaled, b, 3)
+            if a > 1:
+                upscaled = T.extra_ops.repeat(upscaled, a, 2)
+        elif self.mode == 'dilate':
+            if b > 1 or a > 1:
+                output_shape = self.get_output_shape_for(input.shape)
+                upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
+                upscaled = T.set_subtensor(upscaled[:, :, ::a, ::b], input)
         return upscaled
 
 
@@ -484,12 +519,16 @@ class Upscale3DLayer(Layer):
         a cubic scale factor region. If an iterable, it should have three
         elements.
 
+    mode : {'repeat', 'dilate'}
+        Upscaling mode: repeat element values or upscale leaving zeroes between
+        upscaled elements. Default is 'repeat'.
+
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
         superclass.
     """
 
-    def __init__(self, incoming, scale_factor, **kwargs):
+    def __init__(self, incoming, scale_factor, mode='repeat', **kwargs):
         super(Upscale3DLayer, self).__init__(incoming, **kwargs)
 
         self.scale_factor = as_tuple(scale_factor, 3)
@@ -498,6 +537,11 @@ class Upscale3DLayer(Layer):
            self.scale_factor[2] < 1:
             raise ValueError('Scale factor must be >= 1, not {0}'.format(
                 self.scale_factor))
+
+        if mode not in {'repeat', 'dilate'}:
+            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
+            raise ValueError(msg.format(mode))
+        self.mode = mode
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
@@ -512,12 +556,19 @@ class Upscale3DLayer(Layer):
     def get_output_for(self, input, **kwargs):
         a, b, c = self.scale_factor
         upscaled = input
-        if c > 1:
-            upscaled = T.extra_ops.repeat(upscaled, c, 4)
-        if b > 1:
-            upscaled = T.extra_ops.repeat(upscaled, b, 3)
-        if a > 1:
-            upscaled = T.extra_ops.repeat(upscaled, a, 2)
+        if self.mode == 'repeat':
+            if c > 1:
+                upscaled = T.extra_ops.repeat(upscaled, c, 4)
+            if b > 1:
+                upscaled = T.extra_ops.repeat(upscaled, b, 3)
+            if a > 1:
+                upscaled = T.extra_ops.repeat(upscaled, a, 2)
+        elif self.mode == 'dilate':
+            if c > 1 or b > 1 or a > 1:
+                output_shape = self.get_output_shape_for(input.shape)
+                upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
+                upscaled = T.set_subtensor(
+                    upscaled[:, :, ::a, ::b, ::c], input)
         return upscaled
 
 

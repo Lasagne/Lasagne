@@ -33,7 +33,7 @@ class TestRegularizationPenalties(object):
 class TestRegularizationHelpers(object):
     @pytest.fixture
     def layers(self):
-        l_1 = lasagne.layers.InputLayer((10,))
+        l_1 = lasagne.layers.InputLayer((None, 10))
         l_2 = lasagne.layers.DenseLayer(l_1, num_units=20)
         l_3 = lasagne.layers.DenseLayer(l_2, num_units=30)
         return l_1, l_2, l_3

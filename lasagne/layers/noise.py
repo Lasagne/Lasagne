@@ -27,19 +27,20 @@ class DropoutLayer(Layer):
     p : float or scalar tensor
         The probability of setting a value to zero
     rescale : bool
-        If true the input is rescaled with input / (1-p) when deterministic
-        is False.
+        If ``True`` (the default), scale the input by ``1 / (1 - p)`` when
+        dropout is enabled, to keep the expected output mean the same.
 
     Notes
     -----
     The dropout layer is a regularizer that randomly sets input values to
     zero; see [1]_, [2]_ for why this might improve generalization.
-    During training you should set deterministic to false and during
-    testing you should set deterministic to true.
 
-    If rescale is true the input is scaled with input / (1-p) when
-    deterministic is false, see references for further discussion. Note that
-    this implementation scales the input at training time.
+    The behaviour of the layer depends on the ``deterministic`` keyword
+    argument passed to :func:`lasagne.layers.get_output`. If ``True``, the
+    layer behaves deterministically, and passes on the input unchanged. If
+    ``False`` or not specified, dropout (and possibly scaling) is enabled.
+    Usually, you would use ``deterministic=False`` at train time and
+    ``deterministic=True`` at test time.
 
     References
     ----------
@@ -60,14 +61,6 @@ class DropoutLayer(Layer):
         self.rescale = rescale
 
     def get_output_for(self, input, deterministic=False, **kwargs):
-        """
-        Parameters
-        ----------
-        input : tensor
-            output from the previous layer
-        deterministic : bool
-            If true dropout and scaling is disabled, see notes
-        """
         if deterministic or self.p == 0:
             return input
         else:

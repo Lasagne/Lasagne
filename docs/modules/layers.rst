@@ -210,4 +210,6 @@
     dnn.MaxPool3DDNNLayer
     dnn.Pool3DDNNLayer
     dnn.SpatialPyramidPoolingDNNLayer
+    dnn.BatchNormDNNLayer
+    dnn.batch_norm_dnn
 

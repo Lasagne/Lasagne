@@ -13,24 +13,34 @@ class TestDenseLayer:
         from lasagne.layers.dense import DenseLayer
         return DenseLayer
 
-    @pytest.fixture
-    def layer_vars(self, dummy_input_layer):
-        from lasagne.layers.dense import DenseLayer
+    @pytest.fixture(params=(1, 2, -1))
+    def layer_vars(self, request, dummy_input_layer, DenseLayer):
+        input_shape = dummy_input_layer.shape
+        num_units = 5
+        num_leading_axes = request.param
+        W_shape = (np.prod(input_shape[num_leading_axes:]), num_units)
+        b_shape = (num_units,)
+
         W = Mock()
         b = Mock()
         nonlinearity = Mock()
-
-        W.return_value = np.ones((12, 3))
-        b.return_value = np.ones((3,)) * 3
+        W.return_value = np.arange(np.prod(W_shape)).reshape(W_shape)
+        b.return_value = np.arange(np.prod(b_shape)).reshape(b_shape) * 3
         layer = DenseLayer(
             dummy_input_layer,
-            num_units=3,
+            num_units=num_units,
+            num_leading_axes=num_leading_axes,
             W=W,
             b=b,
             nonlinearity=nonlinearity,
             )
 
         return {
+            'input_shape': input_shape,
+            'num_units': num_units,
+            'num_leading_axes': num_leading_axes,
+            'W_shape': W_shape,
+            'b_shape': b_shape,
             'W': W,
             'b': b,
             'nonlinearity': nonlinearity,
@@ -45,8 +55,8 @@ class TestDenseLayer:
         layer = layer_vars['layer']
         assert (layer.W.get_value() == layer_vars['W'].return_value).all()
         assert (layer.b.get_value() == layer_vars['b'].return_value).all()
-        layer_vars['W'].assert_called_with((12, 3))
-        layer_vars['b'].assert_called_with((3,))
+        layer_vars['W'].assert_called_with(layer_vars['W_shape'])
+        layer_vars['b'].assert_called_with(layer_vars['b_shape'])
 
     def test_init_none_nonlinearity_bias(self, DenseLayer, dummy_input_layer):
         layer = DenseLayer(
@@ -58,6 +68,25 @@ class TestDenseLayer:
         assert layer.nonlinearity == lasagne.nonlinearities.identity
         assert layer.b is None
 
+    def test_wrong_num_leading_axes(self, DenseLayer, dummy_input_layer):
+        with pytest.raises(ValueError) as exc:
+            DenseLayer(dummy_input_layer, 5, num_leading_axes=3)
+        assert "leaving no trailing axes" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            DenseLayer(dummy_input_layer, 5, num_leading_axes=-4)
+        assert "requesting more trailing axes" in exc.value.args[0]
+
+    def test_variable_shape(self, DenseLayer):
+        # should work:
+        assert DenseLayer((None, 10), 20).output_shape == (None, 20)
+        assert DenseLayer((10, None, 10), 20,
+                          num_leading_axes=2).output_shape == (10, None, 20)
+        # should fail:
+        for shape, num_leading_axes in ((10, None), 1), ((10, None, 10), 1):
+            with pytest.raises(ValueError) as exc:
+                DenseLayer(shape, 20, num_leading_axes=num_leading_axes)
+            assert "requires a fixed input shape" in exc.value.args[0]
+
     def test_get_params(self, layer):
         assert layer.get_params() == [layer.W, layer.b]
         assert layer.get_params(regularizable=False) == [layer.b]
@@ -67,40 +96,32 @@ class TestDenseLayer:
         assert layer.get_params(_nonexistent_tag=True) == []
         assert layer.get_params(_nonexistent_tag=False) == [layer.W, layer.b]
 
-    def test_get_output_shape_for(self, layer):
-        assert layer.get_output_shape_for((5, 6, 7)) == (5, 3)
+    def test_get_output_shape_for(self, layer_vars):
+        layer = layer_vars['layer']
+        num_units = layer_vars['num_units']
+        num_leading_axes = layer_vars['num_leading_axes']
+        for input_shape in ((5, 6, 7), (None, 2, 3), (None, None, None)):
+            output_shape = input_shape[:num_leading_axes] + (num_units,)
+            assert layer.get_output_shape_for(input_shape) == output_shape
 
     def test_get_output_for(self, layer_vars):
         layer = layer_vars['layer']
         nonlinearity = layer_vars['nonlinearity']
+        num_leading_axes = layer_vars['num_leading_axes']
         W = layer_vars['W']()
         b = layer_vars['b']()
 
-        input = theano.shared(np.ones((2, 12)))
+        input = theano.shared(np.ones(layer_vars['input_shape']))
         result = layer.get_output_for(input)
         assert result is nonlinearity.return_value
 
         # Check that the input to the nonlinearity was what we expect
         # from dense layer, i.e. the dot product plus bias
         nonlinearity_arg = nonlinearity.call_args[0][0]
-        assert (nonlinearity_arg.eval() ==
-                np.dot(input.get_value(), W) + b).all()
-
-    def test_get_output_for_flattens_input(self, layer_vars):
-        layer = layer_vars['layer']
-        nonlinearity = layer_vars['nonlinearity']
-        W = layer_vars['W']()
-        b = layer_vars['b']()
-
-        input = theano.shared(np.ones((2, 3, 4)))
-        result = layer.get_output_for(input)
-        assert result is nonlinearity.return_value
-
-        # Check that the input to the nonlinearity was what we expect
-        # from dense layer, i.e. the dot product plus bias
-        nonlinearity_arg = nonlinearity.call_args[0][0]
-        assert np.allclose(nonlinearity_arg.eval(),
-                           np.dot(input.get_value().reshape(2, -1), W) + b)
+        expected = input.get_value()
+        expected = expected.reshape(expected.shape[:num_leading_axes] + (-1,))
+        expected = np.dot(expected, W) + b
+        assert np.allclose(nonlinearity_arg.eval(), expected)
 
     def test_param_names(self, layer):
         assert layer.W.name == "W"

@@ -167,9 +167,12 @@
 
     NonlinearityLayer
     BiasLayer
+    ScaleLayer
+    standardize
     ExpressionLayer
     InverseLayer
     TransformerLayer
+    TPSTransformerLayer
     ParametricRectifierLayer
     prelu
     RandomizedRectifierLayer

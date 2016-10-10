@@ -1,5 +1,6 @@
 from mock import Mock
 import numpy
+import numpy as np
 from numpy.random import RandomState
 import theano
 import pytest
@@ -66,6 +67,19 @@ class TestDropoutLayer:
         input = theano.shared(numpy.ones((100, 100), dtype=numpy.float32))
         assert layer.get_output_for(input).dtype == input.dtype
 
+    @pytest.mark.parametrize("shared_axes", [(), (0,), (2, 3), (-1, -2)])
+    def test_get_output_for_shared_axes(self, shared_axes):
+        from lasagne.layers.noise import DropoutLayer
+        layer = DropoutLayer((2, 4, 7, 9), shared_axes=shared_axes)
+        input = theano.shared(numpy.ones((2, 4, 7, 9)))
+        result = layer.get_output_for(input)
+        result_eval = result.eval()
+        # check if the dropout mask is the same across the specified axes:
+        # compute the mean across these axes and compare against the full
+        # output, broadcasting across the shared axes, to see if it matches
+        assert np.allclose(result_eval.mean(axis=shared_axes, keepdims=True),
+                           result_eval)
+
     def test_specified_rng(self, input_layer):
         from lasagne.layers.noise import DropoutLayer
         input = theano.shared(numpy.ones((100, 100)))
@@ -82,6 +96,23 @@ class TestDropoutLayer:
 
         set_rng(rng)  # reset to original RNG for other tests
         assert numpy.allclose(result_eval1, result_eval2)
+
+
+def test_dropout_convenience_functions():
+    from lasagne.layers.noise import (dropout_channels, spatial_dropout,
+                                      dropout_locations)
+    assert dropout_channels((10, 20)).shared_axes == ()
+    assert dropout_channels((None, None, None)).shared_axes == (2,)
+    assert dropout_channels((1, 2, 3, 4)).shared_axes == (2, 3)
+    assert dropout_channels((1, 2, 3, 4, 5, 6)).shared_axes == (2, 3, 4, 5)
+    assert spatial_dropout((10, 20)).shared_axes == ()
+    assert spatial_dropout((None, None, None)).shared_axes == (2,)
+    assert spatial_dropout((1, 2, 3, 4)).shared_axes == (2, 3)
+    assert spatial_dropout((1, 2, 3, 4, 5, 6)).shared_axes == (2, 3, 4, 5)
+    assert dropout_locations((10, 20)).shared_axes == (1,)
+    assert dropout_locations((None, None, None)).shared_axes == (1,)
+    assert dropout_locations((1, 2, 3, 4)).shared_axes == (1,)
+    assert dropout_locations((1, 2, 3, 4, 5, 6)).shared_axes == (1,)
 
 
 class TestGaussianNoiseLayer:

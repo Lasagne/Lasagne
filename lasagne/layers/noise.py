@@ -10,6 +10,9 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 __all__ = [
     "DropoutLayer",
     "dropout",
+    "dropout_channels",
+    "spatial_dropout",
+    "dropout_locations",
     "GaussianNoiseLayer",
 ]
 
@@ -27,19 +30,31 @@ class DropoutLayer(Layer):
     p : float or scalar tensor
         The probability of setting a value to zero
     rescale : bool
-        If true the input is rescaled with input / (1-p) when deterministic
-        is False.
+        If ``True`` (the default), scale the input by ``1 / (1 - p)`` when
+        dropout is enabled, to keep the expected output mean the same.
+    shared_axes : tuple of int
+        Axes to share the dropout mask over. By default, each value can be
+        dropped individually. ``shared_axes=(0,)`` uses the same mask across
+        the batch. ``shared_axes=(2, 3)`` uses the same mask across the
+        spatial dimensions of 2D feature maps.
 
     Notes
     -----
     The dropout layer is a regularizer that randomly sets input values to
     zero; see [1]_, [2]_ for why this might improve generalization.
-    During training you should set deterministic to false and during
-    testing you should set deterministic to true.
 
-    If rescale is true the input is scaled with input / (1-p) when
-    deterministic is false, see references for further discussion. Note that
-    this implementation scales the input at training time.
+    The behaviour of the layer depends on the ``deterministic`` keyword
+    argument passed to :func:`lasagne.layers.get_output`. If ``True``, the
+    layer behaves deterministically, and passes on the input unchanged. If
+    ``False`` or not specified, dropout (and possibly scaling) is enabled.
+    Usually, you would use ``deterministic=False`` at train time and
+    ``deterministic=True`` at test time.
+
+    See also
+    --------
+    dropout_channels : Drops full channels of feature maps
+    spatial_dropout : Alias for :func:`dropout_channels`
+    dropout_locations : Drops full pixels or voxels of feature maps
 
     References
     ----------
@@ -53,21 +68,15 @@ class DropoutLayer(Layer):
            Dropout: A Simple Way to Prevent Neural Networks from Overfitting.
            Journal of Machine Learning Research, 5(Jun)(2), 1929-1958.
     """
-    def __init__(self, incoming, p=0.5, rescale=True, **kwargs):
+    def __init__(self, incoming, p=0.5, rescale=True, shared_axes=(),
+                 **kwargs):
         super(DropoutLayer, self).__init__(incoming, **kwargs)
         self._srng = RandomStreams(get_rng().randint(1, 2147462579))
         self.p = p
         self.rescale = rescale
+        self.shared_axes = tuple(shared_axes)
 
     def get_output_for(self, input, deterministic=False, **kwargs):
-        """
-        Parameters
-        ----------
-        input : tensor
-            output from the previous layer
-        deterministic : bool
-            If true dropout and scaling is disabled, see notes
-        """
         if deterministic or self.p == 0:
             return input
         else:
@@ -79,14 +88,82 @@ class DropoutLayer(Layer):
                 input /= retain_prob
 
             # use nonsymbolic shape for dropout mask if possible
-            input_shape = self.input_shape
-            if any(s is None for s in input_shape):
-                input_shape = input.shape
+            mask_shape = self.input_shape
+            if any(s is None for s in mask_shape):
+                mask_shape = input.shape
 
-            return input * self._srng.binomial(input_shape, p=retain_prob,
-                                               dtype=input.dtype)
+            # apply dropout, respecting shared axes
+            if self.shared_axes:
+                shared_axes = tuple(a if a >= 0 else a + input.ndim
+                                    for a in self.shared_axes)
+                mask_shape = tuple(1 if a in shared_axes else s
+                                   for a, s in enumerate(mask_shape))
+            mask = self._srng.binomial(mask_shape, p=retain_prob,
+                                       dtype=input.dtype)
+            if self.shared_axes:
+                bcast = tuple(bool(s == 1) for s in mask_shape)
+                mask = T.patternbroadcast(mask, bcast)
+            return input * mask
 
 dropout = DropoutLayer  # shortcut
+
+
+def dropout_channels(incoming, *args, **kwargs):
+    """
+    Convenience function to drop full channels of feature maps.
+
+    Adds a :class:`DropoutLayer` that sets feature map channels to zero, across
+    all locations, with probability p. For convolutional neural networks, this
+    may give better results than independent dropout [1]_.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        the layer feeding into this layer, or the expected input shape
+    *args, **kwargs
+        Any additional arguments and keyword arguments are passed on to the
+        :class:`DropoutLayer` constructor, except for `shared_axes`.
+
+    Returns
+    -------
+    layer : :class:`DropoutLayer` instance
+        The dropout layer with `shared_axes` set to drop channels.
+
+    References
+    ----------
+    .. [1] J. Tompson, R. Goroshin, A. Jain, Y. LeCun, C. Bregler (2014):
+           Efficient Object Localization Using Convolutional Networks.
+           https://arxiv.org/abs/1411.4280
+    """
+    ndim = len(getattr(incoming, 'output_shape', incoming))
+    kwargs['shared_axes'] = tuple(range(2, ndim))
+    return DropoutLayer(incoming, *args, **kwargs)
+
+spatial_dropout = dropout_channels  # alias
+
+
+def dropout_locations(incoming, *args, **kwargs):
+    """
+    Convenience function to drop full locations of feature maps.
+
+    Adds a :class:`DropoutLayer` that sets feature map locations (i.e., pixels
+    or voxels) to zero, across all channels, with probability p.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or a tuple
+        the layer feeding into this layer, or the expected input shape
+    *args, **kwargs
+        Any additional arguments and keyword arguments are passed on to the
+        :class:`DropoutLayer` constructor, except for `shared_axes`.
+
+    Returns
+    -------
+    layer : :class:`DropoutLayer` instance
+        The dropout layer with `shared_axes` set to drop locations.
+    """
+    kwargs['shared_axes'] = (1,)
+    return DropoutLayer(incoming, *args, **kwargs)
 
 
 class GaussianNoiseLayer(Layer):

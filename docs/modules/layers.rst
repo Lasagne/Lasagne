@@ -112,6 +112,9 @@
 
     DropoutLayer
     dropout
+    dropout_channels
+    spatial_dropout
+    dropout_locations
     GaussianNoiseLayer
 
 

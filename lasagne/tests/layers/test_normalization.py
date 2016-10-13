@@ -145,9 +145,17 @@ class TestLocalResponseNormalization2DLayer:
 
 
 class TestBatchNormLayer:
-    @pytest.fixture
-    def BatchNormLayer(self):
-        from lasagne.layers.normalization import BatchNormLayer
+    @pytest.fixture(params=(False, True), ids=('plain', 'dnn'))
+    def BatchNormLayer(self, request):
+        dnn = request.param
+        if not dnn:
+            from lasagne.layers.normalization import BatchNormLayer
+        elif dnn:
+            try:
+                from lasagne.layers.dnn import (
+                        BatchNormDNNLayer as BatchNormLayer)
+            except ImportError:
+                pytest.skip("cuDNN batch norm not available")
         return BatchNormLayer
 
     @pytest.fixture
@@ -164,8 +172,12 @@ class TestBatchNormLayer:
         beta = BatchNormLayer(input_shape, beta=init_unique, axes=0).beta
         assert np.allclose(beta.get_value(), init_unique((3, 4)))
         # normalize over second and third axis
-        beta = BatchNormLayer(input_shape, beta=init_unique, axes=(1, 2)).beta
-        assert np.allclose(beta.get_value(), init_unique((2,)))
+        try:
+            beta = BatchNormLayer(
+                    input_shape, beta=init_unique, axes=(1, 2)).beta
+            assert np.allclose(beta.get_value(), init_unique((2,)))
+        except ValueError as exc:
+            assert "BatchNormDNNLayer only supports" in exc.args[0]
 
     @pytest.mark.parametrize('update_averages', [None, True, False])
     @pytest.mark.parametrize('use_averages', [None, True, False])
@@ -224,7 +236,7 @@ class TestBatchNormLayer:
 
     def test_undefined_shape(self, BatchNormLayer):
         # should work:
-        BatchNormLayer((64, None, 3), axes=(1, 2))
+        BatchNormLayer((64, 2, None), axes=(0, 2))
         # should not work:
         with pytest.raises(ValueError) as exc:
             BatchNormLayer((64, None, 3), axes=(0, 2))
@@ -266,9 +278,18 @@ class TestBatchNormLayer:
         assert np.allclose(result2, exp_result2, **tol)
 
 
-def test_batch_norm_macro():
-    from lasagne.layers import (Layer, BatchNormLayer, batch_norm,
-                                NonlinearityLayer)
+@pytest.mark.parametrize('dnn', [False, True])
+def test_batch_norm_macro(dnn):
+    if not dnn:
+        from lasagne.layers import (BatchNormLayer, batch_norm)
+    else:
+        try:
+            from lasagne.layers.dnn import (
+                    BatchNormDNNLayer as BatchNormLayer,
+                    batch_norm_dnn as batch_norm)
+        except ImportError:
+            pytest.skip("cuDNN batch norm not available")
+    from lasagne.layers import (Layer, NonlinearityLayer)
     from lasagne.nonlinearities import identity
     input_shape = (2, 3)
     obj = object()

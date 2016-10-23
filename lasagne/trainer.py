@@ -754,7 +754,10 @@ class Trainer (object):
             if all_val_results is not None:
                 all_val_results.append(validation_results)
             if all_test_results is not None:
-                all_test_results.append(test_results)
+                if tested:
+                    all_test_results.append(test_results)
+                else:
+                    all_test_results.append(None)
 
             if post_epoch_callback is not None:
                 post_epoch_callback(epoch)

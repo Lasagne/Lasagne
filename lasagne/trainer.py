@@ -1,4 +1,5 @@
-import sys, time, re, six, itertools
+import sys
+import time
 import numpy as np
 import lasagne
 from .batch import batch_iterator

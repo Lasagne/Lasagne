@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def is_arraylike(x):
     """
     Determine if `x` is array-like. `x` is index-able if it provides the
@@ -17,6 +18,7 @@ def is_arraylike(x):
         `True` if array-like, `False` if not
     """
     return hasattr(x, '__len__') and hasattr(x, '__getitem__')
+
 
 def is_sequence_of_arraylike(xs):
     """
@@ -43,6 +45,7 @@ def is_sequence_of_arraylike(xs):
         return True
     return False
 
+
 def length_of_arraylikes_in_sequence(xs):
     """
     Determine the length of the array-like elements in the sequence `xs`.
@@ -67,13 +70,14 @@ def length_of_arraylikes_in_sequence(xs):
     # Ensure remainder are consistent
     for i, d1 in enumerate(xs[1:]):
         if len(d1) != N:
-            raise ValueError('Index-ables have inconsistent length; index-able '
-                             'at 0 has length {}, while index-able at {} has '
-                             'length {}'.format(N, i+1, len(d1)))
+            raise ValueError('Index-ables have inconsistent length; element '
+                             '0 has length {}, while element {} has length '
+                             '{}'.format(N, i+1, len(d1)))
     return N
 
-def batch_iterator_for_sequence_of_arraylikes(dataset, batchsize,
-                                              shuffle_rng=None):
+
+def arraylikes_batch_iterator(dataset, batchsize,
+                              shuffle_rng=None):
     """
     Create an iterator that generates mini-batches extracted from the
     sequence of array-likes `dataset`. The batches will have `batchsize`
@@ -111,6 +115,7 @@ def batch_iterator_for_sequence_of_arraylikes(dataset, batchsize,
         for start_idx in range(0, N, batchsize):
             yield [d[start_idx:start_idx+batchsize] for d in dataset]
 
+
 def batch_iterator(dataset, batchsize, shuffle_rng=None):
     """
     Create an iterator that will iterate over the data in `dataset` in
@@ -130,8 +135,9 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
     >>> train_X = np.random.normal(size=(5000,3,24,24))
     >>> # 5000 samples, classes
     >>> train_y = np.random.randint(0, 5, size=(5000,))
+    >>> shuffle_rng = np.random.RandomState(12345)
     >>> batches = batch_iterator([train_X, train_y], batchsize=128,
-    ...                          shuffle_rng=rng)
+    ...                          shuffle_rng=shuffle_rng)
 
     - an object that has the method
         `dataset.batch_iterator(batchsize, shuffle_rng=None) -> iterator` or a
@@ -151,8 +157,9 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
     ...             batch_y = y[batch_ndx]
     ...             yield [batch_X, batch_y]
     ...     return iter_minibatches
-    >>> trainer.batch_iterator(make_iterator(train_X, train_y), batchsize=128,
-    ...                        shuffle_rng=rng)
+    >>> shuffle_rng = np.random.RandomState(12345)
+    >>> batches = batch_iterator(make_iterator(train_X, train_y),
+    ...                          batchsize=128, shuffle_rng=shuffle_rng)
 
     Parameters
     ----------
@@ -175,8 +182,8 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
         # First, try sequence of array-likes; likely the most common dataset
         # type. Furthermore, using the array-like interface is preferable to
         # using `batch_iterator` method
-        return batch_iterator_for_sequence_of_arraylikes(dataset, batchsize,
-                shuffle_rng=shuffle_rng)
+        return arraylikes_batch_iterator(
+                dataset, batchsize, shuffle_rng=shuffle_rng)
     elif hasattr(dataset, 'batch_iterator'):
         # Next, try `batch_iterator` method
         return dataset.batch_iterator(batchsize, shuffle_rng=shuffle_rng)

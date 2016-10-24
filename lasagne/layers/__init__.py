@@ -4,6 +4,7 @@ from .input import *
 from .dense import *
 from .noise import *
 from .conv import *
+from .local import *
 from .pool import *
 from .shape import *
 from .merge import *

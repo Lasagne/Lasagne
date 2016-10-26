@@ -523,9 +523,9 @@ class Trainer (object):
                                         self.updates_to_restore)
         if updates_to_restore is not None:
             if not isinstance(updates_to_restore, (dict, list, tuple)):
-                raise TypeError('updates_to_restore should be a dict, list '
-                                'or tuple, not a {}'.format(
-                    type(updates_to_restore)))
+                raise TypeError(
+                    'updates_to_restore should be a dict, list or tuple, '
+                    'not a {}'.format(type(updates_to_restore)))
 
         shuffle_rng = kwargs.get('shuffle_rng', self.shuffle_rng)
 

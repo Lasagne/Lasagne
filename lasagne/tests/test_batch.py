@@ -42,6 +42,7 @@ def test_is_sequence_of_arraylikes():
     assert batch.is_sequence_of_arraylike([np.arange(3), np.arange(4)])
     assert batch.is_sequence_of_arraylike([np.arange(3),
                                            ArrayLike(np.arange(4))])
+    assert not batch.is_sequence_of_arraylike([np.arange(3), 4])
     assert not batch.is_sequence_of_arraylike(
             WrappedList([np.arange(3), ArrayLike(np.arange(4))]))
 
@@ -199,3 +200,10 @@ def test_batch_iterator():
             make_batch_iterator, batchsize=15,
             shuffle_rng=np.random.RandomState(12345)))
     check_shuffled_batches(batches)
+
+    #
+    # Test invalid type
+    #
+
+    with pytest.raises(TypeError):
+        batch.batch_iterator(1, batchsize=15)

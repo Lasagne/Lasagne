@@ -40,9 +40,8 @@ def _get_network_params(layer, updates=None):
         elif isinstance(updates, (list, tuple)):
             params = [upd[0] for upd in updates]
         else:
-            raise TypeError('updates should be a dict mapping parameter to '
-                            'update expression or a sequence of tuples of '
-                            '(parameter, update_expression) pairs')
+            raise RuntimeError('Should not be reached; this should have been '
+                               'check in the Trainer.train method')
 
         for p in params:
             if p not in layer_params:
@@ -64,7 +63,7 @@ def _default_epoch_log_func(epoch_number, delta_time, train_str, val_str,
         return 'Epoch {} ({:.2f}s): train {}, test {}'.format(
                 epoch_number, delta_time, train_str, test_str)
     else:
-        return 'Epoch {} ({:.2f}s): train {}, validation {} test {}'.format(
+        return 'Epoch {} ({:.2f}s): train {}, validation {}, test {}'.format(
                 epoch_number, delta_time, train_str, val_str, test_str)
 
 
@@ -122,7 +121,7 @@ def _batch_loop(fn, data, batchsize, shuffle_rng=None,
 
         # Apply on batch and check the type of the results
         if prepend_args is not None:
-            batch_results = fn(*(prepend_args + batch))
+            batch_results = fn(*(prepend_args + tuple(batch)))
         else:
             batch_results = fn(*batch)
         if batch_results is None:
@@ -522,6 +521,11 @@ class Trainer (object):
                                       self.layer_to_restore)
         updates_to_restore = kwargs.get('updates_to_restore',
                                         self.updates_to_restore)
+        if updates_to_restore is not None:
+            if not isinstance(updates_to_restore, (dict, list, tuple)):
+                raise TypeError('updates_to_restore should be a dict, list '
+                                'or tuple, not a {}'.format(
+                    type(updates_to_restore)))
 
         shuffle_rng = kwargs.get('shuffle_rng', self.shuffle_rng)
 
@@ -676,7 +680,7 @@ class Trainer (object):
                         params_restored = False
 
                     if verbosity != VERBOSITY_NONE:
-                        _log("Training failed at epoch{}: {}\n".format(
+                        _log("\nTraining failed at epoch {}: {}\n".format(
                                 epoch, reason))
 
                     raise TrainingFailedException(epoch, reason,

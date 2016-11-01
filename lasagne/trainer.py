@@ -199,7 +199,7 @@ class TrainingResults (object):
     best_validation_results: list
         The best validation results obtained (equivalent to
         `self.validation_results[self.best_val_epoch]`)
-    final_test_results: list
+    best_test_results: list
         The more recent test result obtained (equivalent to
         `self.test_results[self.best_val_epoch]` or
         `self.test_results[-1]` if no validation set was used)
@@ -209,19 +209,29 @@ class TrainingResults (object):
     """
     def __init__(self, train_results, validation_results, best_val_epoch,
                  best_validation_results, test_results,
-                 final_test_results, last_epoch):
+                 best_test_results, last_epoch):
         self.train_results = train_results
         self.validation_results = validation_results
         self.best_val_epoch = best_val_epoch
         self.best_validation_results = best_validation_results
         self.test_results = test_results
-        self.final_test_results = final_test_results
+        self.best_test_results = best_test_results
         self.last_epoch = last_epoch
 
 
-class Trainer (object):
+def train(train_set, val_set=None, test_set=None, train_batch_func=None,
+          train_log_func=None, train_epoch_results_check_func=None,
+          train_pass_epoch_number=False, eval_batch_func=None,
+          eval_log_func=None, val_improved_func=None, val_interval=None,
+          batchsize=128, num_epochs=100, min_epochs=None,
+          val_improve_patience=0, val_improve_patience_factor=0.0,
+          epoch_log_func=None, pre_epoch_callback=None,
+          post_epoch_callback=None, verbosity=VERBOSITY_EPOCH,
+          log_stream=sys.stdout, log_final_result=True, get_state_func=None,
+          set_state_func=None, layer_to_restore=None,
+          updates_to_restore=None, shuffle_rng=None):
     """
-    Neural network trainer class. It is designed to be as generic as possible
+    Neural network training loop, designed to be as generic as possible
     in order to simplify implementing a Theano/Lasagne training loop.
 
     Build with the constructor, providing arguments for required parameters.
@@ -231,8 +241,18 @@ class Trainer (object):
     Parameters common to both the constructor and the `train` method will
     be documented here.
 
+    The datasets (`train_set`, `val_set` and `test_set`) must either
+    be a sequence of array-likes, an object with a `batch_iterator`
+    method or a callable; see :func:`batch.batch_iterator`
+
     Parameters
     ----------
+    train_set: dataset
+        The training set
+    val_set: [optional] dataset
+        The validation set
+    test_set: [optional] dataset
+        The test set
     train_batch_func: [REQUIRED] callable
         `train_batch_func(*batch_data) -> batch_train_results`
         Mini-batch training function that updates the network parameters,
@@ -373,6 +393,13 @@ class Trainer (object):
         during training. If one is not provided, `lasagne.rng.get_rng()`
         will be used.
 
+    Returns
+    -------
+    `TrainingResults` instance:
+    Provides the per-epoch history of results of training, validation and
+    testing, along with the epoch that gave the best validation score
+    and the best validation and final test results.
+
     Notes
     -----
     Early termination:
@@ -394,421 +421,305 @@ class Trainer (object):
     `ValueError`.
 
     """
-    def __init__(self, train_batch_func=None, train_log_func=None,
-                 train_epoch_results_check_func=None,
-                 train_pass_epoch_number=False, eval_batch_func=None,
-                 eval_log_func=None, val_improved_func=None,
-                 val_interval=None, batchsize=128, num_epochs=100,
-                 min_epochs=None, val_improve_patience=0,
-                 val_improve_patience_factor=0.0, epoch_log_func=None,
-                 pre_epoch_callback=None, post_epoch_callback=None,
-                 verbosity=VERBOSITY_EPOCH, log_stream=sys.stdout,
-                 log_final_result=True, get_state_func=None,
-                 set_state_func=None, layer_to_restore=None,
-                 updates_to_restore=None, shuffle_rng=None):
-        """
-        Constructor that takes default values for trainer parameters;
-        see class documentation.
+    # Provide defaults
+    if val_improved_func is None:
+        val_improved_func = _default_val_improved_func
+    if epoch_log_func is None:
+        epoch_log_func = _default_epoch_log_func
+    if shuffle_rng is None:
+        shuffle_rng = lasagne.random.get_rng()
 
-        """
-        self.train_batch_func = train_batch_func
-        self.train_log_func = train_log_func
-        self.train_epoch_results_check_func = train_epoch_results_check_func
-        self.train_pass_epoch_number = train_pass_epoch_number
+    if min_epochs is None:
+        # min_epochs not provided; default to num_epochs
+        min_epochs = num_epochs
+    else:
+        # Ensure that min_epochs <= num_epochs
+        min_epochs = min(min_epochs, num_epochs)
 
-        self.eval_batch_func = eval_batch_func
-        self.eval_log_func = eval_log_func
-        if val_improved_func is None:
-            val_improved_func = _default_val_improved_func
-        self.val_improved_func = val_improved_func
-        self.val_interval = val_interval
+    # Check parameter sanity
+    if updates_to_restore is not None:
+        if not isinstance(updates_to_restore, (dict, list, tuple)):
+            raise TypeError(
+                'updates_to_restore should be a dict, list or tuple, '
+                'not a {}'.format(type(updates_to_restore)))
 
-        self.batchsize = batchsize
-        self.num_epochs = num_epochs
-        self.min_epochs = min_epochs
-        self.val_improve_patience = val_improve_patience
-        self.val_improve_patience_factor = val_improve_patience_factor
-
-        if epoch_log_func is None:
-            epoch_log_func = _default_epoch_log_func
-        self.epoch_log_func = epoch_log_func
-        self.pre_epoch_callback = pre_epoch_callback
-        self.post_epoch_callback = post_epoch_callback
-
-        self.verbosity = verbosity
-        self.log_stream = log_stream
-        self.log_final_result = log_final_result
-
-        self.get_state_func = get_state_func
-        self.set_state_func = set_state_func
-        self.layer_to_restore = layer_to_restore
-        self.updates_to_restore = updates_to_restore
-
-        self.shuffle_rng = shuffle_rng or lasagne.random.get_rng()
-
-    def train(self, train_set, val_set=None, test_set=None, **kwargs):
-        """
-        Run the training loop.
-
-        The datasets (`train_set`, `val_set` and `test_set`) must either
-        be a sequence of array-likes, an object with a `batch_iterator`
-        method or a callable; see :func:`batch.batch_iterator`
-
-        Parameters
-        ----------
-        train_set: dataset
-            The training set
-        val_set: [optional] dataset
-            The validation set
-        test_set: [optional] dataset
-            The test set
-        kwargs: keyword arguments
-            The keyword arguments override the values of the arguments
-            provided to the constructor.
-
-        Returns
-        -------
-        `TrainingResults` instance:
-        Provides the per-epoch history of results of training, validation and
-        testing, along with the epoch that gave the best validation score
-        and the best validation and final test results.
-        """
-        # Get the parameter values
-        train_batch_func = kwargs.get('train_batch_func',
-                                      self.train_batch_func)
-        train_log_func = kwargs.get('train_log_func', self.train_log_func)
-        train_epoch_results_check_func = kwargs.get(
-                'train_epoch_results_check_func',
-                self.train_epoch_results_check_func)
-        train_pass_epoch_number = kwargs.get('train_pass_epoch_number',
-                                             self.train_pass_epoch_number)
-
-        eval_batch_func = kwargs.get('eval_batch_func', self.eval_batch_func)
-        eval_log_func = kwargs.get('eval_log_func', self.eval_log_func)
-        val_improved_func = kwargs.get('val_improved_func',
-                                       self.val_improved_func)
-        val_interval = kwargs.get('val_interval', self.val_interval)
-
-        batchsize = kwargs.get('batchsize', self.batchsize)
-        num_epochs = kwargs.get('num_epochs', self.num_epochs)
-        min_epochs = kwargs.get('min_epochs', self.min_epochs)
-        val_improve_patience = kwargs.get('val_improve_patience',
-                                          self.val_improve_patience)
-        val_improve_patience_factor = kwargs.get(
-                'val_improve_patience_factor',
-                self.val_improve_patience_factor)
-
-        # Ensure min_epochs is sensible
-        if min_epochs is None:
-            min_epochs = num_epochs
-        else:
-            min_epochs = min(min_epochs, num_epochs)
-
-        epoch_log_func = kwargs.get('epoch_log_func', self.epoch_log_func)
-        pre_epoch_callback = kwargs.get('pre_epoch_callback',
-                                        self.pre_epoch_callback)
-        post_epoch_callback = kwargs.get('post_epoch_callback',
-                                         self.post_epoch_callback)
-
-        verbosity = kwargs.get('verbosity', self.verbosity)
-        log_stream = kwargs.get('log_stream', self.log_stream)
-        log_final_result = kwargs.get('log_final_result',
-                                      self.log_final_result)
-
-        get_state_func = kwargs.get('get_state_func', self.get_state_func)
-        set_state_func = kwargs.get('set_state_func', self.set_state_func)
-        layer_to_restore = kwargs.get('layer_to_restore',
-                                      self.layer_to_restore)
-        updates_to_restore = kwargs.get('updates_to_restore',
-                                        self.updates_to_restore)
-        if updates_to_restore is not None:
-            if not isinstance(updates_to_restore, (dict, list, tuple)):
-                raise TypeError(
-                    'updates_to_restore should be a dict, list or tuple, '
-                    'not a {}'.format(type(updates_to_restore)))
-
-        shuffle_rng = kwargs.get('shuffle_rng', self.shuffle_rng)
-
-        if train_batch_func is None:
-            raise ValueError('no batch training function provided to '
-                             'either the constructor or the `train` method')
-        if val_set is not None and eval_batch_func is None:
-            raise ValueError('validation set provided but no evaluation '
-                             'function available providd to the constructor '
-                             'or the `train` method')
-        if test_set is not None and eval_batch_func is None:
-            raise ValueError('test set provided but no evaluation '
-                             'function available providd to the constructor '
-                             'or the `train` method')
-        if updates_to_restore is not None and layer_to_restore is None:
-            raise ValueError('`updates_to_restore` provided without '
-                             '`layer_to_restore`')
-        if get_state_func is not None and set_state_func is None:
-            if layer_to_restore is not None:
-                print('WARNING: `Trainer.train()`: `get_state_func` '
-                      'provided without `set_state_func`; will ignore since '
-                      'both are overridden by `layer_to_restore`')
-            else:
-                raise ValueError('`get_state_func` provided without '
-                                 '`set_state_func`')
-        if get_state_func is None and set_state_func is not None:
-            if layer_to_restore is not None:
-                print('WARNING: `Trainer.train()`: `set_state_func` '
-                      'provided without `get_state_func`; will ignore since '
-                      'both are overridden by `layer_to_restore`')
-            else:
-                raise ValueError('`set_state_func` provided without '
-                                 '`get_state_func`')
+    if train_batch_func is None:
+        raise ValueError('no batch training function provided to '
+                         'either the constructor or the `train` method')
+    if val_set is not None and eval_batch_func is None:
+        raise ValueError('validation set provided but no evaluation '
+                         'function available providd to the constructor '
+                         'or the `train` method')
+    if test_set is not None and eval_batch_func is None:
+        raise ValueError('test set provided but no evaluation '
+                         'function available providd to the constructor '
+                         'or the `train` method')
+    if updates_to_restore is not None and layer_to_restore is None:
+        raise ValueError('`updates_to_restore` provided without '
+                         '`layer_to_restore`')
+    if get_state_func is not None and set_state_func is None:
         if layer_to_restore is not None:
-            network_params = _get_network_params(layer_to_restore,
-                                                 updates=updates_to_restore)
+            print('WARNING: `Trainer.train()`: `get_state_func` '
+                  'provided without `set_state_func`; will ignore since '
+                  'both are overridden by `layer_to_restore`')
+        else:
+            raise ValueError('`get_state_func` provided without '
+                             '`set_state_func`')
+    if get_state_func is None and set_state_func is not None:
+        if layer_to_restore is not None:
+            print('WARNING: `Trainer.train()`: `set_state_func` '
+                  'provided without `get_state_func`; will ignore since '
+                  'both are overridden by `layer_to_restore`')
+        else:
+            raise ValueError('`set_state_func` provided without '
+                             '`get_state_func`')
+    if layer_to_restore is not None:
+        network_params = _get_network_params(layer_to_restore,
+                                             updates=updates_to_restore)
 
-            # Override get_state_func and set_state_func
-            def get_state_func():
-                return [p.get_value() for p in network_params]
+        # Override get_state_func and set_state_func
+        def get_state_func():
+            return [p.get_value() for p in network_params]
 
-            def set_state_func(state):
-                for p, v in zip(network_params, state):
-                    p.set_value(v)
+        def set_state_func(state):
+            for p, v in zip(network_params, state):
+                p.set_value(v)
 
-        # Helper functions
-        def _log(text):
-            log_stream.write(text)
-            log_stream.flush()
+    # Helper functions
+    def _log(text):
+        log_stream.write(text)
+        log_stream.flush()
 
-        def _log_batch(task, batch_index):
-            if verbosity == VERBOSITY_BATCH:
-                _log('\r[{} {}]'.format(task, batch_index))
+    def _log_batch(task, batch_index):
+        if verbosity == VERBOSITY_BATCH:
+            _log('\r[{} {}]'.format(task, batch_index))
 
-        def _should_validate(epoch_index):
-            return val_interval is None or epoch_index % val_interval == 0
+    def _should_validate(epoch_index):
+        return val_interval is None or epoch_index % val_interval == 0
 
-        def _log_epoch_results(epoch_index, delta_time, train_res,
-                               val_res, test_res):
-            train_str = val_str = test_str = None
-            if train_res is not None:
-                if train_log_func is not None:
-                    train_str = train_log_func(train_res)
-                else:
-                    train_str = '{}'.format(train_res)
-            if val_res is not None:
-                if eval_log_func is not None:
-                    val_str = eval_log_func(val_res)
-                else:
-                    val_str = '{}'.format(val_res)
-            if test_res is not None:
-                if eval_log_func is not None:
-                    test_str = eval_log_func(test_res)
-                else:
-                    test_str = '{}'.format(test_res)
-            _log(epoch_log_func(epoch_index, delta_time, train_str, val_str,
-                                test_str) + '\n')
-
-        def _save_state():
-            if get_state_func is not None:
-                return get_state_func()
+    def _log_epoch_results(epoch_index, delta_time, train_res,
+                           val_res, test_res):
+        train_str = val_str = test_str = None
+        if train_res is not None:
+            if train_log_func is not None:
+                train_str = train_log_func(train_res)
             else:
-                return None
-
-        def _restore_state(state):
-            if set_state_func is not None:
-                set_state_func(state)
-                return True
+                train_str = '{}'.format(train_res)
+        if val_res is not None:
+            if eval_log_func is not None:
+                val_str = eval_log_func(val_res)
             else:
-                return False
+                val_str = '{}'.format(val_res)
+        if test_res is not None:
+            if eval_log_func is not None:
+                test_str = eval_log_func(test_res)
+            else:
+                test_str = '{}'.format(test_res)
+        _log(epoch_log_func(epoch_index, delta_time, train_str, val_str,
+                            test_str) + '\n')
 
-        stop_at_epoch = min_epochs
-        epoch = 0
+    def _save_state():
+        if get_state_func is not None:
+            return get_state_func()
+        else:
+            return None
 
-        # If we have a training results check function, save the state
+    def _restore_state(state):
+        if set_state_func is not None:
+            set_state_func(state)
+            return True
+        else:
+            return False
+
+    stop_at_epoch = min_epochs
+    epoch = 0
+
+    # If we have a training results check function, save the state
+    if train_epoch_results_check_func is not None:
+        state_at_start = _save_state()
+    else:
+        state_at_start = None
+
+    validation_results = None
+    best_train_results = None
+    best_validation_results = None
+    best_epoch = None
+    best_state = None
+    state_saved = False
+    test_results = None
+
+    all_train_results = []
+    if val_set is not None and eval_batch_func is not None:
+        all_val_results = []
+    else:
+        all_val_results = None
+    if test_set is not None and eval_batch_func is not None:
+        all_test_results = []
+    else:
+        all_test_results = None
+
+    train_start_time = time.time()
+
+    while epoch < min(stop_at_epoch, num_epochs):
+        epoch_start_time = time.time()
+
+        if pre_epoch_callback is not None:
+            pre_epoch_callback(epoch)
+
+        # TRAIN
+        # Log start of training
+        if verbosity == VERBOSITY_BATCH:
+            def on_train_batch(batch_index):
+                _log_batch('train', batch_index)
+        else:
+            on_train_batch = None
+
+        # Train
+        train_epoch_args = (epoch,) if train_pass_epoch_number else None
+        train_results = _batch_loop(train_batch_func, train_set,
+                                    batchsize, shuffle_rng,
+                                    on_complete_batch=on_train_batch,
+                                    prepend_args=train_epoch_args)
+        if verbosity == VERBOSITY_BATCH:
+            _log('\r')
+
         if train_epoch_results_check_func is not None:
-            state_at_start = _save_state()
-        else:
-            state_at_start = None
+            reason = train_epoch_results_check_func(epoch, train_results)
+            if reason is not None:
+                # Training failed: attempt to restore parameters to
+                # initial state
+                if state_at_start is not None:
+                    params_restored = _restore_state(state_at_start)
+                else:
+                    params_restored = False
 
-        validation_results = None
-        best_train_results = None
-        best_validation_results = None
-        best_epoch = None
-        best_state = None
-        state_saved = False
-        test_results = None
+                if verbosity != VERBOSITY_NONE:
+                    _log("\nTraining failed at epoch {}: {}\n".format(
+                            epoch, reason))
 
-        all_train_results = []
-        if val_set is not None and eval_batch_func is not None:
-            all_val_results = []
-        else:
-            all_val_results = None
-        if test_set is not None and eval_batch_func is not None:
-            all_test_results = []
-        else:
-            all_test_results = None
+                raise TrainingFailedException(epoch, reason,
+                                              params_restored)
 
-        train_start_time = time.time()
+        validated = False
+        tested = False
+        validation_improved = False
+        # VALIDATION
+        if val_set is not None and _should_validate(epoch):
+            validated = True
 
-        while epoch < min(stop_at_epoch, num_epochs):
-            epoch_start_time = time.time()
-
-            if pre_epoch_callback is not None:
-                pre_epoch_callback(epoch)
-
-            # TRAIN
-            # Log start of training
             if verbosity == VERBOSITY_BATCH:
-                def on_train_batch(batch_index):
-                    _log_batch('train', batch_index)
+                def on_val_batch(batch_index):
+                    _log_batch('val', batch_index)
             else:
-                on_train_batch = None
+                on_val_batch = None
 
-            # Train
-            train_epoch_args = (epoch,) if train_pass_epoch_number else None
-            train_results = _batch_loop(train_batch_func, train_set,
-                                        batchsize, shuffle_rng,
-                                        on_complete_batch=on_train_batch,
-                                        prepend_args=train_epoch_args)
+            validation_results = _batch_loop(
+                    eval_batch_func, val_set, batchsize,
+                    on_complete_batch=on_val_batch)
             if verbosity == VERBOSITY_BATCH:
                 _log('\r')
 
-            if train_epoch_results_check_func is not None:
-                reason = train_epoch_results_check_func(epoch, train_results)
-                if reason is not None:
-                    # Training failed: attempt to restore parameters to
-                    # initial state
-                    if state_at_start is not None:
-                        params_restored = _restore_state(state_at_start)
+            if best_validation_results is None or \
+                    val_improved_func(validation_results,
+                                      best_validation_results):
+                validation_improved = True
+
+                # Validation score improved
+                best_train_results = train_results
+                best_validation_results = validation_results
+                best_epoch = epoch
+                best_state = _save_state()
+                state_saved = True
+
+                stop_at_epoch = max(
+                        epoch + 1 + val_improve_patience,
+                        int((epoch + 1) * val_improve_patience_factor),
+                        min_epochs)
+
+                if test_set is not None:
+                    tested = True
+                    if verbosity == VERBOSITY_BATCH:
+                        def on_test_batch(batch_index):
+                            _log_batch('test', batch_index)
                     else:
-                        params_restored = False
+                        on_test_batch = None
+                    test_results = _batch_loop(
+                            eval_batch_func, test_set, batchsize,
+                            on_complete_batch=on_test_batch)
+                    if verbosity == VERBOSITY_BATCH:
+                        _log('\r')
+        else:
+            validation_results = None
 
-                    if verbosity != VERBOSITY_NONE:
-                        _log("\nTraining failed at epoch {}: {}\n".format(
-                                epoch, reason))
+        if not tested and test_set is not None and val_set is None:
+            tested = True
+            test_results = _batch_loop(eval_batch_func, test_set,
+                                       batchsize, None)
 
-                    raise TrainingFailedException(epoch, reason,
-                                                  params_restored)
-
-            validated = False
-            tested = False
-            validation_improved = False
-            # VALIDATION
-            if val_set is not None and _should_validate(epoch):
-                validated = True
-
-                if verbosity == VERBOSITY_BATCH:
-                    def on_val_batch(batch_index):
-                        _log_batch('val', batch_index)
-                else:
-                    on_val_batch = None
-
-                validation_results = _batch_loop(
-                        eval_batch_func, val_set, batchsize,
-                        on_complete_batch=on_val_batch)
-                if verbosity == VERBOSITY_BATCH:
-                    _log('\r')
-
-                if best_validation_results is None or \
-                        val_improved_func(validation_results,
-                                          best_validation_results):
-                    validation_improved = True
-
-                    # Validation score improved
-                    best_train_results = train_results
-                    best_validation_results = validation_results
-                    best_epoch = epoch
-                    best_state = _save_state()
-                    state_saved = True
-
-                    stop_at_epoch = max(
-                            epoch + 1 + val_improve_patience,
-                            int((epoch + 1) * val_improve_patience_factor),
-                            min_epochs)
-
-                    if test_set is not None:
-                        tested = True
-                        if verbosity == VERBOSITY_BATCH:
-                            def on_test_batch(batch_index):
-                                _log_batch('test', batch_index)
-                        else:
-                            on_test_batch = None
-                        test_results = _batch_loop(
-                                eval_batch_func, test_set, batchsize,
-                                on_complete_batch=on_test_batch)
-                        if verbosity == VERBOSITY_BATCH:
-                            _log('\r')
+        if verbosity == VERBOSITY_BATCH or verbosity == VERBOSITY_EPOCH:
+            _log_epoch_results(epoch, time.time() - epoch_start_time,
+                               train_results,
+                               validation_results if validated else None,
+                               test_results if tested else None)
+        elif verbosity == VERBOSITY_MINIMAL:
+            if validation_improved:
+                _log('*')
+            elif validated:
+                _log('-')
             else:
-                validation_results = None
+                _log('.')
 
-            if not tested and test_set is not None and val_set is None:
-                tested = True
-                test_results = _batch_loop(eval_batch_func, test_set,
-                                           batchsize, None)
-
-            if verbosity == VERBOSITY_BATCH or verbosity == VERBOSITY_EPOCH:
-                _log_epoch_results(epoch, time.time() - epoch_start_time,
-                                   train_results,
-                                   validation_results if validated else None,
-                                   test_results if tested else None)
-            elif verbosity == VERBOSITY_MINIMAL:
-                if validation_improved:
-                    _log('*')
-                elif validated:
-                    _log('-')
-                else:
-                    _log('.')
-
-            all_train_results.append(train_results)
-            if all_val_results is not None:
-                all_val_results.append(validation_results)
-            if all_test_results is not None:
-                if tested:
-                    all_test_results.append(test_results)
-                else:
-                    all_test_results.append(None)
-
-            if post_epoch_callback is not None:
-                post_epoch_callback(epoch)
-
-            epoch += 1
-
-        train_end_time = time.time()
-
-        if state_saved:
-            _restore_state(best_state)
-
-        if log_final_result:
-            if verbosity == VERBOSITY_MINIMAL:
-                _log('\n')
-            if state_saved and get_state_func is not None:
-                _log("Final result:\n")
-                _log_epoch_results(
-                        best_epoch, train_end_time - train_start_time,
-                        best_train_results, best_validation_results,
-                        test_results)
+        all_train_results.append(train_results)
+        if all_val_results is not None:
+            all_val_results.append(validation_results)
+        if all_test_results is not None:
+            if tested:
+                all_test_results.append(test_results)
             else:
-                if len(all_train_results) > 0:
-                    final_train_results = all_train_results[-1]
-                else:
-                    final_train_results = None
-                if best_epoch == epoch - 1:
-                    final_test_results = test_results
-                else:
-                    final_test_results = None
-                _log("Best result:\n")
-                _log_epoch_results(
-                        best_epoch, train_end_time - train_start_time,
-                        best_train_results, best_validation_results,
-                        test_results)
-                _log("Final result:\n")
-                _log_epoch_results(
-                        epoch - 1, train_end_time - train_start_time,
-                        final_train_results, validation_results,
-                        final_test_results)
+                all_test_results.append(None)
 
-        return TrainingResults(
-            train_results=all_train_results,
-            validation_results=all_val_results,
-            best_validation_results=best_validation_results,
-            best_val_epoch=best_epoch,
-            test_results=all_test_results,
-            final_test_results=test_results,
-            last_epoch=epoch,
-        )
+        if post_epoch_callback is not None:
+            post_epoch_callback(epoch)
+
+        epoch += 1
+
+    train_end_time = time.time()
+
+    if state_saved:
+        _restore_state(best_state)
+
+    if log_final_result:
+        if verbosity == VERBOSITY_MINIMAL:
+            _log('\n')
+        if state_saved and get_state_func is not None:
+            _log("Best result:\n")
+            _log_epoch_results(
+                    best_epoch, train_end_time - train_start_time,
+                    best_train_results, best_validation_results,
+                    test_results)
+        else:
+            final_train_results = final_test_results = None
+            if len(all_train_results) > 0:
+                final_train_results = all_train_results[-1]
+            if best_epoch == epoch - 1:
+                final_test_results = test_results
+            _log("Best result:\n")
+            _log_epoch_results(
+                    best_epoch, train_end_time - train_start_time,
+                    best_train_results, best_validation_results,
+                    test_results)
+            _log("Final result:\n")
+            _log_epoch_results(
+                    epoch - 1, train_end_time - train_start_time,
+                    final_train_results, validation_results,
+                    final_test_results)
+
+    return TrainingResults(
+        train_results=all_train_results,
+        validation_results=all_val_results,
+        best_validation_results=best_validation_results,
+        best_val_epoch=best_epoch,
+        test_results=all_test_results,
+        best_test_results=test_results,
+        last_epoch=epoch,
+    )

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 
-class TrainFunction (object):
+class TrainFunction(object):
     def __init__(self, results=None, states=None, on_invoke=None,
                  epoch_index_prepended=False,
                  return_array=False):
@@ -65,6 +65,7 @@ class TrainFunction (object):
         def pre_epoch(epoch_index):
             for f in train_funcs:
                 f.pre_epoch(epoch_index)
+
         return pre_epoch
 
     def __call__(self, *args, **kwargs):
@@ -83,7 +84,7 @@ class TrainFunction (object):
         if self.results is None:
             return None
         else:
-            res = [r*batch_size for r in self.results[self.current_epoch]]
+            res = [r * batch_size for r in self.results[self.current_epoch]]
             if self.return_array:
                 return np.array(res)
             else:
@@ -91,41 +92,39 @@ class TrainFunction (object):
 
 
 def test_no_train_fn():
-    from lasagne.trainer import Trainer
-
-    trainer = Trainer()
+    from lasagne.trainer import train
 
     with pytest.raises(ValueError):
-        trainer.train([np.arange(10)], [np.arange(10)], None, batchsize=5)
+        train([np.arange(10)], [np.arange(10)], None, batchsize=5)
 
 
 def test_no_eval_fn():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     train_fn = TrainFunction()
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
     with pytest.raises(ValueError):
-        trainer.train([np.arange(10)], [np.arange(10)], None, batchsize=5)
+        train([np.arange(10)], [np.arange(10)], None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              log_stream=log, verbosity=VERBOSITY_NONE, log_final_result=False)
     with pytest.raises(ValueError):
-        trainer.train([np.arange(10)], None, [np.arange(10)], batchsize=5)
+        train([np.arange(10)], None, [np.arange(10)], batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              log_stream=log, verbosity=VERBOSITY_NONE,
+              log_final_result=False)
 
 
 def test_train():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     train_fn = TrainFunction()
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      get_state_func=train_fn.get_state,
-                      set_state_func=train_fn.set_state,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(10)], None, None, batchsize=5)
+    res = train([np.arange(10)], None, None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                get_state_func=train_fn.get_state,
+                set_state_func=train_fn.set_state,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -143,26 +142,25 @@ def test_train():
     # No evaluation function or val set hence no best result
     assert res.best_val_epoch is None
     assert res.best_validation_results is None
-    assert res.final_test_results is None
+    assert res.best_test_results is None
     # Last epoch should be the end
     assert res.last_epoch == 200
 
 
 def test_train_prepend_epoch_number():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     # Tell the training function to expect the epoch index
     train_fn = TrainFunction(epoch_index_prepended=True)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      get_state_func=train_fn.get_state,
-                      set_state_func=train_fn.set_state,
-                      pre_epoch_callback=train_fn.pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False,
-                      train_pass_epoch_number=True)
-
-    res = trainer.train([np.arange(10)], None, None, batchsize=5)
+    res = train([np.arange(10)], None, None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                get_state_func=train_fn.get_state,
+                set_state_func=train_fn.set_state,
+                pre_epoch_callback=train_fn.pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False,
+                train_pass_epoch_number=True)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -180,26 +178,25 @@ def test_train_prepend_epoch_number():
     # No evaluation function or val set hence no best result
     assert res.best_val_epoch is None
     assert res.best_validation_results is None
-    assert res.final_test_results is None
+    assert res.best_test_results is None
     # Last epoch should be the end
     assert res.last_epoch == 200
 
 
 def test_train_return_array():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     results = [[i] for i in range(200)]
     # Tell the training function to expect the epoch index
     train_fn = TrainFunction(results, return_array=True)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      get_state_func=train_fn.get_state,
-                      set_state_func=train_fn.set_state,
-                      pre_epoch_callback=train_fn.pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(10)], None, None, batchsize=5)
+    res = train([np.arange(10)], None, None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                get_state_func=train_fn.get_state,
+                set_state_func=train_fn.set_state,
+                pre_epoch_callback=train_fn.pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -209,24 +206,23 @@ def test_train_return_array():
 def test_train_return_invalid():
     # Check that TypeError is raised when the training function returns
     # an invalid type
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
 
     def train_fn(*args, **kwargs):
         return 'Strings wont work here'
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
     with pytest.raises(TypeError):
-        trainer.train([np.arange(10)], None, None, batchsize=5)
+        train([np.arange(10)], None, None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              log_stream=log, verbosity=VERBOSITY_NONE,
+              log_final_result=False)
 
 
 def test_training_failure():
     # Check that TypeError is raised when the training function returns
     # an invalid type
-    from lasagne.trainer import Trainer, TrainingFailedException,\
+    from lasagne.trainer import train, TrainingFailedException, \
         VERBOSITY_MINIMAL
     log = six.moves.cStringIO()
     results = [[float('nan') if i == 100 else i] for i in range(200)]
@@ -239,14 +235,13 @@ def test_training_failure():
         else:
             return None
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      train_epoch_results_check_func=check_train_res,
-                      pre_epoch_callback=train_fn.pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_MINIMAL,
-                      log_final_result=False)
-
     with pytest.raises(TrainingFailedException):
-        trainer.train([np.arange(10)], None, None, batchsize=5)
+        train([np.arange(10)], None, None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              train_epoch_results_check_func=check_train_res,
+              pre_epoch_callback=train_fn.pre_epoch,
+              log_stream=log, verbosity=VERBOSITY_MINIMAL,
+              log_final_result=False)
 
     lines = log.getvalue().split('\n')
     lines = [line for line in lines if line.strip() != '']
@@ -256,7 +251,7 @@ def test_training_failure():
 def test_training_failure_state_restore():
     # Check that TypeError is raised when the training function returns
     # an invalid type
-    from lasagne.trainer import Trainer, TrainingFailedException,\
+    from lasagne.trainer import train, TrainingFailedException, \
         VERBOSITY_NONE
     log = six.moves.cStringIO()
     results = [[float('nan') if i == 100 else i] for i in range(200)]
@@ -273,32 +268,30 @@ def test_training_failure_state_restore():
         else:
             return None
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      train_epoch_results_check_func=check_train_res,
-                      get_state_func=train_fn.get_state,
-                      set_state_func=train_fn.set_state,
-                      pre_epoch_callback=train_fn.pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
     with pytest.raises(TrainingFailedException):
-        trainer.train([np.arange(10)], None, None, batchsize=5)
+        train([np.arange(10)], None, None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              train_epoch_results_check_func=check_train_res,
+              get_state_func=train_fn.get_state,
+              set_state_func=train_fn.set_state,
+              pre_epoch_callback=train_fn.pre_epoch,
+              log_stream=log, verbosity=VERBOSITY_NONE,
+              log_final_result=False)
 
     assert train_fn.current_state == 12345
 
 
 def test_validate():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     val_out = [[i] for i in range(200)]
     train_fn = TrainFunction()
     eval_fn = TrainFunction(val_out)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn, log_stream=log,
-                      verbosity=VERBOSITY_NONE, log_final_result=False)
-
-    trainer.train([np.arange(10)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(10)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          eval_batch_func=eval_fn, log_stream=log,
+          verbosity=VERBOSITY_NONE, log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -311,22 +304,21 @@ def test_validate():
 
 
 def test_validate_with_store_state():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     train_fn = TrainFunction(states=np.arange(1000, 2005, 5))
     eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
                             [[i] for i in range(0, 200, 2)])
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      pre_epoch_callback=pre_epoch,
-                      get_state_func=train_fn.get_state,
-                      set_state_func=train_fn.set_state,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    trainer.train([np.arange(10)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(10)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          eval_batch_func=eval_fn,
+          pre_epoch_callback=pre_epoch,
+          get_state_func=train_fn.get_state,
+          set_state_func=train_fn.set_state,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -342,7 +334,7 @@ def test_validate_with_store_state():
 
 
 def test_validate_with_store_layer_state():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     from lasagne.layers import InputLayer, DenseLayer
 
     l_in = InputLayer(shape=(None, 5))
@@ -353,13 +345,12 @@ def test_validate_with_store_layer_state():
     eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
                             [[i] for i in range(0, 200, 2)])
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      layer_to_restore=l_out,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    trainer.train([np.arange(10)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(10)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          eval_batch_func=eval_fn,
+          layer_to_restore=l_out,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -368,7 +359,7 @@ def test_validate_with_store_layer_state():
 
 
 def test_validate_with_store_layer_state_with_updates():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     from lasagne import layers
     from lasagne.objectives import squared_error
     from lasagne.updates import adam
@@ -385,14 +376,13 @@ def test_validate_with_store_layer_state_with_updates():
     eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
                             [[i] for i in range(0, 200, 2)])
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      layer_to_restore=l_out,
-                      updates_to_restore=updates,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    trainer.train([np.arange(10)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(10)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          eval_batch_func=eval_fn,
+          layer_to_restore=l_out,
+          updates_to_restore=updates,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -401,7 +391,7 @@ def test_validate_with_store_layer_state_with_updates():
 
 
 def test_store_state_updates_without_layer():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     from lasagne import layers
     from lasagne.objectives import squared_error
     from lasagne.updates import adam
@@ -416,17 +406,16 @@ def test_store_state_updates_without_layer():
     log = six.moves.cStringIO()
     train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      updates_to_restore=updates,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
     with pytest.raises(ValueError):
-        trainer.train([np.arange(10)], None, None, batchsize=5)
+        train([np.arange(10)], None, None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              updates_to_restore=updates,
+              log_stream=log, verbosity=VERBOSITY_NONE,
+              log_final_result=False)
 
 
 def test_restore_layer_incomplete_getstate_setstate():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     from lasagne import layers
 
     l_in_x = layers.InputLayer(shape=(None, 5))
@@ -436,44 +425,44 @@ def test_restore_layer_incomplete_getstate_setstate():
     log = six.moves.cStringIO()
     train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
 
-    trainer1 = Trainer(train_batch_func=train_fn, num_epochs=200,
-                       layer_to_restore=l_out,
-                       get_state_func=train_fn.get_state,
-                       log_stream=log, verbosity=VERBOSITY_NONE,
-                       log_final_result=False)
-    trainer1.train([np.arange(10)], None, None, batchsize=5)
+    train([np.arange(10)], None, None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          layer_to_restore=l_out,
+          get_state_func=train_fn.get_state,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
-    trainer2 = Trainer(train_batch_func=train_fn, num_epochs=200,
-                       layer_to_restore=l_out,
-                       set_state_func=train_fn.set_state,
-                       log_stream=log, verbosity=VERBOSITY_NONE,
-                       log_final_result=False)
-    trainer2.train([np.arange(10)], None, None, batchsize=5)
+    train([np.arange(10)], None, None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          layer_to_restore=l_out,
+          set_state_func=train_fn.set_state,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
 
 def test_incomplete_getstate_setstate():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
 
     log = six.moves.cStringIO()
     train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
 
-    trainer1 = Trainer(train_batch_func=train_fn, num_epochs=200,
-                       get_state_func=train_fn.get_state,
-                       log_stream=log, verbosity=VERBOSITY_NONE,
-                       log_final_result=False)
     with pytest.raises(ValueError):
-        trainer1.train([np.arange(10)], None, None, batchsize=5)
+        train([np.arange(10)], None, None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              get_state_func=train_fn.get_state,
+              log_stream=log, verbosity=VERBOSITY_NONE,
+              log_final_result=False)
 
-    trainer2 = Trainer(train_batch_func=train_fn, num_epochs=200,
-                       set_state_func=train_fn.set_state,
-                       log_stream=log, verbosity=VERBOSITY_NONE,
-                       log_final_result=False)
     with pytest.raises(ValueError):
-        trainer2.train([np.arange(10)], None, None, batchsize=5)
+        train([np.arange(10)], None, None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              set_state_func=train_fn.set_state,
+              log_stream=log, verbosity=VERBOSITY_NONE,
+              log_final_result=False)
 
 
 def test_validate_with_store_layer_state_with_updates_list():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     from lasagne import layers
     from lasagne.objectives import squared_error
     from lasagne.updates import adam
@@ -491,14 +480,13 @@ def test_validate_with_store_layer_state_with_updates_list():
     eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
                             [[i] for i in range(0, 200, 2)])
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      layer_to_restore=l_out,
-                      updates_to_restore=updates_list,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    trainer.train([np.arange(10)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(10)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          eval_batch_func=eval_fn,
+          layer_to_restore=l_out,
+          updates_to_restore=updates_list,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
     assert train_fn.count == 400
@@ -507,7 +495,7 @@ def test_validate_with_store_layer_state_with_updates_list():
 
 
 def test_validate_with_store_layer_state_with_updates_invalid():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     from lasagne import layers
 
     l_in_x = layers.InputLayer(shape=(None, 5))
@@ -520,19 +508,18 @@ def test_validate_with_store_layer_state_with_updates_invalid():
     eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
                             [[i] for i in range(0, 200, 2)])
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      layer_to_restore=l_out,
-                      updates_to_restore=updates,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
     with pytest.raises(TypeError):
-        trainer.train([np.arange(10)], [np.arange(5)], None, batchsize=5)
+        train([np.arange(10)], [np.arange(5)], None, batchsize=5,
+              train_batch_func=train_fn, num_epochs=200,
+              eval_batch_func=eval_fn,
+              layer_to_restore=l_out,
+              updates_to_restore=updates,
+              log_stream=log, verbosity=VERBOSITY_NONE,
+              log_final_result=False)
 
 
 def test_validation_interval():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     train_fn = TrainFunction()
 
@@ -542,12 +529,11 @@ def test_validation_interval():
     eval_fn = TrainFunction([[i] for i in range(200)],
                             on_invoke=on_eval)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      val_interval=10, eval_batch_func=eval_fn,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          val_interval=10, eval_batch_func=eval_fn,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
     assert train_fn.count == 200
     assert eval_fn.count == 20
@@ -555,7 +541,7 @@ def test_validation_interval():
 
 
 def test_validation_score_fn():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     val_output = zip(range(200), itertools.chain(range(101, 1, -1),
                                                  range(1, 101, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -564,14 +550,13 @@ def test_validation_score_fn():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False)
 
     assert train_fn.count == 200
     assert eval_fn.count == 200
@@ -582,24 +567,23 @@ def test_validation_score_fn():
 
 
 def test_pre_post_epoch_callbacks():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
     train_fn = TrainFunction()
 
     def post_epoch(epoch_index):
         assert epoch_index == train_fn.current_epoch
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=150,
-                      pre_epoch_callback=train_fn.pre_epoch,
-                      post_epoch_callback=post_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    trainer.train([np.arange(5)], None, None, batchsize=5)
+    train([np.arange(5)], None, None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=150,
+          pre_epoch_callback=train_fn.pre_epoch,
+          post_epoch_callback=post_epoch,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
 
 def test_train_for_num_epochs():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     val_output = zip(range(200), itertools.chain(range(101, 1, -1),
                                                  range(1, 101, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -608,14 +592,13 @@ def test_train_for_num_epochs():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=150,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=150,
+                eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False)
 
     assert train_fn.count == 150
     assert eval_fn.count == 150
@@ -626,7 +609,7 @@ def test_train_for_num_epochs():
 
 
 def test_train_for_min_epochs():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     val_output = zip(range(200), itertools.chain(range(101, 1, -1),
                                                  range(1, 101, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -635,14 +618,13 @@ def test_train_for_min_epochs():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=95, eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                min_epochs=95, eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False)
 
     assert train_fn.count == 95
     assert eval_fn.count == 95
@@ -653,7 +635,7 @@ def test_train_for_min_epochs():
 
 
 def test_train_for_val_improve_patience():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     val_output = zip(range(200), itertools.chain(range(101, 1, -1),
                                                  range(1, 101, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -662,15 +644,14 @@ def test_train_for_val_improve_patience():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=95, val_improve_patience=10,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                min_epochs=95, val_improve_patience=10,
+                eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False)
 
     assert train_fn.count == 111
     assert eval_fn.count == 111
@@ -681,7 +662,7 @@ def test_train_for_val_improve_patience():
 
 
 def test_train_for_val_improve_patience_factor():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     val_output = zip(range(200), itertools.chain(range(75, 0, -1),
                                                  range(0, 125, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -690,15 +671,14 @@ def test_train_for_val_improve_patience_factor():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=65, val_improve_patience_factor=2,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                min_epochs=65, val_improve_patience_factor=2,
+                eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_NONE,
+                log_final_result=False)
 
     assert train_fn.count == 152
     assert eval_fn.count == 152
@@ -709,7 +689,7 @@ def test_train_for_val_improve_patience_factor():
 
 
 def test_report_verbosity_none():
-    from lasagne.trainer import Trainer, VERBOSITY_NONE
+    from lasagne.trainer import train, VERBOSITY_NONE
     val_output = zip(range(200), itertools.chain(range(75, 0, -1),
                                                  range(0, 125, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -717,20 +697,19 @@ def test_report_verbosity_none():
     train_fn = TrainFunction()
     eval_fn = TrainFunction(val_output)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=65, val_improve_patience_factor=2,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      log_stream=log, verbosity=VERBOSITY_NONE,
-                      log_final_result=False)
-
-    trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          min_epochs=65, val_improve_patience_factor=2,
+          eval_batch_func=eval_fn,
+          val_improved_func=lambda a, b: a[1] < b[1],
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
 
     assert log.getvalue() == ''
 
 
 def test_report_verbosity_minimal():
-    from lasagne.trainer import Trainer, VERBOSITY_MINIMAL
+    from lasagne.trainer import train, VERBOSITY_MINIMAL
     val_output = zip(range(200), itertools.chain(range(75, 0, -1),
                                                  range(0, 125, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -739,15 +718,14 @@ def test_report_verbosity_minimal():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=65, val_improve_patience_factor=2,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_MINIMAL,
-                      log_final_result=False)
-
-    res = trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                min_epochs=65, val_improve_patience_factor=2,
+                eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_MINIMAL,
+                log_final_result=False)
 
     assert train_fn.count == 152
     assert eval_fn.count == 152
@@ -755,7 +733,7 @@ def test_report_verbosity_minimal():
 
 
 def test_report_verbosity_minimal_log_final_result():
-    from lasagne.trainer import Trainer, VERBOSITY_MINIMAL
+    from lasagne.trainer import train, VERBOSITY_MINIMAL
     val_output = zip(range(200), itertools.chain(range(75, 0, -1),
                                                  range(0, 125, 1)))
     val_output = [list(xs) for xs in val_output]
@@ -764,15 +742,14 @@ def test_report_verbosity_minimal_log_final_result():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=65, val_improve_patience_factor=2,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_MINIMAL,
-                      log_final_result=True)
-
-    res = trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                min_epochs=65, val_improve_patience_factor=2,
+                eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_MINIMAL,
+                log_final_result=True)
 
     log_lines = log.getvalue().split('\n')
     log_lines = [line for line in log_lines if line.strip() != '']
@@ -782,9 +759,29 @@ def test_report_verbosity_minimal_log_final_result():
     assert log_lines[3] == 'Final result:'
     assert log_lines[4].startswith('Epoch 151')
 
+    # This time store the network state; this will cause this test to
+    # exercise an alternate path for coverage purposes
+    log = six.moves.cStringIO()
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                min_epochs=65, val_improve_patience_factor=2,
+                eval_batch_func=eval_fn,
+                val_improved_func=lambda a, b: a[1] < b[1],
+                get_state_func=train_fn.get_state,
+                set_state_func=train_fn.set_state,
+                pre_epoch_callback=pre_epoch,
+                log_stream=log, verbosity=VERBOSITY_MINIMAL,
+                log_final_result=True)
+
+    log_lines = log.getvalue().split('\n')
+    log_lines = [line for line in log_lines if line.strip() != '']
+    assert log_lines[0] == '*' * 76 + '-' * 76
+    assert log_lines[1] == 'Best result:'
+    assert log_lines[2].startswith('Epoch 75')
+
 
 def test_report_verbosity_epoch_train():
-    from lasagne.trainer import Trainer, VERBOSITY_EPOCH
+    from lasagne.trainer import train, VERBOSITY_EPOCH
     val_output = zip(np.arange(200.0),
                      np.append(np.arange(75.0, 0.0, -1.0),
                                np.arange(0.0, 125.0, 1.0)))
@@ -792,21 +789,20 @@ def test_report_verbosity_epoch_train():
     log = six.moves.cStringIO()
     train_fn = TrainFunction(val_output)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      pre_epoch_callback=train_fn.pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_EPOCH,
-                      log_final_result=False)
-
-    trainer.train([np.arange(5)], None, None, batchsize=5)
+    train([np.arange(5)], None, None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          pre_epoch_callback=train_fn.pre_epoch,
+          log_stream=log, verbosity=VERBOSITY_EPOCH,
+          log_final_result=False)
 
     assert train_fn.count == 200
     log_lines = log.getvalue().split('\n')
     for i, line in enumerate(log_lines):
         if line.strip() != '':
             pattern = re.escape('Epoch {0} ('.format(i)) + \
-                    r'[0-9]+\.[0-9]+s' + \
-                    re.escape('): train [{0}, {1}]'.format(val_output[i][0],
-                                                           val_output[i][1]))
+                      r'[0-9]+\.[0-9]+s' + \
+                      re.escape('): train [{0}, {1}]'.format(val_output[i][0],
+                                                             val_output[i][1]))
             match = re.match(pattern, line)
             if match is None or match.end(0) != len(line):
                 pytest.fail(msg='No match "{}" with pattern '
@@ -814,7 +810,7 @@ def test_report_verbosity_epoch_train():
 
 
 def test_report_verbosity_epoch_train_val():
-    from lasagne.trainer import Trainer, VERBOSITY_EPOCH
+    from lasagne.trainer import train, VERBOSITY_EPOCH
     val_output = zip(np.arange(200.0),
                      np.append(np.arange(75.0, 0.0, -1.0),
                                np.arange(0.0, 125.0, 1.0)))
@@ -824,15 +820,14 @@ def test_report_verbosity_epoch_train_val():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=65, val_improve_patience_factor=2,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_EPOCH,
-                      log_final_result=False)
-
-    trainer.train([np.arange(5)], [np.arange(5)], None, batchsize=5)
+    train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          min_epochs=65, val_improve_patience_factor=2,
+          eval_batch_func=eval_fn,
+          val_improved_func=lambda a, b: a[1] < b[1],
+          pre_epoch_callback=pre_epoch,
+          log_stream=log, verbosity=VERBOSITY_EPOCH,
+          log_final_result=False)
 
     assert train_fn.count == 152
     assert eval_fn.count == 152
@@ -840,10 +835,10 @@ def test_report_verbosity_epoch_train_val():
     for i, line in enumerate(log_lines):
         if line.strip() != '':
             pattern = re.escape('Epoch {0} ('.format(i)) + \
-                    r'[0-9]+\.[0-9]+s' + \
-                    re.escape('): train [{0}, {1}], validation [{0}, '
-                              '{1}]'.format(val_output[i][0],
-                                            val_output[i][1]))
+                      r'[0-9]+\.[0-9]+s' + \
+                      re.escape('): train [{0}, {1}], validation [{0}, '
+                                '{1}]'.format(val_output[i][0],
+                                              val_output[i][1]))
             match = re.match(pattern, line)
             if match is None or match.end(0) != len(line):
                 pytest.fail(msg='No match "{}" with pattern '
@@ -851,7 +846,7 @@ def test_report_verbosity_epoch_train_val():
 
 
 def test_report_verbosity_epoch_train_test():
-    from lasagne.trainer import Trainer, VERBOSITY_EPOCH
+    from lasagne.trainer import train, VERBOSITY_EPOCH
     val_output = zip(np.arange(200.0),
                      np.append(np.arange(75.0, 0.0, -1.0),
                                np.arange(0.0, 125.0, 1.0)))
@@ -861,14 +856,13 @@ def test_report_verbosity_epoch_train_test():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_EPOCH,
-                      log_final_result=False)
-
-    trainer.train([np.arange(5)], None, [np.arange(5)], batchsize=5)
+    train([np.arange(5)], None, [np.arange(5)], batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          eval_batch_func=eval_fn,
+          val_improved_func=lambda a, b: a[1] < b[1],
+          pre_epoch_callback=pre_epoch,
+          log_stream=log, verbosity=VERBOSITY_EPOCH,
+          log_final_result=False)
 
     assert train_fn.count == 200
     assert eval_fn.count == 200
@@ -876,10 +870,10 @@ def test_report_verbosity_epoch_train_test():
     for i, line in enumerate(log_lines):
         if line.strip() != '':
             pattern = re.escape('Epoch {0} ('.format(i)) + \
-                    r'[0-9]+\.[0-9]+s' + \
-                    re.escape('): train [{0}, {1}], test [{0}, '
-                              '{1}]'.format(val_output[i][0],
-                                            val_output[i][1]))
+                      r'[0-9]+\.[0-9]+s' + \
+                      re.escape('): train [{0}, {1}], test [{0}, '
+                                '{1}]'.format(val_output[i][0],
+                                              val_output[i][1]))
             match = re.match(pattern, line)
             if match is None or match.end(0) != len(line):
                 pytest.fail(msg='No match "{}" with pattern '
@@ -887,7 +881,7 @@ def test_report_verbosity_epoch_train_test():
 
 
 def test_report_verbosity_epoch_train_val_test():
-    from lasagne.trainer import Trainer, VERBOSITY_EPOCH
+    from lasagne.trainer import train, VERBOSITY_EPOCH
     output = zip(np.arange(200.0),
                  np.append(np.arange(75.0, 0.0, -1.0),
                            np.arange(0.0, 125.0, 1.0)))
@@ -897,30 +891,29 @@ def test_report_verbosity_epoch_train_val_test():
     eval_fn = TrainFunction(output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      min_epochs=65, val_improve_patience_factor=2,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_EPOCH,
-                      log_final_result=False)
-
-    trainer.train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5)
+    train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5,
+          train_batch_func=train_fn, num_epochs=200,
+          min_epochs=65, val_improve_patience_factor=2,
+          eval_batch_func=eval_fn,
+          val_improved_func=lambda a, b: a[1] < b[1],
+          pre_epoch_callback=pre_epoch,
+          log_stream=log, verbosity=VERBOSITY_EPOCH,
+          log_final_result=False)
 
     log_lines = log.getvalue().split('\n')
     for i, line in enumerate(log_lines):
         if line.strip() != '':
             if i <= 75:
                 pattern = re.escape('Epoch {0} ('.format(i)) + \
-                        r'[0-9]+\.[0-9]+s' + \
-                        re.escape('): train [{0}, {1}], validation [{0}, '
-                                  '{1}], test [{0}, {1}]'.format(output[i][0],
-                                                                 output[i][1]))
+                    r'[0-9]+\.[0-9]+s' + \
+                    re.escape('): train [{0}, {1}], validation [{0}, '
+                              '{1}], test [{0}, {1}]'.format(output[i][0],
+                                                             output[i][1]))
             else:
                 pattern = re.escape('Epoch {0} ('.format(i)) + \
-                        r'[0-9]+\.[0-9]+s' + \
-                        re.escape('): train [{0}, {1}], validation [{0}, '
-                                  '{1}]'.format(output[i][0], output[i][1]))
+                          r'[0-9]+\.[0-9]+s' + \
+                          re.escape('): train [{0}, {1}], validation [{0}, '
+                                    '{1}]'.format(output[i][0], output[i][1]))
             match = re.match(pattern, line)
             if match is None or match.end(0) != len(line):
                 pytest.fail(msg='No match "{}" with pattern '
@@ -928,7 +921,7 @@ def test_report_verbosity_epoch_train_val_test():
 
 
 def test_report_verbosity_batch():
-    from lasagne.trainer import Trainer, VERBOSITY_BATCH
+    from lasagne.trainer import train, VERBOSITY_BATCH
     val_output = zip(np.arange(200.0),
                      np.arange(200.0, -1.0, -1.0))
     val_output = [list(xs) for xs in val_output]
@@ -937,15 +930,13 @@ def test_report_verbosity_batch():
     eval_fn = TrainFunction(val_output)
     pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    trainer = Trainer(train_batch_func=train_fn, num_epochs=200,
-                      eval_batch_func=eval_fn,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_BATCH,
-                      log_final_result=False)
-
-    trainer.train([np.arange(20)], [np.arange(20)], [np.arange(20)],
-                  batchsize=5)
+    train([np.arange(20)], [np.arange(20)], [np.arange(20)],
+          batchsize=5, train_batch_func=train_fn, num_epochs=200,
+          eval_batch_func=eval_fn,
+          val_improved_func=lambda a, b: a[1] < b[1],
+          pre_epoch_callback=pre_epoch,
+          log_stream=log, verbosity=VERBOSITY_BATCH,
+          log_final_result=False)
 
     assert train_fn.count == 800
     assert eval_fn.count == 1600
@@ -956,24 +947,24 @@ def test_report_verbosity_batch():
             val_report = ''.join('\r[val {}]'.format(i) for i in range(4))
             test_report = ''.join('\r[test {}]'.format(i) for i in range(4))
             assert line.startswith(tr_report)
-            val_test_epoch = line[len(tr_report)+1:]
+            val_test_epoch = line[len(tr_report) + 1:]
             assert val_test_epoch.startswith(val_report)
-            test_epoch = val_test_epoch[len(val_report)+1:]
+            test_epoch = val_test_epoch[len(val_report) + 1:]
             assert test_epoch.startswith(test_report)
-            epoch_report = test_epoch[len(test_report)+1:]
+            epoch_report = test_epoch[len(test_report) + 1:]
             pattern_b = re.escape('Epoch {0} ('.format(i)) + \
                 r'[0-9]+\.[0-9]+s' + \
-                re.escape('): train None, validation [{0}, '
-                          '{1}], test [{0}, {1}]'.format(val_output[i][0],
-                                                         val_output[i][1]))
+                re.escape('): train None, validation [{0}, {1}], '
+                          'test [{0}, {1}]'.format(val_output[i][0],
+                                                   val_output[i][1]))
             match = re.match(pattern_b, epoch_report)
             if match is None or match.end(0) != len(epoch_report):
                 pytest.fail(msg='No match "{}" with pattern '
-                            '"{}"'.format(repr(epoch_report), pattern_b))
+                                '"{}"'.format(repr(epoch_report), pattern_b))
 
 
 def test_report_epoch_log_fn():
-    from lasagne.trainer import Trainer, VERBOSITY_EPOCH
+    from lasagne.trainer import train, VERBOSITY_EPOCH
     train_output = [[float(x)] for x in range(200)]
     val_output = zip(np.arange(200.0),
                      np.arange(200.0, -1.0, -1.0))
@@ -993,16 +984,15 @@ def test_report_epoch_log_fn():
         return '{}: train: {}, val: {}, test: {}'.format(
             epoch_index, train_str, val_str, test_str)
 
-    trainer = Trainer(train_batch_func=train_fn, train_log_func=train_log,
-                      num_epochs=200, min_epochs=65,
-                      val_improve_patience_factor=2,
-                      eval_batch_func=eval_fn, eval_log_func=eval_log,
-                      val_improved_func=lambda a, b: a[1] < b[1],
-                      pre_epoch_callback=pre_epoch,
-                      log_stream=log, verbosity=VERBOSITY_EPOCH,
-                      epoch_log_func=epoch_log_fn, log_final_result=False)
-
-    trainer.train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5)
+    train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5,
+          train_batch_func=train_fn, train_log_func=train_log,
+          num_epochs=200, min_epochs=65,
+          val_improve_patience_factor=2,
+          eval_batch_func=eval_fn, eval_log_func=eval_log,
+          val_improved_func=lambda a, b: a[1] < b[1],
+          pre_epoch_callback=pre_epoch,
+          log_stream=log, verbosity=VERBOSITY_EPOCH,
+          epoch_log_func=epoch_log_fn, log_final_result=False)
 
     assert train_fn.count == 200
     assert eval_fn.count == 400

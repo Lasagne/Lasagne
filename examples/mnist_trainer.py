@@ -276,7 +276,9 @@ def main(model='mlp', num_epochs=500):
     eval_log_func = lambda eval_results: 'err={:.2%}, loss={:.6f}'.format(
         eval_results[0], eval_results[1])
 
-    # Set up a trainer with:
+    # Set off the training loop:
+    # - provide the datasets train, validation and test
+    # - provide batch size
     # - batch training function
     # - training log function
     # - evaluation (validation/test) function
@@ -287,19 +289,12 @@ def main(model='mlp', num_epochs=500):
     #   state when it achieved the best validation score
     # - random number generator to shuffle training samples (just for show
     #   here since it would use `lasagne.random.get_rng()` anyway
-    trainer = lasagne.trainer.Trainer(
+    res = lasagne.trainer.train(
+        [X_train, y_train], [X_val, y_val], [X_test, y_test], batchsize=500,
         train_batch_func=train_fn, train_log_func=train_log_func,
         eval_batch_func=eval_fn, eval_log_func=eval_log_func,
         num_epochs=num_epochs, verbosity=lasagne.trainer.VERBOSITY_EPOCH,
         layer_to_restore=network, shuffle_rng=lasagne.random.get_rng())
-
-    # Set off the training loop
-    # Provide the datasets train, validation and test
-    # We also provide the batch size here; we could have given it to the
-    # constructor instead. We could also override any parameters passed to
-    # the constructor here too.
-    trainer.train([X_train, y_train], [X_val, y_val], [X_test, y_test],
-                  batchsize=500)
 
     # Optionally, you could now dump the network weights to a file like this:
     # np.savez('model.npz', *lasagne.layers.get_all_param_values(network))

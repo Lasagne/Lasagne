@@ -796,7 +796,6 @@ def test_report_verbosity_minimal_log_final_result():
 
     log_lines = log.getvalue().split('\n')
     log_lines = [line for line in log_lines if line.strip() != '']
-    print log_lines[0]
     assert log_lines[0] == '*' * 200
     assert log_lines[1] == 'Best result:'
     assert log_lines[2].startswith('Epoch 199')

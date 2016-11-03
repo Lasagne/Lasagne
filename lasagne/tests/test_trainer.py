@@ -626,12 +626,12 @@ def test_train_for_min_epochs():
                 log_stream=log, verbosity=VERBOSITY_NONE,
                 log_final_result=False)
 
-    assert train_fn.count == 95
-    assert eval_fn.count == 95
+    assert train_fn.count == 102
+    assert eval_fn.count == 102
     assert log.getvalue() == ''
 
-    assert res.validation_results == val_output[:95]
-    assert res.best_validation_results == [94, 7]
+    assert res.validation_results == val_output[:102]
+    assert res.best_validation_results == [100, 1]
 
 
 def test_train_for_val_improve_patience():
@@ -778,6 +778,29 @@ def test_report_verbosity_minimal_log_final_result():
     assert log_lines[0] == '*' * 76 + '-' * 76
     assert log_lines[1] == 'Best result:'
     assert log_lines[2].startswith('Epoch 75')
+
+    # Ensure that the last epoch has the best score
+    val2_output = [[x] for x in range(200, -1, -1)]
+    print val2_output
+    eval2_fn = TrainFunction(val2_output)
+    pre_epoch2 = TrainFunction.pre_epoch_for(train_fn, eval2_fn)
+
+    log = six.moves.cStringIO()
+    res = train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+                train_batch_func=train_fn, num_epochs=200,
+                min_epochs=65,
+                eval_batch_func=eval2_fn,
+                val_improved_func=lambda a, b: a[0] < b[0],
+                pre_epoch_callback=pre_epoch2,
+                log_stream=log, verbosity=VERBOSITY_MINIMAL,
+                log_final_result=True)
+
+    log_lines = log.getvalue().split('\n')
+    log_lines = [line for line in log_lines if line.strip() != '']
+    print log_lines[0]
+    assert log_lines[0] == '*' * 200
+    assert log_lines[1] == 'Best result:'
+    assert log_lines[2].startswith('Epoch 199')
 
 
 def test_report_verbosity_epoch_train():

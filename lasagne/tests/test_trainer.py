@@ -781,7 +781,6 @@ def test_report_verbosity_minimal_log_final_result():
 
     # Ensure that the last epoch has the best score
     val2_output = [[x] for x in range(200, -1, -1)]
-    print val2_output
     eval2_fn = TrainFunction(val2_output)
     pre_epoch2 = TrainFunction.pre_epoch_for(train_fn, eval2_fn)
 

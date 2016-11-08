@@ -302,10 +302,13 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         If provided this function will be invoked before the start of
         each epoch, with the epoch index provided as the (first)
         argument.
-    post_epoch_callback: [optional] callable `post_epoch_callback(epoch)`
+    post_epoch_callback: [optional] callable
+        `post_epoch_callback(epoch, train_results, val_results)`
         If provided this function will be invoked after the end of
         each epoch, with the epoch index provided as the (first)
-        argument.
+        argument, the mean training results as the second and the mean
+        validation results as the third if validation was performed this
+        epoch, `None` otherwise.
     verbosity: one of `VERBOSITY_NONE` (`None`), `VERBOSITY_MINIMAL`
         (`'minimal'`), `VERBOSITY_EPOCH` (`'epoch'`) or `VERBOSITY_BATCH`
         (`'batch'`)
@@ -647,7 +650,7 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
                 all_test_results.append(None)
 
         if post_epoch_callback is not None:
-            post_epoch_callback(epoch)
+            post_epoch_callback(epoch, train_results, validation_results)
 
         epoch += 1
 

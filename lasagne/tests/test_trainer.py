@@ -569,15 +569,31 @@ def test_validation_score_fn():
 def test_pre_post_epoch_callbacks():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    train_fn = TrainFunction()
+    train_fn = TrainFunction([[i] for i in range(150)])
 
-    def post_epoch(epoch_index):
+    def post_epoch(epoch_index, train_results, val_results):
         assert epoch_index == train_fn.current_epoch
+        assert train_results[0] == float(epoch_index)
 
     train([np.arange(5)], None, None, batchsize=5,
           train_batch_func=train_fn, num_epochs=150,
           pre_epoch_callback=train_fn.pre_epoch,
           post_epoch_callback=post_epoch,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
+
+    eval_fn = TrainFunction(
+        [[i] for i in list(range(75, -1, -1)) + list(range(0, 75))])
+
+    def post_epoch_val(epoch_index, train_results, val_results):
+        assert epoch_index == train_fn.current_epoch
+        assert train_results[0] == float(epoch_index)
+
+    train([np.arange(5)], [np.arange(5)], None, batchsize=5,
+          train_batch_func=train_fn, eval_batch_func=eval_fn,
+          num_epochs=150,
+          pre_epoch_callback=train_fn.pre_epoch,
+          post_epoch_callback=post_epoch_val,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 

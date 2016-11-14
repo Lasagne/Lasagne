@@ -11,6 +11,7 @@
     layers/input
     layers/dense
     layers/conv
+    layers/local
     layers/pool
     layers/recurrent
     layers/noise
@@ -74,6 +75,14 @@
     TransposedConv2DLayer
     Deconv2DLayer
     DilatedConv2DLayer
+
+
+.. rubric:: :doc:`layers/local`
+
+.. autosummary::
+    :nosignatures:
+
+    LocallyConnected2DLayer
 
 
 .. rubric:: :doc:`layers/pool`

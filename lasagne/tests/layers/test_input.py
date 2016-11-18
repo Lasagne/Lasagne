@@ -14,6 +14,10 @@ class TestInputLayer:
     def test_shape(self, layer):
         assert layer.shape == (3, 2)
 
+    def test_shape_list(self, layer):
+        from lasagne.layers.input import InputLayer
+        assert InputLayer([3, 2]).shape == (3, 2)
+
     def test_input_var_name(self, layer):
         assert layer.input_var.name == "input"
 

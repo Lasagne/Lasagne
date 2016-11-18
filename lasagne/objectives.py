@@ -254,7 +254,8 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
     Parameters
     ----------
     predictions : Theano tensor
-        Predictions in (0, 1), such as sigmoidal output of a neural network.
+        Log-odds of predictions, such as the input to a sigmoidal layer in
+        a neural network.
     targets : Theano tensor
         Targets in {0, 1} (or in {-1, 1} depending on `binary`), such as
         ground truth labels.
@@ -271,7 +272,12 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
     Notes
     -----
     This is an alternative to the binary cross-entropy loss for binary
-    classification problems
+    classification problems.
+    It is not a drop-in replacement, as it requires the inputs to the
+    sigmoid, not the outputs. To obtain those, you may have to split the
+    output layer of your network into a linear layer (``nonlinearity=None``)
+    and a :class:`~lasagne.layers.NonlinearityLayer` for the sigmoid, or just
+    use a linear output layer.
     """
     if binary:
         targets = 2 * targets - 1

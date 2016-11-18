@@ -75,7 +75,7 @@ without dropout or any other nondeterministic computation in between:
 This gives a loss expression good for monitoring validation error.
 """
 
-import theano.tensor.nnet
+import theano.tensor
 
 from .utils import as_theano_expression
 
@@ -195,7 +195,7 @@ def squared_error(a, b):
     or auto-encoders with linear output units.
     """
     a, b = align_targets(a, b)
-    return (a - b)**2
+    return theano.tensor.square(a - b)
 
 
 def aggregate(loss, weights=None, mode='mean'):

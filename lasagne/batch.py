@@ -76,6 +76,20 @@ def length_of_arraylikes_in_sequence(xs):
     return N
 
 
+def dataset_length(dataset):
+    """
+    Determine the length of the data set (number of samples).
+    If `dataset` is ` sequence of array-like elements it is their length. If
+    not, the length cannot be determined and `None` will be returned
+    :param dataset: a data set; see the `batch_iterator` function
+    :return: the length of the data set or `None`
+    """
+    if is_sequence_of_arraylike(dataset):
+        return length_of_arraylikes_in_sequence(dataset)
+    else:
+        return None
+
+
 def arraylikes_batch_iterator(dataset, batchsize,
                               shuffle_rng=None):
     """

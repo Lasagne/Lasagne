@@ -957,47 +957,75 @@ def test_report_verbosity_epoch_train_val_test():
                                 '"{}"'.format(line, pattern))
 
 
-def test_report_verbosity_batch():
-    from lasagne.trainer import train, VERBOSITY_BATCH
-    val_output = zip(np.arange(200.0),
-                     np.arange(200.0, -1.0, -1.0))
-    val_output = [list(xs) for xs in val_output]
+def test_progress_iter_func():
+    from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    train_fn = TrainFunction()
-    eval_fn = TrainFunction(val_output)
-    pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
 
-    train([np.arange(20)], [np.arange(20)], [np.arange(20)],
+    train_fn = TrainFunction()
+    totals = []
+    descs = []
+
+    def progress_iter_func(it, total, desc):
+        totals.append(total)
+        descs.append(desc)
+        return it
+
+    # Test situation where the batch size divides into the training set size
+    # exactly
+    train([np.arange(20)], None, None,
           batchsize=5, train_batch_func=train_fn, num_epochs=200,
-          eval_batch_func=eval_fn,
-          val_improved_func=lambda a, b: a[1] < b[1],
-          pre_epoch_callback=pre_epoch,
-          log_stream=log, verbosity=VERBOSITY_BATCH,
+          pre_epoch_callback=train_fn.pre_epoch,
+          progress_iter_func=progress_iter_func,
+          log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
     assert train_fn.count == 800
-    assert eval_fn.count == 1600
-    log_lines = log.getvalue().split('\n')
-    for i, line in enumerate(log_lines):
-        if line.strip() != '':
-            tr_report = ''.join('\r[train {}]'.format(i) for i in range(4))
-            val_report = ''.join('\r[val {}]'.format(i) for i in range(4))
-            test_report = ''.join('\r[test {}]'.format(i) for i in range(4))
-            assert line.startswith(tr_report)
-            val_test_epoch = line[len(tr_report) + 1:]
-            assert val_test_epoch.startswith(val_report)
-            test_epoch = val_test_epoch[len(val_report) + 1:]
-            assert test_epoch.startswith(test_report)
-            epoch_report = test_epoch[len(test_report) + 1:]
-            pattern_b = re.escape('Epoch {0} ('.format(i)) + \
-                r'[0-9]+\.[0-9]+s' + \
-                re.escape('): train None, validation [{0}, {1}], '
-                          'test [{0}, {1}]'.format(val_output[i][0],
-                                                   val_output[i][1]))
-            match = re.match(pattern_b, epoch_report)
-            if match is None or match.end(0) != len(epoch_report):
-                pytest.fail(msg='No match "{}" with pattern '
-                                '"{}"'.format(repr(epoch_report), pattern_b))
+    # 20 samples, batch size of 5 = 4 batches, so we expect the `total`
+    # parameter to have a value of 4 each time
+    assert totals == [4] * 200
+    assert descs == ['Epoch {}'.format(i) for i in range(1, 201)]
+
+    # Test situation where the batch size doesn't divide into the training
+    # set size exactly
+    train_fn = TrainFunction()
+    totals = []
+    descs = []
+
+    train([np.arange(20)], None, None,
+          batchsize=7, train_batch_func=train_fn, num_epochs=200,
+          pre_epoch_callback=train_fn.pre_epoch,
+          progress_iter_func=progress_iter_func,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
+
+    assert train_fn.count == 600
+    # 20 samples, batch size of 7 = 3 batches, so we expect the `total`
+    # parameter to have a value of 3 each time
+    assert totals == [3] * 200
+    assert descs == ['Epoch {}'.format(i) for i in range(1, 201)]
+
+    # Test situation where the training set is provided as a callable
+    train_fn = TrainFunction()
+    totals = []
+    descs = []
+
+    def training_set(batchsize, shuffle_rng=None):
+        for i in range(0, 20, batchsize):
+            yield [np.arange(20)[i:i + batchsize]]
+
+    train(training_set, None, None,
+          batchsize=7, train_batch_func=train_fn, num_epochs=200,
+          pre_epoch_callback=train_fn.pre_epoch,
+          progress_iter_func=progress_iter_func,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
+
+    assert train_fn.count == 600
+    # Getting data from callable that returns an iterator, we we cannot
+    # determine the number of batches ahead of time, so we expect the `total`
+    # parameter to have a value of None each time
+    assert totals == [None] * 200
+    assert descs == ['Epoch {}'.format(i) for i in range(1, 201)]
 
 
 def test_report_epoch_log_fn():

@@ -61,6 +61,23 @@ def test_length_of_arraylikes_in_sequence():
         batch.length_of_arraylikes_in_sequence([a3a, a10])
 
 
+def test_dataset_length():
+    from lasagne import batch
+
+    a3a = np.arange(3)
+    a3b = np.arange(6).reshape((3, 2))
+    a10 = np.arange(10)
+
+    def callable_ds(batchsize, shuffle_rng=None):
+        for i in range(0, batchsize * 10, batchsize):
+            yield [np.arange(i, i + batchsize)]
+
+    assert batch.dataset_length([a3a]) == 3
+    assert batch.dataset_length([a10]) == 10
+    assert batch.dataset_length([a3a, a3b]) == 3
+    assert batch.dataset_length(callable_ds) is None
+
+
 def test_arraylikes_batch_iterator():
     from lasagne import batch
 

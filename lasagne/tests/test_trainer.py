@@ -91,6 +91,24 @@ class TrainFunction(object):
                 return res
 
 
+class EpochInit (object):
+    def __init__(self):
+        self.epoch = None
+
+    def __call__(self, epoch):
+        self.epoch = epoch
+
+
+def count_calls(fn):
+    def f(*args, **kwargs):
+        res = fn(*args, **kwargs)
+        f.call_count += 1
+        return res
+    f.call_count = 0
+    f.__name__ = fn.__name__
+    return f
+
+
 def test_no_train_fn():
     from lasagne.trainer import train
 
@@ -101,15 +119,17 @@ def test_no_train_fn():
 def test_no_eval_fn():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    train_fn = TrainFunction()
+
+    def train_batch(*batch):
+        return [0.0]
 
     with pytest.raises(ValueError):
         train([np.arange(10)], [np.arange(10)], None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
+              train_batch_func=train_batch, num_epochs=200,
               log_stream=log, verbosity=VERBOSITY_NONE, log_final_result=False)
     with pytest.raises(ValueError):
         train([np.arange(10)], None, [np.arange(10)], batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
+              train_batch_func=train_batch, num_epochs=200,
               log_stream=log, verbosity=VERBOSITY_NONE,
               log_final_result=False)
 
@@ -117,23 +137,30 @@ def test_no_eval_fn():
 def test_train():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    train_fn = TrainFunction()
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    # No evaluation function or validation set so the get and set state
+    # functions shouldn't be invoked
+    def get_state():
+        pytest.fail('get_state should not be invoked')
+
+    def set_state():
+        pytest.fail('set_state should not be invoked')
 
     res = train([np.arange(10)], None, None, batchsize=5,
-                train_batch_func=train_fn, num_epochs=200,
-                get_state_func=train_fn.get_state,
-                set_state_func=train_fn.set_state,
+                train_batch_func=train_batch, num_epochs=200,
+                get_state_func=get_state,
+                set_state_func=set_state,
                 log_stream=log, verbosity=VERBOSITY_NONE,
                 log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
+    assert train_batch.call_count == 400
     # Logging is disable so it should be empty
     assert log.getvalue() == ''
-    # No evaluation function or validation set so the get and set state
-    # functions shouldn't be invoked
-    assert train_fn.state_get_count == 0
-    assert train_fn.state_set_count == 0
     # Should have 200 training results; one per epoch
     assert len(res.train_results) == 200
     # No validation or test results
@@ -150,26 +177,35 @@ def test_train():
 def test_train_prepend_epoch_number():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    # Tell the training function to expect the epoch index
-    train_fn = TrainFunction(epoch_index_prepended=True)
+
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(epoch_index, *batch):
+        assert epoch_index == epoch_init.epoch
+        return [0.0]
+
+    # No evaluation function or validation set so the get and set state
+    # functions shouldn't be invoked
+    def get_state():
+        pytest.fail('get_state should not be invoked')
+
+    def set_state():
+        pytest.fail('set_state should not be invoked')
 
     res = train([np.arange(10)], None, None, batchsize=5,
-                train_batch_func=train_fn, num_epochs=200,
-                get_state_func=train_fn.get_state,
-                set_state_func=train_fn.set_state,
-                pre_epoch_callback=train_fn.pre_epoch,
+                train_batch_func=train_batch, num_epochs=200,
+                get_state_func=get_state,
+                set_state_func=set_state,
+                pre_epoch_callback=epoch_init,
                 log_stream=log, verbosity=VERBOSITY_NONE,
                 log_final_result=False,
                 train_pass_epoch_number=True)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
+    assert train_batch.call_count == 400
     # Logging is disable so it should be empty
     assert log.getvalue() == ''
-    # No evaluation function or validation set so the get and set state
-    # functions shouldn't be invoked
-    assert train_fn.state_get_count == 0
-    assert train_fn.state_set_count == 0
     # Should have 200 training results; one per epoch
     assert len(res.train_results) == 200
     # No validation or test results
@@ -186,21 +222,23 @@ def test_train_prepend_epoch_number():
 def test_train_return_array():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    results = [[i] for i in range(200)]
-    # Tell the training function to expect the epoch index
-    train_fn = TrainFunction(results, return_array=True)
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(*batch):
+        # result should be sum across samples, hence multiplication by batch
+        # size
+        return np.array([float(epoch_init.epoch) * batch[0].shape[0]])
 
     res = train([np.arange(10)], None, None, batchsize=5,
-                train_batch_func=train_fn, num_epochs=200,
-                get_state_func=train_fn.get_state,
-                set_state_func=train_fn.set_state,
-                pre_epoch_callback=train_fn.pre_epoch,
+                train_batch_func=train_batch, num_epochs=200,
+                pre_epoch_callback=epoch_init,
                 log_stream=log, verbosity=VERBOSITY_NONE,
                 log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
-    assert res.train_results == results
+    assert train_batch.call_count == 400
+    assert res.train_results == [np.array([float(i)]) for i in range(200)]
 
 
 def test_train_return_invalid():
@@ -209,12 +247,12 @@ def test_train_return_invalid():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
 
-    def train_fn(*args, **kwargs):
+    def train_batch(*args, **kwargs):
         return 'Strings wont work here'
 
     with pytest.raises(TypeError):
         train([np.arange(10)], None, None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
+              train_batch_func=train_batch, num_epochs=200,
               log_stream=log, verbosity=VERBOSITY_NONE,
               log_final_result=False)
 
@@ -225,9 +263,14 @@ def test_training_failure():
     from lasagne.trainer import train, TrainingFailedException, \
         VERBOSITY_MINIMAL
     log = six.moves.cStringIO()
-    results = [[float('nan') if i == 100 else i] for i in range(200)]
-    # Tell the training function to expect the epoch index
-    train_fn = TrainFunction(results)
+
+    epoch_init = EpochInit()
+
+    def train_batch(*batch):
+        if epoch_init.epoch == 100:
+            return [float('nan')]
+        else:
+            return [float(epoch_init.epoch) * batch[0].shape[0]]
 
     def check_train_res(epoch, train_results):
         if np.isnan(train_results[0]).any():
@@ -237,9 +280,9 @@ def test_training_failure():
 
     with pytest.raises(TrainingFailedException):
         train([np.arange(10)], None, None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
+              train_batch_func=train_batch, num_epochs=200,
               train_epoch_results_check_func=check_train_res,
-              pre_epoch_callback=train_fn.pre_epoch,
+              pre_epoch_callback=epoch_init,
               log_stream=log, verbosity=VERBOSITY_MINIMAL,
               log_final_result=False)
 
@@ -957,75 +1000,147 @@ def test_report_verbosity_epoch_train_val_test():
                                 '"{}"'.format(line, pattern))
 
 
-def test_progress_iter_func():
+def test_progress_iter_func_batch_size_divide_exactly():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
+    epoch_init = EpochInit()
 
-    train_fn = TrainFunction()
+    def train_batch(batch_X):
+        return [0.0]
+
     totals = []
     descs = []
 
-    def progress_iter_func(it, total, desc):
+    def progress_iter_func(it, total, desc, leave):
         totals.append(total)
         descs.append(desc)
+        assert not leave
         return it
 
     # Test situation where the batch size divides into the training set size
     # exactly
     train([np.arange(20)], None, None,
-          batchsize=5, train_batch_func=train_fn, num_epochs=200,
-          pre_epoch_callback=train_fn.pre_epoch,
+          batchsize=5, train_batch_func=train_batch, num_epochs=200,
+          pre_epoch_callback=epoch_init,
           progress_iter_func=progress_iter_func,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
-    assert train_fn.count == 800
     # 20 samples, batch size of 5 = 4 batches, so we expect the `total`
     # parameter to have a value of 4 each time
     assert totals == [4] * 200
-    assert descs == ['Epoch {}'.format(i) for i in range(1, 201)]
+    assert descs == ['Epoch {} train'.format(i) for i in range(1, 201)]
 
+
+def test_progress_iter_func_batch_size_remainder():
     # Test situation where the batch size doesn't divide into the training
     # set size exactly
-    train_fn = TrainFunction()
+    from lasagne.trainer import train, VERBOSITY_NONE
+    log = six.moves.cStringIO()
+    epoch_init = EpochInit()
+
+    def train_batch(batch_X):
+        return [0.0]
+
     totals = []
     descs = []
 
+    def progress_iter_func(it, total, desc, leave):
+        totals.append(total)
+        descs.append(desc)
+        assert not leave
+        return it
+
     train([np.arange(20)], None, None,
-          batchsize=7, train_batch_func=train_fn, num_epochs=200,
-          pre_epoch_callback=train_fn.pre_epoch,
+          batchsize=7, train_batch_func=train_batch, num_epochs=200,
+          pre_epoch_callback=epoch_init,
           progress_iter_func=progress_iter_func,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
-    assert train_fn.count == 600
     # 20 samples, batch size of 7 = 3 batches, so we expect the `total`
     # parameter to have a value of 3 each time
     assert totals == [3] * 200
-    assert descs == ['Epoch {}'.format(i) for i in range(1, 201)]
+    assert descs == ['Epoch {} train'.format(i) for i in range(1, 201)]
 
+
+def test_progress_iter_func_unknown_size():
     # Test situation where the training set is provided as a callable
-    train_fn = TrainFunction()
+    from lasagne.trainer import train, VERBOSITY_NONE
+    log = six.moves.cStringIO()
+    epoch_init = EpochInit()
+
+    def train_batch(batch_X):
+        return [0.0]
+
     totals = []
     descs = []
+
+    def progress_iter_func(it, total, desc, leave):
+        totals.append(total)
+        descs.append(desc)
+        assert not leave
+        return it
 
     def training_set(batchsize, shuffle_rng=None):
         for i in range(0, 20, batchsize):
             yield [np.arange(20)[i:i + batchsize]]
 
     train(training_set, None, None,
-          batchsize=7, train_batch_func=train_fn, num_epochs=200,
-          pre_epoch_callback=train_fn.pre_epoch,
+          batchsize=7, train_batch_func=train_batch, num_epochs=200,
+          pre_epoch_callback=epoch_init,
           progress_iter_func=progress_iter_func,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
-    assert train_fn.count == 600
     # Getting data from callable that returns an iterator, we we cannot
     # determine the number of batches ahead of time, so we expect the `total`
     # parameter to have a value of None each time
     assert totals == [None] * 200
-    assert descs == ['Epoch {}'.format(i) for i in range(1, 201)]
+    assert descs == ['Epoch {} train'.format(i) for i in range(1, 201)]
+
+
+def test_progress_iter_func_val_test():
+    # Test situation training, validation and test sets are provided
+    from lasagne.trainer import train, VERBOSITY_NONE
+    log = six.moves.cStringIO()
+    epoch_init = EpochInit()
+
+    val_results = list(range(200, 0, -1))
+
+    def train_batch(batch_X):
+        return [0.0]
+
+    def eval_batch(batch_X):
+        res = [float(val_results[epoch_init.epoch])]
+        return res
+
+    totals = []
+    descs = []
+
+    def progress_iter_func(it, total, desc, leave):
+        totals.append(total)
+        descs.append(desc)
+        assert not leave
+        return it
+
+    train([np.arange(20)], [np.arange(20)], [np.arange(20)],
+          batchsize=5, train_batch_func=train_batch, num_epochs=200,
+          eval_batch_func=eval_batch,
+          val_improved_func=lambda a, b: a[0] < b[0],
+          pre_epoch_callback=epoch_init,
+          progress_iter_func=progress_iter_func,
+          log_stream=log, verbosity=VERBOSITY_NONE,
+          log_final_result=False)
+
+    # 20 samples, batch size of 5 = 4 batches, so we expect the `total`
+    # parameter to have a value of 4 each time
+    assert totals == [4] * 600
+    assert len(descs) == 600
+    for i in range(200):
+        assert descs[i * 3 + 0] == 'Epoch {} train'.format(i + 1)
+        assert descs[i * 3 + 1] == 'Epoch {} val'.format(i + 1)
+        assert descs[i * 3 + 2] == 'Epoch {} test'.format(i + 1)
 
 
 def test_report_epoch_log_fn():

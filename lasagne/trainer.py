@@ -88,7 +88,8 @@ def _batch_loop(fn, data, batchsize, progress_iter_func=None, desc='',
                 n_batches += 1
         else:
             n_batches = None
-        batch_iter = progress_iter_func(batch_iter, total=n_batches, desc=desc)
+        batch_iter = progress_iter_func(batch_iter, total=n_batches, desc=desc,
+                                        leave=False)
 
     # Train on each batch
     for batch_i, batch in enumerate(batch_iter):
@@ -322,12 +323,13 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         validation results as the third if validation was performed this
         epoch, `None` otherwise.
     progress_iter_func: [optional] callable
-        `progress_iter_func(iterator, total=total, desc=desc)`
+        `progress_iter_func(iterator, total=total, desc=desc, leave=leave)`
         A `tqdm` style function that will be passed the iterator that
-        generates training batches along with the total number of batches and
-        the description that will be `'Train'`. By passing either
-        `tqdm.tqdm` or `tqdm.tqdm_notebook` as this argument you can have the
-        training loop display a progress bar.
+        generates training batches along with the total number of batches,
+        the current task description as a string and `False` for the
+        `leave parameter. By passing either `tqdm.tqdm` or
+        `tqdm.tqdm_notebook` as this argument you can have the training loop
+        display a progress bar.
     verbosity: one of `VERBOSITY_NONE` (`None`), `VERBOSITY_MINIMAL`
         (`'minimal'`) or `VERBOSITY_EPOCH` (`'epoch'`)
         How much information is written to the log stream describing progress.
@@ -554,7 +556,7 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         train_epoch_args = (epoch,) if train_pass_epoch_number else None
         train_results = _batch_loop(train_batch_func, train_set,
                                     batchsize, progress_iter_func,
-                                    'Epoch {}'.format(epoch + 1),
+                                    'Epoch {} train'.format(epoch + 1),
                                     shuffle_rng=shuffle_rng,
                                     prepend_args=train_epoch_args)
 
@@ -582,8 +584,9 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         if val_set is not None and _should_validate(epoch):
             validated = True
 
-            validation_results = _batch_loop(eval_batch_func, val_set,
-                                             batchsize)
+            validation_results = _batch_loop(
+                eval_batch_func, val_set, batchsize, progress_iter_func,
+                'Epoch {} val'.format(epoch + 1))
             if best_validation_results is None or \
                     val_improved_func(validation_results,
                                       best_validation_results):
@@ -603,14 +606,17 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
 
                 if test_set is not None:
                     tested = True
-                    test_results = _batch_loop(eval_batch_func, test_set,
-                                               batchsize)
+                    test_results = _batch_loop(
+                        eval_batch_func, test_set, batchsize,
+                        progress_iter_func, 'Epoch {} test'.format(epoch + 1))
         else:
             validation_results = None
 
         if not tested and test_set is not None and val_set is None:
             tested = True
-            test_results = _batch_loop(eval_batch_func, test_set, batchsize)
+            test_results = _batch_loop(eval_batch_func, test_set, batchsize,
+                                       progress_iter_func,
+                                       'Epoch {} test'.format(epoch + 1))
 
         if verbosity == VERBOSITY_EPOCH:
             _log_epoch_results(epoch, time.time() - epoch_start_time,

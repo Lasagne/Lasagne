@@ -266,12 +266,14 @@ def test_training_failure():
 
     epoch_init = EpochInit()
 
+    # Fail at epoch 100
     def train_batch(*batch):
         if epoch_init.epoch == 100:
             return [float('nan')]
         else:
             return [float(epoch_init.epoch) * batch[0].shape[0]]
 
+    # Check for failure
     def check_train_res(epoch, train_results):
         if np.isnan(train_results[0]).any():
             return 'NaN detected'
@@ -297,83 +299,126 @@ def test_training_failure_state_restore():
     from lasagne.trainer import train, TrainingFailedException, \
         VERBOSITY_NONE
     log = six.moves.cStringIO()
-    results = [[float('nan') if i == 100 else i] for i in range(200)]
-    # Tell the training function to expect the epoch index
-    train_fn = TrainFunction(results, states=np.arange(1000, 2005, 5))
+    epoch_init = EpochInit()
 
-    # Initialise state to 12345 so that this can be restored on training
-    # failure
-    train_fn.current_state = 12345
+    # No stored state at the start
+    current_state = [None]
 
+    # Fail at epoch 100
+    def train_batch(*batch):
+        if epoch_init.epoch == 100:
+            return [float('nan')]
+        else:
+            return [float(epoch_init.epoch) * batch[0].shape[0]]
+
+    # Check for failure
     def check_train_res(epoch, train_results):
         if np.isnan(train_results[0]).any():
             return 'NaN detected'
         else:
             return None
 
+    @count_calls
+    def get_state():
+        if epoch_init.epoch is None:
+            # Initial state: 12345
+            return 12345
+        else:
+            return range(1000, 2005, 5)[epoch_init.epoch]
+
+    @count_calls
+    def set_state(state):
+        current_state[0] = state
+
     with pytest.raises(TrainingFailedException):
         train([np.arange(10)], None, None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
+              train_batch_func=train_batch, num_epochs=200,
               train_epoch_results_check_func=check_train_res,
-              get_state_func=train_fn.get_state,
-              set_state_func=train_fn.set_state,
-              pre_epoch_callback=train_fn.pre_epoch,
+              get_state_func=get_state,
+              set_state_func=set_state,
+              pre_epoch_callback=epoch_init,
               log_stream=log, verbosity=VERBOSITY_NONE,
               log_final_result=False)
 
-    assert train_fn.current_state == 12345
+    assert current_state[0] == 12345
 
 
 def test_validate():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    val_out = [[i] for i in range(200)]
-    train_fn = TrainFunction()
-    eval_fn = TrainFunction(val_out)
+
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    @count_calls
+    def eval_batch(*batch):
+        return [float(epoch_init.epoch)]
 
     train([np.arange(10)], [np.arange(5)], None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
-          eval_batch_func=eval_fn, log_stream=log,
-          verbosity=VERBOSITY_NONE, log_final_result=False)
+          train_batch_func=train_batch, num_epochs=200,
+          eval_batch_func=eval_batch, pre_epoch_callback=epoch_init,
+          log_stream=log, verbosity=VERBOSITY_NONE, log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
+    assert train_batch.call_count == 400
     # Called 200 times - 1x per epoch
-    assert eval_fn.count == 200
+    assert eval_batch.call_count == 200
     assert log.getvalue() == ''
-    # State is not stored
-    assert train_fn.state_get_count == 0
-    assert train_fn.state_set_count == 0
 
 
 def test_validate_with_store_state():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 2005, 5))
-    eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
-                            [[i] for i in range(0, 200, 2)])
-    pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
+
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    @count_calls
+    def eval_batch(*batch):
+        if epoch_init.epoch <= 100:
+            return [float(100 - epoch_init.epoch)]
+        else:
+            return [float(epoch_init.epoch - 99)]
+
+    @count_calls
+    def get_state():
+        if epoch_init.epoch is None:
+            return -12345
+        else:
+            return range(1000, 2005, 5)[epoch_init.epoch]
+
+    current_state = [None]
+
+    @count_calls
+    def set_state(state):
+        current_state[0] = state
 
     train([np.arange(10)], [np.arange(5)], None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
-          eval_batch_func=eval_fn,
-          pre_epoch_callback=pre_epoch,
-          get_state_func=train_fn.get_state,
-          set_state_func=train_fn.set_state,
+          train_batch_func=train_batch, num_epochs=200,
+          eval_batch_func=eval_batch,
+          pre_epoch_callback=epoch_init,
+          get_state_func=get_state,
+          set_state_func=set_state,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
-    assert eval_fn.count == 200
+    assert train_batch.call_count == 400
+    assert eval_batch.call_count == 200
     assert log.getvalue() == ''
     # Called once at the start then 100 times (each epoch for 1st 100)
-    assert train_fn.state_get_count == 101
+    assert get_state.call_count == 101
     # Called once at the end to restore the state
-    assert train_fn.state_set_count == 1
+    assert set_state.call_count == 1
     # The state comes from the training function which should give a value
     # of 2005
-    assert train_fn.current_state == 1500
+    assert current_state[0] == 1500
 
 
 def test_validate_with_store_layer_state():
@@ -384,20 +429,30 @@ def test_validate_with_store_layer_state():
     l_out = DenseLayer(l_in, num_units=5)
 
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
-    eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
-                            [[i] for i in range(0, 200, 2)])
+
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    @count_calls
+    def eval_batch(*batch):
+        if epoch_init.epoch <= 100:
+            return [float(100 - epoch_init.epoch)]
+        else:
+            return [float(epoch_init.epoch - 99)]
 
     train([np.arange(10)], [np.arange(5)], None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
-          eval_batch_func=eval_fn,
-          layer_to_restore=l_out,
+          train_batch_func=train_batch, num_epochs=200,
+          eval_batch_func=eval_batch,
+          pre_epoch_callback=epoch_init, layer_to_restore=l_out,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
-    assert eval_fn.count == 200
+    assert train_batch.call_count == 400
+    assert eval_batch.call_count == 200
     assert log.getvalue() == ''
 
 
@@ -415,21 +470,31 @@ def test_validate_with_store_layer_state_with_updates():
     updates = adam(loss, layers.get_all_params(l_out))
 
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
-    eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
-                            [[i] for i in range(0, 200, 2)])
+
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    @count_calls
+    def eval_batch(*batch):
+        if epoch_init.epoch <= 100:
+            return [float(100 - epoch_init.epoch)]
+        else:
+            return [float(epoch_init.epoch - 99)]
 
     train([np.arange(10)], [np.arange(5)], None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
-          eval_batch_func=eval_fn,
-          layer_to_restore=l_out,
+          train_batch_func=train_batch, num_epochs=200,
+          eval_batch_func=eval_batch,
+          pre_epoch_callback=epoch_init, layer_to_restore=l_out,
           updates_to_restore=updates,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
-    assert eval_fn.count == 200
+    assert train_batch.call_count == 400
+    assert eval_batch.call_count == 200
     assert log.getvalue() == ''
 
 
@@ -447,11 +512,14 @@ def test_store_state_updates_without_layer():
     updates = adam(loss, layers.get_all_params(l_out))
 
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
 
     with pytest.raises(ValueError):
         train([np.arange(10)], None, None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
+              train_batch_func=train_batch, num_epochs=200,
               updates_to_restore=updates,
               log_stream=log, verbosity=VERBOSITY_NONE,
               log_final_result=False)
@@ -462,23 +530,32 @@ def test_restore_layer_incomplete_getstate_setstate():
     from lasagne import layers
 
     l_in_x = layers.InputLayer(shape=(None, 5))
-    l_in_y = layers.InputLayer(shape=(None, 5))
     l_out = layers.DenseLayer(l_in_x, num_units=5)
 
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
+
+    def train_batch(*batch):
+        return [0.0]
+
+    def get_state():
+        # should never be invoked
+        pytest.fail()
+
+    def set_state():
+        # should never be invoked
+        pytest.fail()
 
     train([np.arange(10)], None, None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
+          train_batch_func=train_batch, num_epochs=200,
           layer_to_restore=l_out,
-          get_state_func=train_fn.get_state,
+          get_state_func=get_state,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
     train([np.arange(10)], None, None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
+          train_batch_func=train_batch, num_epochs=200,
           layer_to_restore=l_out,
-          set_state_func=train_fn.set_state,
+          set_state_func=set_state,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
@@ -487,19 +564,29 @@ def test_incomplete_getstate_setstate():
     from lasagne.trainer import train, VERBOSITY_NONE
 
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
+
+    def train_batch(*batch):
+        return [0.0]
+
+    def get_state():
+        # should never be invoked
+        pytest.fail()
+
+    def set_state():
+        # should never be invoked
+        pytest.fail()
 
     with pytest.raises(ValueError):
         train([np.arange(10)], None, None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
-              get_state_func=train_fn.get_state,
+              train_batch_func=train_batch, num_epochs=200,
+              get_state_func=get_state,
               log_stream=log, verbosity=VERBOSITY_NONE,
               log_final_result=False)
 
     with pytest.raises(ValueError):
         train([np.arange(10)], None, None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
-              set_state_func=train_fn.set_state,
+              train_batch_func=train_batch, num_epochs=200,
+              set_state_func=set_state,
               log_stream=log, verbosity=VERBOSITY_NONE,
               log_final_result=False)
 
@@ -519,21 +606,31 @@ def test_validate_with_store_layer_state_with_updates_list():
     updates_list = [(p, v) for p, v in updates.items()]
 
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
-    eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
-                            [[i] for i in range(0, 200, 2)])
+
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    @count_calls
+    def eval_batch(*batch):
+        if epoch_init.epoch <= 100:
+            return [float(100 - epoch_init.epoch)]
+        else:
+            return [float(epoch_init.epoch - 99)]
 
     train([np.arange(10)], [np.arange(5)], None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
-          eval_batch_func=eval_fn,
-          layer_to_restore=l_out,
+          train_batch_func=train_batch, num_epochs=200,
+          eval_batch_func=eval_batch,
+          pre_epoch_callback=epoch_init, layer_to_restore=l_out,
           updates_to_restore=updates_list,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
     # Called 400 times - 2x per epoch for 200 epochs
-    assert train_fn.count == 400
-    assert eval_fn.count == 200
+    assert train_batch.call_count == 400
+    assert eval_batch.call_count == 200
     assert log.getvalue() == ''
 
 
@@ -542,20 +639,29 @@ def test_validate_with_store_layer_state_with_updates_invalid():
     from lasagne import layers
 
     l_in_x = layers.InputLayer(shape=(None, 5))
-    l_in_y = layers.InputLayer(shape=(None, 5))
     l_out = layers.DenseLayer(l_in_x, num_units=5)
     updates = 'Strings are not valid update types'
 
     log = six.moves.cStringIO()
-    train_fn = TrainFunction(states=np.arange(1000, 3005, 5))
-    eval_fn = TrainFunction([[i] for i in range(200, -1, -2)] +
-                            [[i] for i in range(0, 200, 2)])
+
+    epoch_init = EpochInit()
+
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    @count_calls
+    def eval_batch(*batch):
+        if epoch_init.epoch <= 100:
+            return [float(100 - epoch_init.epoch)]
+        else:
+            return [float(epoch_init.epoch - 99)]
 
     with pytest.raises(TypeError):
         train([np.arange(10)], [np.arange(5)], None, batchsize=5,
-              train_batch_func=train_fn, num_epochs=200,
-              eval_batch_func=eval_fn,
-              layer_to_restore=l_out,
+              train_batch_func=train_batch, num_epochs=200,
+              eval_batch_func=eval_batch,
+              pre_epoch_callback=epoch_init, layer_to_restore=l_out,
               updates_to_restore=updates,
               log_stream=log, verbosity=VERBOSITY_NONE,
               log_final_result=False)
@@ -564,22 +670,30 @@ def test_validate_with_store_layer_state_with_updates_invalid():
 def test_validation_interval():
     from lasagne.trainer import train, VERBOSITY_NONE
     log = six.moves.cStringIO()
-    train_fn = TrainFunction()
 
-    def on_eval():
-        assert train_fn.count in range(1, 201, 10)
+    epoch_init = EpochInit()
 
-    eval_fn = TrainFunction([[i] for i in range(200)],
-                            on_invoke=on_eval)
+    @count_calls
+    def train_batch(*batch):
+        return [0.0]
+
+    @count_calls
+    def eval_batch(*batch):
+        assert epoch_init.epoch % 10 == 0
+        if epoch_init.epoch <= 100:
+            return [float(100 - epoch_init.epoch)]
+        else:
+            return [float(epoch_init.epoch - 99)]
 
     train([np.arange(5)], [np.arange(5)], None, batchsize=5,
-          train_batch_func=train_fn, num_epochs=200,
-          val_interval=10, eval_batch_func=eval_fn,
+          train_batch_func=train_batch, num_epochs=200,
+          val_interval=10, eval_batch_func=eval_batch,
+          pre_epoch_callback=epoch_init,
           log_stream=log, verbosity=VERBOSITY_NONE,
           log_final_result=False)
 
-    assert train_fn.count == 200
-    assert eval_fn.count == 20
+    assert train_batch.call_count == 200
+    assert eval_batch.call_count == 20
     assert log.getvalue() == ''
 
 

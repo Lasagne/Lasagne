@@ -48,7 +48,7 @@ class InputLayer(Layer):
     >>> l_in = InputLayer((100, 20))
     """
     def __init__(self, shape, input_var=None, name=None, **kwargs):
-        self.shape = shape
+        self.shape = tuple(shape)
         if any(d is not None and d <= 0 for d in self.shape):
             raise ValueError((
                 "Cannot create InputLayer with a non-positive shape "

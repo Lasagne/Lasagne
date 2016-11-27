@@ -3,15 +3,23 @@ import theano
 import pytest
 
 
-def test_binary_crossentropy():
+@pytest.mark.parametrize('colvect', (False, True))
+def test_binary_crossentropy(colvect):
     # symbolic version
     from lasagne.objectives import binary_crossentropy
-    p, t = theano.tensor.matrices('pt')
-    c = binary_crossentropy(p, t)
+    if not colvect:
+        p, t = theano.tensor.matrices('pt')
+        c = binary_crossentropy(p, t)
+    else:
+        # check that for convenience, comparing a prediction column vector
+        # against a 1D target vector does not lead to broadcasting
+        p, t = theano.tensor.vectors('pt')
+        c = binary_crossentropy(p.dimshuffle(0, 'x'), t)[:, 0]
     # numeric version
     floatX = theano.config.floatX
-    predictions = np.random.rand(10, 20).astype(floatX)
-    targets = np.random.rand(10, 20).astype(floatX)
+    shape = (10, 20) if not colvect else (10,)
+    predictions = np.random.rand(*shape).astype(floatX)
+    targets = np.random.rand(*shape).astype(floatX)
     crossent = (- targets * np.log(predictions) -
                 (1-targets) * np.log(1-predictions))
     # compare
@@ -50,15 +58,21 @@ def test_categorical_crossentropy_onehot():
     assert np.allclose(crossent, c.eval({p: predictions, t: targets}))
 
 
-def test_squared_error():
+@pytest.mark.parametrize('colvect', (False, True))
+def test_squared_error(colvect):
     # symbolic version
     from lasagne.objectives import squared_error
-    a, b = theano.tensor.matrices('ab')
-    c = squared_error(a, b)
+    if not colvect:
+        a, b = theano.tensor.matrices('ab')
+        c = squared_error(a, b)
+    else:
+        a, b = theano.tensor.vectors('ab')
+        c = squared_error(a.dimshuffle(0, 'x'), b)[:, 0]
     # numeric version
     floatX = theano.config.floatX
-    x = np.random.randn(10, 20).astype(floatX)
-    y = np.random.randn(10, 20).astype(floatX)
+    shape = (10, 20) if not colvect else (10,)
+    x = np.random.rand(*shape).astype(floatX)
+    y = np.random.rand(*shape).astype(floatX)
     z = (x - y)**2
     # compare
     assert np.allclose(z, c.eval({a: x, b: y}))
@@ -112,33 +126,39 @@ def test_aggregate_invalid():
     assert 'require weights' in exc.value.args[0]
 
 
-def test_binary_hinge_loss():
+@pytest.mark.parametrize('colvect', (False, True))
+def test_binary_hinge_loss(colvect):
     from lasagne.objectives import binary_hinge_loss
-    from lasagne.nonlinearities import rectify
     p = theano.tensor.vector('p')
     t = theano.tensor.ivector('t')
-    c = binary_hinge_loss(p, t)
+    if not colvect:
+        c = binary_hinge_loss(p, t)
+    else:
+        c = binary_hinge_loss(p.dimshuffle(0, 'x'), t)[:, 0]
     # numeric version
     floatX = theano.config.floatX
     predictions = np.random.rand(10).astype(floatX)
     targets = np.random.random_integers(0, 1, (10,)).astype("int8")
-    hinge = rectify(1 - predictions * (2 * targets - 1))
+    hinge = np.maximum(0, 1 - predictions * (2 * targets - 1))
     # compare
     assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
 
 
-def test_binary_hinge_loss_not_binary_targets():
+@pytest.mark.parametrize('colvect', (False, True))
+def test_binary_hinge_loss_not_binary_targets(colvect):
     from lasagne.objectives import binary_hinge_loss
-    from lasagne.nonlinearities import rectify
     p = theano.tensor.vector('p')
     t = theano.tensor.ivector('t')
-    c = binary_hinge_loss(p, t, binary=False)
+    if not colvect:
+        c = binary_hinge_loss(p, t, binary=False)
+    else:
+        c = binary_hinge_loss(p.dimshuffle(0, 'x'), t, binary=False)[:, 0]
     # numeric version
     floatX = theano.config.floatX
     predictions = np.random.rand(10, ).astype(floatX)
     targets = np.random.random_integers(0, 1, (10, )).astype("int8")
     targets = 2 * targets - 1
-    hinge = rectify(1 - predictions * targets)
+    hinge = np.maximum(0, 1 - predictions * targets)
     # compare
     assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
 
@@ -171,11 +191,15 @@ def test_multiclass_hinge_loss_invalid():
     assert 'rank mismatch' in exc.value.args[0]
 
 
-def test_binary_accuracy():
+@pytest.mark.parametrize('colvect', (False, True))
+def test_binary_accuracy(colvect):
     from lasagne.objectives import binary_accuracy
     p = theano.tensor.vector('p')
     t = theano.tensor.ivector('t')
-    c = binary_accuracy(p, t)
+    if not colvect:
+        c = binary_accuracy(p, t)
+    else:
+        c = binary_accuracy(p.dimshuffle(0, 'x'), t)[:, 0]
     # numeric version
     floatX = theano.config.floatX
     predictions = np.random.rand(10, ).astype(floatX) > 0.5

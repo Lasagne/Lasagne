@@ -77,7 +77,7 @@ This gives a loss expression good for monitoring validation error.
 
 import theano.tensor.nnet
 
-from lasagne.layers import get_output
+from .utils import as_theano_expression
 
 __all__ = [
     "binary_crossentropy",
@@ -89,6 +89,33 @@ __all__ = [
     "binary_accuracy",
     "categorical_accuracy"
 ]
+
+
+def align_targets(predictions, targets):
+    """Helper function turning a target 1D vector into a column if needed.
+    This way, combining a network of a single output unit with a target vector
+    works as expected by most users, not broadcasting outputs against targets.
+
+    Parameters
+    ----------
+    predictions : Theano tensor
+        Expression for the predictions of a neural network.
+    targets : Theano tensor
+        Expression or variable for corresponding targets.
+
+    Returns
+    -------
+    predictions : Theano tensor
+        The predictions unchanged.
+    targets : Theano tensor
+        If `predictions` is a column vector and `targets` is a 1D vector,
+        returns `targets` turned into a column vector. Otherwise, returns
+        `targets` unchanged.
+    """
+    if (getattr(predictions, 'broadcastable', None) == (False, True) and
+            getattr(targets, 'ndim', None) == 1):
+        targets = as_theano_expression(targets).dimshuffle(0, 'x')
+    return predictions, targets
 
 
 def binary_crossentropy(predictions, targets):
@@ -113,6 +140,7 @@ def binary_crossentropy(predictions, targets):
     This is the loss function of choice for binary classification problems
     and sigmoid output units.
     """
+    predictions, targets = align_targets(predictions, targets)
     return theano.tensor.nnet.binary_crossentropy(predictions, targets)
 
 
@@ -166,6 +194,7 @@ def squared_error(a, b):
     This is the loss function of choice for many regression problems
     or auto-encoders with linear output units.
     """
+    a, b = align_targets(a, b)
     return (a - b)**2
 
 
@@ -246,6 +275,7 @@ def binary_hinge_loss(predictions, targets, binary=True, delta=1):
     """
     if binary:
         targets = 2 * targets - 1
+    predictions, targets = align_targets(predictions, targets)
     return theano.tensor.nnet.relu(delta - predictions * targets)
 
 
@@ -318,6 +348,7 @@ def binary_accuracy(predictions, targets, threshold=0.5):
     To obtain the average accuracy, call :func:`theano.tensor.mean()` on the
     result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
     """
+    predictions, targets = align_targets(predictions, targets)
     predictions = theano.tensor.ge(predictions, threshold)
     return theano.tensor.eq(predictions, targets)
 

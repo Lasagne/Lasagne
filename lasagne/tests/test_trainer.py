@@ -1336,6 +1336,63 @@ def test_progress_iter_func_test():
         assert descs[i * 2 + 1] == 'Epoch {} test'.format(i + 1)
 
 
+def test_report_epoch_log_template():
+    from lasagne.trainer import train, VERBOSITY_EPOCH
+    train_output = [[float(x)] for x in range(200)]
+    val_output = zip(np.arange(200.0),
+                     np.arange(200.0, -1.0, -1.0))
+    val_output = [list(xs) for xs in val_output]
+    log = six.moves.cStringIO()
+    train_fn = TrainFunction(train_output)
+    eval_fn = TrainFunction(val_output)
+    pre_epoch = TrainFunction.pre_epoch_for(train_fn, eval_fn)
+
+    train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5,
+          train_batch_func=train_fn, train_log_msg='{0}',
+          num_epochs=200, min_epochs=65,
+          val_improve_patience_factor=2,
+          eval_batch_func=eval_fn, eval_log_msg='{0} {1}',
+          val_improved_func=lambda a, b: a[1] < b[1],
+          pre_epoch_callback=pre_epoch,
+          log_stream=log, verbosity=VERBOSITY_EPOCH,
+          epoch_log_msg='{0}: train: {2}, val: {3}, test: {4}',
+          log_final_result=False)
+
+    assert train_fn.count == 200
+    assert eval_fn.count == 400
+    log_lines = log.getvalue().split('\n')
+    for i, line in enumerate(log_lines):
+        if line.strip() != '':
+            assert '{0}: train: {1}, val: {2} {3}, test: {2} {3}'.format(
+                i, train_output[i][0], val_output[i][0],
+                val_output[i][1]) == line
+
+    # Now try with invalid types
+    with pytest.raises(TypeError):
+        # Invalid training log template
+        train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5,
+              train_batch_func=train_fn, train_log_msg=42,
+              num_epochs=200,
+              eval_batch_func=eval_fn, eval_log_msg='{0} {1}',
+              epoch_log_msg='{0}: train: {2}, val: {3}, test: {4}')
+
+    with pytest.raises(TypeError):
+        # Invalid evaluation log template
+        train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5,
+              train_batch_func=train_fn, train_log_msg='{0}',
+              num_epochs=200,
+              eval_batch_func=eval_fn, eval_log_msg=42,
+              epoch_log_msg='{0}: train: {2}, val: {3}, test: {4}')
+
+    with pytest.raises(TypeError):
+        # Invalid epoch log template
+        train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5,
+              train_batch_func=train_fn, train_log_msg='{0}',
+              num_epochs=200,
+              eval_batch_func=eval_fn, eval_log_msg='{0} {1}',
+              epoch_log_msg=42)
+
+
 def test_report_epoch_log_fn():
     from lasagne.trainer import train, VERBOSITY_EPOCH
     train_output = [[float(x)] for x in range(200)]
@@ -1358,14 +1415,14 @@ def test_report_epoch_log_fn():
             epoch_index, train_str, val_str, test_str)
 
     train([np.arange(5)], [np.arange(5)], [np.arange(5)], batchsize=5,
-          train_batch_func=train_fn, train_log_func=train_log,
+          train_batch_func=train_fn, train_log_msg=train_log,
           num_epochs=200, min_epochs=65,
           val_improve_patience_factor=2,
-          eval_batch_func=eval_fn, eval_log_func=eval_log,
+          eval_batch_func=eval_fn, eval_log_msg=eval_log,
           val_improved_func=lambda a, b: a[1] < b[1],
           pre_epoch_callback=pre_epoch,
           log_stream=log, verbosity=VERBOSITY_EPOCH,
-          epoch_log_func=epoch_log_fn, log_final_result=False)
+          epoch_log_msg=epoch_log_fn, log_final_result=False)
 
     assert train_fn.count == 200
     assert eval_fn.count == 400

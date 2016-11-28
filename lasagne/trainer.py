@@ -1,4 +1,5 @@
 import sys
+import six
 import time
 import functools
 import numpy as np
@@ -100,12 +101,12 @@ class TrainingResults (object):
 
 
 def train(train_set, val_set=None, test_set=None, train_batch_func=None,
-          train_log_func=None, train_epoch_results_check_func=None,
+          train_log_msg=None, train_epoch_results_check_func=None,
           train_pass_epoch_number=False, eval_batch_func=None,
-          eval_log_func=None, val_improved_func=None, val_interval=None,
+          eval_log_msg=None, val_improved_func=None, val_interval=None,
           batchsize=128, num_epochs=100, min_epochs=None,
           val_improve_patience=1, val_improve_patience_factor=0.0,
-          epoch_log_func=None, pre_epoch_callback=None,
+          epoch_log_msg=None, pre_epoch_callback=None,
           post_epoch_callback=None, progress_iter_func=None,
           verbosity=VERBOSITY_EPOCH, log_stream=sys.stdout,
           log_final_result=True, get_state_func=None, set_state_func=None,
@@ -143,11 +144,15 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         loss/errors for the samples in the batch batch as the values will be
         accumulated and divided by the total number of training samples
         after all mini-batches has been processed.
-    train_log_func: [optional] callable
-        `train_log_func(train_results) -> str`
-        Function that generates log output for the training results accumulated
-        over an epoch. The default behaviour is to convert the train results
-        to a string using `str(train_results)`.
+    train_log_msg: [optional] str or callable
+        If a string is provided the training log message is generated using
+        the format method: `train_log_msg.format(*train_results)`, e.g.
+        passing the string 'loss {0} err {1}' would be suitable to log loss
+        and error values from the training results. If a callable is provided
+        the training log message is generated using
+        `train_log_msg(train_results)`. If a training log message is not
+        provided, the default behaviour is to convert the train results to a
+        string using `str(train_results)`.
     train_epoch_results_check_func: [optional] callable
         `train_epoch_results_check_func(epoch, train_epoch_results) -> str`
         Function that is invoked to check the results returned by
@@ -176,11 +181,15 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         and that a *lower* value indicates a *better* result. This can be
         overridden by providing a callable for `val_improved_func`
         that can use a custom improvement detection strategy
-    eval_log_func: [optional] callable
-        `eval_log_func(eval_results) -> str`
-        Function that generates log output for the evaluation results
-        accumulated over an epoch. The default behaviour is to convert the
-        evaluation results to a string using `str(eval_results)`.
+    eval_log_msg: [optional] str or callable
+        If a string is provided the evaluation log message is generated using
+        the format method: `eval_log_msg.format(*eval_results)`, e.g.
+        passing the string 'loss {0} err {1}' would be suitable to log loss
+        and error values from the evaluation results. If a callable is provided
+        the evaluation log message is generated using
+        `eval_log_msg(eval_results)`. If a evaluation log message is not
+        provided, the default behaviour is to convert the train results to a
+        string using `str(eval_results)`.
     val_improved_func: [optional] callable
         `validation_improved_func(new_val_results, best_val_results) -> bool`
         Validation improvement detection function that determines if the
@@ -206,17 +215,20 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         If not `None`, training will terminate early if a run of
         `(current_epoch + 1) * val_improve_patience_factor` epochs executes
         with no improvement in validation score.
-    epoch_log_func: [optional] callable
-        `epoch_log_func(epoch, d_time, train_str, val_str, test_str) -> str`
-        Customise the log string generated after each epoch; a function that
-        generates a string describing the epoch training results. `epoch` is
-        the epoch index, `d_time` is the time elapsed in seconds.
-        `train_str`, `val_str` and `test_str` are strings or `None`,
-        that represent that training, validation and test results if
-        available. They come from invoking `train_log_func` to get the
-        training results and `eval_log_func` to get the validation and test
-        results. The default behaviour produces a line reporting the epoch
-        index, time elapsed, train, validation and test results.
+    epoch_log_msg: [optional] str or callable
+        If a string is provided the epoch log message is generated using
+        the format method:
+        `epoch_log_msg.format(epoch, d_time, train_str, val_str, test_str)`.
+        If a callable is provided the epoch log message is generated using
+        `epoch_log_msg(epoch, d_time, train_str, val_str, test_str)`.
+        The arguments are as follows: `epoch` is the epoch index, `d_time` is
+        the time elapsed in seconds. `train_str`, `val_str` and `test_str`
+        are strings or `None`, that represent that training, validation and
+        test results if available. They can be customised by providing values
+        for `train_log_msg` for training results and `eval_log_msg` for
+        validation and test results. The default behaviour produces a line
+        reporting the epoch index, time elapsed, train, validation and test
+        results, and should be suitable for most purposes.
     pre_epoch_callback: [optional] callable `pre_epoch_callback(epoch)`
         If provided this function will be invoked before the start of
         each epoch, with the epoch index provided as the (first)
@@ -311,8 +323,6 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
     # Provide defaults
     if val_improved_func is None:
         val_improved_func = _default_val_improved_func
-    if epoch_log_func is None:
-        epoch_log_func = _default_epoch_log_func
     if shuffle_rng is None:
         shuffle_rng = lasagne.random.get_rng()
 
@@ -338,6 +348,43 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
     if updates_to_restore is not None and layer_to_restore is None:
         raise ValueError('`updates_to_restore` provided without '
                          '`layer_to_restore`')
+    # Handle log messages
+    if train_log_msg is None:
+        def train_log_func(train_res):
+            return '{}'.format(train_res)
+    elif isinstance(train_log_msg, six.string_types):
+        def train_log_func(train_res):
+            return train_log_msg.format(*train_res)
+    elif callable(train_log_msg):
+        train_log_func = train_log_msg
+    else:
+        raise TypeError('train_log_msg should be None, a string or a '
+                        'callable, not a {}'.format(type(train_log_msg)))
+
+    if eval_log_msg is None:
+        def eval_log_func(eval_res):
+            return '{}'.format(eval_res)
+    elif isinstance(eval_log_msg, six.string_types):
+        def eval_log_func(eval_res):
+            return eval_log_msg.format(*eval_res)
+    elif callable(eval_log_msg):
+        eval_log_func = eval_log_msg
+    else:
+        raise TypeError('eval_log_msg should be None, a string or a '
+                        'callable, not a {}'.format(type(eval_log_msg)))
+
+    if epoch_log_msg is None:
+        epoch_log_func = _default_epoch_log_func
+    elif isinstance(epoch_log_msg, six.string_types):
+        def epoch_log_func(epoch, d_time, train_str, val_str, test_str):
+            return epoch_log_msg.format(epoch, d_time, train_str, val_str,
+                                        test_str)
+    elif callable(epoch_log_msg):
+        epoch_log_func = epoch_log_msg
+    else:
+        raise TypeError('epoch_log_msg should be None, a string or a '
+                        'callable, not a {}'.format(type(epoch_log_msg)))
+
     if get_state_func is not None and set_state_func is None:
         if layer_to_restore is not None:
             print('WARNING: `Trainer.train()`: `get_state_func` '
@@ -391,20 +438,11 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
                            val_res, test_res):
         train_str = val_str = test_str = None
         if train_res is not None:
-            if train_log_func is not None:
-                train_str = train_log_func(train_res)
-            else:
-                train_str = '{}'.format(train_res)
+            train_str = train_log_func(train_res)
         if val_res is not None:
-            if eval_log_func is not None:
-                val_str = eval_log_func(val_res)
-            else:
-                val_str = '{}'.format(val_res)
+            val_str = eval_log_func(val_res)
         if test_res is not None:
-            if eval_log_func is not None:
-                test_str = eval_log_func(test_res)
-            else:
-                test_str = '{}'.format(test_res)
+            test_str = eval_log_func(test_res)
         _log(epoch_log_func(epoch_index, delta_time, train_str, val_str,
                             test_str) + '\n')
 

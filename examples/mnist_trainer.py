@@ -266,35 +266,25 @@ def main(model='mlp', num_epochs=500):
     eval_fn = theano.function([input_var, target_var],
                               [test_err_sum, test_loss.sum()])
 
-    # The (optional) train logging function shows the loss (the default
-    # would often be okay)
-    train_log_func = lambda train_results: 'loss={:.6f}'.format(
-        train_results[0])
-
-    # The (optional) eval logging function shows the error rate and loss
-    # (the default would be okay here too)
-    eval_log_func = lambda eval_results: 'err={:.2%}, loss={:.6f}'.format(
-        eval_results[0], eval_results[1])
-
     # Set off the training loop:
     # - provide the datasets train, validation and test
     # - provide batch size
     # - batch training function
-    # - training log function
+    # - training log message template (OPTIONAL)
     # - evaluation (validation/test) function
-    # - evaluation log function
+    # - evaluation log message template (OPTIONAL)
     # - number of epochs
-    # - verbosity (report per epoch)
     # - layer to restore; this way the network will be set back to its
     #   state when it achieved the best validation score
     # - random number generator to shuffle training samples (just for show
     #   here since it would use `lasagne.random.get_rng()` anyway
+    # We could also specify verbosity (`verbosity` argument) and
+    # provide a random number generator for shuffling (`shuffle_rng` argument)
     res = lasagne.trainer.train(
         [X_train, y_train], [X_val, y_val], [X_test, y_test], batchsize=500,
-        train_batch_func=train_fn, train_log_func=train_log_func,
-        eval_batch_func=eval_fn, eval_log_func=eval_log_func,
-        num_epochs=num_epochs, verbosity=lasagne.trainer.VERBOSITY_EPOCH,
-        layer_to_restore=network, shuffle_rng=lasagne.random.get_rng())
+        train_batch_func=train_fn, train_log_msg='loss={:.6f}',
+        eval_batch_func=eval_fn, eval_log_msg='err={:.2%}, loss={:.6f}',
+        num_epochs=num_epochs, layer_to_restore=network)
 
     # Optionally, you could now dump the network weights to a file like this:
     # np.savez('model.npz', *lasagne.layers.get_all_param_values(network))

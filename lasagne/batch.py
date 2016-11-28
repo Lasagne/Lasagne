@@ -211,8 +211,8 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
                         'don\'t know how to handle {}'.format(type(dataset)))
 
 
-def batch_apply(func, data, batchsize, progress_iter_func=None,
-                prepend_args=None):
+def batch_map(func, data, batchsize, progress_iter_func=None,
+              prepend_args=None):
     """
     Apply a function to all the samples in a data set by breaking the data
     set into mini-batches and applying the function to each mini-batch.
@@ -302,9 +302,9 @@ def batch_apply(func, data, batchsize, progress_iter_func=None,
         return None
 
 
-def mean_batch_apply(func, data, batchsize, progress_iter_func=None,
-                     shuffle_rng=None, func_returns_sum=False,
-                     prepend_args=None):
+def mean_batch_map(func, data, batchsize, progress_iter_func=None,
+                   shuffle_rng=None, func_returns_sum=False,
+                   prepend_args=None):
     """
     Apply a function to all the samples in a data set by breaking the data
     set into mini-batches and applying the function to each mini-batch.

@@ -265,11 +265,11 @@ def main(model='mlp', num_epochs=500):
     for epoch in range(num_epochs):
         # In each epoch, we do a full pass over the training data:
         start_time = time.time()
-        [train_loss] = lasagne.batch.mean_batch_apply(
+        [train_loss] = lasagne.batch.mean_batch_map(
             train_fn, [X_train, y_train], 500, shuffle_rng=rng)
 
         # And a full pass over the validation data:
-        [val_loss, val_acc] = lasagne.batch.mean_batch_apply(
+        [val_loss, val_acc] = lasagne.batch.mean_batch_map(
             val_fn, [X_val, y_val], 500)
 
         # Then we print the results for this epoch:
@@ -281,7 +281,7 @@ def main(model='mlp', num_epochs=500):
             val_acc * 100))
 
     # After training, we compute and print the test error:
-    [test_loss, test_acc] = lasagne.batch.mean_batch_apply(
+    [test_loss, test_acc] = lasagne.batch.mean_batch_map(
         val_fn, [X_test, y_test], 500)
 
     print("Final results:")

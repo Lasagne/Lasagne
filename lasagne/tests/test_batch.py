@@ -226,7 +226,7 @@ def test_batch_iterator():
         batch.batch_iterator(1, batchsize=15)
 
 
-def test_batch_apply():
+def test_batch_map():
     from lasagne import batch
 
     # Data to extract batches from
@@ -248,8 +248,8 @@ def test_batch_apply():
         assert not leave
         return iterator
 
-    [x, y] = batch.batch_apply(batch_func, [X, Y], 5,
-                               progress_iter_func=progress_iter_func)
+    [x, y] = batch.batch_map(batch_func, [X, Y], 5,
+                             progress_iter_func=progress_iter_func)
 
     assert np.allclose(x, X + 2)
     assert np.allclose(y, (Y**2).sum(axis=1))
@@ -260,7 +260,7 @@ def test_batch_apply():
     def batch_func_single(batch_X, batch_Y):
         return batch_X + 2
 
-    [x] = batch.batch_apply(batch_func_single, [X, Y], 5)
+    [x] = batch.batch_map(batch_func_single, [X, Y], 5)
 
     assert np.allclose(x, X + 2)
 
@@ -270,8 +270,8 @@ def test_batch_apply():
     def batch_func_no_results(batch_X, batch_Y):
         return None
 
-    res = batch.batch_apply(batch_func_no_results, [X, Y], 5,
-                            progress_iter_func=progress_iter_func)
+    res = batch.batch_map(batch_func_no_results, [X, Y], 5,
+                          progress_iter_func=progress_iter_func)
 
     assert res is None
 
@@ -282,7 +282,7 @@ def test_batch_apply():
         return 'Should not return a string'
 
     with pytest.raises(TypeError):
-        batch.batch_apply(batch_func_invalid, [X, Y], 5)
+        batch.batch_map(batch_func_invalid, [X, Y], 5)
 
     #
     # Prepend arguments to batch function
@@ -292,15 +292,15 @@ def test_batch_apply():
         assert b == 3.14
         return [batch_X + 2, (batch_Y**2).sum(axis=1)]
 
-    [x, y] = batch.batch_apply(batch_func_prepend, [X, Y], 5,
-                               progress_iter_func=progress_iter_func,
-                               prepend_args=(42, 3.14))
+    [x, y] = batch.batch_map(batch_func_prepend, [X, Y], 5,
+                             progress_iter_func=progress_iter_func,
+                             prepend_args=(42, 3.14))
 
     assert np.allclose(x, X + 2)
     assert np.allclose(y, (Y**2).sum(axis=1))
 
 
-def test_batch_apply_callable():
+def test_batch_map_callable():
     # Get data from callable that creates iterator rather than list of arrays
     from lasagne import batch
 
@@ -323,14 +323,14 @@ def test_batch_apply_callable():
         assert not leave
         return iterator
 
-    [x, y] = batch.batch_apply(batch_func, dataset, 5,
-                               progress_iter_func=progress_iter_func)
+    [x, y] = batch.batch_map(batch_func, dataset, 5,
+                             progress_iter_func=progress_iter_func)
 
     assert np.allclose(x, X + 2)
     assert np.allclose(y, (Y**2).sum(axis=1))
 
 
-def test_mean_batch_apply_in_order():
+def test_mean_batch_map_in_order():
     from lasagne import batch
 
     # Data to extract batches from
@@ -352,9 +352,9 @@ def test_mean_batch_apply_in_order():
         assert not leave
         return iterator
 
-    [x, y] = batch.mean_batch_apply(batch_func, [X, Y], 5,
-                                    progress_iter_func=progress_iter_func,
-                                    func_returns_sum=True)
+    [x, y] = batch.mean_batch_map(batch_func, [X, Y], 5,
+                                  progress_iter_func=progress_iter_func,
+                                  func_returns_sum=True)
 
     assert np.allclose(x, X.mean())
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
@@ -373,9 +373,9 @@ def test_mean_batch_apply_in_order():
         assert not leave
         return iterator
 
-    [x] = batch.mean_batch_apply(batch_func_single, [X, Y], 5,
-                                 progress_iter_func=progress_iter_func,
-                                 func_returns_sum=True)
+    [x] = batch.mean_batch_map(batch_func_single, [X, Y], 5,
+                               progress_iter_func=progress_iter_func,
+                               func_returns_sum=True)
 
     assert np.allclose(x, X.mean())
 
@@ -385,9 +385,9 @@ def test_mean_batch_apply_in_order():
     def batch_func_no_results(batch_X, batch_Y):
         return None
 
-    res = batch.mean_batch_apply(batch_func_no_results, [X, Y], 5,
-                                 progress_iter_func=progress_iter_func,
-                                 func_returns_sum=True)
+    res = batch.mean_batch_map(batch_func_no_results, [X, Y], 5,
+                               progress_iter_func=progress_iter_func,
+                               func_returns_sum=True)
 
     assert res is None
 
@@ -398,7 +398,7 @@ def test_mean_batch_apply_in_order():
         return 'Should not return a string'
 
     with pytest.raises(TypeError):
-        batch.mean_batch_apply(batch_func_invalid, [X, Y], 5)
+        batch.mean_batch_map(batch_func_invalid, [X, Y], 5)
 
     #
     # Prepend arguments to batch function
@@ -408,17 +408,17 @@ def test_mean_batch_apply_in_order():
         assert b == 3.14
         return [batch_X.sum(), (batch_Y**2).sum(axis=1).sum()]
 
-    [x, y] = batch.mean_batch_apply(batch_func_prepend, [X, Y], 5,
-                                    progress_iter_func=progress_iter_func,
-                                    func_returns_sum=True,
-                                    prepend_args=(42, 3.14))
+    [x, y] = batch.mean_batch_map(batch_func_prepend, [X, Y], 5,
+                                  progress_iter_func=progress_iter_func,
+                                  func_returns_sum=True,
+                                  prepend_args=(42, 3.14))
 
     assert np.allclose(x, X.mean())
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
 
 
-def test_mean_batch_apply_in_order_per_sample_func():
-    # Test `mean_batch_apply` where the batch function returns per-sample
+def test_mean_batch_map_in_order_per_sample_func():
+    # Test `mean_batch_map` where the batch function returns per-sample
     # results
     from lasagne import batch
 
@@ -441,9 +441,9 @@ def test_mean_batch_apply_in_order_per_sample_func():
         assert not leave
         return iterator
 
-    [x, y] = batch.mean_batch_apply(batch_func, [X, Y], 5,
-                                    progress_iter_func=progress_iter_func,
-                                    func_returns_sum=False)
+    [x, y] = batch.mean_batch_map(batch_func, [X, Y], 5,
+                                  progress_iter_func=progress_iter_func,
+                                  func_returns_sum=False)
 
     assert np.allclose(x, X.mean() + 2.0)
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
@@ -454,8 +454,8 @@ def test_mean_batch_apply_in_order_per_sample_func():
     def batch_func_single(batch_X, batch_Y):
         return batch_X + 2
 
-    [x] = batch.mean_batch_apply(batch_func_single, [X, Y], 5,
-                                 func_returns_sum=False)
+    [x] = batch.mean_batch_map(batch_func_single, [X, Y], 5,
+                               func_returns_sum=False)
 
     assert np.allclose(x, X.mean() + 2.0)
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
@@ -466,14 +466,14 @@ def test_mean_batch_apply_in_order_per_sample_func():
     def batch_func_no_results(batch_X, batch_Y):
         return None
 
-    res = batch.mean_batch_apply(batch_func_no_results, [X, Y], 5,
-                                 progress_iter_func=progress_iter_func,
-                                 func_returns_sum=False)
+    res = batch.mean_batch_map(batch_func_no_results, [X, Y], 5,
+                               progress_iter_func=progress_iter_func,
+                               func_returns_sum=False)
 
     assert res is None
 
 
-def test_mean_batch_apply_in_order_callable():
+def test_mean_batch_map_in_order_callable():
     # Get data from callable
     from lasagne import batch
 
@@ -497,14 +497,14 @@ def test_mean_batch_apply_in_order_callable():
         assert not leave
         return iterator
 
-    [x, y] = batch.mean_batch_apply(batch_func, dataset, 5,
-                                    progress_iter_func=progress_iter_func)
+    [x, y] = batch.mean_batch_map(batch_func, dataset, 5,
+                                  progress_iter_func=progress_iter_func)
 
     assert np.allclose(x, X.mean())
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
 
 
-def test_mean_batch_apply_shuffled():
+def test_mean_batch_map_shuffled():
     from lasagne import batch
 
     # Data to extract batches from
@@ -518,7 +518,7 @@ def test_mean_batch_apply_shuffled():
         used[batch_X] = True
         return [batch_X.sum(), (batch_Y**2).sum(axis=1).sum()]
 
-    [x, y] = batch.mean_batch_apply(batch_func, [X, Y], 5)
+    [x, y] = batch.mean_batch_map(batch_func, [X, Y], 5)
 
     assert np.allclose(x, X.mean())
     assert np.allclose(y, (Y**2).sum(axis=1).mean())

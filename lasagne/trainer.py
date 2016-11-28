@@ -1,8 +1,9 @@
 import sys
 import time
+import functools
 import numpy as np
 import lasagne
-from .batch import batch_iterator, dataset_length
+from .batch import batch_iterator, dataset_length, mean_batch_apply
 
 
 VERBOSITY_NONE = None
@@ -31,101 +32,6 @@ def _default_val_improved_func(new_val_results, best_val_results):
     # Default validation improvement detetion function
     # Defined here so that pickle can find it if necessary
     return new_val_results[0] < best_val_results[0]
-
-
-def _batch_loop(fn, data, batchsize, progress_iter_func=None, desc='',
-                shuffle_rng=None, prepend_args=None):
-    """
-    Batch loop helper function.
-    Split data into mini-batches and apply a function to each mini-batch.
-    The function is usually a training or evaluation function.
-
-    `data` must be a sequence of array-likes, an object with a
-    `batch_iterator` method or a callable; see :func:`batch.batch_iterator`.
-
-    Parameters
-    ----------
-    fn: callable `fn(*batch)`
-        The function to call on each mini-batch of the form
-    data: dataset
-        The data to draw mini-batches from
-    batchsize: int
-        The number of samples per mini-batch
-    progress_iter_func: callable
-        A tqdm style progress-reporting iterator wrapper
-    desc: string
-        A description to pass as the `desc` keyword argument to
-        `progress_iter_func`
-    shuffle_rng: `None` or a `np.random.RandomState`
-        A random number generator used to shuffle the order of samples. If one
-        is not provided samples will be processed in-order (e.g.
-        during validation and test).
-    prepend_args: [optional] tuple
-        Arguments to prepend to the arguments passed to `fn`
-
-    Returns
-    -------
-    list
-        The sum of the results of the function `fn` divided by the number of
-        samples processed, e.g.
-        `[sum(outA_per_batch) / n_samples,
-          sum(outB_per_batch) / n_samples,
-          ...]`
-    """
-    # Accumulator for results and number of samples
-    results_accum = None
-    n_samples_accum = 0
-
-    # Create the iterator that will generate mini-batches
-    batch_iter = batch_iterator(data, batchsize, shuffle_rng=shuffle_rng)
-
-    # If `progress_iter_func` is not `None`, apply it
-    if progress_iter_func is not None:
-        n_samples = dataset_length(data)
-        if n_samples is not None:
-            n_batches = n_samples // batchsize
-            if (n_samples % batchsize) > 0:
-                n_batches += 1
-        else:
-            n_batches = None
-        batch_iter = progress_iter_func(batch_iter, total=n_batches, desc=desc,
-                                        leave=False)
-
-    # Train on each batch
-    for batch_i, batch in enumerate(batch_iter):
-        # Get number of samples in batch; can vary
-        batch_n = batch[0].shape[0]
-
-        # Apply on batch and check the type of the results
-        if prepend_args is not None:
-            batch_results = fn(*(prepend_args + tuple(batch)))
-        else:
-            batch_results = fn(*batch)
-        if batch_results is None:
-            pass
-        elif isinstance(batch_results, np.ndarray):
-            batch_results = [batch_results]
-        elif isinstance(batch_results, list):
-            pass
-        else:
-            raise TypeError(
-                    'Batch function should return a list of results for the '
-                    'batch or None, not {}'.format(type(batch_results)))
-
-        # Accumulate training results and number of examples
-        if results_accum is None:
-            results_accum = batch_results
-        else:
-            if batch_results is not None:
-                for i in range(len(results_accum)):
-                    results_accum[i] += batch_results[i]
-        n_samples_accum += batch_n
-
-    # Divide by the number of training examples used to compute mean
-    if results_accum is not None:
-        results_accum = [r / n_samples_accum for r in results_accum]
-
-    return results_accum
 
 
 class TrainingFailedException (Exception):
@@ -554,11 +460,16 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         # Log start of training
         # Train
         train_epoch_args = (epoch,) if train_pass_epoch_number else None
-        train_results = _batch_loop(train_batch_func, train_set,
-                                    batchsize, progress_iter_func,
-                                    'Epoch {} train'.format(epoch + 1),
-                                    shuffle_rng=shuffle_rng,
-                                    prepend_args=train_epoch_args)
+        if progress_iter_func is not None:
+            train_prog_iter = functools.partial(
+                progress_iter_func, desc='Epoch {} train'.format(epoch + 1))
+        else:
+            train_prog_iter = None
+        train_results = mean_batch_apply(train_batch_func, train_set,
+                                         batchsize, train_prog_iter,
+                                         shuffle_rng=shuffle_rng,
+                                         func_returns_sum=True,
+                                         prepend_args=train_epoch_args)
 
         if train_epoch_results_check_func is not None:
             reason = train_epoch_results_check_func(epoch, train_results)
@@ -584,9 +495,14 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         if val_set is not None and _should_validate(epoch):
             validated = True
 
-            validation_results = _batch_loop(
-                eval_batch_func, val_set, batchsize, progress_iter_func,
-                'Epoch {} val'.format(epoch + 1))
+            if progress_iter_func is not None:
+                val_prog_iter = functools.partial(
+                    progress_iter_func, desc='Epoch {} val'.format(epoch + 1))
+            else:
+                val_prog_iter = None
+            validation_results = mean_batch_apply(eval_batch_func, val_set,
+                                                  batchsize, val_prog_iter,
+                                                  func_returns_sum=True)
             if best_validation_results is None or \
                     val_improved_func(validation_results,
                                       best_validation_results):
@@ -606,17 +522,29 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
 
                 if test_set is not None:
                     tested = True
-                    test_results = _batch_loop(
-                        eval_batch_func, test_set, batchsize,
-                        progress_iter_func, 'Epoch {} test'.format(epoch + 1))
+                    if progress_iter_func is not None:
+                        test_prog_iter = functools.partial(
+                            progress_iter_func,
+                            desc='Epoch {} test'.format(epoch + 1))
+                    else:
+                        test_prog_iter = None
+                    test_results = mean_batch_apply(
+                        eval_batch_func, test_set, batchsize, test_prog_iter,
+                        func_returns_sum=True)
         else:
             validation_results = None
 
         if not tested and test_set is not None and val_set is None:
             tested = True
-            test_results = _batch_loop(eval_batch_func, test_set, batchsize,
-                                       progress_iter_func,
-                                       'Epoch {} test'.format(epoch + 1))
+            if progress_iter_func is not None:
+                test_prog_iter = functools.partial(
+                    progress_iter_func,
+                    desc='Epoch {} test'.format(epoch + 1))
+            else:
+                test_prog_iter = None
+            test_results = mean_batch_apply(
+                eval_batch_func, test_set, batchsize, test_prog_iter,
+                func_returns_sum=True)
 
         if verbosity == VERBOSITY_EPOCH:
             _log_epoch_results(epoch, time.time() - epoch_start_time,

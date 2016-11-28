@@ -233,7 +233,6 @@ def main(model='mlp', num_epochs=500):
     # to minimize (for our multi-class problem, it is the cross-entropy loss):
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)
-    loss = loss.mean()
     # We could add some weight decay as well here, see lasagne.regularization.
 
     # Create update expressions for training, i.e., how to modify the
@@ -241,7 +240,7 @@ def main(model='mlp', num_epochs=500):
     # Descent (SGD) with Nesterov momentum, but Lasagne offers plenty more.
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = lasagne.updates.nesterov_momentum(
-            loss, params, learning_rate=0.01, momentum=0.9)
+            loss.mean(), params, learning_rate=0.01, momentum=0.9)
 
     # Create a loss expression for validation/testing. The crucial difference
     # here is that we do a deterministic forward pass through the network,
@@ -249,10 +248,8 @@ def main(model='mlp', num_epochs=500):
     test_prediction = lasagne.layers.get_output(network, deterministic=True)
     test_loss = lasagne.objectives.categorical_crossentropy(test_prediction,
                                                             target_var)
-    test_loss = test_loss.mean()
     # As a bonus, also create an expression for the classification accuracy:
-    test_acc = T.mean(T.eq(T.argmax(test_prediction, axis=1), target_var),
-                      dtype=theano.config.floatX)
+    test_acc = T.eq(T.argmax(test_prediction, axis=1), target_var)
 
     # Compile a function performing a training step on a mini-batch (by giving
     # the updates dictionary) and returning the corresponding training loss:
@@ -267,48 +264,30 @@ def main(model='mlp', num_epochs=500):
     # We iterate over epochs:
     for epoch in range(num_epochs):
         # In each epoch, we do a full pass over the training data:
-        train_err = 0
-        train_batches = 0
         start_time = time.time()
-        for batch in lasagne.batch.batch_iterator([X_train, y_train], 500,
-                                                  shuffle_rng=rng):
-            inputs, targets = batch
-            train_err += train_fn(inputs, targets)
-            train_batches += 1
+        [train_loss] = lasagne.batch.mean_batch_apply(
+            train_fn, [X_train, y_train], 500, shuffle_rng=rng)
 
         # And a full pass over the validation data:
-        val_err = 0
-        val_acc = 0
-        val_batches = 0
-        for batch in lasagne.batch.batch_iterator([X_val, y_val], 500):
-            inputs, targets = batch
-            err, acc = val_fn(inputs, targets)
-            val_err += err
-            val_acc += acc
-            val_batches += 1
+        [val_loss, val_acc] = lasagne.batch.mean_batch_apply(
+            val_fn, [X_val, y_val], 500)
 
         # Then we print the results for this epoch:
         print("Epoch {} of {} took {:.3f}s".format(
             epoch + 1, num_epochs, time.time() - start_time))
-        print("  training loss:\t\t{:.6f}".format(train_err / train_batches))
-        print("  validation loss:\t\t{:.6f}".format(val_err / val_batches))
+        print("  training loss:\t\t{:.6f}".format(train_loss))
+        print("  validation loss:\t\t{:.6f}".format(val_loss))
         print("  validation accuracy:\t\t{:.2f} %".format(
-            val_acc / val_batches * 100))
+            val_acc * 100))
 
     # After training, we compute and print the test error:
-    test_err = 0
-    test_acc = 0
-    test_batches = 0
-    for batch in lasagne.batch.batch_iterator([X_test, y_test], 500):
-        inputs, targets = batch
-        err, acc = val_fn(inputs, targets)
-        test_err += err
-        test_acc += acc
-        test_batches += 1
+    [test_loss, test_acc] = lasagne.batch.mean_batch_apply(
+        val_fn, [X_test, y_test], 500)
+
     print("Final results:")
-    print("  test loss:\t\t\t{:.6f}".format(test_err / test_batches))
+    print("  test loss:\t\t\t{:.6f}".format(test_loss))
     print("  test accuracy:\t\t{:.2f} %".format(
-        test_acc / test_batches * 100))
+        test_acc * 100))
 
     # Optionally, you could now dump the network weights to a file like this:
     # np.savez('model.npz', *lasagne.layers.get_all_param_values(network))

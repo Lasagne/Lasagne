@@ -209,3 +209,220 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
         raise TypeError('dataset should either: be a sequence of array-likes; '
                         'have a `batch_iterator` method; or be or a callable, '
                         'don\'t know how to handle {}'.format(type(dataset)))
+
+
+def batch_apply(func, data, batchsize, progress_iter_func=None,
+                prepend_args=None):
+    """
+    Apply a function to all the samples in a data set by breaking the data
+    set into mini-batches and applying the function to each mini-batch.
+    Note that samples are processed in-order; to process samples in
+    random order, use the `mean_batch_apply` function.
+    Returns the per-sample results as a list of arrays.
+
+    The function `func` should return the result for each sample in the
+    mini-batch as an array. To return multiple results (e.g. loss and errors)
+    return a list of arrays (e.g. `[loss_array, error_array]`)
+
+    `data` must must either be a sequence of array-likes, an object with a
+    `batch_iterator` method or a callable; see :func:`batch.batch_iterator`
+
+    Parameters
+    ----------
+    func: callable `func(*batch) -> results`
+        The function to call on each mini-batch. Note that the results
+    data: data set
+        The data to draw mini-batches from
+    batchsize: int
+        The number of samples per mini-batch
+    progress_iter_func: [optional] callable
+        `progress_iter_func(iterator, total=total, leave=leave)`
+        A `tqdm` style function that will be passed the iterator that
+        generates training batches along with the total number of batches
+        and `False` for the `leave` parameter. By passing either
+        `tqdm.tqdm` or `tqdm.tqdm_notebook` as this argument you can have
+        the training loop display a progress bar.
+    prepend_args: [optional] tuple
+        Arguments to prepend to the arguments passed to `func`
+
+    Returns
+    -------
+    list
+        The per-sample sum of the results of the function `func` e.g.
+        `[batch_A, batch_B, ...]`
+        Returns an empty list if there were 0 samples in the data set.
+    """
+    # Accumulator for results and number of samples
+    results = []
+
+    # Create the iterator that will generate mini-batches
+    batch_iter = batch_iterator(data, batchsize)
+
+    # If `progress_iter_func` is not `None`, apply it
+    if progress_iter_func is not None:
+        n_samples = dataset_length(data)
+        if n_samples is not None:
+            n_batches = n_samples // batchsize
+            if (n_samples % batchsize) > 0:
+                n_batches += 1
+        else:
+            n_batches = None
+        batch_iter = progress_iter_func(batch_iter, total=n_batches,
+                                        leave=False)
+
+    # Apply `func` to each batch
+    for batch_i, batch in enumerate(batch_iter):
+        # Apply on batch and check the type of the results
+        if prepend_args is not None:
+            batch_results = func(*(prepend_args + tuple(batch)))
+        else:
+            batch_results = func(*batch)
+        if batch_results is None:
+            pass
+        elif isinstance(batch_results, np.ndarray):
+            batch_results = [batch_results]
+        elif isinstance(batch_results, list):
+            pass
+        else:
+            raise TypeError(
+                    'Batch function should return a list of results, a '
+                    'single result as a NumPy array or float, or None, '
+                    'not {}'.format(type(batch_results)))
+
+        # Accumulate training results
+        if batch_results is not None:
+            results.append(batch_results)
+
+    # Concatenate result arrays
+    if len(results) > 0:
+        results = zip(*results)
+        results = [np.concatenate(list(r), axis=0) for r in results]
+        return results
+    else:
+        return None
+
+
+def mean_batch_apply(func, data, batchsize, progress_iter_func=None,
+                     shuffle_rng=None, func_returns_sum=False,
+                     prepend_args=None):
+    """
+    Apply a function to all the samples in a data set by breaking the data
+    set into mini-batches and applying the function to each mini-batch.
+    Returns the across-samples mean of the results returned by `func`
+
+    The `func_returns_sum` parameter describes the result returned
+    by `func`:
+    - If `func_returns_sum` is `False`, `func` should return the
+    per-sample results of operating on the mini-batch, e.g. for loss and
+    error it should return `[[loss0, loss1, ... lossN], [err0, err1,
+    ... errN]`
+    - If `func_returns_sum` is `True`, `func` should return the
+    across-samples SUM of the  results of operating on the mini-batch the
+    sum of the values for the samples, e.g. for loss and error it should
+    return `[sum([loss0, loss1, ... lossN]), sum([err0, err1, ... errN])]`
+    `mean_batch_apply` will accumulate these values and divide them by the
+    number of samples in the data set at the end, returning the mean values
+    for the complete data set.
+
+    `data` must must either be a sequence of array-likes, an object with a
+    `batch_iterator` method or a callable; see :func:`batch.batch_iterator`
+
+    Parameters
+    ----------
+    func: callable `func(*batch) -> results`
+        The function to call on each mini-batch. Note that the results
+    data: dataset
+        The data to draw mini-batches from
+    batchsize: int
+        The number of samples per mini-batch
+    progress_iter_func: [optional] callable
+        `progress_iter_func(iterator, total=total, leave=leave)`
+        A `tqdm` style function that will be passed the iterator that
+        generates training batches along with the total number of batches
+        and `False` for the `leave` parameter. By passing either
+        `tqdm.tqdm` or `tqdm.tqdm_notebook` as this argument you can have
+        the training loop display a progress bar.
+    shuffle_rng: `None` or a `np.random.RandomState`
+        A random number generator used to shuffle the order of samples. If one
+        is not provided samples will be processed in-order (e.g.
+        during validation and test).
+    func_returns_sum: (default=`False`) boolean
+        Tells `mean_batch_apply` what to expect from `func`; see notes
+        above.
+    prepend_args: [optional] tuple
+        Arguments to prepend to the arguments passed to `func`
+
+    Returns
+    -------
+    list
+        The sum of the results of the function `fn` divided by the number of
+        samples processed, e.g.
+        `[sum(outA_per_batch) / n_samples,
+          sum(outB_per_batch) / n_samples,
+          ...]`
+    """
+    # Accumulator for results and number of samples
+    results_accum = None
+    n_samples_accum = 0
+
+    # Create the iterator that will generate mini-batches
+    batch_iter = batch_iterator(data, batchsize, shuffle_rng=shuffle_rng)
+
+    # If `progress_iter_func` is not `None`, apply it
+    if progress_iter_func is not None:
+        n_samples = dataset_length(data)
+        if n_samples is not None:
+            n_batches = n_samples // batchsize
+            if (n_samples % batchsize) > 0:
+                n_batches += 1
+        else:
+            n_batches = None
+        batch_iter = progress_iter_func(batch_iter, total=n_batches,
+                                        leave=False)
+
+    # Train on each batch
+    for batch_i, batch in enumerate(batch_iter):
+        # Get number of samples in batch; can vary
+        batch_n = batch[0].shape[0]
+
+        # Apply on batch and check the type of the results
+        if prepend_args is not None:
+            batch_results = func(*(prepend_args + tuple(batch)))
+        else:
+            batch_results = func(*batch)
+        if batch_results is None:
+            pass
+        elif isinstance(batch_results, (np.ndarray, float)):
+            batch_results = [batch_results]
+        elif isinstance(batch_results, list):
+            pass
+        else:
+            raise TypeError(
+                    'Batch function should return a list of results, a '
+                    'single result as a NumPy array or float, or None, '
+                    'not {}'.format(type(batch_results)))
+
+        # Accumulate training results and number of examples
+        if results_accum is None:
+            # Initialise the accumulator to the batch results if `func`
+            # returns summed results or if it returned None;
+            # don't attempt to iterate over None and sum each item
+            if func_returns_sum or batch_results is None:
+                results_accum = batch_results
+            else:
+                results_accum = [br.sum(axis=0) for br in batch_results]
+        else:
+            if batch_results is not None:
+                for i in range(len(results_accum)):
+                    br = batch_results[i]
+                    if not func_returns_sum:
+                        br = br.sum(axis=0)
+                    results_accum[i] += br
+        n_samples_accum += batch_n
+
+    # Divide by the number of training examples used to compute mean
+    if results_accum is not None:
+        results_accum = [r.astype(float) / n_samples_accum for r in
+                         results_accum]
+
+    return results_accum

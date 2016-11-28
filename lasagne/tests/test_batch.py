@@ -224,3 +224,302 @@ def test_batch_iterator():
 
     with pytest.raises(TypeError):
         batch.batch_iterator(1, batchsize=15)
+
+
+def test_batch_apply():
+    from lasagne import batch
+
+    # Data to extract batches from
+    rng = np.random.RandomState(12345)
+    X = rng.normal(size=(47,))
+    Y = rng.normal(size=(47, 2))
+
+    #
+    # Multiple return values
+    #
+    def batch_func(batch_X, batch_Y):
+        return [batch_X + 2, (batch_Y**2).sum(axis=1)]
+
+    # Dummy progress function to check parameter values
+    def progress_iter_func(iterator, total, leave):
+        # 47 samples divided into batches of 5 means 10 batches
+        assert total == 10
+        # not leave
+        assert not leave
+        return iterator
+
+    [x, y] = batch.batch_apply(batch_func, [X, Y], 5,
+                               progress_iter_func=progress_iter_func)
+
+    assert np.allclose(x, X + 2)
+    assert np.allclose(y, (Y**2).sum(axis=1))
+
+    #
+    # Single return value
+    #
+    def batch_func_single(batch_X, batch_Y):
+        return batch_X + 2
+
+    [x] = batch.batch_apply(batch_func_single, [X, Y], 5)
+
+    assert np.allclose(x, X + 2)
+
+    #
+    # Batch function that returns no results
+    #
+    def batch_func_no_results(batch_X, batch_Y):
+        return None
+
+    res = batch.batch_apply(batch_func_no_results, [X, Y], 5,
+                            progress_iter_func=progress_iter_func)
+
+    assert res is None
+
+    #
+    # Invalid return value
+    #
+    def batch_func_invalid(batch_X, batch_Y):
+        return 'Should not return a string'
+
+    with pytest.raises(TypeError):
+        batch.batch_apply(batch_func_invalid, [X, Y], 5)
+
+    #
+    # Prepend arguments to batch function
+    #
+    def batch_func_prepend(a, b, batch_X, batch_Y):
+        assert a == 42
+        assert b == 3.14
+        return [batch_X + 2, (batch_Y**2).sum(axis=1)]
+
+    [x, y] = batch.batch_apply(batch_func_prepend, [X, Y], 5,
+                               progress_iter_func=progress_iter_func,
+                               prepend_args=(42, 3.14))
+
+    assert np.allclose(x, X + 2)
+    assert np.allclose(y, (Y**2).sum(axis=1))
+
+
+def test_batch_apply_callable():
+    # Get data from callable that creates iterator rather than list of arrays
+    from lasagne import batch
+
+    # Data to extract batches from
+    rng = np.random.RandomState(12345)
+    X = rng.normal(size=(47,))
+    Y = rng.normal(size=(47, 2))
+
+    def dataset(batchsize, shuffle_rng=None):
+        return batch.batch_iterator([X, Y], batchsize, shuffle_rng=shuffle_rng)
+
+    def batch_func(batch_X, batch_Y):
+        return [batch_X + 2, (batch_Y**2).sum(axis=1)]
+
+    # Dummy progress function to check parameter values
+    def progress_iter_func(iterator, total, leave):
+        # 47 samples divided into batches of 5 means 10 batches
+        assert total is None
+        # not leave
+        assert not leave
+        return iterator
+
+    [x, y] = batch.batch_apply(batch_func, dataset, 5,
+                               progress_iter_func=progress_iter_func)
+
+    assert np.allclose(x, X + 2)
+    assert np.allclose(y, (Y**2).sum(axis=1))
+
+
+def test_mean_batch_apply_in_order():
+    from lasagne import batch
+
+    # Data to extract batches from
+    rng = np.random.RandomState(12345)
+    X = rng.normal(size=(47,))
+    Y = rng.normal(size=(47, 2))
+
+    #
+    # Multiple return values
+    #
+    def batch_func(batch_X, batch_Y):
+        return [batch_X.sum(), (batch_Y**2).sum(axis=1).sum()]
+
+    # Dummy progress function to check parameter values
+    def progress_iter_func(iterator, total, leave):
+        # 47 samples divided into batches of 5 means 10 batches
+        assert total == 10
+        # not leave
+        assert not leave
+        return iterator
+
+    [x, y] = batch.mean_batch_apply(batch_func, [X, Y], 5,
+                                    progress_iter_func=progress_iter_func,
+                                    func_returns_sum=True)
+
+    assert np.allclose(x, X.mean())
+    assert np.allclose(y, (Y**2).sum(axis=1).mean())
+
+    #
+    # Single return value
+    #
+    def batch_func_single(batch_X, batch_Y):
+        return batch_X.sum()
+
+    # Dummy progress function to check parameter values
+    def progress_iter_func(iterator, total, leave):
+        # 47 samples divided into batches of 5 means 10 batches
+        assert total == 10
+        # not leave
+        assert not leave
+        return iterator
+
+    [x] = batch.mean_batch_apply(batch_func_single, [X, Y], 5,
+                                 progress_iter_func=progress_iter_func,
+                                 func_returns_sum=True)
+
+    assert np.allclose(x, X.mean())
+
+    #
+    # Batch function that returns no results
+    #
+    def batch_func_no_results(batch_X, batch_Y):
+        return None
+
+    res = batch.mean_batch_apply(batch_func_no_results, [X, Y], 5,
+                                 progress_iter_func=progress_iter_func,
+                                 func_returns_sum=True)
+
+    assert res is None
+
+    #
+    # Invalid return value
+    #
+    def batch_func_invalid(batch_X, batch_Y):
+        return 'Should not return a string'
+
+    with pytest.raises(TypeError):
+        batch.mean_batch_apply(batch_func_invalid, [X, Y], 5)
+
+    #
+    # Prepend arguments to batch function
+    #
+    def batch_func_prepend(a, b, batch_X, batch_Y):
+        assert a == 42
+        assert b == 3.14
+        return [batch_X.sum(), (batch_Y**2).sum(axis=1).sum()]
+
+    [x, y] = batch.mean_batch_apply(batch_func_prepend, [X, Y], 5,
+                                    progress_iter_func=progress_iter_func,
+                                    func_returns_sum=True,
+                                    prepend_args=(42, 3.14))
+
+    assert np.allclose(x, X.mean())
+    assert np.allclose(y, (Y**2).sum(axis=1).mean())
+
+
+def test_mean_batch_apply_in_order_per_sample_func():
+    # Test `mean_batch_apply` where the batch function returns per-sample
+    # results
+    from lasagne import batch
+
+    # Data to extract batches from
+    rng = np.random.RandomState(12345)
+    X = rng.normal(size=(47,))
+    Y = rng.normal(size=(47, 2))
+
+    #
+    # Multiple return values
+    #
+    def batch_func(batch_X, batch_Y):
+        return [batch_X + 2, (batch_Y**2).sum(axis=1)]
+
+    # Dummy progress function to check parameter values
+    def progress_iter_func(iterator, total, leave):
+        # 47 samples divided into batches of 5 means 10 batches
+        assert total == 10
+        # not leave
+        assert not leave
+        return iterator
+
+    [x, y] = batch.mean_batch_apply(batch_func, [X, Y], 5,
+                                    progress_iter_func=progress_iter_func,
+                                    func_returns_sum=False)
+
+    assert np.allclose(x, X.mean() + 2.0)
+    assert np.allclose(y, (Y**2).sum(axis=1).mean())
+
+    #
+    # Single return value
+    #
+    def batch_func_single(batch_X, batch_Y):
+        return batch_X + 2
+
+    [x] = batch.mean_batch_apply(batch_func_single, [X, Y], 5,
+                                 func_returns_sum=False)
+
+    assert np.allclose(x, X.mean() + 2.0)
+    assert np.allclose(y, (Y**2).sum(axis=1).mean())
+
+    #
+    # Batch function that returns no results
+    #
+    def batch_func_no_results(batch_X, batch_Y):
+        return None
+
+    res = batch.mean_batch_apply(batch_func_no_results, [X, Y], 5,
+                                 progress_iter_func=progress_iter_func,
+                                 func_returns_sum=False)
+
+    assert res is None
+
+
+def test_mean_batch_apply_in_order_callable():
+    # Get data from callable
+    from lasagne import batch
+
+    # Data to extract batches from
+    rng = np.random.RandomState(12345)
+    X = rng.normal(size=(47,))
+    Y = rng.normal(size=(47, 2))
+
+    def dataset(batchsize, shuffle_rng=None):
+        return batch.batch_iterator([X, Y], batchsize, shuffle_rng=shuffle_rng)
+
+    # Apply in order
+    def batch_func(batch_X, batch_Y):
+        return [batch_X.sum(), (batch_Y**2).sum(axis=1).sum()]
+
+    # Dummy progress function to check parameter values
+    def progress_iter_func(iterator, total, leave):
+        # 47 samples divided into batches of 5 means 10 batches
+        assert total is None
+        # not leave
+        assert not leave
+        return iterator
+
+    [x, y] = batch.mean_batch_apply(batch_func, dataset, 5,
+                                    progress_iter_func=progress_iter_func)
+
+    assert np.allclose(x, X.mean())
+    assert np.allclose(y, (Y**2).sum(axis=1).mean())
+
+
+def test_mean_batch_apply_shuffled():
+    from lasagne import batch
+
+    # Data to extract batches from
+    X = np.arange(45)
+    Y = np.arange(90).reshape((45, 2))
+
+    # Array to keep track of which samples have been used
+    used = np.zeros(X.shape, dtype=bool)
+
+    def batch_func(batch_X, batch_Y):
+        used[batch_X] = True
+        return [batch_X.sum(), (batch_Y**2).sum(axis=1).sum()]
+
+    [x, y] = batch.mean_batch_apply(batch_func, [X, Y], 5)
+
+    assert np.allclose(x, X.mean())
+    assert np.allclose(y, (Y**2).sum(axis=1).mean())
+    assert used.all()

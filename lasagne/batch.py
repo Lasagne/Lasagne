@@ -422,7 +422,7 @@ def mean_batch_apply(func, data, batchsize, progress_iter_func=None,
 
     # Divide by the number of training examples used to compute mean
     if results_accum is not None:
-        results_accum = [r.astype(float) / n_samples_accum for r in
-                         results_accum]
+        results_accum = [np.array(r).astype(float) / n_samples_accum
+                         for r in results_accum]
 
     return results_accum

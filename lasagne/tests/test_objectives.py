@@ -78,6 +78,14 @@ def test_squared_error(colvect):
     assert np.allclose(z, c.eval({a: x, b: y}))
 
 
+def test_squared_error_preserve_dtype():
+    from lasagne.objectives import squared_error
+    for dtype in 'float64', 'float32', 'float16':
+        a = theano.tensor.matrix('a', dtype=dtype)
+        b = theano.tensor.matrix('b', dtype=dtype)
+        assert squared_error(a, b).dtype == dtype
+
+
 def test_aggregate_mean():
     from lasagne.objectives import aggregate
     x = theano.tensor.matrix('x')

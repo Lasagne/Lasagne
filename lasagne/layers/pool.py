@@ -3,8 +3,6 @@ import theano.tensor as T
 from .base import Layer
 from ..utils import as_tuple
 
-from theano.tensor.signal.pool import pool_2d
-
 __all__ = [
     "MaxPool1DLayer",
     "MaxPool2DLayer",
@@ -72,6 +70,21 @@ def pool_output_length(input_length, pool_size, stride, pad, ignore_border):
                 0, (input_length - pool_size + stride - 1) // stride) + 1
 
     return output_length
+
+
+def pool_2d(input, **kwargs):
+    """
+    Wrapper function that calls :func:`theano.tensor.signal.pool_2d` either
+    with the new or old keyword argument names expected by Theano.
+    """
+    try:
+        return T.signal.pool.pool_2d(input, **kwargs)
+    except TypeError:  # pragma: no cover
+        # convert from new to old interface
+        kwargs['ds'] = kwargs.pop('ws')
+        kwargs['st'] = kwargs.pop('stride')
+        kwargs['padding'] = kwargs.pop('pad')
+        return T.signal.pool.pool_2d(input, **kwargs)
 
 
 class Pool1DLayer(Layer):
@@ -155,10 +168,10 @@ class Pool1DLayer(Layer):
         input_4d = T.shape_padright(input, 1)
 
         pooled = pool_2d(input_4d,
-                         ds=(self.pool_size[0], 1),
-                         st=(self.stride[0], 1),
+                         ws=(self.pool_size[0], 1),
+                         stride=(self.stride[0], 1),
                          ignore_border=self.ignore_border,
-                         padding=(self.pad[0], 0),
+                         pad=(self.pad[0], 0),
                          mode=self.mode,
                          )
         return pooled[:, :, :, 0]
@@ -259,10 +272,10 @@ class Pool2DLayer(Layer):
 
     def get_output_for(self, input, **kwargs):
         pooled = pool_2d(input,
-                         ds=self.pool_size,
-                         st=self.stride,
+                         ws=self.pool_size,
+                         stride=self.stride,
                          ignore_border=self.ignore_border,
-                         padding=self.pad,
+                         pad=self.pad,
                          mode=self.mode,
                          )
         return pooled

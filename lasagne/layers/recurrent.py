@@ -222,6 +222,23 @@ class CustomRecurrentLayer(MergeLayer):
 
         super(CustomRecurrentLayer, self).__init__(incomings, **kwargs)
 
+        input_to_hidden_in_layers = \
+            [layer for layer in helper.get_all_layers(input_to_hidden)
+             if isinstance(layer, InputLayer)]
+        if len(input_to_hidden_in_layers) != 1:
+            raise ValueError(
+                '`input_to_hidden` must have exactly one InputLayer, but it '
+                'has {}'.format(len(input_to_hidden_in_layers)))
+
+        hidden_to_hidden_in_lyrs = \
+            [layer for layer in helper.get_all_layers(hidden_to_hidden)
+             if isinstance(layer, InputLayer)]
+        if len(hidden_to_hidden_in_lyrs) != 1:
+            raise ValueError(
+                '`hidden_to_hidden` must have exactly one InputLayer, but it '
+                'has {}'.format(len(hidden_to_hidden_in_lyrs)))
+        hidden_to_hidden_in_layer = hidden_to_hidden_in_lyrs[0]
+
         self.input_to_hidden = input_to_hidden
         self.hidden_to_hidden = hidden_to_hidden
         self.learn_init = learn_init
@@ -294,16 +311,16 @@ class CustomRecurrentLayer(MergeLayer):
         # Check that input_to_hidden's output shape is the same as
         # hidden_to_hidden's input shape but don't check a dimension if it's
         # None for either shape
+        h_to_h_input_shape = hidden_to_hidden_in_layer.output_shape
         if not all(s1 is None or s2 is None or s1 == s2
                    for s1, s2 in zip(input_to_hidden.output_shape[1:],
-                                     hidden_to_hidden.input_shape[1:])):
-            raise ValueError("The output shape for input_to_hidden "
-                             "must be equal to the input shape of "
-                             "hidden_to_hidden after the first dimension, but "
-                             "input_to_hidden.output_shape={} and "
-                             "hidden_to_hidden.input_shape={}".format(
-                                 input_to_hidden.output_shape,
-                                 hidden_to_hidden.input_shape))
+                                     h_to_h_input_shape[1:])):
+            raise ValueError(
+                "The output shape for input_to_hidden must be equal to the "
+                "input shape of hidden_to_hidden after the first dimension, "
+                "but input_to_hidden.output_shape={} and "
+                "hidden_to_hidden:input_layer.shape={}".format(
+                    input_to_hidden.output_shape, h_to_h_input_shape))
 
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity

@@ -189,7 +189,130 @@ def test_custom_recurrent_arbitrary_shape():
     assert out_shape == (n_batch, n_steps, n_out_filters, width, height)
 
 
-def test_recurrent_init_shape_error():
+def test_custom_recurrent_arbitrary_depth():
+    # Check that the custom recurrent layer can handle a hidden-to-hidden
+    # network with an arbitrary depth
+    n_batch, n_steps, n_channels, width, height = (2, 3, 4, 5, 6)
+    n_out_filters = 7
+    n_in_hid_filters_0 = 11
+    n_hid_hid_filters_0 = 13
+    filter_shape = (3, 3)
+    l_in = lasagne.layers.InputLayer(
+        (n_batch, n_steps, n_channels, width, height))
+
+    # Expect the output shape of `l_in` as input shape for input-to-hidden
+    l_in_to_hid = lasagne.layers.InputLayer((None, n_channels, width, height))
+    # Two conv layers; first to `n_hid_filters_0` channels
+    l_in_to_hid = lasagne.layers.Conv2DLayer(
+        l_in_to_hid, n_in_hid_filters_0, filter_shape, pad='same')
+    # then to `n_out_filters` channels
+    l_in_to_hid = lasagne.layers.Conv2DLayer(
+        l_in_to_hid, n_out_filters, filter_shape, pad='same')
+
+    # Expect the output shape of `l_in_to_hid` as input shape for
+    # hidden-to-hidden
+    l_hid_to_hid = lasagne.layers.InputLayer((None, n_out_filters,
+                                              width, height))
+    # Two conv layers; first to `n_hid_hid_filters_0` channels
+    l_hid_to_hid = lasagne.layers.Conv2DLayer(
+        l_hid_to_hid, n_hid_hid_filters_0, filter_shape, pad='same')
+    # then to `n_out_filters` channels
+    l_hid_to_hid = lasagne.layers.Conv2DLayer(
+        l_hid_to_hid, n_out_filters, filter_shape, pad='same')
+
+    l_rec = lasagne.layers.CustomRecurrentLayer(
+        l_in, l_in_to_hid, l_hid_to_hid)
+
+    assert l_rec.output_shape == (n_batch, n_steps, n_out_filters, width,
+                                  height)
+
+    out = theano.function([l_in.input_var], lasagne.layers.get_output(l_rec))
+    out_shape = out(np.zeros((n_batch, n_steps, n_channels, width, height),
+                             dtype=theano.config.floatX)).shape
+    assert out_shape == (n_batch, n_steps, n_out_filters, width, height)
+
+
+def test_custom_recurrent_non_unique_inputs():
+    # Check that the custom recurrent layer constructor detects non-unique
+    # input layers within the input-to-hidden and hidden-to-hidden graphs
+    # and raises ValueError
+    n_batch, n_steps, n_channels, width, height = (2, 3, 4, 5, 6)
+    n_out_filters = 7
+    n_in_hid_filters_0 = 11
+    n_hid_hid_filters_0 = 13
+    filter_shape = (3, 3)
+    l_in = lasagne.layers.InputLayer(
+        (n_batch, n_steps, n_channels, width, height))
+
+    # Bad input-to-hidden graph with multiple input layers
+    # Expect the output shape of `l_in` as input shape for input-to-hidden
+    l_in_to_hid_bad_0 = lasagne.layers.InputLayer(
+        (None, n_channels, width, height))
+    l_in_to_hid_bad_1 = lasagne.layers.InputLayer(
+        (None, n_channels, width, height))
+    l_in_to_hid_bad = lasagne.layers.ConcatLayer(
+        [l_in_to_hid_bad_0, l_in_to_hid_bad_1], axis=1)
+    # Two conv layers; first to `n_hid_filters_0` channels
+    l_in_to_hid_bad = lasagne.layers.Conv2DLayer(
+        l_in_to_hid_bad, n_in_hid_filters_0, filter_shape, pad='same')
+    # then to `n_out_filters` channels
+    l_in_to_hid_bad = lasagne.layers.Conv2DLayer(
+        l_in_to_hid_bad, n_out_filters, filter_shape, pad='same')
+
+    # Expect the output shape of `l_in` as input shape for input-to-hidden
+    l_in_to_hid = lasagne.layers.InputLayer((None, n_channels, width, height))
+    # Two conv layers; first to `n_hid_filters_0` channels
+    l_in_to_hid = lasagne.layers.Conv2DLayer(
+        l_in_to_hid, n_in_hid_filters_0, filter_shape, pad='same')
+    # then to `n_out_filters` channels
+    l_in_to_hid = lasagne.layers.Conv2DLayer(
+        l_in_to_hid, n_out_filters, filter_shape, pad='same')
+
+    # Bad hidden-to-hidden graph with multiple input layers
+    # Expect the output shape of `l_in_to_hid` as input shape for
+    # hidden-to-hidden
+    l_hid_to_hid_bad_0 = lasagne.layers.InputLayer(
+        (None, n_out_filters, width, height))
+    l_hid_to_hid_bad_1 = lasagne.layers.InputLayer(
+        (None, n_out_filters, width, height))
+    l_hid_to_hid_bad = lasagne.layers.ConcatLayer(
+        [l_hid_to_hid_bad_0, l_hid_to_hid_bad_1], axis=1)
+    # Two conv layers; first to `n_hid_hid_filters_0` channels
+    l_hid_to_hid_bad = lasagne.layers.Conv2DLayer(
+        l_hid_to_hid_bad, n_hid_hid_filters_0, filter_shape, pad='same')
+    # then to `n_out_filters` channels
+    l_hid_to_hid_bad = lasagne.layers.Conv2DLayer(
+        l_hid_to_hid_bad, n_out_filters, filter_shape, pad='same')
+
+    # Expect the output shape of `l_in_to_hid` as input shape for
+    # hidden-to-hidden
+    l_hid_to_hid = lasagne.layers.InputLayer((None, n_out_filters,
+                                              width, height))
+    # Two conv layers; first to `n_hid_hid_filters_0` channels
+    l_hid_to_hid = lasagne.layers.Conv2DLayer(
+        l_hid_to_hid, n_hid_hid_filters_0, filter_shape, pad='same')
+    # then to `n_out_filters` channels
+    l_hid_to_hid = lasagne.layers.Conv2DLayer(
+        l_hid_to_hid, n_out_filters, filter_shape, pad='same')
+
+    # Ensure that trying to use either 'bad' graph raises ValueError
+    with pytest.raises(ValueError):
+        l_rec = lasagne.layers.CustomRecurrentLayer(
+            l_in, l_in_to_hid_bad, l_hid_to_hid)
+
+    with pytest.raises(ValueError):
+        l_rec = lasagne.layers.CustomRecurrentLayer(
+            l_in, l_in_to_hid, l_hid_to_hid_bad)
+
+    with pytest.raises(ValueError):
+        l_rec = lasagne.layers.CustomRecurrentLayer(
+            l_in, l_in_to_hid_bad, l_hid_to_hid_bad)
+
+    l_rec = lasagne.layers.CustomRecurrentLayer(
+        l_in, l_in_to_hid, l_hid_to_hid)
+
+
+def test_custom_recurrent_init_shape_error():
     # Check that the custom recurrent layer throws errors for invalid shapes
     n_batch, n_steps, n_channels, width, height = (2, 3, 4, 5, 6)
     n_out_filters = 7

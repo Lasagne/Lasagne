@@ -2,9 +2,8 @@ import sys
 import six
 import time
 import functools
-import numpy as np
 import lasagne
-from .batch import batch_iterator, dataset_length, mean_batch_map
+from .batch import mean_batch_map
 
 
 VERBOSITY_NONE = None

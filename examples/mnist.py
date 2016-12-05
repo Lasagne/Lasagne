@@ -252,11 +252,15 @@ def main(model='mlp', num_epochs=500):
     test_acc = T.eq(T.argmax(test_prediction, axis=1), target_var)
 
     # Compile a function performing a training step on a mini-batch (by giving
-    # the updates dictionary) and returning the corresponding training loss:
-    train_fn = theano.function([input_var, target_var], loss, updates=updates)
+    # the updates dictionary) and returning the corresponding sum of
+    # the training losses:
+    train_fn = theano.function([input_var, target_var], loss.sum(),
+                               updates=updates)
 
-    # Compile a second function computing the validation loss and accuracy:
-    val_fn = theano.function([input_var, target_var], [test_loss, test_acc])
+    # Compile a second function computing the sum of the validation losses and
+    # accuracy:
+    val_fn = theano.function([input_var, target_var],
+                             [test_loss.sum(), test_acc.sum()])
 
     # Finally, launch the training loop.
     rng = lasagne.random.get_rng()

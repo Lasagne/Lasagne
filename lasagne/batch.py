@@ -1,3 +1,4 @@
+import collections
 import numpy as np
 
 
@@ -130,7 +131,7 @@ def arraylikes_batch_iterator(dataset, batchsize,
             yield [d[start_idx:start_idx+batchsize] for d in dataset]
 
 
-def batch_iterator(dataset, batchsize, shuffle_rng=None):
+def batch_iterator(dataset, batchsize, shuffle_rng=None, restartable=False):
     """
     Create an iterator that will iterate over the data in `dataset` in
     mini-batches consisting of `batchsize` samples, with their order shuffled
@@ -160,7 +161,7 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
         iterator, where the iterator generates mini-batches,
         where each mini-batch is a list of numpy arrays:
 
-    >>> def make_iterator(X, y):
+    >>> def make_batch_iterator(X, y):
     ...     def iter_minibatches(batchsize, shuffle_rng=None):
     ...         indices = np.arange(X.shape[0])
     ...         if shuffle_rng is not None:
@@ -172,8 +173,26 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
     ...             yield [batch_X, batch_y]
     ...     return iter_minibatches
     >>> shuffle_rng = np.random.RandomState(12345)
-    >>> batches = batch_iterator(make_iterator(train_X, train_y),
+    >>> batches = batch_iterator(make_batch_iterator(train_X, train_y),
     ...                          batchsize=128, shuffle_rng=shuffle_rng)
+
+    - an iterator; note that the `restartable` argument must be `False`
+        otherwise `TypeError` will be raised. Also note tahtn the `batchsize`
+        and `shuffle_rng` arguments will be ignored as they cannot be passed
+        to the iterator as construction time as it has already been built
+
+    >>> X = np.random.normal(size=(2048, 256))
+    >>> y = np.random.randint(low=0, high=10, size=(2048,))
+    >>> def make_iter():
+    ...     indices = np.arange(X.shape[0])
+    ...     np.random.shuffle(indices)
+    ...     for i in range(0, indices.shape[0], 128):
+    ...         batch_ndx = indices[i:i+128]
+    ...         batch_X = X[batch_ndx]
+    ...         batch_y = y[batch_ndx]
+    ...         yield [batch_X, batch_y]
+    >>> batch_iter = make_iter()
+    >>> batches = batch_iterator(batch_iter, batchsize=42, restartable=False)
 
     Parameters
     ----------
@@ -185,6 +204,10 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
     shuffle_rng: `np.random.RandomState` or `None`
         Used to randomise element order. If `None`, elements will be extracted
         in order.
+    restartable: bool (default=False)
+        If `True`, require that the data-set `dataset` should be re-startable;
+        e.g. passing a plain iterator as `dataset` will result in a
+        `TypeError` as it cannot be restarted.
 
     Returns
     -------
@@ -204,6 +227,8 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
     elif callable(dataset):
         # Now try callable; basically the same as `batch_iterator`
         return dataset(batchsize, shuffle_rng=shuffle_rng)
+    elif not restartable and isinstance(dataset, collections.Iterator):
+        return dataset
     else:
         # Don't know how to handle this
         raise TypeError('dataset should either: be a sequence of array-likes; '
@@ -211,8 +236,8 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None):
                         'don\'t know how to handle {}'.format(type(dataset)))
 
 
-def batch_map(func, data, batchsize, progress_iter_func=None,
-              prepend_args=None):
+def batch_map(func, data, batchsize, restartable=False,
+              progress_iter_func=None, prepend_args=None):
     """
     Apply a function to all the samples in a data set by breaking the data
     set into mini-batches and applying the function to each mini-batch.
@@ -235,6 +260,10 @@ def batch_map(func, data, batchsize, progress_iter_func=None,
         The data to draw mini-batches from
     batchsize: int
         The number of samples per mini-batch
+    restartable: bool (default=False)
+        If `True`, require that the data-set `data` should be re-startable;
+        e.g. passing a plain iterator as `data` will result in a
+        `TypeError` as it cannot be restarted.
     progress_iter_func: [optional] callable
         `progress_iter_func(iterator, total=total, leave=leave)`
         A `tqdm` style function that will be passed the iterator that
@@ -256,7 +285,7 @@ def batch_map(func, data, batchsize, progress_iter_func=None,
     results = []
 
     # Create the iterator that will generate mini-batches
-    batch_iter = batch_iterator(data, batchsize)
+    batch_iter = batch_iterator(data, batchsize, restartable=restartable)
 
     # If `progress_iter_func` is not `None`, apply it
     if progress_iter_func is not None:
@@ -302,27 +331,30 @@ def batch_map(func, data, batchsize, progress_iter_func=None,
         return None
 
 
-def mean_batch_map(func, data, batchsize, progress_iter_func=None,
-                   shuffle_rng=None, func_returns_sum=False,
+def mean_batch_map(func, data, batchsize, shuffle_rng=None, restartable=False,
+                   progress_iter_func=None, sum_axis=None,
                    prepend_args=None):
     """
     Apply a function to all the samples in a data set by breaking the data
     set into mini-batches and applying the function to each mini-batch.
     Returns the across-samples mean of the results returned by `func`
 
-    The `func_returns_sum` parameter describes the result returned
-    by `func`:
-    - If `func_returns_sum` is `False`, `func` should return the
-    per-sample results of operating on the mini-batch, e.g. for loss and
-    error it should return `[[loss0, loss1, ... lossN], [err0, err1,
-    ... errN]`
-    - If `func_returns_sum` is `True`, `func` should return the
+    The `sum_axis` arguments tells `mean_batch_map` how to process the
+    results of `func` before accumulating them:
+    - If `sum_axis` is `None`, `func` should return the
     across-samples SUM of the  results of operating on the mini-batch the
     sum of the values for the samples, e.g. for loss and error it should
     return `[sum([loss0, loss1, ... lossN]), sum([err0, err1, ... errN])]`
     `mean_batch_apply` will accumulate these values and divide them by the
     number of samples in the data set at the end, returning the mean values
     for the complete data set.
+    - Otherwise, `sum_axis` should specify the axis or axes over which
+    the the batch results should be summed, e.g. if `func` returns a
+    per-sample loss and error in two arrays
+    `[[loss0, loss1, ... lossN], [err0, err1, ... errN]`, give `sum_axis`
+    a value of `0` to sum over axis 0 to get the per-batch loss and error.
+    `mean_batch_map` will accumulate these and divide by the number of samples
+    at the end to get the mean.
 
     `data` must must either be a sequence of array-likes, an object with a
     `batch_iterator` method or a callable; see :func:`batch.batch_iterator`
@@ -335,6 +367,14 @@ def mean_batch_map(func, data, batchsize, progress_iter_func=None,
         The data to draw mini-batches from
     batchsize: int
         The number of samples per mini-batch
+    shuffle_rng: `None` or a `np.random.RandomState`
+        A random number generator used to shuffle the order of samples. If one
+        is not provided samples will be processed in-order (e.g.
+        during validation and test).
+    restartable: bool (default=False)
+        If `True`, require that the data-set `data` should be re-startable;
+        e.g. passing a plain iterator as `data` will result in a
+        `TypeError` as it cannot be restarted.
     progress_iter_func: [optional] callable
         `progress_iter_func(iterator, total=total, leave=leave)`
         A `tqdm` style function that will be passed the iterator that
@@ -342,13 +382,15 @@ def mean_batch_map(func, data, batchsize, progress_iter_func=None,
         and `False` for the `leave` parameter. By passing either
         `tqdm.tqdm` or `tqdm.tqdm_notebook` as this argument you can have
         the training loop display a progress bar.
-    shuffle_rng: `None` or a `np.random.RandomState`
-        A random number generator used to shuffle the order of samples. If one
-        is not provided samples will be processed in-order (e.g.
-        during validation and test).
-    func_returns_sum: (default=`False`) boolean
-        Tells `mean_batch_apply` what to expect from `func`; see notes
-        above.
+    sum_axis: (default=`None`) int, tuple of ints or None
+        If an integer or a tuple of integers, the results returned by `func`
+        will be summed across this axis / these axes before being accumulated;
+        e.g. if `func` returns an array of per-sample losses, with axis 0
+        being the sample dimension, passing a value of `0` as `sum_axis`
+        will cause these results to be summed along axis 0 to get the
+        per-batch sum before accumulating the losses. The total summed loss
+        will be divided by the number of samples at the end in order to
+        compute the mean loss.
     prepend_args: [optional] tuple
         Arguments to prepend to the arguments passed to `func`
 
@@ -366,7 +408,8 @@ def mean_batch_map(func, data, batchsize, progress_iter_func=None,
     n_samples_accum = 0
 
     # Create the iterator that will generate mini-batches
-    batch_iter = batch_iterator(data, batchsize, shuffle_rng=shuffle_rng)
+    batch_iter = batch_iterator(data, batchsize, shuffle_rng=shuffle_rng,
+                                restartable=restartable)
 
     # If `progress_iter_func` is not `None`, apply it
     if progress_iter_func is not None:
@@ -407,16 +450,16 @@ def mean_batch_map(func, data, batchsize, progress_iter_func=None,
             # Initialise the accumulator to the batch results if `func`
             # returns summed results or if it returned None;
             # don't attempt to iterate over None and sum each item
-            if func_returns_sum or batch_results is None:
+            if sum_axis is None or batch_results is None:
                 results_accum = batch_results
             else:
-                results_accum = [br.sum(axis=0) for br in batch_results]
+                results_accum = [br.sum(axis=sum_axis) for br in batch_results]
         else:
             if batch_results is not None:
                 for i in range(len(results_accum)):
                     br = batch_results[i]
-                    if not func_returns_sum:
-                        br = br.sum(axis=0)
+                    if sum_axis is not None:
+                        br = br.sum(axis=sum_axis)
                     results_accum[i] += br
         n_samples_accum += batch_n
 

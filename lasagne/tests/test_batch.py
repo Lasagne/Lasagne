@@ -219,11 +219,38 @@ def test_batch_iterator():
     check_shuffled_batches(batches)
 
     #
+    # Test iterator
+    #
+
+    # Re-use the function defined above to create the iterator
+    in_order_batch_iter = make_batch_iterator(15)
+    batches = list(batch.batch_iterator(in_order_batch_iter, batchsize=15,
+                                        restartable=False))
+    check_in_order_batches(batches)
+
+    # Three shuffled batches
+    shuffled_batch_iter = make_batch_iterator(
+        15, shuffle_rng=np.random.RandomState(12345))
+    batches = list(batch.batch_iterator(shuffled_batch_iter, batchsize=15,
+                                        restartable=False))
+    check_shuffled_batches(batches)
+
+    #
     # Test invalid type
     #
 
     with pytest.raises(TypeError):
         batch.batch_iterator(1, batchsize=15)
+
+    #
+    # Passing an iterator should raise `TypeError` if `restartable` argument
+    # is true
+    #
+
+    in_order_batch_iter = make_batch_iterator(15)
+    with pytest.raises(TypeError):
+        batch.batch_iterator(in_order_batch_iter, batchsize=15,
+                             restartable=True)
 
 
 def test_batch_map():
@@ -354,7 +381,7 @@ def test_mean_batch_map_in_order():
 
     [x, y] = batch.mean_batch_map(batch_func, [X, Y], 5,
                                   progress_iter_func=progress_iter_func,
-                                  func_returns_sum=True)
+                                  sum_axis=None)
 
     assert np.allclose(x, X.mean())
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
@@ -375,7 +402,7 @@ def test_mean_batch_map_in_order():
 
     [x] = batch.mean_batch_map(batch_func_single, [X, Y], 5,
                                progress_iter_func=progress_iter_func,
-                               func_returns_sum=True)
+                               sum_axis=None)
 
     assert np.allclose(x, X.mean())
 
@@ -387,7 +414,7 @@ def test_mean_batch_map_in_order():
 
     res = batch.mean_batch_map(batch_func_no_results, [X, Y], 5,
                                progress_iter_func=progress_iter_func,
-                               func_returns_sum=True)
+                               sum_axis=None)
 
     assert res is None
 
@@ -410,8 +437,7 @@ def test_mean_batch_map_in_order():
 
     [x, y] = batch.mean_batch_map(batch_func_prepend, [X, Y], 5,
                                   progress_iter_func=progress_iter_func,
-                                  func_returns_sum=True,
-                                  prepend_args=(42, 3.14))
+                                  sum_axis=None, prepend_args=(42, 3.14))
 
     assert np.allclose(x, X.mean())
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
@@ -443,7 +469,7 @@ def test_mean_batch_map_in_order_per_sample_func():
 
     [x, y] = batch.mean_batch_map(batch_func, [X, Y], 5,
                                   progress_iter_func=progress_iter_func,
-                                  func_returns_sum=False)
+                                  sum_axis=0)
 
     assert np.allclose(x, X.mean() + 2.0)
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
@@ -454,8 +480,7 @@ def test_mean_batch_map_in_order_per_sample_func():
     def batch_func_single(batch_X, batch_Y):
         return batch_X + 2
 
-    [x] = batch.mean_batch_map(batch_func_single, [X, Y], 5,
-                               func_returns_sum=False)
+    [x] = batch.mean_batch_map(batch_func_single, [X, Y], 5, sum_axis=0)
 
     assert np.allclose(x, X.mean() + 2.0)
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
@@ -468,7 +493,7 @@ def test_mean_batch_map_in_order_per_sample_func():
 
     res = batch.mean_batch_map(batch_func_no_results, [X, Y], 5,
                                progress_iter_func=progress_iter_func,
-                               func_returns_sum=False)
+                               sum_axis=0)
 
     assert res is None
 

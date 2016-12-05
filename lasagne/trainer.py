@@ -503,11 +503,10 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
                 progress_iter_func, desc='Epoch {} train'.format(epoch + 1))
         else:
             train_prog_iter = None
-        train_results = mean_batch_map(train_batch_func, train_set,
-                                       batchsize, train_prog_iter,
-                                       shuffle_rng=shuffle_rng,
-                                       func_returns_sum=True,
-                                       prepend_args=train_epoch_args)
+        train_results = mean_batch_map(
+            train_batch_func, train_set, batchsize, shuffle_rng=shuffle_rng,
+            restartable=True, progress_iter_func=train_prog_iter,
+            sum_axis=None, prepend_args=train_epoch_args)
 
         if train_epoch_results_check_func is not None:
             reason = train_epoch_results_check_func(epoch, train_results)
@@ -538,9 +537,9 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
                     progress_iter_func, desc='Epoch {} val'.format(epoch + 1))
             else:
                 val_prog_iter = None
-            validation_results = mean_batch_map(eval_batch_func, val_set,
-                                                batchsize, val_prog_iter,
-                                                func_returns_sum=True)
+            validation_results = mean_batch_map(
+                eval_batch_func, val_set, batchsize, restartable=True,
+                progress_iter_func=val_prog_iter, sum_axis=None)
             if best_validation_results is None or \
                     val_improved_func(validation_results,
                                       best_validation_results):
@@ -567,8 +566,9 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
                     else:
                         test_prog_iter = None
                     test_results = mean_batch_map(
-                        eval_batch_func, test_set, batchsize, test_prog_iter,
-                        func_returns_sum=True)
+                        eval_batch_func, test_set, batchsize,
+                        restartable=True, progress_iter_func=test_prog_iter,
+                        sum_axis=None)
         else:
             validation_results = None
 
@@ -581,8 +581,8 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
             else:
                 test_prog_iter = None
             test_results = mean_batch_map(
-                eval_batch_func, test_set, batchsize, test_prog_iter,
-                func_returns_sum=True)
+                eval_batch_func, test_set, batchsize, restartable=True,
+                progress_iter_func=test_prog_iter, sum_axis=None)
 
         if verbosity == VERBOSITY_EPOCH:
             _log_epoch_results(epoch, time.time() - epoch_start_time,

@@ -445,7 +445,7 @@ def mean_batch_map(func, data, batchsize, shuffle_rng=None, restartable=False,
                     'single result as a NumPy array or float, or None, '
                     'not {}'.format(type(batch_results)))
 
-        # Accumulate training results and number of examples
+        # Accumulate results and number of samples
         if results_accum is None:
             # Initialise the accumulator to the batch results if `func`
             # returns summed results or if it returned None;

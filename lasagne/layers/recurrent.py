@@ -451,12 +451,13 @@ class CustomRecurrentLayer(MergeLayer):
 
         if mask is not None:
             # After processing, the input has shape
-            # (seq_len, batch_size, feature_dim_0, feature_dim_1, ..., feature_dim_N)
-            # We have to determine N, which is the number of feature dimensions in order to adjust the shape of the
-            # masking variable to
+            # (seq_len, batch_size, f_0, f_1, ..., f_N)
+            # We have to determine N, which is the number of feature dimensions
+            # in order to adjust the shape of the masking variable to
             # (seq_len, batch_size, 1, ..., 1)
+            #                       |---N---|
             num_feature_dims = input.ndim - 2
-            mask = mask.dimshuffle((1, 0) +  ('x',) * num_feature_dims)
+            mask = mask.dimshuffle((1, 0) + ('x',) * num_feature_dims)
             sequences = [input, mask]
             step_fun = step_masked
         else:

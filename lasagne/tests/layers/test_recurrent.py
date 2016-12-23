@@ -208,10 +208,12 @@ def test_custom_recurrent_arbitrary_shape_with_mask():
         l_in, l_in_to_hid, l_hid_to_hid, mask_input=l_mask)
     assert l_rec.output_shape == (n_batch, n_steps, n_out_filters, width,
                                   height)
-    out = theano.function([l_in.input_var, l_mask.input_var], lasagne.layers.get_output(l_rec))
+    out = theano.function([l_in.input_var, l_mask.input_var],
+                          lasagne.layers.get_output(l_rec))
     out_shape = out(np.zeros((n_batch, n_steps, n_channels, width, height),
                              dtype=theano.config.floatX),
-                    np.zeros((n_batch, n_steps), dtype=theano.config.floatX)).shape
+                    np.zeros((n_batch, n_steps),
+                             dtype=theano.config.floatX)).shape
     assert out_shape == (n_batch, n_steps, n_out_filters, width, height)
 
 

@@ -140,9 +140,9 @@ def test_binary_hinge_loss(colvect):
     p = theano.tensor.vector('p')
     t = theano.tensor.ivector('t')
     if not colvect:
-        c = binary_hinge_loss(p, t)
+        c = binary_hinge_loss(p, t, log_odds=True)
     else:
-        c = binary_hinge_loss(p.dimshuffle(0, 'x'), t)[:, 0]
+        c = binary_hinge_loss(p.dimshuffle(0, 'x'), t, log_odds=True)[:, 0]
     # numeric version
     floatX = theano.config.floatX
     predictions = np.random.rand(10).astype(floatX)
@@ -158,15 +158,31 @@ def test_binary_hinge_loss_not_binary_targets(colvect):
     p = theano.tensor.vector('p')
     t = theano.tensor.ivector('t')
     if not colvect:
-        c = binary_hinge_loss(p, t, binary=False)
+        c = binary_hinge_loss(p, t, log_odds=True, binary=False)
     else:
-        c = binary_hinge_loss(p.dimshuffle(0, 'x'), t, binary=False)[:, 0]
+        c = binary_hinge_loss(p.dimshuffle(0, 'x'), t,
+                              log_odds=True, binary=False)[:, 0]
     # numeric version
     floatX = theano.config.floatX
     predictions = np.random.rand(10, ).astype(floatX)
     targets = np.random.random_integers(0, 1, (10, )).astype("int8")
     targets = 2 * targets - 1
     hinge = np.maximum(0, 1 - predictions * targets)
+    # compare
+    assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
+
+
+def test_binary_hinge_loss_sigmoid_predictions():
+    from lasagne.objectives import binary_hinge_loss
+    p = theano.tensor.vector('p')
+    t = theano.tensor.ivector('t')
+    c = binary_hinge_loss(p, t, log_odds=False)
+    # numeric version
+    floatX = theano.config.floatX
+    predictions = np.random.rand(10, ).astype(floatX)
+    targets = np.random.random_integers(0, 1, (10, )).astype("int8")
+    targets2 = 2 * targets - 1
+    hinge = np.maximum(0, 1 - np.log(predictions / (1-predictions)) * targets2)
     # compare
     assert np.allclose(hinge, c.eval({p: predictions, t: targets}))
 

@@ -458,6 +458,7 @@ class TestConv3DLayerImplementations:
 
     @pytest.fixture(
         params=[
+            ('lasagne.layers', 'Conv3DLayer'),
             ('lasagne.layers.dnn', 'Conv3DDNNLayer'),
         ],
     )

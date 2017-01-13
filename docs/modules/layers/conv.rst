@@ -24,6 +24,9 @@ Convolutional layers
     gemm-based one, :class:`lasagne.layers.cuda_convnet.Conv2DCCLayer` for
     Krizhevsky's `cuda-convnet`_.
 
+.. autoclass:: Conv3DLayer
+    :members:
+
 .. _cuda-convnet: https://code.google.com/p/cuda-convnet/
 .. _cuDNN: https://developer.nvidia.com/cudnn
 .. _Theano convolution documentation: http://deeplearning.net/software/theano/library/tensor/nnet/conv.html

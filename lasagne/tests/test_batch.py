@@ -27,6 +27,43 @@ class WrappedList (object):
         return self.xs[item]
 
 
+class HasBatchIterator (object):
+    # Helper class to test `batch_iterator` method protocol
+    def __init__(self, X, Y):
+        self.X = X
+        self.Y = Y
+
+    def batch_iterator(self, batchsize, shuffle_rng=None):
+        from lasagne import batch
+        # Make `batch.arraylikes_batch_iterator` do the work :)
+        return batch.arraylikes_batch_iterator(
+                [self.X, self.Y], batchsize, shuffle_rng=shuffle_rng)
+
+
+class HasCircularBatchIterator (object):
+    # Helper class to test `circular_batch_iterator` method protocol
+    def __init__(self, X, Y):
+        self.X = X
+        self.Y = Y
+
+    def circular_batch_iterator(self, batchsize, shuffle_rng=None):
+        from lasagne import batch
+        # Make `batch.arraylikes_batch_iterator` do the work :)
+        return batch.circular_arraylikes_batch_iterator(
+                [self.X, self.Y], batchsize, shuffle_rng=shuffle_rng)
+
+
+# Helper function to test the callable protocol
+def make_batch_iterator_callable(X, Y):
+    from lasagne import batch
+
+    def batch_iterator(batchsize, shuffle_rng=None):
+        # Make `batch.arraylikes_batch_iterator` do the work :)
+        return batch.arraylikes_batch_iterator(
+                [X, Y], batchsize, shuffle_rng=shuffle_rng)
+    return batch_iterator
+
+
 def test_is_arraylike():
     from lasagne import batch
 
@@ -45,6 +82,63 @@ def test_is_sequence_of_arraylikes():
     assert not batch.is_sequence_of_arraylike([np.arange(3), 4])
     assert not batch.is_sequence_of_arraylike(
             WrappedList([np.arange(3), ArrayLike(np.arange(4))]))
+
+
+def test_is_dataset():
+    from lasagne import batch
+
+    obj_with_batch_it = HasBatchIterator(np.arange(3), np.arange(3))
+    obj_with_circ_batch_it = HasCircularBatchIterator(np.arange(3),
+                                                      np.arange(3))
+    callable_it = make_batch_iterator_callable(np.arange(3), np.arange(3))
+
+    assert batch.is_dataset([np.arange(3), np.arange(4)])
+    assert batch.is_dataset([np.arange(3), np.arange(4)], circular=True)
+    assert batch.is_dataset([np.arange(3), ArrayLike(np.arange(4))])
+    assert batch.is_dataset([np.arange(3), ArrayLike(np.arange(4))],
+                            circular=True)
+    assert not batch.is_dataset([np.arange(3), 4])
+    assert not batch.is_dataset(
+        WrappedList([np.arange(3), ArrayLike(np.arange(4))]))
+
+    assert batch.is_dataset(obj_with_batch_it, circular=False)
+    assert not batch.is_dataset(obj_with_batch_it, circular=True)
+    assert not batch.is_dataset(obj_with_circ_batch_it, circular=False)
+    assert batch.is_dataset(obj_with_circ_batch_it, circular=True)
+    assert batch.is_dataset(callable_it, circular=False)
+    assert batch.is_dataset(callable_it, circular=True)
+
+    it = batch.batch_iterator([np.arange(3), np.arange(4)], 3)
+    assert batch.is_dataset(it, circular=False)
+    assert batch.is_dataset(it, circular=True)
+
+
+def test_is_sequence_of_datasets():
+    from lasagne import batch
+
+    seq_of_arrays1 = [np.arange(3), np.arange(4)]
+    seq_of_arrays2 = [np.arange(3) * 2, np.arange(4) * 2]
+    obj_with_batch_it = HasBatchIterator(np.arange(3), np.arange(3))
+    obj_with_circ_batch_it = HasCircularBatchIterator(np.arange(3),
+                                                      np.arange(3))
+    callable_it = make_batch_iterator_callable(np.arange(3), np.arange(3))
+    it = batch.batch_iterator([np.arange(3), np.arange(4)], 3)
+
+    # Two lists of arrays
+    assert batch.is_sequence_of_datasets([seq_of_arrays1, seq_of_arrays2])
+    # List of arrays and object with `batch_iterator` method
+    assert batch.is_sequence_of_datasets(
+        [seq_of_arrays1, obj_with_batch_it], circular=False)
+    assert not batch.is_sequence_of_datasets(
+        [seq_of_arrays1, obj_with_batch_it], circular=True)
+    assert not batch.is_sequence_of_datasets(
+        [seq_of_arrays1, obj_with_circ_batch_it], circular=False)
+    assert batch.is_sequence_of_datasets(
+        [seq_of_arrays1, obj_with_circ_batch_it], circular=True)
+    assert batch.is_sequence_of_datasets([seq_of_arrays1, callable_it])
+    assert batch.is_sequence_of_datasets([seq_of_arrays1, it])
+    # Not a data set
+    assert not batch.is_sequence_of_datasets([seq_of_arrays1, np.arange(3)])
 
 
 def test_length_of_arraylikes_in_sequence():
@@ -120,6 +214,65 @@ def test_arraylikes_batch_iterator():
     assert (batches[2][1] == Y[order[30:]]).all()
 
 
+def test_circular_arraylikes_batch_iterator():
+    from lasagne import batch
+
+    X = np.arange(50)
+    Y = np.arange(100).reshape((50, 2))
+
+    # Five in-order batches
+    inorder_iter = batch.circular_arraylikes_batch_iterator(
+        [X, Y], batchsize=20)
+    batches = [inorder_iter.next() for i in range(5)]
+    # Five batches
+    assert len(batches) == 5
+    # Two items in each batch
+    assert len(batches[0]) == 2
+    assert len(batches[1]) == 2
+    assert len(batches[2]) == 2
+    assert len(batches[3]) == 2
+    assert len(batches[4]) == 2
+    # Verify values
+    assert (batches[0][0] == X[:20]).all()
+    assert (batches[0][1] == Y[:20]).all()
+    assert (batches[1][0] == X[20:40]).all()
+    assert (batches[1][1] == Y[20:40]).all()
+    assert (batches[2][0] == np.append(X[40:50], X[0:10], axis=0)).all()
+    assert (batches[2][1] == np.append(Y[40:50], Y[0:10], axis=0)).all()
+    assert (batches[3][0] == X[10:30]).all()
+    assert (batches[3][1] == Y[10:30]).all()
+    assert (batches[4][0] == X[30:50]).all()
+    assert (batches[4][1] == Y[30:50]).all()
+
+    # Five shuffled batches
+    shuffled_iter = batch.circular_arraylikes_batch_iterator(
+        [X, Y], batchsize=20, shuffle_rng=np.random.RandomState(12345))
+    batches = [shuffled_iter.next() for i in range(5)]
+    # Get the expected order
+    order_shuffle_rng = np.random.RandomState(12345)
+    order = np.append(order_shuffle_rng.permutation(50),
+                      order_shuffle_rng.permutation(50), axis=0)
+    # Five batches
+    assert len(batches) == 5
+    # Two items in each batch
+    assert len(batches[0]) == 2
+    assert len(batches[1]) == 2
+    assert len(batches[2]) == 2
+    assert len(batches[3]) == 2
+    assert len(batches[4]) == 2
+    # Verify values
+    assert (batches[0][0] == X[order[:20]]).all()
+    assert (batches[0][1] == Y[order[:20]]).all()
+    assert (batches[1][0] == X[order[20:40]]).all()
+    assert (batches[1][1] == Y[order[20:40]]).all()
+    assert (batches[2][0] == X[order[40:60]]).all()
+    assert (batches[2][1] == Y[order[40:60]]).all()
+    assert (batches[3][0] == X[order[60:80]]).all()
+    assert (batches[3][1] == Y[order[60:80]]).all()
+    assert (batches[4][0] == X[order[80:]]).all()
+    assert (batches[4][1] == Y[order[80:]]).all()
+
+
 def test_batch_iterator():
     from lasagne import batch
 
@@ -177,17 +330,6 @@ def test_batch_iterator():
     # Test `batch_iterator` method protocol
     #
 
-    class HasBatchIterator (object):
-        # Helper class to test `batch_iterator` method protocol
-        def __init__(self, X, Y):
-            self.X = X
-            self.Y = Y
-
-        def batch_iterator(self, batchsize, shuffle_rng=None):
-            # Make `batch.arraylikes_batch_iterator` do the work :)
-            return batch.arraylikes_batch_iterator(
-                    [self.X, self.Y], batchsize, shuffle_rng=shuffle_rng)
-
     # Three in-order batches
     batches = list(batch.batch_iterator(HasBatchIterator(X, Y), batchsize=15))
     check_in_order_batches(batches)
@@ -202,19 +344,14 @@ def test_batch_iterator():
     # Test callable
     #
 
-    def make_batch_iterator(batchsize, shuffle_rng=None):
-        # Helper function to test `callable` protocol
-        # Make `batch.arraylikes_batch_iterator` do the work :)
-        return batch.arraylikes_batch_iterator(
-                [X, Y], batchsize, shuffle_rng=shuffle_rng)
-
     # Three in-order batches
-    batches = list(batch.batch_iterator(make_batch_iterator, batchsize=15))
+    batches = list(batch.batch_iterator(make_batch_iterator_callable(X, Y),
+                                        batchsize=15))
     check_in_order_batches(batches)
 
     # Three shuffled batches
     batches = list(batch.batch_iterator(
-            make_batch_iterator, batchsize=15,
+            make_batch_iterator_callable(X, Y), batchsize=15,
             shuffle_rng=np.random.RandomState(12345)))
     check_shuffled_batches(batches)
 
@@ -223,13 +360,13 @@ def test_batch_iterator():
     #
 
     # Re-use the function defined above to create the iterator
-    in_order_batch_iter = make_batch_iterator(15)
+    in_order_batch_iter = make_batch_iterator_callable(X, Y)(15)
     batches = list(batch.batch_iterator(in_order_batch_iter, batchsize=15,
                                         restartable=False))
     check_in_order_batches(batches)
 
     # Three shuffled batches
-    shuffled_batch_iter = make_batch_iterator(
+    shuffled_batch_iter = make_batch_iterator_callable(X, Y)(
         15, shuffle_rng=np.random.RandomState(12345))
     batches = list(batch.batch_iterator(shuffled_batch_iter, batchsize=15,
                                         restartable=False))
@@ -247,7 +384,7 @@ def test_batch_iterator():
     # is true
     #
 
-    in_order_batch_iter = make_batch_iterator(15)
+    in_order_batch_iter = make_batch_iterator_callable(X, Y)(15)
     with pytest.raises(TypeError):
         batch.batch_iterator(in_order_batch_iter, batchsize=15,
                              restartable=True)

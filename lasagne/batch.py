@@ -1,4 +1,4 @@
-import collections
+import collections, itertools
 import numpy as np
 
 
@@ -6,7 +6,7 @@ def is_arraylike(x):
     """
     Determine if `x` is array-like. `x` is index-able if it provides the
     `__len__` and `__getitem__` methods. Note that `__getitem__` should
-    accept 1D NumPy integer arrays as an index
+    accept 1D NumPy integer arrays as indices.
 
     Parameters
     ----------
@@ -21,16 +21,16 @@ def is_arraylike(x):
     return hasattr(x, '__len__') and hasattr(x, '__getitem__')
 
 
-def is_sequence_of_arraylike(xs):
+def is_sequence_of_arraylike(data):
     """
-    Determine if `x` is a sequence of array-like values. For definition of
+    Determine if `data` is a sequence of array-like values. For definition of
     array-like see :func:`is_arraylike`. Tests the sequence by checking each
     value to see if it is array-like. Note that the containing sequence should
     be either a tuple or a list.
 
     Parameters
     ----------
-    xs: tuple or list
+    data: tuple or list
         The sequence to test
 
     Returns
@@ -39,22 +39,82 @@ def is_sequence_of_arraylike(xs):
         `True` if tuple or list and all elements are array-like, `False`
         otherwise
     """
-    if isinstance(xs, (tuple, list)):
-        for x in xs:
+    if isinstance(data, (tuple, list)):
+        for x in data:
             if not is_arraylike(x):
                 return False
         return True
     return False
 
 
-def length_of_arraylikes_in_sequence(xs):
+def is_dataset(data, circular=False):
     """
-    Determine the length of the array-like elements in the sequence `xs`.
+    Determine if `data` can be used as a data set. It can be used as a
+    data set if:
+    - it has a `batch_iterator` method if `circular` is `False`, or
+    - it has a `circular_batch_iterator` method if `circular` is `True`, or
+    - it is a callable, or
+    - `restartable` is `False` and it is an iterator, or
+    - it is a sequence of array-likes (see :func:`is_sequence_of_arraylike`)
+
+    Parameters
+    ----------
+    data:
+        Object to test
+    circular: bool
+        If `False`, will look for the `batch_iterator`
+        method, if `True` will look for `circular_batch_iterator`
+
+    Returns
+    -------
+    bool
+        `True` if `dataset can be used as a data set, `False` otherwise
+    """
+    iter_method_name = 'circular_batch_iterator' if circular \
+        else 'batch_iterator'
+
+    return hasattr(data, iter_method_name) or callable(data) or \
+           isinstance(data, collections.Iterator) or \
+           is_sequence_of_arraylike(data)
+
+
+def is_sequence_of_datasets(data, circular=False):
+    """
+    Determine if `xs` is a sequence of data sets. For definition of a
+    data set see :func:`is_dataset`. Tests the sequence by checking each
+    value to see if it can be used as a data set. Note that the containing
+    sequence should be either a tuple or a list.
+
+    Parameters
+    ----------
+    data: tuple or list
+        The sequence to test
+    circular: bool
+        If `False`, will look for the `batch_iterator`
+        method, if `True` will look for `circular_batch_iterator`
+
+    Returns
+    -------
+    bool
+        `True` if tuple or list and all elements can be used as data sets,
+        `False` otherwise
+    """
+    if isinstance(data, (tuple, list)):
+        for x in data:
+            if not is_dataset(x, circular=circular):
+                return False
+        return True
+    return False
+
+
+def length_of_arraylikes_in_sequence(data):
+    """
+    Determine the length of the array-like elements in the sequence `data`.
     `ValueError` is raised if the elements do not all have the same length.
 
     Parameters
     ----------
-    xs: tuple or list
+    data: tuple or list
         Sequence of array-like elements.
 
     Returns
@@ -67,9 +127,9 @@ def length_of_arraylikes_in_sequence(xs):
     ValueError
         If the lengths of the elements are not the same
     """
-    N = len(xs[0])
+    N = len(data[0])
     # Ensure remainder are consistent
-    for i, d1 in enumerate(xs[1:]):
+    for i, d1 in enumerate(data[1:]):
         if len(d1) != N:
             raise ValueError('Index-ables have inconsistent length; element '
                              '0 has length {}, while element {} has length '
@@ -77,25 +137,25 @@ def length_of_arraylikes_in_sequence(xs):
     return N
 
 
-def dataset_length(dataset):
+def dataset_length(data):
     """
     Determine the length of the data set (number of samples).
-    If `dataset` is ` sequence of array-like elements it is their length. If
+    If `data` is ` sequence of array-like elements it is their length. If
     not, the length cannot be determined and `None` will be returned
-    :param dataset: a data set; see the `batch_iterator` function
+    :param data: a data set; see the `batch_iterator` function
     :return: the length of the data set or `None`
     """
-    if is_sequence_of_arraylike(dataset):
-        return length_of_arraylikes_in_sequence(dataset)
+    if is_sequence_of_arraylike(data):
+        return length_of_arraylikes_in_sequence(data)
     else:
         return None
 
 
-def arraylikes_batch_iterator(dataset, batchsize,
+def arraylikes_batch_iterator(data, batchsize,
                               shuffle_rng=None):
     """
     Create an iterator that generates mini-batches extracted from the
-    sequence of array-likes `dataset`. The batches will have `batchsize`
+    sequence of array-likes `data`. The batches will have `batchsize`
     elements. If `shuffle_rng` is `None`, elements will be extracted in
     order. If it is not `None`, it will be used to randomise the order in
     which elements are extracted from `dataset`.
@@ -106,7 +166,7 @@ def arraylikes_batch_iterator(dataset, batchsize,
 
     Parameters
     ----------
-    dataset: tuple or list
+    data: tuple or list
         Sequence of array-like elements.
     batchsize: int
         Mini-batch size
@@ -120,29 +180,102 @@ def arraylikes_batch_iterator(dataset, batchsize,
         An iterator that generates items of type `[batch_x, batch_y, ...]`
         where `batch_x`, `batch_y`, etc are themselves arrays.
     """
-    N = length_of_arraylikes_in_sequence(dataset)
+    N = length_of_arraylikes_in_sequence(data)
     if shuffle_rng is not None:
         indices = shuffle_rng.permutation(N)
         for start_idx in range(0, N, batchsize):
             excerpt = indices[start_idx:start_idx + batchsize]
-            yield [d[excerpt] for d in dataset]
+            yield [d[excerpt] for d in data]
     else:
         for start_idx in range(0, N, batchsize):
-            yield [d[start_idx:start_idx+batchsize] for d in dataset]
+            yield [d[start_idx:start_idx+batchsize] for d in data]
 
 
-def batch_iterator(dataset, batchsize, shuffle_rng=None, restartable=False):
+def circular_arraylikes_batch_iterator(data, batchsize,
+                                       shuffle_rng=None):
     """
-    Create an iterator that will iterate over the data in `dataset` in
+    Create an iterator that generates an infinite sequence of mini-batches
+    extracted from the sequence of array-likes `data`. The batches will
+    have `batchsize` elements. If `shuffle_rng` is `None`, elements will
+    be extracted in order. If it is not `None`, it will be used to
+    randomise the order in which elements are extracted from `data`.
+    Once the supply of elements from `data` are exhausted, it will start
+    from the beginning, or from a random position if shuffling is used.
+
+    The generated mini-batches take the form `[batch_x, batch_y, ...]`
+    where `batch_x`, `batch_y`, etc. are extracted from each array-like in
+    `data`.
+
+    Parameters
+    ----------
+    data: tuple or list
+        Sequence of array-like elements.
+    batchsize: int
+        Mini-batch size
+    shuffle_rng: `np.random.RandomState` or `None`
+        Used to randomise element order. If `None`, elements will be extracted
+        in order.
+
+    Returns
+    -------
+    iterator
+        An iterator that generates items of type `[batch_x, batch_y, ...]`
+        where `batch_x`, `batch_y`, etc are themselves arrays.
+    """
+    N = length_of_arraylikes_in_sequence(data)
+    if shuffle_rng is not None:
+        indices = shuffle_rng.permutation(N)
+        i = 0
+        while True:
+            j = i + batchsize
+            if j <= N:
+                # Within size of data
+                batch_ndx = indices[i:j]
+                i = j
+            else:
+                # Wrap over
+                # Compute number of elements required to make up the batch
+                k = batchsize - (N - i)
+                # Get available indices
+                batch_ndx = indices[i:N]
+                # Re-populate indices
+                indices = shuffle_rng.permutation(N)
+                # Get remaining indices and append
+                batch_ndx = np.append(batch_ndx, indices[:k], axis=0)
+                i = k
+            yield [d[batch_ndx] for d in data]
+    else:
+        i = 0
+        while True:
+            j = i + batchsize
+            if j <= N:
+                # Within size of data
+                yield [d[i:j] for d in data]
+                i = j
+            else:
+                # Wrap over
+                # Compute number of elements required to make up the batch
+                k = batchsize - (N - i)
+                yield [np.append(d[i:N], d[:k], axis=0) for d in data]
+                i = k
+
+
+def _nested_batch_iterator(iterators):
+    for batch in itertools.izip(*iterators):
+        yield sum(batch, [])
+
+def batch_iterator(data, batchsize, shuffle_rng=None, restartable=False):
+    """
+    Create an iterator that will iterate over the data in `data` in
     mini-batches consisting of `batchsize` samples, with their order shuffled
     using the random number generate `shuffle_rng` if supplied or in-order if
     not.
 
-    The data in `dataset` must take the form of either:
+    The data in `data` must take the form of either:
 
     - a sequence of array-likes (see :func:`is_arraylike`) (e.g. NumPy
         arrays) - one for each variable (input/target/etc) - where each
-        array-like contains an entry for each sample in the complete dataset.
+        array-like contains an entry for each sample in the complete data set.
         The use of array-like allows the use of NumPy arrays or other objects
         that support `__len__` and `__getitem__`:
 
@@ -155,9 +288,9 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None, restartable=False):
     ...                          shuffle_rng=shuffle_rng)
 
     - an object that has the method
-        `dataset.batch_iterator(batchsize, shuffle_rng=None) -> iterator` or a
+        `data.batch_iterator(batchsize, shuffle_rng=None) -> iterator` or a
         callable of the form
-        `dataset(batchsize, shuffle_rng=None) -> iterator` that returns an
+        `data(batchsize, shuffle_rng=None) -> iterator` that returns an
         iterator, where the iterator generates mini-batches,
         where each mini-batch is a list of numpy arrays:
 
@@ -196,17 +329,17 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None, restartable=False):
 
     Parameters
     ----------
-    dataset: a tuple/list of array-likes, or an object with a `batch_iterator`
-        method or a callable.
-        The dataset to draw mini-batches from
+    data: a tuple/list of array-likes, or an object with a `batch_iterator`
+        method or a callable, or a tuple/list of data sets.
+        The data set to draw mini-batches from
     batchsize: int
         Mini-batch size
     shuffle_rng: `np.random.RandomState` or `None`
         Used to randomise element order. If `None`, elements will be extracted
         in order.
     restartable: bool (default=False)
-        If `True`, require that the data-set `dataset` should be re-startable;
-        e.g. passing a plain iterator as `dataset` will result in a
+        If `True`, require that the data set `data` should be re-startable;
+        e.g. passing a plain iterator as `data` will result in a
         `TypeError` as it cannot be restarted.
 
     Returns
@@ -215,25 +348,29 @@ def batch_iterator(dataset, batchsize, shuffle_rng=None, restartable=False):
         An iterator that generates items of type `[batch_x, batch_y, ...]`
         where `batch_x`, `batch_y`, etc are themselves arrays.
     """
-    if is_sequence_of_arraylike(dataset):
-        # First, try sequence of array-likes; likely the most common dataset
+    if is_sequence_of_arraylike(data):
+        # First, try sequence of array-likes; likely the most common data
         # type. Furthermore, using the array-like interface is preferable to
         # using `batch_iterator` method
         return arraylikes_batch_iterator(
-                dataset, batchsize, shuffle_rng=shuffle_rng)
-    elif hasattr(dataset, 'batch_iterator'):
+                data, batchsize, shuffle_rng=shuffle_rng)
+    elif hasattr(data, 'batch_iterator'):
         # Next, try `batch_iterator` method
-        return dataset.batch_iterator(batchsize, shuffle_rng=shuffle_rng)
-    elif callable(dataset):
+        return data.batch_iterator(batchsize, shuffle_rng=shuffle_rng)
+    elif callable(data):
         # Now try callable; basically the same as `batch_iterator`
-        return dataset(batchsize, shuffle_rng=shuffle_rng)
-    elif not restartable and isinstance(dataset, collections.Iterator):
-        return dataset
+        return data(batchsize, shuffle_rng=shuffle_rng)
+    elif not restartable and isinstance(data, collections.Iterator):
+        return data
+    elif is_sequence_of_datasets(data):
+        iterators = [batch_iterator(x, batchsize, shuffle_rng, restartable)
+                     for x in data]
+        return _nested_batch_iterator(iterators)
     else:
         # Don't know how to handle this
-        raise TypeError('dataset should either: be a sequence of array-likes; '
+        raise TypeError('data should either: be a sequence of array-likes; '
                         'have a `batch_iterator` method; or be or a callable, '
-                        'don\'t know how to handle {}'.format(type(dataset)))
+                        'don\'t know how to handle {}'.format(type(data)))
 
 
 def batch_map(func, data, batchsize, restartable=False,

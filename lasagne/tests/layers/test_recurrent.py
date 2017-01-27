@@ -26,9 +26,9 @@ def test_recurrent_return_shape():
     assert output_val.shape == (num_batch, seq_len, num_units)
 
 
-def test_recurrent_grad():
+@pytest.mark.parametrize('num_units', (6, 1))
+def test_recurrent_grad(num_units):
     num_batch, seq_len, n_features = 5, 3, 10
-    num_units = 6
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_rec = RecurrentLayer(l_inp,
                            num_units=num_units)
@@ -532,9 +532,9 @@ def test_lstm_return_shape():
     assert output_val.shape == (num_batch, seq_len, num_units)
 
 
-def test_lstm_grad():
+@pytest.mark.parametrize('num_units', (6, 1))
+def test_lstm_grad(num_units):
     num_batch, seq_len, n_features = 5, 3, 10
-    num_units = 6
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_lstm = LSTMLayer(l_inp, num_units=num_units)
     output = helper.get_output(l_lstm)
@@ -866,9 +866,9 @@ def test_gru_return_shape():
     assert output_val.shape == (num_batch, seq_len, num_units)
 
 
-def test_gru_grad():
+@pytest.mark.parametrize('num_units', (6, 1))
+def test_gru_grad(num_units):
     num_batch, seq_len, n_features = 5, 3, 10
-    num_units = 6
     l_inp = InputLayer((num_batch, seq_len, n_features))
     l_gru = GRULayer(l_inp,
                      num_units=num_units)

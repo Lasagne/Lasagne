@@ -109,7 +109,9 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
           post_epoch_callback=None, progress_iter_func=None,
           verbosity=VERBOSITY_EPOCH, log_stream=sys.stdout,
           log_final_result=True, get_state_func=None, set_state_func=None,
-          layer_to_restore=None, updates_to_restore=None, shuffle_rng=None):
+          layer_to_restore=None, updates_to_restore=None,
+          store_state_after_epoch=None,
+          shuffle_rng=None):
     """
     Neural network training loop, designed to be as generic as possible
     in order to simplify implementing a Theano/Lasagne training loop.
@@ -286,6 +288,10 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
         a value for :param:`update_to_restore` without a value for
         :param:`layer_to_restore` will result in the :method:`train`
         method raising `ValueError`.
+    store_state_after_epoch: [optional] None or an integer that specifies
+        an epoch index. If provided, state will not be stored and
+        improvements in validation score will not be detected until the
+        specified epoch has passed
     shuffle_rng: `None` or a `np.random.RandomState`
         A random number generator used to shuffle the order of samples
         during training. If one is not provided, `lasagne.rng.get_rng()`
@@ -539,35 +545,37 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
             validation_results = mean_batch_map(
                 eval_batch_func, val_set, batchsize, restartable=True,
                 progress_iter_func=val_prog_iter, sum_axis=None)
-            if best_validation_results is None or \
-                    val_improved_func(validation_results,
-                                      best_validation_results):
-                validation_improved = True
+            if store_state_after_epoch is None or \
+                    epoch >= store_state_after_epoch:
+                if best_validation_results is None or \
+                        val_improved_func(validation_results,
+                                          best_validation_results):
+                    validation_improved = True
 
-                # Validation score improved
-                best_train_results = train_results
-                best_validation_results = validation_results
-                best_epoch = epoch
-                best_state = _save_state()
-                state_saved = True
+                    # Validation score improved
+                    best_train_results = train_results
+                    best_validation_results = validation_results
+                    best_epoch = epoch
+                    best_state = _save_state()
+                    state_saved = True
 
-                stop_at_epoch = max(
-                        epoch + 1 + val_improve_patience,
-                        int((epoch + 1) * val_improve_patience_factor),
-                        min_epochs)
+                    stop_at_epoch = max(
+                            epoch + 1 + val_improve_patience,
+                            int((epoch + 1) * val_improve_patience_factor),
+                            min_epochs)
 
-                if test_set is not None:
-                    tested = True
-                    if progress_iter_func is not None:
-                        test_prog_iter = functools.partial(
-                            progress_iter_func,
-                            desc='Epoch {} test'.format(epoch + 1))
-                    else:
-                        test_prog_iter = None
-                    test_results = mean_batch_map(
-                        eval_batch_func, test_set, batchsize,
-                        restartable=True, progress_iter_func=test_prog_iter,
-                        sum_axis=None)
+                    if test_set is not None:
+                        tested = True
+                        if progress_iter_func is not None:
+                            test_prog_iter = functools.partial(
+                                progress_iter_func,
+                                desc='Epoch {} test'.format(epoch + 1))
+                        else:
+                            test_prog_iter = None
+                        test_results = mean_batch_map(
+                            eval_batch_func, test_set, batchsize,
+                            restartable=True,
+                            progress_iter_func=test_prog_iter, sum_axis=None)
         else:
             validation_results = None
 

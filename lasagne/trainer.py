@@ -331,12 +331,22 @@ def train(train_set, val_set=None, test_set=None, train_batch_func=None,
     if shuffle_rng is None:
         shuffle_rng = lasagne.random.get_rng()
 
+    if store_state_after_epoch is not None:
+        # Ensure that store_state_after_epoch <= num_epochs - 1
+        store_state_after_epoch = min(store_state_after_epoch,
+                                      num_epochs - 1)
+
     if min_epochs is None:
         # min_epochs not provided; default to num_epochs
         min_epochs = num_epochs
     else:
+        if store_state_after_epoch is not None:
+            # Ensure that min_epochs >= store_state_after_epoch + 1
+            min_epochs = max(min_epochs, store_state_after_epoch + 1)
+
         # Ensure that min_epochs <= num_epochs
         min_epochs = min(min_epochs, num_epochs)
+
 
     # Check parameter sanity
     if train_batch_func is None:

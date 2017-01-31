@@ -55,10 +55,11 @@ class InputLayer(Layer):
                 "dimension. shape=%r, self.name=%r") % (
                     self.shape, name))
 
-        ndim = len(shape)
+        ndim = len(self.shape)
         if input_var is None:
-            # create the right TensorType for the given number of dimensions
-            input_var_type = T.TensorType(theano.config.floatX, [False] * ndim)
+            # create the right TensorType for the given dimensionality/shape
+            input_var_type = T.TensorType(theano.config.floatX,
+                                          [s == 1 for s in self.shape])
             var_name = ("%s.input" % name) if name is not None else "input"
             input_var = input_var_type(var_name)
         else:

@@ -84,7 +84,7 @@ def locally_connected2d_test_sets():
     for batch_size in (2, 3):
         for input_shape in ((batch_size, 2, 5, 5), (batch_size, 4, 8, 8)):
             for num_filters in (2, 4):
-                for filter_size in (3, 5):
+                for filter_size in ((3, 3), (3, 5)):
                     for flip_filters in (True, False):
                         for channelwise in (True, False):
                             if channelwise and num_filters != input_shape[1]:
@@ -92,14 +92,14 @@ def locally_connected2d_test_sets():
                             input = np.random.random(input_shape)
                             if channelwise:
                                 W = np.random.random(
-                                    (num_filters,) + (filter_size,) * 2 +
+                                    (num_filters,) + filter_size +
                                     input_shape[2:])
                                 output = channelwise_locally_connected2d(
                                     input, W, flip_filters=flip_filters)
                             else:
                                 W = np.random.random(
                                     (num_filters, input_shape[1]) +
-                                    (filter_size,) * 2 + input_shape[2:])
+                                    filter_size + input_shape[2:])
                                 output = locally_connected2d(
                                     input, W, flip_filters=flip_filters)
                             yield _convert(input, W, output,

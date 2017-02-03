@@ -161,7 +161,7 @@ class LocallyConnected2DLayer(Conv2DLayer):
 
         # start with ii == jj == 0 case to initialize tensor
         i = self.filter_size[0] // 2
-        j = self.filter_size[0] // 2
+        j = self.filter_size[1] // 2
         filter_h_ind = -i-1 if self.flip_filters else i
         filter_w_ind = -j-1 if self.flip_filters else j
         if self.channelwise:

@@ -230,6 +230,7 @@ class TestGetOutput_Layer:
 
     def test_get_output_with_unused_kwarg(self, layers, get_output):
         l1, l2, l3 = layers
+        l2.get_output_for = lambda data, asdf=123, **kwargs: data
         unused_kwarg = object()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')
@@ -237,6 +238,12 @@ class TestGetOutput_Layer:
             assert len(w) == 1
             assert issubclass(w[0].category, UserWarning)
             assert 'perhaps you meant kwarg' in str(w[0].message)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            get_output(l3, adsf=unused_kwarg)
+            assert len(w) == 1
+            assert issubclass(w[0].category, UserWarning)
+            assert 'perhaps you meant asdf' in str(w[0].message)
 
     def test_get_output_with_no_unused_kwarg(self, layers, get_output):
         l1, l2, l3 = layers

@@ -35,3 +35,5 @@ Pooling layers
 .. autoclass:: FeatureWTALayer
     :members:
 
+.. autoclass:: SpatialPyramidPoolingLayer
+    :members:

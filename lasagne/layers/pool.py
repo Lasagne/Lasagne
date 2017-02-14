@@ -14,6 +14,7 @@ __all__ = [
     "FeaturePoolLayer",
     "FeatureWTALayer",
     "GlobalPoolLayer",
+    "SpatialPyramidPoolingLayer",
 ]
 
 
@@ -755,3 +756,182 @@ class GlobalPoolLayer(Layer):
 
     def get_output_for(self, input, **kwargs):
         return self.pool_function(input.flatten(3), axis=2)
+
+
+def pool_2d_nxn_regions(inputs, output_size, mode='max'):
+    """
+    Performs a pooling operation that results in a fixed size:
+    output_size x output_size.
+    Used by SpatialPyramidPoolingLayer. Refer to appendix A in [1]
+
+    Parameters
+    ----------
+    inputs : a tensor with 4 dimensions (N x C x H x W)
+    output_size: integer
+        The output size of the pooling operation
+    mode : string
+        Pooling mode, one of 'max', 'average_inc_pad', 'average_exc_pad'
+        Defaults to 'max'.
+
+    Returns a list of tensors, for each output bin.
+       The list contains output_size*output_size elements, where
+       each element is a 3D tensor (N x C x 1)
+
+    References
+    ----------
+    .. [1] He, Kaiming et al (2015):
+           Spatial Pyramid Pooling in Deep Convolutional Networks
+           for Visual Recognition.
+           http://arxiv.org/pdf/1406.4729.pdf.
+    """
+
+    if mode == 'max':
+        pooling_op = T.max
+    elif mode in ['average_inc_pad', 'average_exc_pad']:
+        pooling_op = T.mean
+    else:
+        msg = "Mode must be either 'max', 'average_inc_pad' or "
+        msg += "'average_exc_pad'. Got '{0}'"
+        raise ValueError(msg.format(mode))
+
+    h, w = inputs.shape[2:]
+
+    result = []
+    n = float(output_size)
+
+    for row in range(output_size):
+        for col in range(output_size):
+            start_h = T.floor(row / n * h).astype('int32')
+            end_h = T.ceil((row + 1) / n * h).astype('int32')
+            start_w = T.floor(col / n * w).astype('int32')
+            end_w = T.ceil((col + 1) / n * w).astype('int32')
+
+            pooling_region = inputs[:, :, start_h:end_h, start_w:end_w]
+            this_result = pooling_op(pooling_region, axis=(2, 3))
+            result.append(this_result.dimshuffle(0, 1, 'x'))
+    return result
+
+
+class SpatialPyramidPoolingLayer(Layer):
+    """
+    Spatial Pyramid Pooling Layer
+
+    Performs spatial pyramid pooling (SPP) over the input.
+    It will turn a 2D input of arbitrary size into an output of fixed
+    dimension.
+    Hence, the convolutional part of a DNN can be connected to a dense part
+    with a fixed number of nodes even if the dimensions of the
+    input image are unknown.
+
+    The pooling is performed over :math:`l` pooling levels.
+    Each pooling level :math:`i` will create :math:`M_i` output features.
+    :math:`M_i` is given by :math:`n_i * n_i`,
+    with :math:`n_i` as the number of pooling operation per dimension in
+    level :math:`i`, and we use a list of the :math:`n_i`'s as a
+    parameter for SPP-Layer.
+    The length of this list is the level of the spatial pyramid.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    pool_dims : list of integers
+        The list of :math:`n_i`'s that define the output dimension of each
+        pooling level :math:`i`. The length of pool_dims is the level of
+        the spatial pyramid.
+
+    mode : string
+        Pooling mode, one of 'max', 'average_inc_pad', 'average_exc_pad'
+        Defaults to 'max'.
+
+    implementation : string
+        Either 'fast' or 'kaiming'. The 'fast' version uses theano's pool_2d
+        operation, which is fast but does not work for all input sizes.
+        The 'kaiming' mode is slower but implements the pooling as described
+        in [1], and works with any input size.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    Notes
+    -----
+    This layer should be inserted between the convolutional part of a
+    DNN and its dense part. Convolutions can be used for
+    arbitrary input dimensions, but the size of their output will
+    depend on their input dimensions. Connecting the output of the
+    convolutional to the dense part then usually demands us to fix
+    the dimensions of the network's InputLayer.
+    The spatial pyramid pooling layer, however, allows us to leave the
+    network input dimensions arbitrary. The advantage over a global
+    pooling layer is the added robustness against object deformations
+    due to the pooling on different scales.
+
+    References
+    ----------
+    .. [1] He, Kaiming et al (2015):
+           Spatial Pyramid Pooling in Deep Convolutional Networks
+           for Visual Recognition.
+           http://arxiv.org/pdf/1406.4729.pdf.
+    """
+    def __init__(self, incoming, pool_dims=[4, 2, 1], mode='max',
+                 implementation='fast', **kwargs):
+            super(SpatialPyramidPoolingLayer, self).__init__(incoming,
+                                                             **kwargs)
+            if len(self.input_shape) != 4:
+                raise ValueError("Tried to create a SPP layer with "
+                                 "input shape %r. Expected 4 input dimensions "
+                                 "(batchsize, channels, 2 spatial dimensions)."
+                                 % (self.input_shape,))
+
+            if implementation != 'kaiming':  # pragma: no cover
+                # Check if the running theano version supports symbolic
+                # variables as arguments for pool_2d. This is required
+                # unless using implementation='kaiming'
+                try:
+                    pool_2d(T.tensor4(),
+                            ws=T.ivector(),
+                            stride=T.ivector(),
+                            ignore_border=True,
+                            pad=None)
+                except ValueError:
+                    raise ImportError("SpatialPyramidPoolingLayer with "
+                                      "implementation='%s' requires a newer "
+                                      "version of theano. Either update "
+                                      "theano, or use implementation="
+                                      "'kaiming'" % implementation)
+
+            self.mode = mode
+            self.implementation = implementation
+            self.pool_dims = pool_dims
+
+    def get_output_for(self, input, **kwargs):
+        input_size = tuple(symb if fixed is None else fixed
+                           for fixed, symb
+                           in zip(self.input_shape[2:], input.shape[2:]))
+        pool_list = []
+        for pool_dim in self.pool_dims:
+            if self.implementation == 'kaiming':
+                pool_list += pool_2d_nxn_regions(input,
+                                                 pool_dim,
+                                                 mode=self.mode)
+            else:  # pragma: no cover
+                win_size = tuple((i + pool_dim - 1) // pool_dim
+                                 for i in input_size)
+                str_size = tuple(i // pool_dim for i in input_size)
+
+                pool = pool_2d(input,
+                               ws=win_size,
+                               stride=str_size,
+                               mode=self.mode,
+                               pad=None,
+                               ignore_border=True)
+                pool = pool.flatten(3)
+                pool_list.append(pool)
+
+        return T.concatenate(pool_list, axis=2)
+
+    def get_output_shape_for(self, input_shape):
+        num_features = sum(p*p for p in self.pool_dims)
+        return (input_shape[0], input_shape[1], num_features)

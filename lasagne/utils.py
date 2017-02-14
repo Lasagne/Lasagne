@@ -202,6 +202,32 @@ def as_tuple(x, N, t=None):
     return X
 
 
+def inspect_kwargs(func):
+    """
+    Inspects a callable and returns a list of all optional keyword arguments.
+
+    Parameters
+    ----------
+    func : callable
+        The callable to inspect
+
+    Returns
+    -------
+    kwargs : list of str
+        Names of all arguments of `func` that have a default value, in order
+    """
+    # We try the Python 3.x way first, then fall back to the Python 2.x way
+    try:
+        from inspect import signature
+    except ImportError:  # pragma: no cover
+        from inspect import getargspec
+        spec = getargspec(func)
+        return spec.args[-len(spec.defaults):] if spec.defaults else []
+    else:  # pragma: no cover
+        params = signature(func).parameters
+        return [p.name for p in params.values() if p.default is not p.empty]
+
+
 def compute_norms(array, norm_axes=None):
     """ Compute incoming weight vector norms.
 

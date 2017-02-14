@@ -52,6 +52,13 @@ def test_as_tuple_fails():
         as_tuple('asdf', 4, int)
 
 
+def test_inspect_kwargs():
+    from lasagne.utils import inspect_kwargs
+    assert inspect_kwargs(inspect_kwargs) == []
+    assert inspect_kwargs(lambda a, b, c=42, bar='asdf': 0) == ['c', 'bar']
+    assert inspect_kwargs(lambda x, *args, **kwargs: 0) == []
+
+
 def test_compute_norms():
     from lasagne.utils import compute_norms
 

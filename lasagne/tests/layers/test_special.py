@@ -417,7 +417,7 @@ class TestTransformLayer():
         np.testing.assert_allclose(inputs, outputs, rtol=1e-6)
 
     def test_transform_rotation(self):
-        # Check that a 90° rotation on a rectangle image is correct
+        # Check that a 90 degree rotation on a rectangle image is correct
         from lasagne.layers import InputLayer, TransformerLayer
         from lasagne.utils import floatX
         from theano.tensor import constant

@@ -4,12 +4,12 @@ import numpy as np
 
 # Helper function to test the callable protocol
 def make_batch_iterator_callable(X, Y):
-    from lasagne import batch
+    from lasagne import data_source
 
     def batch_iterator(batch_size, shuffle_rng=None):
-        # Make `batch.arraylikes_batch_iterator` do the work :)
-        return batch.arraylikes_batch_iterator(
-                [X, Y], batch_size, shuffle_rng=shuffle_rng)
+        # Make `data_source.ArrayDataSource.batch_iterator` do the work :)
+        return data_source.ArrayDataSource([X, Y]).batch_iterator(
+            batch_size, shuffle_rng=shuffle_rng)
     return batch_iterator
 
 

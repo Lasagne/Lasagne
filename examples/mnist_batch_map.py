@@ -253,57 +253,44 @@ def main(model='mlp', num_epochs=500):
     test_loss = lasagne.objectives.categorical_crossentropy(test_prediction,
                                                             target_var)
     # As a bonus, also create an expression for the classification accuracy:
-    test_err = T.sum(T.neq(T.argmax(test_prediction, axis=1), target_var),
-                     dtype=theano.config.floatX)
+    test_err_sum = T.sum(T.neq(T.argmax(test_prediction, axis=1), target_var),
+                         dtype=theano.config.floatX)
 
     # Compile a function performing a training step on a mini-batch (by giving
-    # the updates dictionary) and returning the corresponding training loss:
+    # the updates dictionary) and returning the corresponding training
+    # loss sum (the sum is required by `mean_batch_map`):
     train_fn = theano.function([input_var, target_var], loss.sum(),
                                updates=updates)
 
-    # Compile a second function computing the validation loss and accuracy:
+    # Compile a second function computing the validation loss and error
+    # sums:
     val_fn = theano.function([input_var, target_var],
-                             [test_loss.sum(), test_err.sum()])
+                             [test_loss.sum(), test_err_sum])
 
     # Finally, launch the training loop.
     print("Starting training...")
     # We iterate over epochs:
     for epoch in range(num_epochs):
         # In each epoch, we do a full pass over the training data:
-        train_loss = 0
         start_time = time.time()
-        for inputs, targets in train_ds.batch_iterator(
-                500, shuffle_rng=lasagne.random.get_rng()):
-            train_loss += train_fn(inputs, targets)
+        (train_loss,) = train_ds.mean_batch_map(
+            train_fn, batch_size=500, shuffle_rng=lasagne.random.get_rng())
 
         # And a full pass over the validation data:
-        val_loss = 0
-        val_err = 0
-        for inputs, targets in val_ds.batch_iterator(500):
-            loss, err = val_fn(inputs, targets)
-            val_loss += loss
-            val_err += err
+        val_loss, val_err = val_ds.mean_batch_map(val_fn, batch_size=500)
 
         # Then we print the results for this epoch:
         print("Epoch {} of {} took {:.3f}s".format(
             epoch + 1, num_epochs, time.time() - start_time))
-        print("  training loss:\t\t{:.6f}".format(
-            train_loss / X_train.shape[0]))
-        print("  validation loss:\t\t{:.6f}".format(
-            val_loss / X_val.shape[0]))
-        print("  validation error:\t\t{:.2%}".format(
-            val_err / X_val.shape[0]))
+        print("  training loss:\t\t{:.6f}".format(train_loss))
+        print("  validation loss:\t\t{:.6f}".format(val_loss))
+        print("  validation error:\t\t{:.2%}".format(val_err))
 
     # After training, we compute and print the test error:
-    test_err = 0
-    test_acc = 0
-    for inputs, targets in test_ds.batch_iterator(500):
-        loss, err = val_fn(inputs, targets)
-        test_err += loss
-        test_acc += err
+    test_loss, test_err = test_ds.mean_batch_map(val_fn, batch_size=500)
     print("Final results:")
-    print("  test loss:\t\t\t{:.6f}".format(test_err / X_test.shape[0]))
-    print("  test error:\t\t\t{:.2%}".format(test_acc / X_test.shape[0]))
+    print("  test loss:\t\t\t{:.6f}".format(test_loss))
+    print("  test error:\t\t\t{:.2%}".format(test_err))
 
     # Optionally, you could now dump the network weights to a file like this:
     # np.savez('model.npz', *lasagne.layers.get_all_param_values(network))

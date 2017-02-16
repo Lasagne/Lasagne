@@ -863,7 +863,7 @@ class CompositeDataSource (AbstractDataSource):
         iterators = [d.batch_iterator(batch_size, flatten=flatten, **kwargs)
                      for d in self.datasets]
 
-        for batch in itertools.izip(*iterators):
+        for batch in six.moves.zip(*iterators):
             # Get the lengths of all the sub-batches
             sub_lens = [_length_of_batch(sub_batch) for sub_batch in batch]
             # Get the minimum length

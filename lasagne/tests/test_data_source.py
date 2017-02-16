@@ -210,7 +210,7 @@ def test_ArrayDataSource_batch_iterator_circular():
 
     # Five in-order batches
     inorder_iter = ads.batch_iterator(batch_size=20, circular=True)
-    batches = [inorder_iter.next() for i in range(5)]
+    batches = [next(inorder_iter) for i in range(5)]
     # Five batches
     assert len(batches) == 5
     # Two items in each batch
@@ -236,7 +236,7 @@ def test_ArrayDataSource_batch_iterator_circular():
         batch_size=20, circular=True,
         shuffle_rng=np.random.RandomState(12345)
     )
-    batches = [shuffled_iter.next() for i in range(5)]
+    batches = [next(shuffled_iter) for i in range(5)]
     # Get the expected order
     order_shuffle_rng = np.random.RandomState(12345)
     order = np.append(order_shuffle_rng.permutation(50),
@@ -272,7 +272,7 @@ def test_ArrayDataSource_batch_iterator_circular_indices():
     # Five in-order batches
     ads = data_source.ArrayDataSource([X, Y], indices=indices)
     inorder_iter = ads.batch_iterator(batch_size=20, circular=True)
-    batches = [inorder_iter.next() for i in range(5)]
+    batches = [next(inorder_iter) for i in range(5)]
     # Five batches
     assert len(batches) == 5
     # Two items in each batch
@@ -300,7 +300,7 @@ def test_ArrayDataSource_batch_iterator_circular_indices():
         batch_size=20, circular=True,
         shuffle_rng=np.random.RandomState(12345)
     )
-    batches = [shuffled_iter.next() for i in range(5)]
+    batches = [next(shuffled_iter) for i in range(5)]
     # Get the expected order
     order_shuffle_rng = np.random.RandomState(12345)
     order = np.append(order_shuffle_rng.permutation(indices),
@@ -360,7 +360,7 @@ def test_ApplyParamsDataSource():
     iter_linear = no_settings.batch_iterator(
         batch_size=20
     )
-    batches = [iter_linear.next() for i in range(3)]
+    batches = [next(iter_linear) for i in range(3)]
     # Three batches
     assert len(batches) == 3
     # Two items in each batch
@@ -377,7 +377,7 @@ def test_ApplyParamsDataSource():
 
     # Circular batch iterator via settings
     iter_circular = circular_settings.batch_iterator(batch_size=20)
-    batches = [iter_circular.next() for i in range(5)]
+    batches = [next(iter_circular) for i in range(5)]
     # Five batches
     assert len(batches) == 5
     # Two items in each batch

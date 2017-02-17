@@ -1067,10 +1067,15 @@ class TestSpatialPyramidPoolingDNNLayer:
 
     @pytest.mark.parametrize(
         "pool_dims", list(pool_dims_test_sets()))
-    def test_get_output_for(self, pool_dims):
+    @pytest.mark.parametrize(
+        "fixed", [True, False])
+    def test_get_output_for(self, pool_dims, fixed):
         try:
             input = floatX(np.random.randn(8, 16, 17, 13))
-            input_layer = self.input_layer(input.shape)
+            if fixed:
+                input_layer = self.input_layer(input.shape)
+            else:
+                input_layer = self.input_layer((None, None, None, None))
             input_theano = theano.shared(input)
             layer = self.layer(input_layer, pool_dims)
 
@@ -1081,7 +1086,7 @@ class TestSpatialPyramidPoolingDNNLayer:
 
             assert result_eval.shape == numpy_result.shape
             assert np.allclose(result_eval, numpy_result)
-            assert result_eval.shape == layer.output_shape
+            assert result_eval.shape[2] == layer.output_shape[2]
         except NotImplementedError:
             pytest.skip()
 

@@ -429,6 +429,11 @@ class ArrayDataSource (AbstractDataSource):
     integer indices, slices or index arrays (a 1D array of integers that are
     the indices of samples to retrieve).
 
+    Note that if the batch size (see `batch_size` parameter of the
+    :meth:`batch_iterator` method) does not divide into the length of the
+    data set exactly, the last batch will containing the remaining elements
+    and will be 'short'.
+
     Parameters
     ----------
     data: list

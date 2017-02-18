@@ -6,10 +6,10 @@ import numpy as np
 def make_batch_iterator_callable(X, Y):
     from lasagne import data_source
 
-    def batch_iterator(batch_size, shuffle_rng=None):
+    def batch_iterator(batch_size, shuffle=None):
         # Make `data_source.ArrayDataSource.batch_iterator` do the work :)
         return data_source.ArrayDataSource([X, Y]).batch_iterator(
-            batch_size, shuffle_rng=shuffle_rng)
+            batch_size, shuffle=shuffle)
     return batch_iterator
 
 
@@ -80,7 +80,7 @@ def test_AbstractDataSource():
 
 
 def test_ArrayDataSource():
-    from lasagne import data_source
+    from lasagne import data_source, random
 
     # Test `len(ds)`
     a3a = np.arange(3)
@@ -112,9 +112,25 @@ def test_ArrayDataSource():
     assert (batches[2][0] == X[30:]).all()
     assert (batches[2][1] == Y[30:]).all()
 
+    # Ensure that shuffle=False results in three in-order batches
+    batches = list(ads.batch_iterator(batch_size=15, shuffle=False))
+    # Three batches
+    assert len(batches) == 3
+    # Two items in each batch
+    assert len(batches[0]) == 2
+    assert len(batches[1]) == 2
+    assert len(batches[2]) == 2
+    # Verify values
+    assert (batches[0][0] == X[:15]).all()
+    assert (batches[0][1] == Y[:15]).all()
+    assert (batches[1][0] == X[15:30]).all()
+    assert (batches[1][1] == Y[15:30]).all()
+    assert (batches[2][0] == X[30:]).all()
+    assert (batches[2][1] == Y[30:]).all()
+
     # Three shuffled batches
     batches = list(ads.batch_iterator(
-        batch_size=15, shuffle_rng=np.random.RandomState(12345)))
+        batch_size=15, shuffle=np.random.RandomState(12345)))
     # Get the expected order
     order = np.random.RandomState(12345).permutation(45)
     # Three batches
@@ -131,11 +147,38 @@ def test_ArrayDataSource():
     assert (batches[2][0] == X[order[30:]]).all()
     assert (batches[2][1] == Y[order[30:]]).all()
 
+    # Check that shuffle=True uses Lasagne's default RNG
+    old_rng = random.get_rng()
+    random.set_rng(np.random.RandomState(12345))
+    batches = list(ads.batch_iterator(batch_size=15, shuffle=True))
+    # Get the expected order
+    order = np.random.RandomState(12345).permutation(45)
+    # Three batches
+    assert len(batches) == 3
+    # Two items in each batch
+    assert len(batches[0]) == 2
+    assert len(batches[1]) == 2
+    assert len(batches[2]) == 2
+    # Verify values
+    assert (batches[0][0] == X[order[:15]]).all()
+    assert (batches[0][1] == Y[order[:15]]).all()
+    assert (batches[1][0] == X[order[15:30]]).all()
+    assert (batches[1][1] == Y[order[15:30]]).all()
+    assert (batches[2][0] == X[order[30:]]).all()
+    assert (batches[2][1] == Y[order[30:]]).all()
+    # Reset RNG
+    random.set_rng(old_rng)
+
     # Check that constructing an array data source given input arrays
     # of differing lengths raises ValueError
     with pytest.raises(ValueError):
         _ = data_source.ArrayDataSource([
             np.arange(20), np.arange(50).reshape((25, 2))])
+
+    # Check that `ArrayDataSource` raises TypeError if the list of arrays
+    # is not a list
+    with pytest.raises(TypeError):
+        _ = data_source.ArrayDataSource(X)
 
 
 def test_ArrayDataSource_indices():
@@ -174,7 +217,7 @@ def test_ArrayDataSource_indices():
 
     # Three shuffled batches
     batches = list(ads.batch_iterator(
-        batch_size=15, shuffle_rng=np.random.RandomState(12345)))
+        batch_size=15, shuffle=np.random.RandomState(12345)))
     # Get the expected order
     order = np.random.RandomState(12345).permutation(45)
     # Three batches
@@ -191,144 +234,153 @@ def test_ArrayDataSource_indices():
     assert (batches[2][0] == X[indices[order[30:]]]).all()
     assert (batches[2][1] == Y[indices[order[30:]]]).all()
 
-    # Check that constructing an array data source given input arrays
-    # of differing lengths raises ValueError
-    with pytest.raises(ValueError):
-        _ = data_source.ArrayDataSource([
-            np.arange(20), np.arange(50).reshape((25, 2))])
 
-
-def test_ArrayDataSource_batch_iterator_circular():
+def test_ArrayDataSource_repeated():
     from lasagne import data_source
 
     X = np.arange(50)
     Y = np.arange(100).reshape((50, 2))
     ads = data_source.ArrayDataSource([X, Y])
 
+    # Helper function for checking the resulting mini-batches
+    def check_batches(batches, expected_n, order):
+        # Eight batches
+        assert len(batches) == expected_n
+        # Verify contents
+        for batch_i, batch in enumerate(batches):
+            # Two items in each batch
+            assert len(batch) == 2
+            # Compute and wrap start and end indices
+            start = batch_i * 20
+            end = start + 20
+            # Get the indices of the expected samples from the `order` array
+            if end > start:
+                batch_order = order[start:end]
+            else:
+                batch_order = np.append(order[start:], order[:end], axis=0)
+            # Verify values
+            assert batch[0].shape[0] == batch_order.shape[0]
+            assert batch[1].shape[0] == batch_order.shape[0]
+            assert (batch[0] == X[batch_order]).all()
+            assert (batch[1] == Y[batch_order]).all()
+
     # Check size
-    assert ads.num_samples(circular=True) == np.inf
+    assert ads.num_samples(epochs=1) == 50
+    assert ads.num_samples(epochs=2) == 100
+    assert ads.num_samples(epochs=5) == 250
+    assert ads.num_samples(epochs=-1) == np.inf
 
-    # Five in-order batches
-    inorder_iter = ads.batch_iterator(batch_size=20, circular=True)
+    # 3 repetitions; 150 samples, 8 in-order batches
+    inorder_iter = ads.batch_iterator(batch_size=20, epochs=3)
+    batches = list(inorder_iter)
+    order = np.concatenate([np.arange(50)] * 3, axis=0)
+    check_batches(batches, 8, order)
+
+    # 3 repetitions; 150 samples, 8 shuffled batches
+    shuffled_iter = ads.batch_iterator(batch_size=20, epochs=3,
+                                       shuffle=np.random.RandomState(12345))
+    batches = list(shuffled_iter)
+    order_shuffle_rng = np.random.RandomState(12345)
+    order = np.concatenate(
+        [order_shuffle_rng.permutation(50),
+         order_shuffle_rng.permutation(50),
+         order_shuffle_rng.permutation(50)], axis=0)
+    check_batches(batches, 8, order)
+
+    # Infinite repetitions; take 5 in-order batches
+    inorder_iter = ads.batch_iterator(batch_size=20, epochs=-1)
     batches = [next(inorder_iter) for i in range(5)]
-    # Five batches
-    assert len(batches) == 5
-    # Two items in each batch
-    assert len(batches[0]) == 2
-    assert len(batches[1]) == 2
-    assert len(batches[2]) == 2
-    assert len(batches[3]) == 2
-    assert len(batches[4]) == 2
-    # Verify values
-    assert (batches[0][0] == X[:20]).all()
-    assert (batches[0][1] == Y[:20]).all()
-    assert (batches[1][0] == X[20:40]).all()
-    assert (batches[1][1] == Y[20:40]).all()
-    assert (batches[2][0] == np.append(X[40:50], X[0:10], axis=0)).all()
-    assert (batches[2][1] == np.append(Y[40:50], Y[0:10], axis=0)).all()
-    assert (batches[3][0] == X[10:30]).all()
-    assert (batches[3][1] == Y[10:30]).all()
-    assert (batches[4][0] == X[30:50]).all()
-    assert (batches[4][1] == Y[30:50]).all()
+    order = np.concatenate([np.arange(50)] * 2, axis=0)
+    check_batches(batches, 5, order)
 
-    # Five shuffled batches
-    shuffled_iter = ads.batch_iterator(
-        batch_size=20, circular=True,
-        shuffle_rng=np.random.RandomState(12345)
-    )
+    # Infinite repetitions; take 5 shuffled batches
+    shuffled_iter = ads.batch_iterator(batch_size=20, epochs=-1,
+                                       shuffle=np.random.RandomState(12345))
     batches = [next(shuffled_iter) for i in range(5)]
     # Get the expected order
     order_shuffle_rng = np.random.RandomState(12345)
     order = np.append(order_shuffle_rng.permutation(50),
                       order_shuffle_rng.permutation(50), axis=0)
-    # Five batches
-    assert len(batches) == 5
-    # Two items in each batch
-    assert len(batches[0]) == 2
-    assert len(batches[1]) == 2
-    assert len(batches[2]) == 2
-    assert len(batches[3]) == 2
-    assert len(batches[4]) == 2
-    # Verify values
-    assert (batches[0][0] == X[order[:20]]).all()
-    assert (batches[0][1] == Y[order[:20]]).all()
-    assert (batches[1][0] == X[order[20:40]]).all()
-    assert (batches[1][1] == Y[order[20:40]]).all()
-    assert (batches[2][0] == X[order[40:60]]).all()
-    assert (batches[2][1] == Y[order[40:60]]).all()
-    assert (batches[3][0] == X[order[60:80]]).all()
-    assert (batches[3][1] == Y[order[60:80]]).all()
-    assert (batches[4][0] == X[order[80:]]).all()
-    assert (batches[4][1] == Y[order[80:]]).all()
+    check_batches(batches, 5, order)
+
+    # Check invalid values for epochs
+    with pytest.raises(ValueError):
+        ads.num_samples(epochs=0)
+
+    with pytest.raises(ValueError):
+        ads.num_samples(epochs=-2)
+
+    with pytest.raises(ValueError):
+        for _ in ads.batch_iterator(batch_size=5, epochs=0):
+            pass
+
+    with pytest.raises(ValueError):
+        for _ in ads.batch_iterator(batch_size=5, epochs=-2):
+            pass
 
 
-def test_ArrayDataSource_batch_iterator_circular_indices():
+def test_ArrayDataSource_indices_repeated():
     from lasagne import data_source
 
     X = np.arange(100)
     Y = np.arange(200).reshape((100, 2))
     indices = np.random.permutation(100)[:50]
 
-    # Five in-order batches
-    ads = data_source.ArrayDataSource([X, Y], indices=indices)
-    inorder_iter = ads.batch_iterator(batch_size=20, circular=True)
-    batches = [next(inorder_iter) for i in range(5)]
-    # Five batches
-    assert len(batches) == 5
-    # Two items in each batch
-    assert len(batches[0]) == 2
-    assert len(batches[1]) == 2
-    assert len(batches[2]) == 2
-    assert len(batches[3]) == 2
-    assert len(batches[4]) == 2
-    # Verify values
-    assert (batches[0][0] == X[indices[:20]]).all()
-    assert (batches[0][1] == Y[indices[:20]]).all()
-    assert (batches[1][0] == X[indices[20:40]]).all()
-    assert (batches[1][1] == Y[indices[20:40]]).all()
-    assert (batches[2][0] == np.append(X[indices[40:50]], X[indices[0:10]],
-                                       axis=0)).all()
-    assert (batches[2][1] == np.append(Y[indices[40:50]], Y[indices[0:10]],
-                                       axis=0)).all()
-    assert (batches[3][0] == X[indices[10:30]]).all()
-    assert (batches[3][1] == Y[indices[10:30]]).all()
-    assert (batches[4][0] == X[indices[30:50]]).all()
-    assert (batches[4][1] == Y[indices[30:50]]).all()
+    # Helper function for checking the resulting mini-batches
+    def check_batches(batches, expected_n, order):
+        # Eight batches
+        assert len(batches) == expected_n
+        # Verify contents
+        for batch_i, batch in enumerate(batches):
+            # Two items in each batch
+            assert len(batch) == 2
+            # Compute and wrap start and end indices
+            start = batch_i * 20
+            end = start + 20
+            # Get the indices of the expected samples from the `order` array
+            batch_order = order[start:end]
+            # Verify values
+            assert batch[0].shape[0] == batch_order.shape[0]
+            assert batch[1].shape[0] == batch_order.shape[0]
+            assert (batch[0] == X[batch_order]).all()
+            assert (batch[1] == Y[batch_order]).all()
 
-    # Five shuffled batches
-    shuffled_iter = ads.batch_iterator(
-        batch_size=20, circular=True,
-        shuffle_rng=np.random.RandomState(12345)
-    )
+    # 3 repetitions; 8 in-order batches
+    ads = data_source.ArrayDataSource([X, Y], indices=indices)
+    inorder_iter = ads.batch_iterator(batch_size=20, epochs=3)
+    batches = list(inorder_iter)
+    order = np.concatenate([indices, indices, indices], axis=0)
+    check_batches(batches, 8, order)
+
+    # 3 repetitions; 8 shuffled batches
+    ads = data_source.ArrayDataSource([X, Y], indices=indices)
+    inorder_iter = ads.batch_iterator(batch_size=20, epochs=3,
+                                      shuffle=np.random.RandomState(12345))
+    batches = list(inorder_iter)
+    # Compute the expected order
+    order_shuffle_rng = np.random.RandomState(12345)
+    order = np.concatenate(
+        [order_shuffle_rng.permutation(indices),
+         order_shuffle_rng.permutation(indices),
+         order_shuffle_rng.permutation(indices)], axis=0)
+    check_batches(batches, 8, order)
+
+    # Infinite repetitions; take 5 in-order batches
+    ads = data_source.ArrayDataSource([X, Y], indices=indices)
+    inorder_iter = ads.batch_iterator(batch_size=20, epochs=-1)
+    batches = [next(inorder_iter) for i in range(5)]
+    order = np.concatenate([indices, indices], axis=0)
+    check_batches(batches, 5, order)
+
+    # Infinite repetitions; take 5 shuffled batches
+    shuffled_iter = ads.batch_iterator(batch_size=20, epochs=-1,
+                                       shuffle=np.random.RandomState(12345))
     batches = [next(shuffled_iter) for i in range(5)]
-    # Get the expected order
+    # Compute the expected order
     order_shuffle_rng = np.random.RandomState(12345)
     order = np.append(order_shuffle_rng.permutation(indices),
                       order_shuffle_rng.permutation(indices), axis=0)
-    # Five batches
-    assert len(batches) == 5
-    # Two items in each batch
-    assert len(batches[0]) == 2
-    assert len(batches[1]) == 2
-    assert len(batches[2]) == 2
-    assert len(batches[3]) == 2
-    assert len(batches[4]) == 2
-    # Verify values
-    assert (batches[0][0] == X[order[:20]]).all()
-    assert (batches[0][1] == Y[order[:20]]).all()
-    assert (batches[1][0] == X[order[20:40]]).all()
-    assert (batches[1][1] == Y[order[20:40]]).all()
-    assert (batches[2][0] == X[order[40:60]]).all()
-    assert (batches[2][1] == Y[order[40:60]]).all()
-    assert (batches[3][0] == X[order[60:80]]).all()
-    assert (batches[3][1] == Y[order[60:80]]).all()
-    assert (batches[4][0] == X[order[80:]]).all()
-    assert (batches[4][1] == Y[order[80:]]).all()
-
-    # Check that `ArrayDataSource` raises TypeError if the list of arrays
-    # is not a list
-    with pytest.raises(TypeError):
-        _ = data_source.ArrayDataSource(X)
+    check_batches(batches, 5, order)
 
 
 def test_ApplyParamsDataSource():
@@ -341,20 +393,20 @@ def test_ApplyParamsDataSource():
 
     # No settings; normal batch iterator
     no_settings = ads.with_params()
-    # Settings: `circular=True`
-    circular_settings = ads.with_params(circular=True)
+    # Settings: `epochs=-1`
+    inf_settings = ads.with_params(epochs=-1)
 
     assert isinstance(no_settings, data_source.ApplyParamsDataSource)
     assert no_settings.datasource is ads
     assert no_settings.params == {}
 
-    assert isinstance(circular_settings, data_source.ApplyParamsDataSource)
-    assert circular_settings.datasource is ads
-    assert circular_settings.params == {'circular': True}
+    assert isinstance(inf_settings, data_source.ApplyParamsDataSource)
+    assert inf_settings.datasource is ads
+    assert inf_settings.params == {'epochs': -1}
 
     # Test length
     assert no_settings.num_samples() == 50
-    assert circular_settings.num_samples() == np.inf
+    assert inf_settings.num_samples() == np.inf
 
     # Linear batch iterator via settings
     iter_linear = no_settings.batch_iterator(
@@ -376,8 +428,8 @@ def test_ApplyParamsDataSource():
     assert (batches[2][1] == Y[40:]).all()
 
     # Circular batch iterator via settings
-    iter_circular = circular_settings.batch_iterator(batch_size=20)
-    batches = [next(iter_circular) for i in range(5)]
+    iter_inf = inf_settings.batch_iterator(batch_size=20)
+    batches = [next(iter_inf) for i in range(5)]
     # Five batches
     assert len(batches) == 5
     # Two items in each batch
@@ -462,7 +514,7 @@ def test_CallableDataSource():
 
     # Three shuffled batches
     batches = list(cds.batch_iterator(
-        batch_size=15, shuffle_rng=np.random.RandomState(12345)))
+        batch_size=15, shuffle=np.random.RandomState(12345)))
     check_shuffled_batches(batches)
 
     # Check that keyword args make it over
@@ -550,7 +602,7 @@ def test_IteratorDataSource():
 
     # Three shuffled batches
     shuffled_batch_iter = make_batch_iterator_callable(X, Y)(
-        15, shuffle_rng=np.random.RandomState(12345))
+        15, shuffle=np.random.RandomState(12345))
     ds = data_source.IteratorDataSource(shuffled_batch_iter)
     assert ds.num_samples() is None
     batches = list(ds.batch_iterator(batch_size=15))
@@ -590,7 +642,7 @@ def test_CompositeDataSource():
     # - iterate over the unsupervised samples again in a different order
     #   for the discriminator
     gan_ds = data_source.CompositeDataSource([
-        sup_ds.with_params(circular=True), unsup_ds, unsup_ds
+        sup_ds.with_params(epochs=-1), unsup_ds, unsup_ds
     ])
 
     # Check number of samples
@@ -609,7 +661,7 @@ def test_CompositeDataSource():
         assert len(batch[2]) == 1
 
     batches = list(gan_ds.batch_iterator(
-        batch_size=10, shuffle_rng=np.random.RandomState(12345)))
+        batch_size=10, shuffle=np.random.RandomState(12345)))
     # Get the expected order for the supervised, generator and discriminator
     # sets
     # Note: draw in the same order that the data source will
@@ -652,7 +704,7 @@ def test_CompositeDataSource():
     # Now disable flattening, resulting in structured batches:
     batches = list(gan_ds.batch_iterator(
         batch_size=10, flatten=False,
-        shuffle_rng=np.random.RandomState(12345)))
+        shuffle=np.random.RandomState(12345)))
 
     # Four batches
     assert len(batches) == 4
@@ -872,17 +924,16 @@ def test_data_source_method_batch_map():
     with pytest.raises(TypeError):
         ads.batch_map(batch_func_invalid_ret_type, 5, progress_iter_func)
 
-    # Check that using `circular=True` without specifying the number of
+    # Check that using `epochs=-1` without specifying the number of
     # batches raises `ValueError`, as this results in a data source with
     # an infinite number of samples
     with pytest.raises(ValueError):
-        ads.batch_map(batch_func, 5, progress_iter_func, circular=True)
+        ads.batch_map(batch_func, 5, progress_iter_func, epochs=-1)
 
-    # Check that using `circular=True` while specifying the number of
+    # Check that using `epochs=-1` while specifying the number of
     # batches is OK. Don't use progress_iter_func as it expects 9 batches,
     # not 15.
-    [x, y] = ads.batch_map(batch_func, 5,
-                           n_batches=15, circular=True)
+    [x, y] = ads.batch_map(batch_func, 5, n_batches=15, epochs=-1)
 
     assert (x == np.append(X, X[:30], axis=0) + 2).all()
     assert (y == (np.append(Y, Y[:30], axis=0)**2).sum(axis=1)).all()
@@ -981,17 +1032,16 @@ def test_data_source_method_mean_batch_map_in_order():
     assert np.allclose(x, X.mean())
     assert np.allclose(y, (Y**2).sum(axis=1).mean())
 
-    # Check that using `circular=True` without specifying the number of
+    # Check that using `epochs=-1` without specifying the number of
     # batches raises `ValueError`, as this results in a data source with
     # an infinite number of samples
     with pytest.raises(ValueError):
-        ads.mean_batch_map(batch_func, 5, progress_iter_func, circular=True)
+        ads.mean_batch_map(batch_func, 5, progress_iter_func, epochs=-1)
 
-    # Check that using `circular=True` while specifying the number of
+    # Check that using `epochs=-1` while specifying the number of
     # batches is OK. Don't use progress_iter_func as it expects 9 batches,
     # not 15.
-    [x, y] = ads.mean_batch_map(batch_func, 5,
-                                n_batches=15, circular=True)
+    [x, y] = ads.mean_batch_map(batch_func, 5, n_batches=15, epochs=-1)
 
     assert np.allclose(x, np.append(X, X[:28], axis=0).mean())
     assert np.allclose(

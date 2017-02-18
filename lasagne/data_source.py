@@ -5,9 +5,9 @@ Defines types for iterating over data in mini-batches to be passed to neural
 network training functions.
 """
 
-import itertools
 import six
 import numpy as np
+from .random import get_rng
 
 
 def _num_batches(n, batch_size):
@@ -139,12 +139,12 @@ class AbstractDataSource (object):
         >>> X = np.random.normal(size=(7, 10))
         >>> ds = ArrayDataSource([X])
 
-        >>> circular = ds.with_params(circular=True)
-        >>> batch_iter = circular.batch_iterator(15)
+        >>> inf_ds = ds.with_params(epochs=-1)
+        >>> batch_iter = inf_ds.batch_iterator(15)
 
         Is equivalent to:
 
-        >>> batch_iter = ds.batch_iterator(15, circular=True)
+        >>> batch_iter = ds.batch_iterator(15, epochs=-1)
 
         Given that the above increases the amount of code, the main use of
         the `with_params` method is to apply parameters to a data source when
@@ -332,6 +332,15 @@ class AbstractDataSource (object):
         return mean_batch_map(func, batch_iter, progress_iter_func,
                               sum_axis, n_batches, prepend_args)
 
+    @staticmethod
+    def _get_shuffle_rng(shuffle):
+        if shuffle is False:
+            return None
+        elif shuffle is True:
+            return get_rng()
+        else:
+            return shuffle
+
 
 class ApplyParamsDataSource (AbstractDataSource):
     """Apply parameters to wrapped data source.
@@ -356,12 +365,12 @@ class ApplyParamsDataSource (AbstractDataSource):
     Using `ApplyParamsDataSource` or the `with_params` method to add
     parameters:
 
-    >>> circular = ApplyParamsDataSource(ds, circular=True)
-    >>> batch_iter = circular.batch_iterator(15)
+    >>> inf_ds = ApplyParamsDataSource(ds, epochs=-1)
+    >>> batch_iter = inf_ds.batch_iterator(15)
 
     Is equivalent to:
 
-    >>> batch_iter = ds.batch_iterator(15, circular=True)
+    >>> batch_iter = ds.batch_iterator(15, epochs=-1)
 
     Using the `with_params` method
     ------------------------------
@@ -371,11 +380,11 @@ class ApplyParamsDataSource (AbstractDataSource):
 
     Using `with_params`:
 
-    >>> circular = ds.with_params(circular=True)
+    >>> inf_ds = ds.with_params(epochs=-1)
 
     Is equivalent to:
 
-    >>> circular = ApplyParamsDataSource(ds, circular=True)
+    >>> inf_ds = ApplyParamsDataSource(ds, epochs=-1)
     """
     def __init__(self, datasource, **params):
         self.datasource = datasource
@@ -426,20 +435,27 @@ class ArrayDataSource (AbstractDataSource):
         A list of arrays from which data is drawn.
 
     Examples:
-    Create a data set of size 10, where each input sample is a 7-element
-    vector and ground classifications are integers.
-    >>> X = np.random.normal(size=(10,7))
-    >>> y = np.random.randint(0, 10, size=(10,))
+    Create a data set of size 12, where each input sample is a 7-element
+    vector and ground classifications are integers:
+    >>> X = np.random.normal(size=(12,7))
+    >>> y = np.random.randint(0, 10, size=(12,))
     >>> ds = ArrayDataSource([X, y])
 
-    Iterate over data, drawing 5-element mini-batches, in order
+    Iterate over data, drawing 5-element mini-batches, in order:
     >>> for batch_X, batch_y in ds.batch_iterator(5):
     ...     # Perform operations on batch_X and batch_y
     ...     pass
 
     Iterate over data, drawing 5-element mini-batches, shuffled randomly
+    using a RandomState:
     >>> rng = np.random.RandomState(12345)
-    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle_rng=rng):
+    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=rng):
+    ...     # Perform operations on batch_X and batch_y
+    ...     pass
+
+    Iterate over data, drawing 5-element mini-batches, shuffled randomly
+    using Lasagne's default random number generator:
+    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=True):
     ...     # Perform operations on batch_X and batch_y
     ...     pass
 
@@ -449,10 +465,14 @@ class ArrayDataSource (AbstractDataSource):
     ...     # Perform operations on batch_X and batch_y
     ...     pass
 
-    Use a circular iterator that loops infinitely over the data, drawing
-    samples in random order:
-    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle_rng=rng,
-    ...                                           circular=True):
+    The `epochs` parameter will cause the iterator to walk over the data
+    a specified number of times:
+    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=rng, epochs=10):
+    ...     # Perform operations on batch_X and batch_y
+    ...     break
+
+    If it is given the value `-1`, the iterator will repeat infinitely:
+    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=rng, epochs=-1):
     ...     # Perform operations on batch_X and batch_y
     ...     break
     """
@@ -475,45 +495,53 @@ class ArrayDataSource (AbstractDataSource):
                         'length {}, while array {} has length {}'.format(
                             self.length, i+1, len(d1)))
 
-    def num_samples(self, circular=False, **kwargs):
+    def num_samples(self, epochs=1, **kwargs):
         """
         Get the number of samples in this data source.
 
         Parameters
         ----------
-        circular: bool
-            If True, `np.inf` will be returned.
+        epochs: int
+            The number of repetitions, or `-1` for infinite, in which case
+            `np.inf` will be returned. A value of 0 or a negative value that
+            is not -1 will cause `ValueError` to be raised.
 
         Returns
         -------
         int or `np.inf`
-            If `circular` is true, `np.inf`.
-            Otherwise, if an indices array was passed to the constructor the
-            length of that array will be returned, else the length of the
-            arrays passed in the list `data` will be returned.
+            If `epochs` is `-1`, `np.inf`.
+            Otherwise, the length of the data set multiplied by the value of
+            `epochs. The length of the data set is the length of the
+            indices array - if one was provided to the constructor - or the
+            length of the arrays passed in the list `data`.
         """
-        if circular:
+        if epochs == 0 or epochs < -1:
+            raise ValueError('Invalid number of epochs; should be >= 1 or '
+                             '-1, not {}'.format(epochs))
+        if epochs == -1:
             return np.inf
         else:
-            return self.length
+            return self.length * epochs
 
-    def batch_iterator(self, batch_size, shuffle_rng=None, circular=False,
+    def batch_iterator(self, batch_size, shuffle=None, epochs=1,
                        **kwargs):
         """
         Create an iterator that generates mini-batches extracted from the
         arrays that make up this dataset. The batches will have `batchsize`
-        elements. If `shuffle_rng` is `None`, elements will be extracted in
-        order. If it is not `None`, it will be used to randomise the order in
-        which elements are extracted from `dataset`. If `circular` is `False`,
-        the iterator will terminate after the elements have been exhausted.
-        If the batch size does not divide exactly into the number of samples
-        in the data set the last batch will have a length of `< batch_size`.
-        If `circular` is `True`, the iterator will generate an infinite
-        number of batches; if no shuffle RNG is provided it will start over
-        from the beginning when it exhausts the samples in the dataset.
-        If a shuffle RNG is provided it will restart at a random point. Note
-        that a circular iterator will never generate a short mini-batch
-        as it will always be able to fill it with samples.
+        elements, with the exception of the final batch which will have less
+        if there are insufficient elements left to make a complete batch.
+
+        If `shuffle` is `None` or `False` elements will be extracted in
+        order. If it is a `numpy.random.RandomState`, it will be used to
+        randomise the order in which elements are extracted from the data.
+        If it is `True`, Lasagne's default random number generator will be
+        use to shuffle elements.
+
+        `epochs` controls the number of repetitions; e.g. a value of `2` will
+        cause the iterator to walk the data twice before terminating. A value
+        of `-1` will result in an infinite number of repetitions. If
+        shuffling is used a different permutation of the elements in the data
+        set will be used for each repetition.
 
         If an array of indices was provided to the constructor, the subset of
         samples identified in that array is used, rather than the complete
@@ -527,11 +555,15 @@ class ArrayDataSource (AbstractDataSource):
         ----------
         batch_size: int
             Mini-batch size
-        shuffle_rng: `np.random.RandomState` or `None`
+        shuffle: `numpy.random.RandomState` or `True` or `None`
             Used to randomise element order. If `None`, elements will be
-            extracted in order.
-        circular: boolean (default=False)
-            If True, an infinite repeating iterator will be returned
+            extracted in order. If it is a `RandomState` instance, that
+            RNG will be used to shuffle elements. If it is `True`, Lasagne's
+            default RNG will be used.
+        epochs: int (default=1)
+            The number of repetitions, or `-1` for infinite. A value of 0 or
+            a negative value that is not -1 will cause `ValueError` to be
+            raised.
 
         Returns
         -------
@@ -539,12 +571,33 @@ class ArrayDataSource (AbstractDataSource):
             An iterator that generates items of type `[batch_x, batch_y, ...]`
             where `batch_x`, `batch_y`, etc are themselves arrays.
         """
-        if circular:
-            if shuffle_rng is not None:
+        if epochs == 0 or epochs < -1:
+            raise ValueError('Invalid number of epochs; should be >= 1 or '
+                             '-1, not {}'.format(epochs))
+        shuffle = self._get_shuffle_rng(shuffle)
+        if epochs == 1:
+            if shuffle is not None:
                 if self.indices is not None:
-                    indices = shuffle_rng.permutation(self.indices)
+                    indices = shuffle.permutation(self.indices)
                 else:
-                    indices = shuffle_rng.permutation(self.length)
+                    indices = shuffle.permutation(self.length)
+                for i in range(0, self.length, batch_size):
+                    excerpt = indices[i:i + batch_size]
+                    yield [d[excerpt] for d in self.data]
+            else:
+                if self.indices is not None:
+                    for i in range(0, self.length, batch_size):
+                        batch_ndx = self.indices[i:i + batch_size]
+                        yield [d[batch_ndx] for d in self.data]
+                else:
+                    for i in range(0, self.length, batch_size):
+                        yield [d[i:i + batch_size] for d in self.data]
+        else:
+            if shuffle is not None:
+                if self.indices is not None:
+                    indices = shuffle.permutation(self.indices)
+                else:
+                    indices = shuffle.permutation(self.length)
                 i = 0
                 while True:
                     j = i + batch_size
@@ -553,6 +606,15 @@ class ArrayDataSource (AbstractDataSource):
                         batch_ndx = indices[i:j]
                         i = j
                     else:
+                        # Reduce the number of remaining epochs
+                        epochs = epochs - 1 if epochs != -1 else -1
+                        if epochs == 0:
+                            # Finished; emit remaining elements
+                            if i < self.length:
+                                batch_ndx = indices[i:self.length]
+                                yield [d[batch_ndx] for d in self.data]
+                            break
+
                         # Wrap over
                         # Compute number of elements required to make up the
                         # batch
@@ -560,9 +622,9 @@ class ArrayDataSource (AbstractDataSource):
                         # Get available indices
                         batch_ndx = indices[i:self.length]
                         if self.indices is not None:
-                            indices = shuffle_rng.permutation(self.indices)
+                            indices = shuffle.permutation(self.indices)
                         else:
-                            indices = shuffle_rng.permutation(self.length)
+                            indices = shuffle.permutation(self.length)
                         # Get remaining indices and append
                         batch_ndx = np.append(batch_ndx, indices[:k], axis=0)
                         i = k
@@ -577,6 +639,15 @@ class ArrayDataSource (AbstractDataSource):
                             batch_ndx = self.indices[i:j]
                             i = j
                         else:
+                            # Reduce the number of remaining epochs
+                            epochs = epochs - 1 if epochs != -1 else -1
+                            if epochs == 0:
+                                # Finished; emit remaining elements
+                                if i < self.length:
+                                    batch_ndx = self.indices[i:self.length]
+                                    yield [d[batch_ndx] for d in self.data]
+                                break
+
                             # Wrap over
                             # Compute number of elements required to make up
                             # the batch
@@ -595,6 +666,14 @@ class ArrayDataSource (AbstractDataSource):
                             yield [d[i:j] for d in self.data]
                             i = j
                         else:
+                            # Reduce the number of remaining epochs
+                            epochs = epochs - 1 if epochs != -1 else -1
+                            if epochs == 0:
+                                # Finished; emit remaining elements
+                                if i < self.length:
+                                    yield [d[i:self.length] for d in self.data]
+                                break
+
                             # Wrap over
                             # Compute number of elements required to make up
                             # the batch
@@ -602,23 +681,6 @@ class ArrayDataSource (AbstractDataSource):
                             yield [np.append(d[i:self.length], d[:k], axis=0)
                                    for d in self.data]
                             i = k
-        else:
-            if shuffle_rng is not None:
-                if self.indices is not None:
-                    indices = shuffle_rng.permutation(self.indices)
-                else:
-                    indices = shuffle_rng.permutation(self.length)
-                for i in range(0, self.length, batch_size):
-                    excerpt = indices[i:i + batch_size]
-                    yield [d[excerpt] for d in self.data]
-            else:
-                if self.indices is not None:
-                    for i in range(0, self.length, batch_size):
-                        batch_ndx = self.indices[i:i + batch_size]
-                        yield [d[batch_ndx] for d in self.data]
-                else:
-                    for i in range(0, self.length, batch_size):
-                        yield [d[i:i + batch_size] for d in self.data]
 
 
 class CallableDataSource (AbstractDataSource):
@@ -728,7 +790,7 @@ class IteratorDataSource (AbstractDataSource):
     n_samples: [optional] None, or int or np.inf
         The number of samples in this data source. `None` for unknown (the
         default), an int for a known number of samples, or `np.inf`
-        for an infinite (e.g. circular) data source.
+        for an infinite data source.
 
     Examples
     --------
@@ -820,9 +882,9 @@ class CompositeDataSource (AbstractDataSource):
 
     Create a data source that iterates repeatedly over the labeled samples
     and once over the unlabeled samples (note the use of the `with_params`
-    method to apply the `circular` parameter to the labeled samples):
+    method to apply the `epochs` parameter to the labeled samples):
     >>> semi_ds = CompositeDataSource([
-    ...     lab_ds.with_params(circular=True), unlab_ds
+    ...     lab_ds.with_params(epochs=-1), unlab_ds
     ... ])
 
     When we iterate over them, we get batches of the form
@@ -839,7 +901,7 @@ class CompositeDataSource (AbstractDataSource):
     Alternatively, if you want structured mini-batches that have the same
     nesting structure as the composite data soruce:
     >>> semi_flat_ds = CompositeDataSource([
-    ...     lab_ds.with_params(circular=True), unlab_ds
+    ...     lab_ds.with_params(epochs=-1), unlab_ds
     ... ], flatten=False)
 
     >>> for batch in semi_flat_ds.batch_iterator(batch_size=5):

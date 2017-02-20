@@ -118,40 +118,6 @@ class AbstractDataSource (object):
         """
         raise NotImplementedError
 
-    def with_params(self, **settings):
-        """
-        Convenience function for constructing an `ApplyParamsDataSource`
-        instance that wraps `self` and applies settings when invoking the
-        `batch_iterator` and `num_samples` methods.
-
-        Parameters
-        ----------
-        settings: keyword arguments
-            Settings that are to be applied
-
-        Returns
-        -------
-        ApplyParamsDataSource
-            Wrapped data source
-
-        Examples
-        --------
-        >>> X = np.random.normal(size=(7, 10))
-        >>> ds = ArrayDataSource([X])
-
-        >>> inf_ds = ds.with_params(epochs=-1)
-        >>> batch_iter = inf_ds.batch_iterator(15)
-
-        Is equivalent to:
-
-        >>> batch_iter = ds.batch_iterator(15, epochs=-1)
-
-        Given that the above increases the amount of code, the main use of
-        the `with_params` method is to apply parameters to a data source when
-        combining it with others in a `CompositeDataSource` instance.
-        """
-        return ApplyParamsDataSource(self, **settings)
-
     def batch_map(self, func, batch_size, progress_iter_func=None,
                   n_batches=None, prepend_args=None, **kwargs):
         """A batch oriented implementation of `map`.
@@ -342,92 +308,28 @@ class AbstractDataSource (object):
             return shuffle
 
 
-class ApplyParamsDataSource (AbstractDataSource):
-    """Apply parameters to wrapped data source.
-
-    Invokations to the `batch_iterator` and `num_samples` methods will be
-    passed on to the underlying data source, but with the additional keyword
-    arguments that are passed to the constructor.
-
-    Parameters
-    ----------
-    datasource: AbstractDataSource
-        The data source to wrap
-    settings: keyword arguments
-        The additional keyword arguments to pass when invoking the
-        `batch_iterator` and `num_samples` methods.
-
-    Examples
-    --------
-    >>> X = np.random.normal(size=(7, 10))
-    >>> ds = ArrayDataSource([X])
-
-    Using `ApplyParamsDataSource` or the `with_params` method to add
-    parameters:
-
-    >>> inf_ds = ApplyParamsDataSource(ds, epochs=-1)
-    >>> batch_iter = inf_ds.batch_iterator(15)
-
-    Is equivalent to:
-
-    >>> batch_iter = ds.batch_iterator(15, epochs=-1)
-
-    Using the `with_params` method
-    ------------------------------
-    The `with_params` convenience method (availble on all data source classes)
-    simplifies the construction of `ApplyParamsDataSource` instances.
-
-
-    Using `with_params`:
-
-    >>> inf_ds = ds.with_params(epochs=-1)
-
-    Is equivalent to:
-
-    >>> inf_ds = ApplyParamsDataSource(ds, epochs=-1)
-    """
-    def __init__(self, datasource, **params):
-        self.datasource = datasource
-        self.params = params
-
-    def num_samples(self, **kwargs):
-        """
-        Get the number of samples in this data source.
-
-        Returns
-        -------
-        int, `np.inf` or `None`.
-            An int if the number of samples is known, `np.inf` if it is
-            infinite or `None` if the number of samples is unknown.
-        """
-        kwargs.update(self.params)
-        return self.datasource.num_samples(**kwargs)
-
-    def batch_iterator(self, batch_size, **kwargs):
-        """
-        Return an iterator that generates mini-batches extracted from `self`.
-
-        Parameters
-        ----------
-        batch_size: int
-            Mini-batch size
-
-        Returns
-        -------
-            An iterator that yields mini-batches.
-        """
-        kwargs.update(self.params)
-        return self.datasource.batch_iterator(batch_size, **kwargs)
-
-
 class ArrayDataSource (AbstractDataSource):
     """A data source whose data comes from NumPy arrays (or array-like
-    objects.
+    objects. Invoke the :meth:`batch_iterator` method to create an iterator
+    that generates mini-batches extracted from the arrays
+
+    Provide the data in the form of a list of array-like objects to the `data`
+    parameter of the constructor.
 
     The arrays can either be NumPy arrays, or array-like objects that
     implement `__len__` and `__getitem__`. `__getitem__` must accept
     integer indices, slices or index arrays (a 1D array of integers that are
     the indices of samples to retrieve).
+
+    To draw only from a subset of the samples in `data`, provide the indices
+    of the samples in the subset in the form of a NumPy integer array passed
+    to the `indices` parameter of the constructor.
+
+    `epochs` controls the number of repetitions; e.g. a value of `2` will
+    cause the iterator to walk the data twice before terminating. A value
+    of `-1` will result in an infinite number of repetitions. If
+    shuffling is used a different permutation of the elements in the data
+    set will be used for each repetition.
 
     Note that if the batch size (see `batch_size` parameter of the
     :meth:`batch_iterator` method) does not divide into the length of the
@@ -438,6 +340,13 @@ class ArrayDataSource (AbstractDataSource):
     ----------
     data: list
         A list of arrays from which data is drawn.
+    indices: NumPy array, 1D dtype=int or None
+        An array of indices that identify the subset of samples drawn
+        from data that are to be used
+    epochs: int (default=1)
+        The number of repetitions, or `-1` for infinite. A value of 0 or
+        a negative value that is not -1 will cause `ValueError` to be
+        raised.
 
     Examples:
     Create a data set of size 12, where each input sample is a 7-element
@@ -472,21 +381,27 @@ class ArrayDataSource (AbstractDataSource):
 
     The `epochs` parameter will cause the iterator to walk over the data
     a specified number of times:
-    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=rng, epochs=10):
+    >>> ds_10 = ArrayDataSource([X, y], epochs=10)
+    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=rng):
     ...     # Perform operations on batch_X and batch_y
     ...     break
 
     If it is given the value `-1`, the iterator will repeat infinitely:
-    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=rng, epochs=-1):
+    >>> ds_inf = ArrayDataSource([X, y], epochs=-1)
+    >>> for batch_X, batch_y in ds.batch_iterator(5, shuffle=rng):
     ...     # Perform operations on batch_X and batch_y
     ...     break
     """
-    def __init__(self, data, indices=None):
+    def __init__(self, data, indices=None, epochs=1):
         if not isinstance(data, list):
             raise TypeError('data must be a list of array-like objects, not '
                             'a {}'.format(type(data)))
+        if epochs == 0 or epochs < -1:
+            raise ValueError('Invalid number of epochs; should be >= 1 or '
+                             '-1, not {}'.format(epochs))
         self.data = data
         self.indices = indices
+        self.epochs = epochs
         if self.indices is not None:
             self.length = len(self.indices)
         else:
@@ -500,7 +415,7 @@ class ArrayDataSource (AbstractDataSource):
                         'length {}, while array {} has length {}'.format(
                             self.length, i+1, len(d1)))
 
-    def num_samples(self, epochs=1, **kwargs):
+    def num_samples(self, **kwargs):
         """
         Get the number of samples in this data source.
 
@@ -520,16 +435,12 @@ class ArrayDataSource (AbstractDataSource):
             indices array - if one was provided to the constructor - or the
             length of the arrays passed in the list `data`.
         """
-        if epochs == 0 or epochs < -1:
-            raise ValueError('Invalid number of epochs; should be >= 1 or '
-                             '-1, not {}'.format(epochs))
-        if epochs == -1:
+        if self.epochs == -1:
             return np.inf
         else:
-            return self.length * epochs
+            return self.length * self.epochs
 
-    def batch_iterator(self, batch_size, shuffle=None, epochs=1,
-                       **kwargs):
+    def batch_iterator(self, batch_size, shuffle=None, **kwargs):
         """
         Create an iterator that generates mini-batches extracted from the
         arrays that make up this dataset. The batches will have `batchsize`
@@ -541,12 +452,6 @@ class ArrayDataSource (AbstractDataSource):
         randomise the order in which elements are extracted from the data.
         If it is `True`, Lasagne's default random number generator will be
         use to shuffle elements.
-
-        `epochs` controls the number of repetitions; e.g. a value of `2` will
-        cause the iterator to walk the data twice before terminating. A value
-        of `-1` will result in an infinite number of repetitions. If
-        shuffling is used a different permutation of the elements in the data
-        set will be used for each repetition.
 
         If an array of indices was provided to the constructor, the subset of
         samples identified in that array is used, rather than the complete
@@ -565,10 +470,6 @@ class ArrayDataSource (AbstractDataSource):
             extracted in order. If it is a `RandomState` instance, that
             RNG will be used to shuffle elements. If it is `True`, Lasagne's
             default RNG will be used.
-        epochs: int (default=1)
-            The number of repetitions, or `-1` for infinite. A value of 0 or
-            a negative value that is not -1 will cause `ValueError` to be
-            raised.
 
         Returns
         -------
@@ -576,11 +477,8 @@ class ArrayDataSource (AbstractDataSource):
             An iterator that generates items of type `[batch_x, batch_y, ...]`
             where `batch_x`, `batch_y`, etc are themselves arrays.
         """
-        if epochs == 0 or epochs < -1:
-            raise ValueError('Invalid number of epochs; should be >= 1 or '
-                             '-1, not {}'.format(epochs))
         shuffle = self._get_shuffle_rng(shuffle)
-        if epochs == 1:
+        if self.epochs == 1:
             if shuffle is not None:
                 if self.indices is not None:
                     indices = shuffle.permutation(self.indices)
@@ -598,6 +496,7 @@ class ArrayDataSource (AbstractDataSource):
                     for i in range(0, self.length, batch_size):
                         yield [d[i:i + batch_size] for d in self.data]
         else:
+            epochs = self.epochs
             if shuffle is not None:
                 if self.indices is not None:
                     indices = shuffle.permutation(self.indices)
@@ -881,15 +780,15 @@ class CompositeDataSource (AbstractDataSource):
     Create 33 unlabeled samples:
     >>> unlab_X = np.random.normal(size=(33, 10))
 
-    Array data sources for labeled and unlabeled samples:
-    >>> lab_ds = ArrayDataSource([lab_X, lab_y])
+    Array data sources for labeled and unlabeled samples (the labeled samples
+    are repeated infinitely, allowing us to draw as many as needed):
+    >>> lab_ds = ArrayDataSource([lab_X, lab_y], epochs=-1)
     >>> unlab_ds = ArrayDataSource([unlab_X])
 
     Create a data source that iterates repeatedly over the labeled samples
-    and once over the unlabeled samples (note the use of the `with_params`
-    method to apply the `epochs` parameter to the labeled samples):
+    and once over the unlabeled samples:
     >>> semi_ds = CompositeDataSource([
-    ...     lab_ds.with_params(epochs=-1), unlab_ds
+    ...     lab_ds, unlab_ds
     ... ])
 
     When we iterate over them, we get batches of the form
@@ -906,7 +805,7 @@ class CompositeDataSource (AbstractDataSource):
     Alternatively, if you want structured mini-batches that have the same
     nesting structure as the composite data soruce:
     >>> semi_flat_ds = CompositeDataSource([
-    ...     lab_ds.with_params(epochs=-1), unlab_ds
+    ...     lab_ds, unlab_ds
     ... ], flatten=False)
 
     >>> for batch in semi_flat_ds.batch_iterator(batch_size=5):

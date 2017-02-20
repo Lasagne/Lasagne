@@ -240,7 +240,6 @@ def test_ArrayDataSource_repeated():
 
     X = np.arange(50)
     Y = np.arange(100).reshape((50, 2))
-    ads = data_source.ArrayDataSource([X, Y])
 
     # Helper function for checking the resulting mini-batches
     def check_batches(batches, expected_n, order):
@@ -265,20 +264,22 @@ def test_ArrayDataSource_repeated():
             assert (batch[1] == Y[batch_order]).all()
 
     # Check size
-    assert ads.num_samples(epochs=1) == 50
-    assert ads.num_samples(epochs=2) == 100
-    assert ads.num_samples(epochs=5) == 250
-    assert ads.num_samples(epochs=-1) == np.inf
+    assert data_source.ArrayDataSource([X, Y], epochs=1).num_samples() == 50
+    assert data_source.ArrayDataSource([X, Y], epochs=2).num_samples() == 100
+    assert data_source.ArrayDataSource([X, Y], epochs=5).num_samples() == 250
+    assert data_source.ArrayDataSource([X, Y], epochs=-1).num_samples() == \
+        np.inf
 
     # 3 repetitions; 150 samples, 8 in-order batches
-    inorder_iter = ads.batch_iterator(batch_size=20, epochs=3)
+    ads_3 = data_source.ArrayDataSource([X, Y], epochs=3)
+    inorder_iter = ads_3.batch_iterator(batch_size=20)
     batches = list(inorder_iter)
     order = np.concatenate([np.arange(50)] * 3, axis=0)
     check_batches(batches, 8, order)
 
     # 3 repetitions; 150 samples, 8 shuffled batches
-    shuffled_iter = ads.batch_iterator(batch_size=20, epochs=3,
-                                       shuffle=np.random.RandomState(12345))
+    shuffled_iter = ads_3.batch_iterator(batch_size=20,
+                                         shuffle=np.random.RandomState(12345))
     batches = list(shuffled_iter)
     order_shuffle_rng = np.random.RandomState(12345)
     order = np.concatenate(
@@ -288,14 +289,15 @@ def test_ArrayDataSource_repeated():
     check_batches(batches, 8, order)
 
     # Infinite repetitions; take 5 in-order batches
-    inorder_iter = ads.batch_iterator(batch_size=20, epochs=-1)
+    ads_inf = data_source.ArrayDataSource([X, Y], epochs=-1)
+    inorder_iter = ads_inf.batch_iterator(batch_size=20)
     batches = [next(inorder_iter) for i in range(5)]
     order = np.concatenate([np.arange(50)] * 2, axis=0)
     check_batches(batches, 5, order)
 
     # Infinite repetitions; take 5 shuffled batches
-    shuffled_iter = ads.batch_iterator(batch_size=20, epochs=-1,
-                                       shuffle=np.random.RandomState(12345))
+    shuffled_iter = ads_inf.batch_iterator(
+        batch_size=20, shuffle=np.random.RandomState(12345))
     batches = [next(shuffled_iter) for i in range(5)]
     # Get the expected order
     order_shuffle_rng = np.random.RandomState(12345)
@@ -305,18 +307,10 @@ def test_ArrayDataSource_repeated():
 
     # Check invalid values for epochs
     with pytest.raises(ValueError):
-        ads.num_samples(epochs=0)
+        data_source.ArrayDataSource([X, Y], epochs=0)
 
     with pytest.raises(ValueError):
-        ads.num_samples(epochs=-2)
-
-    with pytest.raises(ValueError):
-        for _ in ads.batch_iterator(batch_size=5, epochs=0):
-            pass
-
-    with pytest.raises(ValueError):
-        for _ in ads.batch_iterator(batch_size=5, epochs=-2):
-            pass
+        data_source.ArrayDataSource([X, Y], epochs=-2)
 
 
 def test_ArrayDataSource_indices_repeated():
@@ -346,16 +340,16 @@ def test_ArrayDataSource_indices_repeated():
             assert (batch[1] == Y[batch_order]).all()
 
     # 3 repetitions; 8 in-order batches
-    ads = data_source.ArrayDataSource([X, Y], indices=indices)
-    inorder_iter = ads.batch_iterator(batch_size=20, epochs=3)
+    ads_3 = data_source.ArrayDataSource([X, Y], indices=indices, epochs=3)
+    inorder_iter = ads_3.batch_iterator(batch_size=20)
     batches = list(inorder_iter)
     order = np.concatenate([indices, indices, indices], axis=0)
     check_batches(batches, 8, order)
 
     # 3 repetitions; 8 shuffled batches
-    ads = data_source.ArrayDataSource([X, Y], indices=indices)
-    inorder_iter = ads.batch_iterator(batch_size=20, epochs=3,
-                                      shuffle=np.random.RandomState(12345))
+    ads_3 = data_source.ArrayDataSource([X, Y], indices=indices, epochs=3)
+    inorder_iter = ads_3.batch_iterator(batch_size=20,
+                                        shuffle=np.random.RandomState(12345))
     batches = list(inorder_iter)
     # Compute the expected order
     order_shuffle_rng = np.random.RandomState(12345)
@@ -366,89 +360,21 @@ def test_ArrayDataSource_indices_repeated():
     check_batches(batches, 8, order)
 
     # Infinite repetitions; take 5 in-order batches
-    ads = data_source.ArrayDataSource([X, Y], indices=indices)
-    inorder_iter = ads.batch_iterator(batch_size=20, epochs=-1)
+    ads_inf = data_source.ArrayDataSource([X, Y], indices=indices, epochs=-1)
+    inorder_iter = ads_inf.batch_iterator(batch_size=20)
     batches = [next(inorder_iter) for i in range(5)]
     order = np.concatenate([indices, indices], axis=0)
     check_batches(batches, 5, order)
 
     # Infinite repetitions; take 5 shuffled batches
-    shuffled_iter = ads.batch_iterator(batch_size=20, epochs=-1,
-                                       shuffle=np.random.RandomState(12345))
+    shuffled_iter = ads_inf.batch_iterator(
+        batch_size=20, shuffle=np.random.RandomState(12345))
     batches = [next(shuffled_iter) for i in range(5)]
     # Compute the expected order
     order_shuffle_rng = np.random.RandomState(12345)
     order = np.append(order_shuffle_rng.permutation(indices),
                       order_shuffle_rng.permutation(indices), axis=0)
     check_batches(batches, 5, order)
-
-
-def test_ApplyParamsDataSource():
-    from lasagne import data_source
-
-    X = np.arange(50)
-    Y = np.arange(100).reshape((50, 2))
-
-    ads = data_source.ArrayDataSource([X, Y])
-
-    # No settings; normal batch iterator
-    no_settings = ads.with_params()
-    # Settings: `epochs=-1`
-    inf_settings = ads.with_params(epochs=-1)
-
-    assert isinstance(no_settings, data_source.ApplyParamsDataSource)
-    assert no_settings.datasource is ads
-    assert no_settings.params == {}
-
-    assert isinstance(inf_settings, data_source.ApplyParamsDataSource)
-    assert inf_settings.datasource is ads
-    assert inf_settings.params == {'epochs': -1}
-
-    # Test length
-    assert no_settings.num_samples() == 50
-    assert inf_settings.num_samples() == np.inf
-
-    # Linear batch iterator via settings
-    iter_linear = no_settings.batch_iterator(
-        batch_size=20
-    )
-    batches = [next(iter_linear) for i in range(3)]
-    # Three batches
-    assert len(batches) == 3
-    # Two items in each batch
-    assert len(batches[0]) == 2
-    assert len(batches[1]) == 2
-    assert len(batches[2]) == 2
-    # Verify values
-    assert (batches[0][0] == X[:20]).all()
-    assert (batches[0][1] == Y[:20]).all()
-    assert (batches[1][0] == X[20:40]).all()
-    assert (batches[1][1] == Y[20:40]).all()
-    assert (batches[2][0] == X[40:]).all()
-    assert (batches[2][1] == Y[40:]).all()
-
-    # Circular batch iterator via settings
-    iter_inf = inf_settings.batch_iterator(batch_size=20)
-    batches = [next(iter_inf) for i in range(5)]
-    # Five batches
-    assert len(batches) == 5
-    # Two items in each batch
-    assert len(batches[0]) == 2
-    assert len(batches[1]) == 2
-    assert len(batches[2]) == 2
-    assert len(batches[3]) == 2
-    assert len(batches[4]) == 2
-    # Verify values
-    assert (batches[0][0] == X[:20]).all()
-    assert (batches[0][1] == Y[:20]).all()
-    assert (batches[1][0] == X[20:40]).all()
-    assert (batches[1][1] == Y[20:40]).all()
-    assert (batches[2][0] == np.append(X[40:50], X[0:10], axis=0)).all()
-    assert (batches[2][1] == np.append(Y[40:50], Y[0:10], axis=0)).all()
-    assert (batches[3][0] == X[10:30]).all()
-    assert (batches[3][1] == Y[10:30]).all()
-    assert (batches[4][0] == X[30:50]).all()
-    assert (batches[4][1] == Y[30:50]).all()
 
 
 def test_CallableDataSource():
@@ -632,7 +558,7 @@ def test_CompositeDataSource():
     unsup_X = np.random.normal(size=(33, 10))
 
     # We need a dataset containing the supervised samples
-    sup_ds = data_source.ArrayDataSource([sup_X, sup_y])
+    sup_ds = data_source.ArrayDataSource([sup_X, sup_y], epochs=-1)
     # We need a dataset containing the unsupervised samples
     unsup_ds = data_source.ArrayDataSource([unsup_X])
 
@@ -642,7 +568,7 @@ def test_CompositeDataSource():
     # - iterate over the unsupervised samples again in a different order
     #   for the discriminator
     gan_ds = data_source.CompositeDataSource([
-        sup_ds.with_params(epochs=-1), unsup_ds, unsup_ds
+        sup_ds, unsup_ds, unsup_ds
     ])
 
     # Check number of samples
@@ -927,13 +853,14 @@ def test_data_source_method_batch_map():
     # Check that using `epochs=-1` without specifying the number of
     # batches raises `ValueError`, as this results in a data source with
     # an infinite number of samples
+    ads_inf = data_source.ArrayDataSource([X, Y], epochs=-1)
     with pytest.raises(ValueError):
-        ads.batch_map(batch_func, 5, progress_iter_func, epochs=-1)
+        ads_inf.batch_map(batch_func, 5, progress_iter_func)
 
     # Check that using `epochs=-1` while specifying the number of
     # batches is OK. Don't use progress_iter_func as it expects 9 batches,
     # not 15.
-    [x, y] = ads.batch_map(batch_func, 5, n_batches=15, epochs=-1)
+    [x, y] = ads_inf.batch_map(batch_func, 5, n_batches=15)
 
     assert (x == np.append(X, X[:30], axis=0) + 2).all()
     assert (y == (np.append(Y, Y[:30], axis=0)**2).sum(axis=1)).all()
@@ -1035,13 +962,14 @@ def test_data_source_method_mean_batch_map_in_order():
     # Check that using `epochs=-1` without specifying the number of
     # batches raises `ValueError`, as this results in a data source with
     # an infinite number of samples
+    ads_inf = data_source.ArrayDataSource([X, Y], epochs=-1)
     with pytest.raises(ValueError):
-        ads.mean_batch_map(batch_func, 5, progress_iter_func, epochs=-1)
+        ads_inf.mean_batch_map(batch_func, 5, progress_iter_func)
 
     # Check that using `epochs=-1` while specifying the number of
     # batches is OK. Don't use progress_iter_func as it expects 9 batches,
     # not 15.
-    [x, y] = ads.mean_batch_map(batch_func, 5, n_batches=15, epochs=-1)
+    [x, y] = ads_inf.mean_batch_map(batch_func, 5, n_batches=15)
 
     assert np.allclose(x, np.append(X, X[:28], axis=0).mean())
     assert np.allclose(

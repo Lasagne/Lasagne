@@ -100,6 +100,7 @@
     GlobalPoolLayer
     FeaturePoolLayer
     FeatureWTALayer
+    SpatialPyramidPoolingLayer
 
 
 .. rubric:: :doc:`layers/recurrent`

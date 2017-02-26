@@ -1046,3 +1046,53 @@ def test_data_source_method_mean_batch_map_in_order_per_sample_func():
                              sum_axis=0)
 
     assert res is None
+
+
+def test_coerce_data_source():
+    from lasagne import data_source
+
+    rng = np.random.RandomState(12345)
+    X = rng.normal(size=(47,))
+    Y = rng.normal(size=(47, 2))
+    iter_callable = make_batch_iterator_callable(X, Y)
+
+    # Data source objects should be left as is
+    ads = data_source.ArrayDataSource([X, Y])
+    assert data_source.coerce_data_source(ads) is ads
+
+    # Lists of array-likes should be wrapped in ArrayDataSource
+    c_ads = data_source.coerce_data_source([X, Y])
+    assert isinstance(c_ads, data_source.ArrayDataSource)
+    assert c_ads.data == [X, Y]
+
+    # Callables should be wrapped in CallableDataSource
+    c_call = data_source.coerce_data_source(iter_callable)
+    assert isinstance(c_call, data_source.CallableDataSource)
+    assert c_call.batch_iterator_fn is iter_callable
+
+    # Iterators should be wrapped in IteratorDataSource
+    iterator = iter_callable(batch_size=10)
+    c_iter = data_source.coerce_data_source(iterator)
+    assert isinstance(c_iter, data_source.IteratorDataSource)
+    assert c_iter.batch_iter is iterator
+
+    # Unrecognised type should raise TypeError
+    with pytest.raises(TypeError):
+        data_source.coerce_data_source(1)
+
+    # Empty sequences should raise ValueError
+    with pytest.raises(ValueError):
+        data_source.coerce_data_source([])
+
+    with pytest.raises(ValueError):
+        data_source.coerce_data_source(())
+
+    # Lists of non-array-likes should also raise TypeError
+    with pytest.raises(TypeError):
+        data_source.coerce_data_source([1])
+
+    with pytest.raises(TypeError):
+        data_source.coerce_data_source([X, 1])
+
+    with pytest.raises(TypeError):
+        data_source.coerce_data_source([X, c_ads])

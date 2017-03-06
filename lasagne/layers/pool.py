@@ -90,7 +90,7 @@ def pool_2d(input, **kwargs):
         return T.signal.pool.pool_2d(input, **kwargs)
 
 
-def pool_3d(input, **kwargs):
+def pool_3d(input, **kwargs):  # pragma: no cover
     """
     Wrapper function that calls :func:`theano.tensor.signal.pool_3d` either
     with the new or old keyword argument names expected by Theano.
@@ -299,7 +299,7 @@ class Pool2DLayer(Layer):
         return pooled
 
 
-class Pool3DLayer(Layer):
+class Pool3DLayer(Layer):  # pragma: no cover
     """
     3D pooling layer
 
@@ -518,7 +518,7 @@ class MaxPool2DLayer(Pool2DLayer):
 # TODO: add reshape-based implementation to MaxPool*DLayer
 
 
-class MaxPool3DLayer(Pool3DLayer):
+class MaxPool3DLayer(Pool3DLayer):  # pragma: no cover
     """
     3D max-pooling layer
 
@@ -570,6 +570,13 @@ class MaxPool3DLayer(Pool3DLayer):
                                              ignore_border,
                                              mode='max',
                                              **kwargs)
+
+
+if not hasattr(T.signal.pool, 'pool_3d'):  # pragma: no cover
+    # Hide Pool3DLayer/MaxPool3DLayer for old Theano versions
+    del Pool3DLayer, MaxPool3DLayer
+    __all__.remove('Pool3DLayer')
+    __all__.remove('MaxPool3DLayer')
 
 
 class Upscale1DLayer(Layer):

@@ -610,7 +610,7 @@ class Conv2DLayer(BaseConvLayer):
         return conved
 
 
-class Conv3DLayer(BaseConvLayer):
+class Conv3DLayer(BaseConvLayer):  # pragma: no cover
     """
     lasagne.layers.Conv3DLayer(incoming, num_filters, filter_size,
     stride=(1, 1, 1), pad=0, untie_biases=False,
@@ -716,11 +716,13 @@ class Conv3DLayer(BaseConvLayer):
                  pad=0, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, flip_filters=True,
-                 convolution=T.nnet.conv3d, **kwargs):
+                 convolution=None, **kwargs):
         super(Conv3DLayer, self).__init__(incoming, num_filters, filter_size,
                                           stride, pad, untie_biases, W, b,
                                           nonlinearity, flip_filters, n=3,
                                           **kwargs)
+        if convolution is None:
+            convolution = T.nnet.conv3d
         self.convolution = convolution
 
     def convolve(self, input, **kwargs):
@@ -731,6 +733,12 @@ class Conv3DLayer(BaseConvLayer):
                                   border_mode=border_mode,
                                   filter_flip=self.flip_filters)
         return conved
+
+
+if not hasattr(T.nnet, 'conv3d'):  # pragma: no cover
+    # Hide Conv3DLayer for old Theano versions
+    del Conv3DLayer
+    __all__.remove('Conv3DLayer')
 
 
 class TransposedConv2DLayer(BaseConvLayer):

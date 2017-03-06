@@ -338,3 +338,21 @@ sys.modules['pylearn2.sandbox.cuda_convnet.filter_acts'] = \
     Mock(FilterActs=None)
 
 sys.modules['theano.sandbox.cuda.blas'] = Mock(GpuCorrMM=None)
+
+# fool rtd into thinking it has a recent enough Theano version to support
+# all optional features that otherwise require a bleeding-edge Theano
+try:
+    reload
+except NameError:
+    try:
+        from importlib import reload
+    except ImportError:
+        from imp import reload
+
+if not hasattr(theano.tensor.nnet, 'conv3d'):
+    theano.tensor.nnet.conv3d = Mock()
+    reload(lasagne.layers.conv)
+if not hasattr(theano.tensor.signal.pool, 'pool_3d'):
+    theano.tensor.signal.pool.pool_3d = Mock()
+    reload(lasagne.layers.pool)
+reload(lasagne.layers)

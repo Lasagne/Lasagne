@@ -466,10 +466,9 @@ class TestConv3DLayerImplementations:
         impl_module_name, impl_name = request.param
         try:
             mod = importlib.import_module(impl_module_name)
-        except ImportError:
+            return getattr(mod, impl_name)
+        except (ImportError, AttributeError):
             pytest.skip("{} not available".format(impl_module_name))
-
-        return getattr(mod, impl_name)
 
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(conv3d_test_sets()))

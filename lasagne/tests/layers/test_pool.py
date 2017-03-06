@@ -655,7 +655,10 @@ class TestPool3DLayer:
         return Mock(output_shape=output_shape)
 
     def layer(self, input_layer, pool_size, stride, pad):
-        from lasagne.layers.pool import Pool3DLayer
+        try:
+            from lasagne.layers.pool import Pool3DLayer
+        except ImportError:
+            pytest.skip("theano.signal.pool.pool_3d not available")
 
         return Pool3DLayer(
             input_layer,
@@ -712,7 +715,10 @@ class TestPool3DLayer:
         #    pytest.skip()
 
     def test_fail_on_mismatching_dimensionality(self):
-        from lasagne.layers.pool import Pool3DLayer
+        try:
+            from lasagne.layers.pool import Pool3DLayer
+        except ImportError:
+            pytest.skip("theano.signal.pool.pool_3d not available")
         with pytest.raises(ValueError) as exc:
             Pool3DLayer((10, 20, 30, 40), 3, 2)
         assert "Expected 5 input dimensions" in exc.value.args[0]

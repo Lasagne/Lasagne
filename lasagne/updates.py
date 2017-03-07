@@ -554,13 +554,13 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
         A scalar loss expression, or a list of gradient expressions
     params : list of shared variables
         The variables to generate update expressions for
-    learning_rate : float
+    learning_rate : float or symbolic scalar
         Learning rate
-    beta1 : float
+    beta1 : float or symbolic scalar
         Exponential decay rate for the first moment estimates.
-    beta2 : float
+    beta2 : float or symbolic scalar
         Exponential decay rate for the second moment estimates.
-    epsilon : float
+    epsilon : float or symbolic scalar
         Constant for numerical stability.
 
     Returns
@@ -622,13 +622,13 @@ def adamax(loss_or_grads, params, learning_rate=0.002, beta1=0.9,
         A scalar loss expression, or a list of gradient expressions
     params : list of shared variables
         The variables to generate update expressions for
-    learning_rate : float
+    learning_rate : float or symbolic scalar
         Learning rate
-    beta1 : float
+    beta1 : float or symbolic scalar
         Exponential decay rate for the first moment estimates.
-    beta2 : float
+    beta2 : float or symbolic scalar
         Exponential decay rate for the weighted infinity norm estimates.
-    epsilon : float
+    epsilon : float or symbolic scalar
         Constant for numerical stability.
 
     Returns

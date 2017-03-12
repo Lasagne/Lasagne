@@ -11,10 +11,16 @@ Pooling layers
 .. autoclass:: MaxPool2DLayer
     :members:
 
+.. autoclass:: MaxPool3DLayer
+    :members:
+
 .. autoclass:: Pool1DLayer
     :members:
 
 .. autoclass:: Pool2DLayer
+    :members:
+
+.. autoclass:: Pool3DLayer
     :members:
 
 .. autoclass:: Upscale1DLayer

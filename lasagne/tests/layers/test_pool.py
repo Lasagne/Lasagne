@@ -644,6 +644,89 @@ class TestMaxPool2DNNLayer:
         assert "Expected 4 input dimensions" in exc.value.args[0]
 
 
+class TestPool3DLayer:
+    def pool_test_sets_ignoreborder():
+        for pool_size in [2, 3]:
+            for stride in [1, 2, 3, 4]:
+                for pad in range(pool_size):
+                    yield (pool_size, stride, pad)
+
+    def input_layer(self, output_shape):
+        return Mock(output_shape=output_shape)
+
+    def layer(self, input_layer, pool_size, stride, pad):
+        try:
+            from lasagne.layers.pool import Pool3DLayer
+        except ImportError:
+            pytest.skip("theano.signal.pool.pool_3d not available")
+
+        return Pool3DLayer(
+            input_layer,
+            pool_size=pool_size,
+            stride=stride,
+            pad=pad,
+        )
+
+    @pytest.mark.parametrize(
+        "pool_size, stride, pad", list(pool_test_sets_ignoreborder()))
+    def test_get_output_for_ignoreborder(self, pool_size,
+                                         stride, pad):
+        try:
+            input = floatX(np.random.randn(5, 8, 16, 17, 13))
+            input_layer = self.input_layer(input.shape)
+            input_theano = theano.shared(input)
+
+            result = self.layer(
+                input_layer,
+                pool_size,
+                stride,
+                pad,
+            ).get_output_for(input_theano)
+
+            result_eval = result.eval()
+            numpy_result = max_pool_3d_ignoreborder(
+                input, [pool_size]*3, [stride]*3, [pad]*3)
+
+            assert np.all(numpy_result.shape == result_eval.shape)
+            assert np.allclose(result_eval, numpy_result)
+        except NotImplementedError:
+            pytest.skip()
+
+    @pytest.mark.parametrize(
+        "input_shape,output_shape",
+        [((32, 32, 64, 24, 24), (32, 32, 32, 12, 12)),
+         ((None, 32, 48, 24, 24), (None, 32, 24, 12, 12)),
+         ((32, None, 32, 24, 24), (32, None, 16, 12, 12)),
+         ((32, 64, None, 24, 24), (32, 64, None, 12, 12)),
+         ((32, 64, 32, None, 24), (32, 64, 16, None, 12)),
+         ((32, 64, 32, 24, None), (32, 64, 16, 12, None)),
+         ((32, 64, 12, None, None), (32, 64, 6, None, None)),
+         ((32, 64, None, None, None), (32, 64, None, None, None))],
+    )
+    def test_get_output_shape_for(self, input_shape, output_shape):
+        try:
+            input_layer = self.input_layer(input_shape)
+            layer = self.layer(input_layer,
+                               pool_size=(2, 2, 2), stride=None, pad=(0, 0, 0))
+            assert layer.get_output_shape_for(
+                input_shape) == output_shape
+        except NotImplementedError:
+            raise
+        #    pytest.skip()
+
+    def test_fail_on_mismatching_dimensionality(self):
+        try:
+            from lasagne.layers.pool import Pool3DLayer
+        except ImportError:
+            pytest.skip("theano.signal.pool.pool_3d not available")
+        with pytest.raises(ValueError) as exc:
+            Pool3DLayer((10, 20, 30, 40), 3, 2)
+        assert "Expected 5 input dimensions" in exc.value.args[0]
+        with pytest.raises(ValueError) as exc:
+            Pool3DLayer((10, 20, 30, 40, 50, 60), 3, 2)
+        assert "Expected 5 input dimensions" in exc.value.args[0]
+
+
 class TestMaxPool3DNNLayer:
     def pool_test_sets_ignoreborder():
         for pool_size in [2, 3]:

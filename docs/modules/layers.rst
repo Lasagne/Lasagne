@@ -72,6 +72,7 @@
 
     Conv1DLayer
     Conv2DLayer
+    Conv3DLayer
     TransposedConv2DLayer
     Deconv2DLayer
     DilatedConv2DLayer
@@ -92,8 +93,10 @@
 
     MaxPool1DLayer
     MaxPool2DLayer
+    MaxPool3DLayer
     Pool1DLayer
     Pool2DLayer
+    Pool3DLayer
     Upscale1DLayer
     Upscale2DLayer
     Upscale3DLayer

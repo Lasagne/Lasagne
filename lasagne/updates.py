@@ -42,12 +42,15 @@ This is often used when training recurrent neural networks.
 
 Examples
 --------
+Using :func:`nesterov_momentum` to define an update dictionary for a toy
+example network:
+
 >>> import lasagne
 >>> import theano.tensor as T
 >>> import theano
 >>> from lasagne.nonlinearities import softmax
 >>> from lasagne.layers import InputLayer, DenseLayer, get_output
->>> from lasagne.updates import sgd, apply_momentum
+>>> from lasagne.updates import nesterov_momentum
 >>> l_in = InputLayer((100, 20))
 >>> l1 = DenseLayer(l_in, num_units=3, nonlinearity=softmax)
 >>> x = T.matrix('x')  # shp: num_batch x num_features
@@ -55,9 +58,26 @@ Examples
 >>> l_out = get_output(l1, x)
 >>> params = lasagne.layers.get_all_params(l1)
 >>> loss = T.mean(T.nnet.categorical_crossentropy(l_out, y))
->>> updates_sgd = sgd(loss, params, learning_rate=0.0001)
->>> updates = apply_momentum(updates_sgd, params, momentum=0.9)
->>> train_function = theano.function([x, y], updates=updates)
+>>> updates = nesterov_momentum(loss, params, learning_rate=1e-4, momentum=.9)
+>>> train_fn = theano.function([x, y], updates=updates)
+
+With :func:`apply_momentum` and :func:`apply_nesterov_momentum`, we can add
+momentum to optimization schemes that do not usually support this:
+
+>>> updates = lasagne.updates.rmsprop(loss, params, learning_rate=0.0001)
+>>> updates = lasagne.updates.apply_momentum(updates, params, momentum=0.9)
+
+All optimization schemes support symbolic variables for their hyperparameters,
+such as shared variables. This allows to vary hyperparameters during training
+without recompiling the training function. Note that the dtypes must match the
+dtypes of the network parameters, which follow Theano's ``floatX`` setting.
+In the following example, we use :func:`lasagne.utils.floatX` to ensure this:
+
+>>> eta = theano.shared(lasagne.utils.floatX(0.001))
+>>> updates = lasagne.updates.adam(loss, params, learning_rate=eta)
+>>> train_fn = theano.function([x, y], updates=updates)
+>>> # we can now modify the learning rate at any time during training:
+>>> eta.set_value(lasagne.utils.floatX(eta.get_value() * 0.1))
 """
 
 from collections import OrderedDict
@@ -554,13 +574,13 @@ def adam(loss_or_grads, params, learning_rate=0.001, beta1=0.9,
         A scalar loss expression, or a list of gradient expressions
     params : list of shared variables
         The variables to generate update expressions for
-    learning_rate : float
+    learning_rate : float or symbolic scalar
         Learning rate
-    beta1 : float
+    beta1 : float or symbolic scalar
         Exponential decay rate for the first moment estimates.
-    beta2 : float
+    beta2 : float or symbolic scalar
         Exponential decay rate for the second moment estimates.
-    epsilon : float
+    epsilon : float or symbolic scalar
         Constant for numerical stability.
 
     Returns
@@ -622,13 +642,13 @@ def adamax(loss_or_grads, params, learning_rate=0.002, beta1=0.9,
         A scalar loss expression, or a list of gradient expressions
     params : list of shared variables
         The variables to generate update expressions for
-    learning_rate : float
+    learning_rate : float or symbolic scalar
         Learning rate
-    beta1 : float
+    beta1 : float or symbolic scalar
         Exponential decay rate for the first moment estimates.
-    beta2 : float
+    beta2 : float or symbolic scalar
         Exponential decay rate for the weighted infinity norm estimates.
-    epsilon : float
+    epsilon : float or symbolic scalar
         Constant for numerical stability.
 
     Returns

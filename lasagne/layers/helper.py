@@ -137,6 +137,15 @@ def get_output(layer_or_layers, inputs=None,
         input layers) can be mapped to a Theano expression or numpy
         array to use instead of its regular output.
 
+    layer_inputs : None or dict
+        If None, no layer input map.
+        If a dictionary, any input of a :class:`Layer` instance can be mapped
+        to a Theano expression or numpy array to use instead of its regular
+        input. This is used internally when precomputation is involved for
+        recurrent cells, specifically where the same input layer is fed into 2
+        different layers, which have 2 different precomputed inputs.
+
+
     Returns
     -------
     output : Theano expression or list

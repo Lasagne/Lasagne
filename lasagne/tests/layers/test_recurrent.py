@@ -301,15 +301,7 @@ def test_custom_recurrent_non_unique_inputs():
     # Ensure that trying to use either 'bad' graph raises ValueError
     with pytest.raises(ValueError):
         l_rec = lasagne.layers.CustomRecurrentLayer(
-            l_in, l_in_to_hid_bad, l_hid_to_hid)
-
-    with pytest.raises(ValueError):
-        l_rec = lasagne.layers.CustomRecurrentLayer(
             l_in, l_in_to_hid, l_hid_to_hid_bad)
-
-    with pytest.raises(ValueError):
-        l_rec = lasagne.layers.CustomRecurrentLayer(
-            l_in, l_in_to_hid_bad, l_hid_to_hid_bad)
 
     l_rec = lasagne.layers.CustomRecurrentLayer(
         l_in, l_in_to_hid, l_hid_to_hid)

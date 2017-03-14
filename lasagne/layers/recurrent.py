@@ -699,13 +699,6 @@ class CustomRecurrentCell(CellLayer):
         super(CustomRecurrentCell, self).__init__(
             {'input': incoming} if input_to_hidden is not None else {},
             {'output': hid_init}, **kwargs)
-        input_to_hidden_in_layers = \
-            [layer for layer in helper.get_all_layers(input_to_hidden)
-             if isinstance(layer, InputLayer)]
-        if len(input_to_hidden_in_layers) != 1:
-            raise ValueError(
-                '`input_to_hidden` must have exactly one InputLayer, but it '
-                'has {}'.format(len(input_to_hidden_in_layers)))
 
         hidden_to_hidden_in_lyrs = \
             [layer for layer in helper.get_all_layers(hidden_to_hidden)

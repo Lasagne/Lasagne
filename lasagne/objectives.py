@@ -87,7 +87,8 @@ __all__ = [
     "binary_hinge_loss",
     "multiclass_hinge_loss",
     "binary_accuracy",
-    "categorical_accuracy"
+    "categorical_accuracy",
+    "jaccard_similarity_accuracy"
 ]
 
 
@@ -117,7 +118,14 @@ def align_targets(predictions, targets):
         targets = as_theano_expression(targets).dimshuffle(0, 'x')
     return predictions, targets
 
-
+def jaccard_similarity_accuracy(predictions,targets,threshold=0.5):
+    predictions,targets = align_targets(predictions,targets)
+    predictions = theano.tensor.ge(predictions,threshold)
+    predictions = theano.tensor.cast(predictions,'uint8')
+    targets = theano.tensor.cast(targets,'uint8')
+    intersection = theano.tensor.and_(predictions,targets)
+    union = theano.tensor.or_(predictions,targets)
+    return intersection.sum()/union.sum()
 def binary_crossentropy(predictions, targets):
     """Computes the binary cross-entropy between predictions and targets.
 

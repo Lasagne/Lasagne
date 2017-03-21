@@ -121,8 +121,6 @@ def align_targets(predictions, targets):
 def jaccard_similarity_accuracy(predictions,targets):
     """Computes the Jaccard similarity coefficient (accuracy) between predictions and targets.
 
-    .. math:: L_i = \\mathbb{I}(t_i = \mathbb{I}(p_i \\ge \\alpha))
-
     Parameters
     ----------
     predictions : Theano tensor

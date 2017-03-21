@@ -118,14 +118,38 @@ def align_targets(predictions, targets):
         targets = as_theano_expression(targets).dimshuffle(0, 'x')
     return predictions, targets
 
-def jaccard_similarity_accuracy(predictions,targets,threshold=0.5):
+def jaccard_similarity_accuracy(predictions,targets):
+    """Computes the Jaccard similarity coefficient (accuracy) between predictions and targets.
+
+    .. math:: L_i = \\mathbb{I}(t_i = \mathbb{I}(p_i \\ge \\alpha))
+
+    Parameters
+    ----------
+    predictions : Theano tensor
+        Predictions in [0, 1], such as a sigmoidal output of a neural network,
+        giving the probability of the positive class
+    targets : Theano tensor
+        Targets in {0, 1}, such as ground truth labels.
+
+    Returns
+    -------
+    Theano tensor
+        An expression for the jaccard similarity coefficient(accuracy) in [0, 1]
+
+    Notes
+    -----
+    This objective is also known as Jaccard index.
+    This objective function should not be used with a gradient calculation;It is intended as a convenience for
+    validation and testing, not training.
+
+    To obtain the average accuracy, call :func:`theano.tensor.mean()` on the
+    result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
+    """
     predictions,targets = align_targets(predictions,targets)
-    predictions = theano.tensor.ge(predictions,threshold)
-    predictions = theano.tensor.cast(predictions,'uint8')
-    targets = theano.tensor.cast(targets,'uint8')
-    intersection = theano.tensor.and_(predictions,targets)
-    union = theano.tensor.or_(predictions,targets)
+    intersection = theano.tensor.minimum(predictions,targets)
+    union = theano.tensor.maximum(predictions,targets)
     return intersection.sum()/union.sum()
+
 def binary_crossentropy(predictions, targets):
     """Computes the binary cross-entropy between predictions and targets.
 

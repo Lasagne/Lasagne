@@ -153,6 +153,30 @@ def test_binary_hinge_loss(colvect):
 
 
 @pytest.mark.parametrize('colvect', (False, True))
+@pytest.mark.parametrize('delta', (0.5, 1.0))
+def test_huber_loss(colvect, delta):
+    from lasagne.objectives import huber_loss
+    if not colvect:
+        a, b = theano.tensor.matrices('ab')
+        l = huber_loss(a, b, delta)
+    else:
+        a, b = theano.tensor.vectors('ab')
+        l = huber_loss(a.dimshuffle(0, 'x'), b, delta)[:, 0]
+
+    # numeric version
+    floatX = theano.config.floatX
+    shape = (10, 20) if not colvect else (10,)
+    x = np.random.rand(*shape).astype(floatX)
+    y = np.random.rand(*shape).astype(floatX)
+    abs_diff = abs(x - y)
+    ift = 0.5 * abs_diff ** 2
+    iff = delta * (abs_diff - delta / 2.)
+    z = np.where(abs_diff <= delta, ift, iff)
+    # compare
+    assert np.allclose(z, l.eval({a: x, b: y}))
+
+
+@pytest.mark.parametrize('colvect', (False, True))
 def test_binary_hinge_loss_not_binary_targets(colvect):
     from lasagne.objectives import binary_hinge_loss
     p = theano.tensor.vector('p')

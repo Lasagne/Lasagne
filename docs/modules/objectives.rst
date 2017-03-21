@@ -12,6 +12,7 @@ Loss functions
 .. autofunction:: squared_error
 .. autofunction:: binary_hinge_loss
 .. autofunction:: multiclass_hinge_loss
+.. autofunction:: huber_loss
 
 
 Aggregation functions

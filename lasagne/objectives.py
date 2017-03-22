@@ -26,14 +26,16 @@ Note that these functions only serve to write more readable code, but are
 completely optional. Essentially, any differentiable scalar Theano expression
 can be used as a training objective.
 
-Finally, two functions compute evaluation measures that are useful for
+Finally, three functions compute evaluation measures that are useful for
 validation and testing only, not for training:
 
 .. autosummary::
    :nosignatures:
 
    binary_accuracy
+   binary_jaccard_index
    categorical_accuracy
+   
 
 Those can also be aggregated into a scalar expression if needed.
 
@@ -88,7 +90,7 @@ __all__ = [
     "multiclass_hinge_loss",
     "binary_accuracy",
     "categorical_accuracy",
-    "jaccard_similarity_accuracy"
+    "binary_jaccard_index"
 ]
 
 
@@ -118,8 +120,10 @@ def align_targets(predictions, targets):
         targets = as_theano_expression(targets).dimshuffle(0, 'x')
     return predictions, targets
 
-def jaccard_similarity_accuracy(predictions,targets):
-    """Computes the Jaccard similarity coefficient (accuracy) between predictions and targets.
+def binary_jaccard_index(predictions,targets):
+    """Computes the binary (generalized) Jaccard index between predictions and targets.
+
+    .. math:: L_i  = \\sum_i{\\min(p_i,t_i} / \\sum_i{\\max(p_i,t_i}
 
     Parameters
     ----------
@@ -136,17 +140,17 @@ def jaccard_similarity_accuracy(predictions,targets):
 
     Notes
     -----
-    This objective is also known as Jaccard index.
+    This objective is also known as (generalized) Jaccard similarity coefficient, or Intersection-over-Union (IoU)
     This objective function should not be used with a gradient calculation;It is intended as a convenience for
     validation and testing, not training.
 
     To obtain the average accuracy, call :func:`theano.tensor.mean()` on the
     result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
     """
-    predictions,targets = align_targets(predictions,targets)
-    intersection = theano.tensor.minimum(predictions,targets)
-    union = theano.tensor.maximum(predictions,targets)
-    return intersection.sum()/union.sum()
+    predictions,targets = align_targets(predictions, targets)
+    intersection = theano.tensor.minimum(predictions, targets)
+    union = theano.tensor.maximum(predictions, targets)
+    return intersection.sum() / union.sum()
 
 def binary_crossentropy(predictions, targets):
     """Computes the binary cross-entropy between predictions and targets.

@@ -140,14 +140,14 @@ def binary_jaccard_index(predictions,targets):
 
     Notes
     -----
-    This objective is also known as (generalized) Jaccard similarity coefficient, or Intersection-over-Union (IoU)
+    This objective is also known as (generalized) Jaccard similarity coefficient. 
     This objective function should not be used with a gradient calculation;It is intended as a convenience for
     validation and testing, not training.
 
     To obtain the average accuracy, call :func:`theano.tensor.mean()` on the
     result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
     """
-    predictions,targets = align_targets(predictions, targets)
+    predictions, targets = align_targets(predictions, targets)
     intersection = theano.tensor.minimum(predictions, targets)
     union = theano.tensor.maximum(predictions, targets)
     return intersection.sum() / union.sum()
@@ -221,6 +221,10 @@ def squared_error(a, b):
     Returns
     -------
     Theano tensor
+        An expression for the element-wise squared difference.
+
+    Notes
+    -----
         An expression for the element-wise squared difference.
 
     Notes
@@ -409,10 +413,6 @@ def binary_accuracy(predictions, targets, threshold=0.5):
 
 def categorical_accuracy(predictions, targets, top_k=1):
     """Computes the categorical accuracy between predictions and targets.
-
-    .. math:: L_i = \\mathbb{I}(t_i = \\operatorname{argmax}_c p_{i,c})
-
-    Can be relaxed to allow matches among the top :math:`k` predictions:
 
     .. math::
         L_i = \\mathbb{I}(t_i \\in \\operatorname{argsort}_c (-p_{i,c})_{:k})

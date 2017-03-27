@@ -266,7 +266,7 @@ def elu(x):
        Fast and Accurate Deep Network Learning by Exponential Linear Units
        (ELUs), http://arxiv.org/abs/1511.07289
     """
-    return theano.tensor.switch(x > 0, x, theano.tensor.exp(x) - 1)
+    return theano.tensor.switch(x > 0, x, theano.tensor.expm1(x))
 
 
 # softplus

@@ -17,7 +17,7 @@ class TestNonlinearities(object):
         return self.rectify(x)
 
     def elu(self, x, alpha=1):
-        return np.where(x > 0, x, alpha * (np.exp(x) - 1))
+        return np.where(x > 0, x, alpha * (np.expm1(x)))
 
     def softplus(self, x):
         return np.log1p(np.exp(x))

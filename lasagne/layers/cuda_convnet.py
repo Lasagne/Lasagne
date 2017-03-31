@@ -11,8 +11,8 @@ from .conv import conv_output_length, BaseConvLayer
 from .pool import pool_output_length
 from ..utils import as_tuple
 
-from theano.sandbox.cuda.basic_ops import gpu_contiguous
-from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
+from theano.gpuarray.basic_ops import gpu_contiguous
+from pylearn2.gpuarray_convnet.filter_acts import FilterActs
 
 __all__ = [
     "Conv2DCCLayer",
@@ -25,7 +25,7 @@ __all__ = [
 ]
 
 
-if not theano.sandbox.cuda.cuda_enabled:
+if not theano.gpuarray.cuda_enabled:
     raise ImportError(
             "requires GPU support -- see http://lasagne.readthedocs.org/en/"
             "latest/user/installation.html#gpu-support")  # pragma: no cover
@@ -43,7 +43,7 @@ class Conv2DCCLayer(BaseConvLayer):
     Performs a 2D convolution on its input and optionally adds a bias and
     applies an elementwise nonlinearity.  This is an alternative implementation
     which uses the cuda-convnet wrappers from pylearn2:
-    ``pylearn2.sandbox.cuda_convnet.filter_acts.FilterActs``.
+    ``pylearn2.gpuarray_convnet.filter_acts.FilterActs``.
 
     Parameters
     ----------
@@ -329,7 +329,7 @@ class MaxPool2DCCLayer(Layer):
     Performs 2D max-pooling over the two trailing axes of a 4D input tensor
     (or over axis 1 and 2 if ``dimshuffle=False``, see notes). This is an
     alternative implementation which uses the cuda-convnet wrappers from
-    pylearn2: ``pylearn2.sandbox.cuda_convnet.pool.MaxPool``.
+    pylearn2: ``pylearn2.gpuarray_convnet.pool.MaxPool``.
 
     Parameters
     ----------
@@ -401,7 +401,7 @@ class MaxPool2DCCLayer(Layer):
     """
     def __init__(self, incoming, pool_size, stride=None, ignore_border=False,
                  dimshuffle=True, **kwargs):
-        from pylearn2.sandbox.cuda_convnet.pool import MaxPool
+        from pylearn2.gpuarray_convnet.pool import MaxPool
 
         if 'pad' in kwargs:
             pad = kwargs.pop('pad')

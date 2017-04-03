@@ -442,9 +442,12 @@ def _transform_affine(theta, input, downsample_factor):
     grid = _meshgrid(out_height, out_width)
 
     # Transform A x (x_t, y_t, 1)^T -> (x_s, y_s)
+    # Make the transformation in a correctly scaled space
+    scaler = T.as_tensor([width, height, 1]).reshape((3, 1))
+    grid = scaler * grid
     T_g = T.dot(theta, grid)
-    x_s = T_g[:, 0]
-    y_s = T_g[:, 1]
+    x_s = T_g[:, 0] / width
+    y_s = T_g[:, 1] / height
     x_s_flat = x_s.flatten()
     y_s_flat = y_s.flatten()
 

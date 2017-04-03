@@ -416,6 +416,34 @@ class TestTransformLayer():
                                         constant(thetas)]).eval()
         np.testing.assert_allclose(inputs, outputs, rtol=1e-6)
 
+    def test_transform_rotation(self):
+        # Check that a 90 degree rotation on a rectangle image is correct
+        from lasagne.layers import InputLayer, TransformerLayer
+        from lasagne.utils import floatX
+        from theano.tensor import constant
+        batchsize = 10
+        height = 8
+        width = 16
+        l_in = InputLayer((batchsize, 3, height, width))
+        l_loc = InputLayer((batchsize, 6))
+        layer = TransformerLayer(l_in, l_loc)
+        input_np = np.arange(np.prod(l_in.shape)).reshape(l_in.shape)
+        inputs = floatX(input_np)
+        thetas = floatX(np.tile([0, -1, 0, 1, 0, 0], (batchsize, 1)))
+        outputs = layer.get_output_for([constant(inputs),
+                                        constant(thetas)]).eval()
+        expected = input_np
+        expected = expected.transpose((2, 3, 0, 1))
+        expected = np.rot90(expected)
+        expected = expected.transpose((2, 3, 0, 1))
+        # Compare only the transformed part so that the padding stays free
+        offset = (width - height) // 2
+        expected = expected[:, :, offset: offset + height]
+        outputs = outputs[:, :, :, offset: offset + height].astype('int')
+        # Low precision because of the interpolation
+        # and sensitivity to even a one pixel shift
+        np.testing.assert_allclose(expected, outputs, rtol=1e-2, atol=3)
+
 
 class TestTPSTransformLayer():
 

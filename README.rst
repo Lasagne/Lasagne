@@ -128,6 +128,14 @@ recent research papers are maintained in the separate `Lasagne Recipes
 <https://github.com/Lasagne/Recipes>`_ repository.
 
 
+Citation
+--------
+
+If you find Lasagne useful for your scientific work, please consider citing it
+in resulting publications. We provide a ready-to-use `BibTeX entry for citing
+Lasagne <https://github.com/Lasagne/Lasagne/wiki/Lasagne-Citation-(BibTeX)>`_.
+
+
 Development
 -----------
 

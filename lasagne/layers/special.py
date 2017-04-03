@@ -461,7 +461,7 @@ def _transform_affine(theta, input, downsample_factor):
 
 
 def _interpolate(im, x, y, out_height, out_width):
-    # *_f are floats
+    # *_f are floats, othere may also be floats.
     num_batch, height, width, channels = im.shape
     height_f = T.cast(height, theano.config.floatX)
     width_f = T.cast(width, theano.config.floatX)
@@ -481,18 +481,21 @@ def _interpolate(im, x, y, out_height, out_width):
     y0_f = T.floor(y)
     x1_f = x0_f + 1
     y1_f = y0_f + 1
-    x0 = T.cast(x0_f, 'int64')
-    y0 = T.cast(y0_f, 'int64')
-    x1 = T.cast(T.minimum(x1_f, width_f - 1), 'int64')
-    y1 = T.cast(T.minimum(y1_f, height_f - 1), 'int64')
+    # do not cast to integers yet, to allow computation to take place in GPU
+    x0 = T.floor(x0_f)
+    y0 = T.floor(y0_f)
+    x1 = T.floor(T.minimum(x1_f, width_f - 1))
+    y1 = T.floor(T.minimum(y1_f, height_f - 1))
 
     # The input is [num_batch, height, width, channels]. We do the lookup in
-    # the flattened input, i.e [num_batch*height*width, channels]. We need
-    # to offset all indices to match the flat version
-    dim2 = width
-    dim1 = width*height
+    # the flattened input, i.e [num_batch*height*width, channels]. We need to
+    # offset all indices to match the flat version. We also use the float
+    # vertion to make sure that the computation can be carried on the GPU.
+    dim2 = width_f
+    dim1 = width_f*height_f
     base = T.repeat(
-        T.arange(num_batch, dtype='int64')*dim1, out_height*out_width)
+        T.arange(num_batch, dtype=theano.config.floatX)*dim1,
+        out_height*out_width)
     base_y0 = base + y0*dim2
     base_y1 = base + y1*dim2
     idx_a = base_y0 + x0
@@ -502,10 +505,11 @@ def _interpolate(im, x, y, out_height, out_width):
 
     # use indices to lookup pixels for all samples
     im_flat = im.reshape((-1, channels))
-    Ia = im_flat[idx_a]
-    Ib = im_flat[idx_b]
-    Ic = im_flat[idx_c]
-    Id = im_flat[idx_d]
+    # now covert to integers for indicing
+    Ia = im_flat[T.cast(idx_a, 'int64')]
+    Ib = im_flat[T.cast(idx_b, 'int64')]
+    Ic = im_flat[T.cast(idx_c, 'int64')]
+    Id = im_flat[T.cast(idx_d, 'int64')]
 
     # calculate interpolated values
     wa = ((x1_f-x) * (y1_f-y)).dimshuffle(0, 'x')

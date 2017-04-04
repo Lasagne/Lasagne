@@ -8,8 +8,8 @@ from .base import Layer
 from .conv import conv_output_length, BaseConvLayer
 from ..utils import as_tuple
 
-from theano.sandbox.cuda.basic_ops import gpu_contiguous
-from theano.sandbox.cuda.blas import GpuCorrMM
+from theano.gpuarray.basic_ops import gpu_contiguous
+from theano.gpuarray.blas import GpuCorrMM
 
 
 __all__ = [
@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-if not theano.sandbox.cuda.cuda_enabled:
+if not theano.gpuarray.cuda_enabled:
     raise ImportError(
             "requires GPU support -- see http://lasagne.readthedocs.org/en/"
             "latest/user/installation.html#gpu-support")  # pragma: no cover
@@ -35,7 +35,7 @@ class Conv2DMMLayer(BaseConvLayer):
 
     Performs a 2D convolution on its input and optionally adds a bias and
     applies an elementwise nonlinearity.  This is an alternative implementation
-    which uses ``theano.sandbox.cuda.blas.GpuCorrMM`` directly.
+    which uses ``theano.gpuarray.blas.GpuCorrMM`` directly.
 
     Parameters
     ----------

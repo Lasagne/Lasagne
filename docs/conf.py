@@ -323,11 +323,11 @@ except ImportError:
     from mock import Mock
 
 import theano
-import theano.sandbox.cuda
+import theano.gpuarray
 
 theano.config = Mock(device='gpu')
-theano.sandbox.cuda.cuda_enabled = True
-theano.sandbox.cuda.dnn = Mock(dnn_available=lambda: True)
+theano.gpuarray.cuda_enabled = True
+theano.gpuarray.dnn = Mock(dnn_available=lambda: True)
 
 import sys
 
@@ -337,7 +337,7 @@ sys.modules['pylearn2.sandbox.cuda_convnet'] = Mock()
 sys.modules['pylearn2.sandbox.cuda_convnet.filter_acts'] = \
     Mock(FilterActs=None)
 
-sys.modules['theano.sandbox.cuda.blas'] = Mock(GpuCorrMM=None)
+sys.modules['theano.gpuarray.blas'] = Mock(GpuCorrMM=None)
 
 # fool rtd into thinking it has a recent enough Theano version to support
 # all optional features that otherwise require a bleeding-edge Theano

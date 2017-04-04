@@ -189,7 +189,7 @@ your GPU (the first CUDA-capable GPU in your system if you have multiple ones):
 
 .. code-block:: bash
 
-  THEANO_FLAGS=device=gpu python -c "import theano; print(theano.sandbox.cuda.device_properties(0))"
+  THEANO_FLAGS=device=gpu python -c "import theano; print(theano.gpuarray.device_properties(0))"
 
 To configure Theano to use the GPU by default, create a file ``.theanorc``
 directly in your home directory, with the following contents:
@@ -223,7 +223,7 @@ To check whether it is found by Theano, run the following command:
 
 .. code-block:: bash
 
-  python -c "from theano.sandbox.cuda.dnn import dnn_available as d; print(d() or d.msg)"
+  python -c "from theano.gpuarray.dnn import dnn_available as d; print(d() or d.msg)"
 
 It will print ``True`` if everything is fine, or an error message otherwise.
 There are no additional steps required for Theano to make use of cuDNN.

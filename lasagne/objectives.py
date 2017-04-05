@@ -150,7 +150,7 @@ def binary_jaccard_index(predictions,targets):
     #predictions, targets = align_targets(predictions, targets)
     intersection = theano.tensor.minimum(predictions, targets)
     union = theano.tensor.maximum(predictions, targets)
-    axes = tuple(range(1,3))
+    axes = tuple(range(1,4))
     return intersection.sum(axis=axes) / union.sum(axis=axes)
 
 def binary_crossentropy(predictions, targets):

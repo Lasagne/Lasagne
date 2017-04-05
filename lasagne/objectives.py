@@ -147,10 +147,11 @@ def binary_jaccard_index(predictions,targets):
     To obtain the average accuracy, call :func:`theano.tensor.mean()` on the
     result, passing ``dtype=theano.config.floatX`` to compute the mean on GPU.
     """
-    predictions, targets = align_targets(predictions, targets)
+    #predictions, targets = align_targets(predictions, targets)
     intersection = theano.tensor.minimum(predictions, targets)
     union = theano.tensor.maximum(predictions, targets)
-    return intersection.sum() / union.sum()
+    axes = tuple(range(1,3))
+    return intersection.sum(axis=axes) / union.sum(axis=axes)
 
 def binary_crossentropy(predictions, targets):
     """Computes the binary cross-entropy between predictions and targets.

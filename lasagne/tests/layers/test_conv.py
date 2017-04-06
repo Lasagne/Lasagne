@@ -660,8 +660,7 @@ class TestDilatedConv2DLayer:
 
 class TestConv2DDNNLayer:
     def test_import_without_gpu_or_cudnn_raises(self):
-        from theano.sandbox import cuda
-        if cuda.cuda_enabled and cuda.dnn.dnn_available():
+        if theano.gpuarray.dnn.dnn_present():
             pytest.skip()
         else:
             with pytest.raises(ImportError):
@@ -670,8 +669,7 @@ class TestConv2DDNNLayer:
 
 class TestConv2DMMLayer:
     def test_import_without_gpu_raises(self):
-        from theano.sandbox import cuda
-        if cuda.cuda_enabled:
+        if theano.gpuarray.dnn.dnn_present():
             pytest.skip()
         else:
             with pytest.raises(ImportError):

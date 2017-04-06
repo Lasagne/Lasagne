@@ -17,12 +17,6 @@ __all__ = [
 ]
 
 
-if not theano.gpuarray.cuda_enabled:
-    raise ImportError(
-            "requires GPU support -- see http://lasagne.readthedocs.org/en/"
-            "latest/user/installation.html#gpu-support")  # pragma: no cover
-
-
 class Conv2DMMLayer(BaseConvLayer):
     """
     lasagne.layers.Conv2DMMLayer(incoming, num_filters, filter_size,

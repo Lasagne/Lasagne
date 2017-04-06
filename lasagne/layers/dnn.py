@@ -10,15 +10,11 @@ from .pool import pool_output_length
 from .normalization import BatchNormLayer
 from ..utils import as_tuple
 
-if not theano.gpuarray.cuda_enabled:
-    raise ImportError(
-            "requires GPU support -- see http://lasagne.readthedocs.org/en/"
-            "latest/user/installation.html#gpu-support")  # pragma: no cover
-elif not dnn.dnn_available():
+if not dnn.dnn_present():
     raise ImportError(
             "cuDNN not available: %s\nSee http://lasagne.readthedocs.org/en/"
             "latest/user/installation.html#cudnn" %
-            dnn.dnn_available.msg)  # pragma: no cover
+            dnn.dnn_present.msg)  # pragma: no cover
 
 
 __all__ = [

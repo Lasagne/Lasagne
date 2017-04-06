@@ -325,8 +325,7 @@ except ImportError:
 import theano
 import theano.gpuarray
 
-theano.config = Mock(device='gpu')
-theano.gpuarray.cuda_enabled = True
+theano.config = Mock(device='cuda')
 theano.gpuarray.dnn = Mock(dnn_available=lambda: True)
 
 import sys

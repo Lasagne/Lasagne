@@ -105,8 +105,7 @@ def apply_penalty(tensor_or_tensors, penalty, **kwargs):
         return penalty(tensor_or_tensors, **kwargs)
 
 
-def regularize_layer_params(layer, penalty,
-                            tags={'regularizable': True}, **kwargs):
+def regularize_layer_params(layer, penalty, tags=None, **kwargs):
     """
     Computes a regularization cost by applying a penalty to the parameters
     of a layer or group of layers.
@@ -126,6 +125,8 @@ def regularize_layer_params(layer, penalty,
     Theano scalar
         a scalar expression for the cost
     """
+    if not tags:
+        tags = {'regularizable': True}
     layers = [layer, ] if isinstance(layer, Layer) else layer
     all_params = []
 
@@ -135,8 +136,7 @@ def regularize_layer_params(layer, penalty,
     return apply_penalty(all_params, penalty, **kwargs)
 
 
-def regularize_layer_params_weighted(layers, penalty,
-                                     tags={'regularizable': True}, **kwargs):
+def regularize_layer_params_weighted(layers, penalty, tags=None, **kwargs):
     """
     Computes a regularization cost by applying a penalty to the parameters
     of a layer or group of layers, weighted by a coefficient for each layer.
@@ -157,6 +157,8 @@ def regularize_layer_params_weighted(layers, penalty,
     Theano scalar
         a scalar expression for the cost
     """
+    if not tags:
+        tags = {'regularizable': True}
     return sum(coeff * apply_penalty(layer.get_params(**tags),
                                      penalty,
                                      **kwargs)
@@ -164,8 +166,7 @@ def regularize_layer_params_weighted(layers, penalty,
                )
 
 
-def regularize_network_params(layer, penalty,
-                              tags={'regularizable': True}, **kwargs):
+def regularize_network_params(layer, penalty, tags=None, **kwargs):
     """
     Computes a regularization cost by applying a penalty to the parameters
     of all layers in a network.
@@ -186,4 +187,6 @@ def regularize_network_params(layer, penalty,
     Theano scalar
         a scalar expression for the cost
     """
+    if not tags:
+        tags = {'regularizable': True}
     return apply_penalty(get_all_params(layer, **tags), penalty, **kwargs)

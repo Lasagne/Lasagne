@@ -349,3 +349,10 @@ def test_orthogonal_1d_not_supported():
 
     with pytest.raises(RuntimeError):
         Orthogonal().sample((100,))
+
+
+def test_relu_normal():
+    from lasagne.init import ReluNormal
+
+    sample = ReluNormal().sample((100, 200))
+    assert sample.shape == (100, 200)

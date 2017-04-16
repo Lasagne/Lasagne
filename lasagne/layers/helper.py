@@ -413,7 +413,7 @@ def count_params(layer, **tags):
     """
     params = get_all_params(layer, **tags)
     shapes = [p.get_value().shape for p in params]
-    counts = [np.prod(shape) for shape in shapes]
+    counts = [np.prod(shape) if shape != () else 1 for shape in shapes]
     return sum(counts)
 
 

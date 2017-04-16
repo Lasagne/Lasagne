@@ -16,6 +16,7 @@ developer.
 .. toctree::
   :maxdepth: 2
 
+  user/about
   user/installation
   user/tutorial
   user/layers

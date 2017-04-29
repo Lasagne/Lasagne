@@ -9,6 +9,7 @@ from .pool import *
 from .shape import *
 from .merge import *
 from .normalization import *
+from .prelu import *
 from .embedding import *
 from .recurrent import *
 from .special import *

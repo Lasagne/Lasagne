@@ -474,39 +474,39 @@ def _interpolate(im, x, y, out_height, out_width, border_mode):
     height_f = T.cast(height, theano.config.floatX)
     width_f = T.cast(width, theano.config.floatX)
 
-    # clip coordinates to [-1, 1]
-    if border_mode == 'nearest':
-        x = T.clip(x, -1, 1)
-        y = T.clip(y, -1, 1)
-    # 0.9 1.0 1.1 -> 0.9 1.0 0.9
-    elif border_mode == 'mirror':
-        xa = T.mod(x + 1, 4) - 1
-        ya = T.mod(y + 1, 4) - 1
-        x = T.minimum(xa, 2 - xa)
-        y = T.minimum(ya, 2 - ya)
-    # 0.9 1.0 1.1 -> 0.9 1.0 -0.9
-    elif border_mode == 'wrap':
-        x = T.mod(x + 1, 2) - 1
-        y = T.mod(y + 1, 2) - 1
-    else:
-        raise ValueError("border_mode must be one of "
-                         "'nearest', 'mirror', 'wrap'")
-
     # scale coordinates from [-1, 1] to [0, width/height - 1]
     x = (x + 1) / 2 * (width_f - 1)
     y = (y + 1) / 2 * (height_f - 1)
 
     # obtain indices of the 2x2 pixel neighborhood surrounding the coordinates;
-    # we need those in floatX for interpolation and in int64 for indexing. for
-    # indexing, we need to take care they do not extend past the image.
+    # we need those in floatX for interpolation and in int64 for indexing.
     x0_f = T.floor(x)
     y0_f = T.floor(y)
     x1_f = x0_f + 1
     y1_f = y0_f + 1
-    x0 = T.cast(x0_f, 'int64')
-    y0 = T.cast(y0_f, 'int64')
-    x1 = T.cast(T.minimum(x1_f, width_f - 1), 'int64')
-    y1 = T.cast(T.minimum(y1_f, height_f - 1), 'int64')
+
+    # for indexing, we need to take care of the border mode for outside pixels.
+    if border_mode == 'nearest':
+        x0 = T.clip(x0_f, 0, width_f - 1)
+        x1 = T.clip(x1_f, 0, width_f - 1)
+        y0 = T.clip(y0_f, 0, height_f - 1)
+        y1 = T.clip(y1_f, 0, height_f - 1)
+    elif border_mode == 'mirror':
+        w = 2 * (width_f - 1)
+        x0 = T.minimum(x0_f % w, -x0_f % w)
+        x1 = T.minimum(x1_f % w, -x1_f % w)
+        h = 2 * (height_f - 1)
+        y0 = T.minimum(y0_f % h, -y0_f % h)
+        y1 = T.minimum(y1_f % h, -y1_f % h)
+    elif border_mode == 'wrap':
+        x0 = T.mod(x0_f, width_f)
+        x1 = T.mod(x1_f, width_f)
+        y0 = T.mod(y0_f, height_f)
+        y1 = T.mod(y1_f, height_f)
+    else:
+        raise ValueError("border_mode must be one of "
+                         "'nearest', 'mirror', 'wrap'")
+    x0, x1, y0, y1 = (T.cast(v, 'int64') for v in (x0, x1, y0, y1))
 
     # The input is [num_batch, height, width, channels]. We do the lookup in
     # the flattened input, i.e [num_batch*height*width, channels]. We need

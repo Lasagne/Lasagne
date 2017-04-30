@@ -439,18 +439,19 @@ class TestTransformLayer():
         outputs = layer.get_output_for([constant(inputs),
                                         constant(thetas)]).eval()
         expected = np.zeros_like(outputs)
-        expected[0, 0, :, (0, 1, 2, 3, 8, 9, 10, 11, 15)] = 1.
+        expected[0, 0] = [.5, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, .5]
 
-        np.testing.assert_allclose(expected, np.ceil(outputs), rtol=1e-6)
+        np.testing.assert_allclose(expected, outputs, rtol=1e-6)
 
         # border_mode='wrap'
         layer = TransformerLayer(l_in, l_loc, border_mode='wrap')
         outputs = layer.get_output_for([constant(inputs),
                                         constant(thetas)]).eval()
         expected = np.zeros_like(outputs)
-        expected[0, 0, :, (0, 1, 4, 5, 8, 9, 12, 13, 15)] = 1.
+        expected[0, 0] = [1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0]
 
-        np.testing.assert_allclose(expected, np.ceil(outputs), rtol=1e-6)
+        np.testing.assert_allclose(expected, outputs, rtol=1e-6)
+
         with pytest.raises(ValueError):
             layer = TransformerLayer(l_in, l_loc, border_mode='invalid')
             outputs = layer.get_output_for([constant(inputs),

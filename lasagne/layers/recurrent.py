@@ -1001,7 +1001,7 @@ class LSTMLayer(MergeLayer):
             # Because the input is given for all time steps, we can
             # precompute_input the inputs dot weight matrices before scanning.
             # W_in_stacked is (n_features, 4*num_units). input is then
-            # (n_time_steps, n_batch, 4*num_units).
+            # (n_time_steps, n_batch, n_features).
             input = T.dot(input, W_in_stacked) + b_stacked
 
         # When theano.scan calls step, input_n will be (n_batch, 4*num_units).
@@ -1388,7 +1388,7 @@ class GRULayer(MergeLayer):
 
         if self.precompute_input:
             # precompute_input inputs*W. W_in is (n_features, 3*num_units).
-            # input is then (n_batch, n_time_steps, 3*num_units).
+            # input is then (n_time_steps, n_batch, n_features).
             input = T.dot(input, W_in_stacked) + b_stacked
 
         # When theano.scan calls step, input_n will be (n_batch, 3*num_units).

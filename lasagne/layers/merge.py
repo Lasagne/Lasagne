@@ -154,7 +154,8 @@ def autocrop(inputs, cropping):
                 else:
                     raise ValueError(
                         'Unknown crop mode \'{0}\''.format(cr))
-
+        
+        assert(len(inputs) == len(slices_by_input))
         return [input[slices] for input, slices in
                 zip(inputs, slices_by_input)]
 

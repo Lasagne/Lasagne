@@ -3,6 +3,7 @@ from collections import OrderedDict
 import theano.tensor as T
 
 from .. import utils
+from .helper import get_all_layers
 
 
 __all__ = [
@@ -46,6 +47,33 @@ class Layer(object):
                 "Cannot create Layer with a non-positive input_shape "
                 "dimension. input_shape=%r, self.name=%r") % (
                     self.input_shape, self.name))
+
+    def __str__(self):
+        """ Returns an `informal` string representation of the entire network contained under this layer.
+            Please do NOT override this method, or __repr__!
+            To create a representation of the layer, override __layer_str.
+            """
+        # TODO: this supports sequential networks, add support for networks with merge layer
+        network = get_all_layers(self)
+        representation = 'input --> '
+        representation += ''.join(['[' + str(i) + '] --> ' for i in range(len(network))])
+        representation += 'output \n' \
+                          'Details:'
+        for i in range(len(network)):
+            try:
+                layer_repr = network[i].__layer_str()
+            except NotImplementedError:
+                layer_repr = type(network[i]).__name__
+            except:
+                raise
+            representation += '\n\t[{0}]: {1}'.format(i, layer_repr)
+        return representation
+
+    def __layer_str(self):
+        """ Returns an `informal` string representation of the layer alone and not all layers under this layer.
+            Override this method to return a custom representation of the Layer.
+            Please do NOT override __str__ or __repr__."""
+        raise NotImplementedError
 
     @property
     def output_shape(self):

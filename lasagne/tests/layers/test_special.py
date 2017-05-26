@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import theano
 from lasagne.layers import InputLayer, standardize, get_output, get_all_params
+from lasagne.utils import floatX
 
 
 class TestExpressionLayer:
@@ -633,8 +634,8 @@ class TestParametricRectifierLayer:
     @pytest.fixture
     def init_alpha(self):
         # initializer for a tensor of unique values
-        return lambda shape: (np.arange(np.prod(shape)).reshape(shape)) \
-            / np.prod(shape)
+        return lambda shape: floatX((np.arange(
+            np.prod(shape)).reshape(shape)) / floatX(np.prod(shape)))
 
     def test_alpha_init(self, ParametricRectifierLayer, init_alpha):
         input_shape = (None, 3, 28, 28)
@@ -698,7 +699,8 @@ class TestParametricRectifierLayer:
         alpha_v = layer.alpha.get_value()
         expected = np.maximum(input, 0) + np.minimum(input, 0) * \
             alpha_v[None, :, :, :]
-        assert np.allclose(layer.get_output_for(input).eval(), expected)
+        assert np.allclose(layer.get_output_for(input).eval(), expected,
+                           atol=1e-07)
 
         # alphas shared over the 1st and 4th axes
         layer = ParametricRectifierLayer(input_shape, shared_axes=(0, 3),
@@ -726,7 +728,7 @@ class TestParametricRectifierLayer:
         expected = np.dot(input, W) + b
         expected = np.maximum(expected, 0) + \
             np.minimum(expected, 0) * alpha_v
-        assert np.allclose(output.eval(), expected)
+        assert np.allclose(output.eval(), expected, atol=1e-07)
 
 
 class TestRandomizedRectifierLayer:

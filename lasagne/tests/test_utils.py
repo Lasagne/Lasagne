@@ -182,6 +182,22 @@ def test_create_param_numpy_returns_shared():
     assert (result.get_value() == param).all()
 
 
+def test_create_param_number_returns_same():
+    from lasagne.utils import create_param
+
+    param = 1
+    result = create_param(param, ())
+    assert result.get_value() == param
+
+
+def test_create_param_numpy_generic_returns_same():
+    from lasagne.utils import create_param
+
+    param = np.int_(2)
+    result = create_param(param, ())
+    assert result.get_value() == param
+
+
 def test_create_param_shared_returns_same():
     from lasagne.utils import create_param
 

@@ -7,6 +7,23 @@ from theano import tensor as T
 import lasagne
 from lasagne.utils import floatX, as_tuple
 
+try:
+    from theano import gpuarray
+    theano_backend = "pygpu"
+except ImportError:
+    from theano.sandbox import gpuarray
+    theano_backend = "pygpu_sandbox"
+gpu = gpuarray.pygpu_activated
+if not gpu:
+    try:
+        from theano.sandbox import cuda
+        theano_backend = "cuda_sandbox"
+        gpu = cuda.cuda_enabled
+    except ImportError:
+        gpu = False
+    if not gpu:
+        theano_backend = "cpu"
+
 
 def convNd(input, kernel, pad, stride=1, n=None):
     """Execute a batch of a stack of N-dimensional convolutions.
@@ -660,9 +677,18 @@ class TestDilatedConv2DLayer:
 
 class TestConv2DDNNLayer:
     def test_import_without_gpu_or_cudnn_raises(self):
-        from theano.sandbox import cuda
-        if cuda.cuda_enabled and cuda.dnn.dnn_available():
-            pytest.skip()
+        if theano_backend == 'pygpu':
+            from theano.gpuarray import dnn
+            if dnn.dnn_present():
+                pytest.skip()
+        elif theano_backend == 'pygpu_sandbox':
+            from theano.sandbox.gpuarray import dnn
+            if dnn.dnn_present():
+                pytest.skip()
+        elif theano_backend == 'cuda_sandbox':
+            from theano.sandbox.cuda import dnn
+            if dnn.dnn_available():
+                pytest.skip()
         else:
             with pytest.raises(ImportError):
                 import lasagne.layers.dnn
@@ -670,8 +696,7 @@ class TestConv2DDNNLayer:
 
 class TestConv2DMMLayer:
     def test_import_without_gpu_raises(self):
-        from theano.sandbox import cuda
-        if cuda.cuda_enabled:
+        if theano_backend in ['pygpu', 'pygpu_sandbox', 'cuda_sandbox']:
             pytest.skip()
         else:
             with pytest.raises(ImportError):
@@ -680,8 +705,7 @@ class TestConv2DMMLayer:
 
 class TestConv2DCCLayer:
     def test_import_without_gpu_raises(self):
-        from theano.sandbox import cuda
-        if cuda.cuda_enabled:
+        if theano_backend in ['pygpu', 'pygpu_sandbox', 'cuda_sandbox']:
             pytest.skip()
         else:
             with pytest.raises(ImportError):

@@ -8,19 +8,32 @@ from .base import Layer
 from .conv import conv_output_length, BaseConvLayer
 from ..utils import as_tuple
 
-from theano.sandbox.cuda.basic_ops import gpu_contiguous
-from theano.sandbox.cuda.blas import GpuCorrMM
-
+# check if Theano's new GPU backend is available and in use
+try:
+    from theano import gpuarray as gpu
+except ImportError:
+    from theano.sandbox import gpuarray as gpu
+gpu_enabled = gpu.pygpu_activated
+# if not, try to fall back to Theano's old GPU backend
+if not gpu_enabled:
+    try:
+        from theano.sandbox import cuda as gpu
+    except ImportError:
+        gpu_enabled = False
+    else:
+        gpu_enabled = gpu.cuda_enabled
+# if either of the backends is available, use it, otherwise bail out
+if gpu_enabled:
+    gpu_contiguous = gpu.basic_ops.gpu_contiguous
+    GpuCorrMM = gpu.blas.GpuCorrMM
+else:
+    raise ImportError(
+        "requires GPU support -- see http://lasagne.readthedocs.org/en/"
+        "latest/user/installation.html#gpu-support")  # pragma: no cover
 
 __all__ = [
     "Conv2DMMLayer",
 ]
-
-
-if not theano.sandbox.cuda.cuda_enabled:
-    raise ImportError(
-            "requires GPU support -- see http://lasagne.readthedocs.org/en/"
-            "latest/user/installation.html#gpu-support")  # pragma: no cover
 
 
 class Conv2DMMLayer(BaseConvLayer):

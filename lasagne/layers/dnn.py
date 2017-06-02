@@ -1,5 +1,5 @@
 import theano
-from theano.sandbox.cuda import dnn
+from theano.gpuarray import dnn
 
 from .. import init
 from .. import nonlinearities
@@ -10,15 +10,11 @@ from .pool import pool_output_length
 from .normalization import BatchNormLayer
 from ..utils import as_tuple
 
-if not theano.sandbox.cuda.cuda_enabled:
-    raise ImportError(
-            "requires GPU support -- see http://lasagne.readthedocs.org/en/"
-            "latest/user/installation.html#gpu-support")  # pragma: no cover
-elif not dnn.dnn_available():
+if not dnn.dnn_present():
     raise ImportError(
             "cuDNN not available: %s\nSee http://lasagne.readthedocs.org/en/"
             "latest/user/installation.html#cudnn" %
-            dnn.dnn_available.msg)  # pragma: no cover
+            dnn.dnn_present.msg)  # pragma: no cover
 
 
 __all__ = [
@@ -40,7 +36,7 @@ class Pool2DDNNLayer(Layer):
 
     Performs 2D mean- or max-pooling over the two trailing axes of a 4D input
     tensor. This is an alternative implementation which uses
-    ``theano.sandbox.cuda.dnn.dnn_pool`` directly.
+    ``theano.gpuarray.dnn.dnn_pool`` directly.
 
     Parameters
     ----------
@@ -149,7 +145,7 @@ class Pool3DDNNLayer(Layer):
 
     Performs 3D mean- or max-pooling over the 3 trailing axes of a 5D input
     tensor. This is an alternative implementation which uses
-    ``theano.sandbox.cuda.dnn.dnn_pool`` directly.
+    ``theano.gpuarray.dnn.dnn_pool`` directly.
 
     Parameters
     ----------
@@ -268,7 +264,7 @@ class Conv2DDNNLayer(BaseConvLayer):
 
     Performs a 2D convolution on its input and optionally adds a bias and
     applies an elementwise nonlinearity.  This is an alternative implementation
-    which uses ``theano.sandbox.cuda.dnn.dnn_conv`` directly.
+    which uses ``theano.gpuarray.dnn.dnn_conv`` directly.
 
     Parameters
     ----------
@@ -394,7 +390,7 @@ class Conv3DDNNLayer(BaseConvLayer):
 
     Performs a 3D convolution on its input and optionally adds a bias and
     applies an elementwise nonlinearity.  This implementation uses
-    ``theano.sandbox.cuda.dnn.dnn_conv3d`` directly.
+    ``theano.gpuarray.dnn.dnn_conv3d`` directly.
 
     Parameters
     ----------

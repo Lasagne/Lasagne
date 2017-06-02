@@ -48,7 +48,7 @@ If everything is set up correctly, you will get an output like the following:
 
 .. code-block:: text
 
-  Using gpu device 0: GeForce GT 640
+  Using CUDA device 0: GeForce GT 640
   Loading data...
   Downloading train-images-idx3-ubyte.gz
   Downloading train-labels-idx1-ubyte.gz

@@ -935,7 +935,7 @@ class TransposedConv2DLayer(BaseConvLayer):
 Deconv2DLayer = TransposedConv2DLayer
 
 
-class TransposedConv3DLayer(BaseConvLayer):
+class TransposedConv3DLayer(BaseConvLayer):  # pragma: no cover
     """
     lasagne.layers.TransposedConv3DLayer(incoming, num_filters, filter_size,
     stride=(1, 1, 1), crop=0, untie_biases=False,
@@ -1126,6 +1126,14 @@ class TransposedConv3DLayer(BaseConvLayer):
         return conved
 
 Deconv3DLayer = TransposedConv3DLayer
+
+
+if not hasattr(T.nnet.abstract_conv,
+               'AbstractConv3d_gradInputs'):  # pragma: no cover
+    # Hide TransposedConv3DLayer for old Theano versions
+    del TransposedConv3DLayer, Deconv3DLayer
+    __all__.remove('TransposedConv3DLayer')
+    __all__.remove('Deconv3DLayer')
 
 
 class DilatedConv2DLayer(BaseConvLayer):

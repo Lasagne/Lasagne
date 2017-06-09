@@ -352,6 +352,9 @@ except NameError:
 if not hasattr(theano.tensor.nnet, 'conv3d'):
     theano.tensor.nnet.conv3d = Mock()
     reload(lasagne.layers.conv)
+if not hasattr(theano.tensor.nnet.abstract_conv, 'AbstractConv3d_gradInputs'):
+    theano.tensor.nnet.abstract_conv.AbstractConv3d_gradInputs = Mock()
+    reload(lasagne.layers.conv)
 if not hasattr(theano.tensor.signal.pool, 'pool_3d'):
     theano.tensor.signal.pool.pool_3d = Mock()
     reload(lasagne.layers.pool)

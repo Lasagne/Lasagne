@@ -67,6 +67,9 @@ class InputLayer(Layer):
             if input_var.ndim != ndim:
                 raise ValueError("shape has %d dimensions, but variable has "
                                  "%d" % (ndim, input_var.ndim))
+            broad_pattern = [s == 1 for s in self.shape]
+            input_var = T.patternbroadcast(input_var, broad_pattern)
+
         self.input_var = input_var
         self.name = name
         self.params = OrderedDict()

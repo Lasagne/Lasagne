@@ -233,8 +233,7 @@ def autocrop_array_shapes(input_shapes, cropping):
             if cr is None:
                 result.append(sh)
             elif cr in {'lower', 'center', 'upper'}:
-                min_sh = None if any(x is None for x in sh) else min(sh)
-                result.append([min_sh] * len(sh))
+                result.append([min(sh)] * len(sh))
             else:
                 raise ValueError('Unknown crop mode \'{0}\''.format(cr))
         return [tuple(sh) for sh in zip(*result)]
@@ -275,9 +274,8 @@ class ConcatLayer(MergeLayer):
                         for sizes in zip(*input_shapes)]
 
         def match(shape1, shape2):
-            axis = self.axis if self.axis >= 0 else len(shape1) + self.axis
             return (len(shape1) == len(shape2) and
-                    all(i == axis or s1 is None or s2 is None or s1 == s2
+                    all(i == self.axis or s1 is None or s2 is None or s1 == s2
                         for i, (s1, s2) in enumerate(zip(shape1, shape2))))
 
         # Check for compatibility with inferred output shape
@@ -338,7 +336,7 @@ class ElemwiseMergeLayer(MergeLayer):
         def broadcasting(input_dim):
             # Identify dimensions that will be broadcasted.
             sorted_dim = sorted(input_dim,
-                                key=lambda x: x if x is not None else -1)
+                                key=lambda x: x if x is not None else None)
             if isinstance(sorted_dim[-1], int) and sorted_dim[-1] != 1 \
                     and all([d == 1 for d in sorted_dim[:-1]]):
                 size_after_broadcast = sorted_dim[-1]

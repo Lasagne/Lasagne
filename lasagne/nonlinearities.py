@@ -159,7 +159,7 @@ def rectify(x):
 
 # leaky rectify
 class LeakyRectify(object):
-    """Leaky rectifier :math:`\\varphi(x) = \\max(\\alpha \\cdot x, x)`
+    """Leaky rectifier :math:`\\varphi(x) = (x > 0)? x : \\alpha \\cdot x`
 
     The leaky rectifier was introduced in [1]_. Compared to the standard
     rectifier :func:`rectify`, it has a nonzero gradient for negative input,

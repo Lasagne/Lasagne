@@ -31,10 +31,20 @@ Convolutional layers
 .. _cuDNN: https://developer.nvidia.com/cudnn
 .. _Theano convolution documentation: http://deeplearning.net/software/theano/library/tensor/nnet/conv.html
 
+.. autoclass:: TransposedConv1DLayer
+    :members:
+    
 .. autoclass:: TransposedConv2DLayer
     :members:
+    
+.. autoclass:: TransposedConv3DLayer
+    :members:
+
+.. autoclass:: Deconv1DLayer
 
 .. autoclass:: Deconv2DLayer
+
+.. autoclass:: Deconv3DLayer
 
 .. autoclass:: DilatedConv2DLayer
     :members:

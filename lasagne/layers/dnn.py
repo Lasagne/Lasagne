@@ -1,3 +1,5 @@
+import warnings
+
 import theano
 
 from .. import init
@@ -39,6 +41,14 @@ else:
     raise ImportError(
         "requires GPU support -- see http://lasagne.readthedocs.org/en/"
         "latest/user/installation.html#gpu-support")  # pragma: no cover
+
+if theano.config.floatX == 'float64':
+    warnings.warn("You are using a GPU layer with Theano configured for "
+                  "double precision (floatX=float64). Depending on your "
+                  "Theano version and GPU, this may be slow or unsupported."
+                  "We recommend to configure Theano for single precision "
+                  "(floatX=float32); see http://lasagne.readthedocs.org/en/"
+                  "latest/user/installation.html#gpu-support.")
 
 __all__ = [
     "Pool2DDNNLayer",

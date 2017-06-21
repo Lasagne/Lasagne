@@ -286,6 +286,74 @@ def softplus(x):
     return theano.tensor.nnet.softplus(x)
 
 
+# Clipped Activation
+class ClippedActivation(object):
+    """Clip an activation function
+    :math:`\\varphi(x, a_min, a_max) = \\clip(a(x), a_min, a_max)`
+
+    Wraps an existing activation fujnction to clip its output range. Useful
+    for non-saturating functions such as the linear rectifier to avoid
+    exploding activations [1]_.
+
+    Parameters
+    ----------
+    clip : float32
+        The upper bound for the activation function.
+    activation : callable
+        The activation function to clip
+
+    Methods
+    -------
+    __call__(x)
+        Apply the clipping to the to the activation `x`.
+
+    Examples
+    --------
+    In contrast to other activation functions in this module, this is
+    a class that needs to be instantiated to obtain a callable:
+
+    >>> from lasagne.layers import InputLayer, DenseLayer
+    >>> l_in = InputLayer((None, 100))
+    >>> from lasagne.nonlinearities import ClippedActivation, rectify
+    >>> custom_activation = ClippedActivation(a_min=0, a_max=20,
+    ... activation=rectify)
+    >>> l1 = DenseLayer(l_in, num_units=200, nonlinearity=custom_activation)
+
+    Alternatively, you can use the provided instance for clip=20,
+    activation=rectify
+
+    >>> from lasagne.nonlinearities import clipped_rectify
+    >>> l2 = DenseLayer(l_in, num_units=200, nonlinearity=clipped_rectify)
+    """
+
+    def __init__(self, a_min=0, a_max=20, activation=rectify):
+        self.a_min = a_min
+        self.a_max = a_max
+        self.activation = activation
+
+    def __call__(self, x):
+        return theano.tensor.clip(self.activation(x), self.a_min, self.a_max)
+
+
+# shortcut with default activation and clip
+clipped_rectify = ClippedActivation()
+clipped_rectify.__doc__ = """clipped_rectify(x)
+
+Instance of :class:`LeakyRectify` with leakiness :math:`\\alpha=1/3`
+
+    Instance of :class:`ClippedActivation' with :math:`\\a_min=0.0
+        \\a_max=20.0 \\activation=rectify`
+
+    References
+    ----------
+    .. [1] Awni Hannun, Carl Case, Jared Casper, Bryan Catanzaro, Greg Diamos,
+            Eric Elsen, Ryan Prenger, Sanjeev Satheesh, Shubho Sengupta,
+            Adam Coates, Andrew Y. Ng (2014):
+       Deep Speech: Scaling up end-to-end speech recognition,
+       http://arxiv.org/abs/1412.5567
+    """
+
+
 # linear
 def linear(x):
     """Linear activation function :math:`\\varphi(x) = x`

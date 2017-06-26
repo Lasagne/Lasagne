@@ -256,7 +256,13 @@ class TestElemwiseSumLayer:
             l_o, {l_a: a, l_b: b}).eval({a: a_, b: b_})
         np.testing.assert_array_almost_equal(output, np.ones((2, 5))+1.0)
         assert shp == (2, None)
-
+        # Testing for broadcastable shape when input var is given
+        l_a = InputLayer((2, 1), input_var=a)
+        l_b = InputLayer((2, 5), input_var=b)
+        l_o = ElemwiseSumLayer([l_a, l_b])
+        output = lasagne.layers.get_output(
+            l_o).eval({a: a_, b: b_})
+        assert l_o.output_shape == (2, 5)
 
 class TestElemwiseMergeLayerMul:
     @pytest.fixture

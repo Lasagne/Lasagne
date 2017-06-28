@@ -242,10 +242,13 @@ class AlphaDropoutLayer(DropoutLayer):
         dropped individually. ``shared_axes=(0,)`` uses the same mask across
         the batch. ``shared_axes=(2, 3)`` uses the same mask across the
         spatial dimensions of 2D feature maps.
+<<<<<<< HEAD
     alpha : float or SELU instance
         The default values are fixed point solutions to equations (4) and (5)
         in [1] for zero mean and unit variance input. The analytic expressions
         for them are given in equation (14) also in [1].
+=======
+>>>>>>> AlphaDropoutLayer implemented as proposed in https://arxiv.org/abs/1706.02515
 
     Notes
     -----

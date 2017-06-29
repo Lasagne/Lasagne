@@ -29,6 +29,12 @@ class InputLayer(Layer):
         A variable representing a network input. If it is not provided, a
         variable will be created.
 
+    allow_broadcast : bool (default : `False`)
+        If set to true, this will broadcast those dimensions of the Theano
+        symbolic variable passed to this Layer which happen to be 1.
+        Note : If this option is set to True, the symbolic variable passed
+        to this Layer will not be same as this layer's `input_var`
+
     Raises
     ------
     ValueError
@@ -47,7 +53,8 @@ class InputLayer(Layer):
     >>> from lasagne.layers import InputLayer
     >>> l_in = InputLayer((100, 20))
     """
-    def __init__(self, shape, input_var=None, name=None, **kwargs):
+    def __init__(self, shape, input_var=None, allow_broadcast=False,
+                 name=None, **kwargs):
         self.shape = tuple(shape)
         if any(d is not None and d <= 0 for d in self.shape):
             raise ValueError((
@@ -67,8 +74,9 @@ class InputLayer(Layer):
             if input_var.ndim != ndim:
                 raise ValueError("shape has %d dimensions, but variable has "
                                  "%d" % (ndim, input_var.ndim))
-            broad_pattern = [s == 1 for s in self.shape]
-            input_var = T.patternbroadcast(input_var, broad_pattern)
+            if allow_broadcast:
+                broad_pattern = [s == 1 for s in self.shape]
+                input_var = T.patternbroadcast(input_var, broad_pattern)
 
         self.input_var = input_var
         self.name = name

@@ -233,6 +233,7 @@ def autocrop_array_shapes(input_shapes, cropping):
             if cr is None:
                 result.append(sh)
             elif cr in {'lower', 'center', 'upper'}:
+                min_sh = None if any(x is None for x in sh) else min(sh)
                 result.append([min(sh)] * len(sh))
             else:
                 raise ValueError('Unknown crop mode \'{0}\''.format(cr))
@@ -274,8 +275,9 @@ class ConcatLayer(MergeLayer):
                         for sizes in zip(*input_shapes)]
 
         def match(shape1, shape2):
+            axis = self.axis if self.axis >= 0 else len(shape1) + self.axis
             return (len(shape1) == len(shape2) and
-                    all(i == self.axis or s1 is None or s2 is None or s1 == s2
+                    all(i == axis or s1 is None or s2 is None or s1 == s2
                         for i, (s1, s2) in enumerate(zip(shape1, shape2))))
 
         # Check for compatibility with inferred output shape
@@ -302,7 +304,8 @@ class ElemwiseMergeLayer(MergeLayer):
 
     Parameters
     ----------
-    incomings : Unless `cropping` is given, all shapes must be equal, except
+    incomings : a list of :class:`Layer` instances or tuples
+        Unless `cropping` is given, all shapes must be equal, except
         for dimensions that are undefined (``None``) or broadcastable (``1``).
 
     merge_function : callable

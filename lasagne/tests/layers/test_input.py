@@ -27,8 +27,9 @@ class TestInputLayer:
         assert InputLayer((1, 2)).input_var.broadcastable == (True, False)
         assert InputLayer((None, 1)).input_var.broadcastable == (False, True)
         assert InputLayer((2, 1, 10, 10),
-                          inp_var).input_var.broadcastable == (False, True,
-                                                               False, False)
+                          inp_var, allow_broadcast=True
+                          ).input_var.broadcastable == (False, True,
+                                                        False, False)
 
     def test_input_var_name(self, layer):
         assert layer.input_var.name == "input"

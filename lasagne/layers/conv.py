@@ -1077,7 +1077,7 @@ class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
     >>> deconv = TransposedConv1DLayer(conv, conv.input_shape[1],
     ...         conv.filter_size, stride=conv.stride, crop=conv.pad,
     ...         W=conv.W, flip_filters=not conv.flip_filters)
-    
+
      References
     ----------
     .. [1] Vincent Dumoulin, Francesco Visin (2016):
@@ -1105,7 +1105,8 @@ if not hasattr(T.nnet.abstract_conv,
     del TransposedConv1DLayer, Deconv1DLayer
     __all__.remove('TransposedConv1DLayer')
     __all__.remove('Deconv1DLayer')
-    
+
+
 class TransposedConv2DLayer(BaseTransposedConvLayer):  # pragma: no cover
     """
     lasagne.layers.TransposedConv2DLayer(incoming, num_filters, filter_size,
@@ -1232,7 +1233,7 @@ class TransposedConv2DLayer(BaseTransposedConvLayer):  # pragma: no cover
     >>> deconv = TransposedConv2DLayer(conv, conv.input_shape[1],
     ...         conv.filter_size, stride=conv.stride, crop=conv.pad,
     ...         W=conv.W, flip_filters=not conv.flip_filters)
-    
+
      References
     ----------
     .. [1] Vincent Dumoulin, Francesco Visin (2016):
@@ -1381,7 +1382,7 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
     >>> deconv = TransposedConv3DLayer(conv, conv.input_shape[1],
     ...         conv.filter_size, stride=conv.stride, crop=conv.pad,
     ...         W=conv.W, flip_filters=not conv.flip_filters)
-    
+
     References
     ----------
     .. [1] Vincent Dumoulin, Francesco Visin (2016):

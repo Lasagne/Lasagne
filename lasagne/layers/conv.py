@@ -862,20 +862,6 @@ class BaseTransposedConvLayer(BaseConvLayer):
     b : Theano shared variable or expression
         Variable or expression representing the biases.
 
-    Notes
-    -----
-    The transposed convolution is implemented as the backward pass of a
-    corresponding non-transposed convolution. It can be thought of as dilating
-    the input (by adding ``stride - 1`` zeros between adjacent input elements),
-    padding it with ``filter_size - 1 - crop`` zeros, and cross-correlating it
-    with the filters. See [1]_ for more background.
-
-    References
-    ----------
-    .. [1] Vincent Dumoulin, Francesco Visin (2016):
-           A guide to convolution arithmetic for deep learning. arXiv.
-           http://arxiv.org/abs/1603.07285,
-           https://github.com/vdumoulin/conv_arithmetic
     """
     def __init__(self, incoming, num_filters, filter_size, stride=1,
                  crop=0, untie_biases=False,
@@ -967,10 +953,10 @@ class BaseTransposedConvLayer(BaseConvLayer):
         return conved
 
 
-class TransposedConv1DLayer(BaseTransposedConvLayer): # pragma: no cover
+class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
     """
     lasagne.layers.TransposedConv1DLayer(incoming, num_filters, filter_size,
-    stride=(1, 1), crop=0, untie_biases=False,
+    stride=1, crop=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
     nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False, **kwargs)
 
@@ -992,10 +978,10 @@ class TransposedConv1DLayer(BaseTransposedConvLayer): # pragma: no cover
         The number of learnable convolutional filters this layer has.
 
     filter_size : int
-        An integer specifying the size of the filters.
+        An integer or 1-element tuple specifying the size of the filters.
 
     stride : int
-        An integer specifying the stride of the
+        An integeror 1-element tuple specifying the stride of the
         transposed convolution operation. For the transposed convolution, this
         gives the dilation factor for the input -- increasing it increases the
         output size.
@@ -1032,12 +1018,12 @@ class TransposedConv1DLayer(BaseTransposedConvLayer): # pragma: no cover
 
         If True, the layer will have separate bias parameters for each
         position in each channel. As a result, the `b` attribute will be a
-        3D tensor.
+        2D matrix.
 
     W : Theano shared variable, expression, numpy array or callable
         Initial value, expression or initializer for the weights.
-        These should be a 4D tensor with shape
-        ``(num_input_channels, num_filters, filter_rows, filter_columns)``.
+        These should be a 3D tensor with shape
+        ``(num_input_channels, num_filters, filter_rows)``.
         Note that the first two dimensions are swapped compared to a
         non-transposed convolution.
         See :func:`lasagne.utils.create_param` for more information.
@@ -1078,7 +1064,11 @@ class TransposedConv1DLayer(BaseTransposedConvLayer): # pragma: no cover
 
     Notes
     -----
-    See `BaseTransposedConvLayer` for more.
+    The transposed convolution is implemented as the backward pass of a
+    corresponding non-transposed convolution. It can be thought of as dilating
+    the input (by adding ``stride - 1`` zeros between adjacent input elements),
+    padding it with ``filter_size - 1 - crop`` zeros, and cross-correlating it
+    with the filters. See [1]_ for more background.
 
     Examples
     --------
@@ -1089,6 +1079,13 @@ class TransposedConv1DLayer(BaseTransposedConvLayer): # pragma: no cover
     >>> deconv = TransposedConv1DLayer(conv, conv.input_shape[1],
     ...         conv.filter_size, stride=conv.stride, crop=conv.pad,
     ...         W=conv.W, flip_filters=not conv.flip_filters)
+    
+     References
+    ----------
+    .. [1] Vincent Dumoulin, Francesco Visin (2016):
+           A guide to convolution arithmetic for deep learning. arXiv.
+           http://arxiv.org/abs/1603.07285,
+           https://github.com/vdumoulin/conv_arithmetic
     """
     def __init__(self, incoming, num_filters, filter_size, stride=1,
                  crop=0, untie_biases=False,
@@ -1104,6 +1101,13 @@ class TransposedConv1DLayer(BaseTransposedConvLayer): # pragma: no cover
 Deconv1DLayer = TransposedConv1DLayer
 
 
+if not hasattr(T.nnet.abstract_conv,
+               'AbstractConv_gradInputs'):  # pragma: no cover
+    # Hide TransposedConv1DLayer for old Theano versions
+    del TransposedConv1DLayer, Deconv1DLayer
+    __all__.remove('TransposedConv1DLayer')
+    __all__.remove('Deconv1DLayer')
+    
 class TransposedConv2DLayer(BaseTransposedConvLayer):  # pragma: no cover
     """
     lasagne.layers.TransposedConv2DLayer(incoming, num_filters, filter_size,
@@ -1215,7 +1219,11 @@ class TransposedConv2DLayer(BaseTransposedConvLayer):  # pragma: no cover
 
     Notes
     -----
-    See `BaseTransposedConvLayer` for more.
+    The transposed convolution is implemented as the backward pass of a
+    corresponding non-transposed convolution. It can be thought of as dilating
+    the input (by adding ``stride - 1`` zeros between adjacent input elements),
+    padding it with ``filter_size - 1 - crop`` zeros, and cross-correlating it
+    with the filters. See [1]_ for more background.
 
     Examples
     --------
@@ -1226,6 +1234,13 @@ class TransposedConv2DLayer(BaseTransposedConvLayer):  # pragma: no cover
     >>> deconv = TransposedConv2DLayer(conv, conv.input_shape[1],
     ...         conv.filter_size, stride=conv.stride, crop=conv.pad,
     ...         W=conv.W, flip_filters=not conv.flip_filters)
+    
+     References
+    ----------
+    .. [1] Vincent Dumoulin, Francesco Visin (2016):
+           A guide to convolution arithmetic for deep learning. arXiv.
+           http://arxiv.org/abs/1603.07285,
+           https://github.com/vdumoulin/conv_arithmetic
     """
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  crop=0, untie_biases=False,
@@ -1244,7 +1259,7 @@ Deconv2DLayer = TransposedConv2DLayer
 class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
     """
     lasagne.layers.TransposedConv3DLayer(incoming, num_filters, filter_size,
-    stride=(1, 1), crop=0, untie_biases=False,
+    stride=(1, 1, 1), crop=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
     nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False, **kwargs)
 
@@ -1284,7 +1299,7 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
         the `pad` argument in a non-transposed convolution.
 
         A single integer results in symmetric cropping of the given size on all
-        borders, a tuple of two integers allows different symmetric cropping
+        borders, a tuple of three integers allows different symmetric cropping
         per dimension.
 
         ``'full'`` disables zero-padding. It is is equivalent to computing the
@@ -1310,8 +1325,9 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
 
     W : Theano shared variable, expression, numpy array or callable
         Initial value, expression or initializer for the weights.
-        These should be a 4D tensor with shape
-        ``(num_input_channels, num_filters, filter_rows, filter_columns)``.
+        These should be a 5D tensor with shape
+        ``(num_input_channels, num_filters, input_depth, input_rows,
+-        input_columns)``.
         Note that the first two dimensions are swapped compared to a
         non-transposed convolution.
         See :func:`lasagne.utils.create_param` for more information.
@@ -1352,19 +1368,30 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
 
     Notes
     -----
-    See `BaseTransposedConvLayer` for more.
+    The transposed convolution is implemented as the backward pass of a
+    corresponding non-transposed convolution. It can be thought of as dilating
+    the input (by adding ``stride - 1`` zeros between adjacent input elements),
+    padding it with ``filter_size - 1 - crop`` zeros, and cross-correlating it
+    with the filters. See [1]_ for more background.
 
     Examples
     --------
     To transpose an existing convolution, with tied filter weights:
 
     >>> from lasagne.layers import Conv3DLayer, TransposedConv3DLayer
-    >>> conv = Conv3DLayer((None, 1, 32, 64, 64), 16, 3, stride=2, pad=2)
+    >>> conv = Conv3DLayer((None, 1, 32, 32, 32), 16, 3, stride=2, pad=2)
     >>> deconv = TransposedConv3DLayer(conv, conv.input_shape[1],
     ...         conv.filter_size, stride=conv.stride, crop=conv.pad,
     ...         W=conv.W, flip_filters=not conv.flip_filters)
+    
+    References
+    ----------
+    .. [1] Vincent Dumoulin, Francesco Visin (2016):
+           A guide to convolution arithmetic for deep learning. arXiv.
+           http://arxiv.org/abs/1603.07285,
+           https://github.com/vdumoulin/conv_arithmetic
     """
-    def __init__(self, incoming, num_filters, filter_size, stride=1,
+    def __init__(self, incoming, num_filters, filter_size, stride=(1, 1, 1),
                  crop=0, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, flip_filters=False,
@@ -1378,20 +1405,6 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
 Deconv3DLayer = TransposedConv3DLayer
 
 
-if not hasattr(T.nnet.abstract_conv,
-               'AbstractConv_gradInputs'):  # pragma: no cover
-    # Hide TransposedConv1DLayer for old Theano versions
-    del TransposedConv1DLayer, Deconv1DLayer
-    __all__.remove('TransposedConv1DLayer')
-    __all__.remove('Deconv1DLayer')
-    
-if not hasattr(T.nnet.abstract_conv,
-               'AbstractConv2d_gradInputs'):  # pragma: no cover
-    # Hide TransposedConv2DLayer for old Theano versions
-    del TransposedConv2DLayer, Deconv2DLayer
-    __all__.remove('TransposedConv2DLayer')
-    __all__.remove('Deconv2DLayer')
-    
 if not hasattr(T.nnet.abstract_conv,
                'AbstractConv3d_gradInputs'):  # pragma: no cover
     # Hide TransposedConv3DLayer for old Theano versions

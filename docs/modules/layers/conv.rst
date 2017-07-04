@@ -34,15 +34,15 @@ Convolutional layers
 .. autoclass:: TransposedConv1DLayer
     :members:
     
+.. autoclass:: Deconv1DLayer
+    
 .. autoclass:: TransposedConv2DLayer
     :members:
+
+.. autoclass:: Deconv2DLayer
     
 .. autoclass:: TransposedConv3DLayer
     :members:
-
-.. autoclass:: Deconv1DLayer
-
-.. autoclass:: Deconv2DLayer
 
 .. autoclass:: Deconv3DLayer
 

@@ -74,10 +74,10 @@
     Conv2DLayer
     Conv3DLayer
     TransposedConv1DLayer
-    TransposedConv2DLayer
-    TransposedConv3DLayer
     Deconv1DLayer
+    TransposedConv2DLayer
     Deconv2DLayer
+    TransposedConv3DLayer
     Deconv3DLayer
     DilatedConv2DLayer
 

@@ -215,7 +215,7 @@ def transp_conv1d_test_sets():
     yield _convert(input, kernel, output, {'crop': 'valid',
                                            'flip_filters': True})
     # flip_filters=False case
-    output = transposed_convNd(input, kernel[:, :, ::-1, ::-1], 'valid')
+    output = transposed_convNd(input, kernel[:, :, ::-1], 'valid')
     yield _convert(input, kernel, output, {'flip_filters': False})
     # extend (w/ and w/out symbolic output shape)
     for symbolic in [False, True]:

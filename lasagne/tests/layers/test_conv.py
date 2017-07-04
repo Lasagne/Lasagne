@@ -198,7 +198,7 @@ def transp_conv1d_test_sets():
                     continue
                 input = np.random.random(input_shape)
                 kernel = np.random.random((16, 1, filter_size))
-                output = transposed_convNd(input, kernel, crop, stride, 2)
+                output = transposed_convNd(input, kernel, crop, stride, 1)
                 yield _convert(input, kernel, output, {'crop': crop,
                                                        'stride': stride,
                                                        'flip_filters': True})

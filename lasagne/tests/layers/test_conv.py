@@ -182,8 +182,8 @@ def conv2d_test_sets():
 
 def conv1d_test_sets():
     return convNd_test_sets(1)
-    
-    
+
+
 def transp_conv1d_test_sets():
     def _convert(input, kernel, output, kwargs):
         return [floatX(input), floatX(kernel), output, kwargs]
@@ -677,13 +677,13 @@ class TestTransposedConv1DLayer:
         "input, kernel, output, kwargs", list(transp_conv1d_test_sets()))
     def test_defaults(self, DummyInputLayer, input, kernel, output, kwargs):
         from lasagne.layers import TransposedConv1DLayer
-        b, c, h, w = input.shape
-        input_layer = DummyInputLayer((b, c, h, w))
+        b, c, h = input.shape
+        input_layer = DummyInputLayer((b, c, h))
         layer = TransposedConv1DLayer(
                 input_layer,
                 num_filters=kernel.shape[0],
                 filter_size=kernel.shape[2:],
-                W=kernel.transpose(1, 0, 2, 3),
+                W=kernel.transpose(1, 0, 2),
                 **kwargs)
         actual = layer.get_output_for(input).eval()
         assert actual.shape == output.shape
@@ -703,17 +703,17 @@ class TestTransposedConv1DLayer:
         if kwargs.get('untie_biases', False):
             pytest.skip()
         from lasagne.layers import TransposedConv1DLayer
-        b, c, h, w = input.shape
-        input_layer = DummyInputLayer((None, c, None, None))
+        b, c, h = input.shape
+        input_layer = DummyInputLayer((None, c, None))
         layer = TransposedConv1DLayer(
                 input_layer,
                 num_filters=kernel.shape[0],
                 filter_size=kernel.shape[2:],
-                W=kernel.transpose(1, 0, 2, 3),
+                W=kernel.transpose(1, 0, 2),
                 **kwargs)
         if 'output_size' not in kwargs or isinstance(kwargs['output_size'],
                                                      T.Variable):
-            assert layer.output_shape == (None, output.shape[1], None, None)
+            assert layer.output_shape == (None, output.shape[1], None)
         actual = layer.get_output_for(input).eval()
         assert actual.shape == output.shape
         assert np.allclose(actual, output)

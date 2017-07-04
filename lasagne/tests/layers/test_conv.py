@@ -223,7 +223,7 @@ def transp_conv1d_test_sets():
         input = np.random.random(input_shape)
         kernel = np.random.random((16, 3, 2))
         stride = (2)
-        for extend in [(0, 1), (1, 2)]:
+        for extend in [(0,), (1,)]:
             output = transposed_convNd(input, kernel, 0, stride, extend=extend)
             kwargs = {'stride': stride, 'flip_filters': True}
             if symbolic:
@@ -273,7 +273,7 @@ def transp_conv2d_test_sets():
         input = np.random.random(input_shape)
         kernel = np.random.random((16, 3, 2, 3))
         stride = (2, 3)
-        for extend in [(0,), (1,)]:
+        for extend in [(0, 1), (1, 2)]:
             output = transposed_convNd(input, kernel, 0, stride, extend=extend)
             kwargs = {'stride': stride, 'flip_filters': True}
             if symbolic:

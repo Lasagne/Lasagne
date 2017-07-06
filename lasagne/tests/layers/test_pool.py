@@ -989,6 +989,76 @@ class TestUpscale2DLayer:
             input_shape) == output_shape
 
 
+class TestUpscaleBilinear2DLayer:
+    def scale_factor_test_sets():
+        for scale_factor in [2, 3]:
+            yield scale_factor
+
+    def kernel_test_sets():
+        for elem in [True, False]:
+            yield elem
+
+    def input_layer(self, output_shape):
+        return Mock(output_shape=output_shape)
+
+    def layer(self, input_layer, scale_factor, use_1D_kernel):
+        from lasagne.layers.pool import UpscaleBilinear2DLayer
+        return UpscaleBilinear2DLayer(
+            input_layer,
+            scale_factor=scale_factor,
+            use_1D_kernel=use_1D_kernel
+        )
+
+    def test_invalid_scale_factor(self):
+        from lasagne.layers.pool import UpscaleBilinear2DLayer
+        inlayer = self.input_layer((128, 3, 32, 32))
+        with pytest.raises(ValueError):
+            UpscaleBilinear2DLayer(inlayer, scale_factor=0)
+        with pytest.raises(ValueError):
+            UpscaleBilinear2DLayer(inlayer, scale_factor=-1)
+        with pytest.raises(ValueError):
+            UpscaleBilinear2DLayer(inlayer, scale_factor=(2, 2))
+
+    @pytest.mark.parametrize(
+        "scale_factor", list(scale_factor_test_sets()))
+    @pytest.mark.parametrize(
+        "use_1D_kernel", list(kernel_test_sets()))
+    def test_get_output_for(self, scale_factor, use_1D_kernel):
+        input = floatX(np.random.randn(8, 16, 17, 13))
+        input_layer = self.input_layer(input.shape)
+        input_theano = theano.shared(input)
+        result = self.layer(
+            input_layer,
+            scale_factor,
+            use_1D_kernel
+        ).get_output_for(input_theano)
+
+        result_eval = result.eval()
+
+        assert result_eval.shape[2] == input.shape[2]*scale_factor
+        assert result_eval.shape[3] == input.shape[3]*scale_factor
+
+    @pytest.mark.parametrize(
+        "input_shape,output_shape",
+        [((32, 64, 24, 24), (32, 64, 48, 48)),
+         ((None, 64, 24, 24), (None, 64, 48, 48)),
+         ((32, None, 24, 24), (32, None, 48, 48)),
+         ((32, 64, None, 24), (32, 64, None, 48)),
+         ((32, 64, 24, None), (32, 64, 48, None)),
+         ((32, 64, None, None), (32, 64, None, None))],
+    )
+    @pytest.mark.parametrize(
+        "use_1D_kernel", list(kernel_test_sets()))
+    def test_get_output_shape_for(self, input_shape, output_shape,
+                                  use_1D_kernel):
+        input_layer = self.input_layer(input_shape)
+        layer = self.layer(input_layer,
+                           scale_factor=2,
+                           use_1D_kernel=use_1D_kernel)
+        assert layer.get_output_shape_for(
+            input_shape) == output_shape
+
+
 class TestUpscale3DLayer:
     def scale_factor_test_sets():
         for scale_factor in [2, 3]:

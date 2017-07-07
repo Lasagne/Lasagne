@@ -740,11 +740,11 @@ class UpscaleBilinear2DLayer(Layer):
         self.scale_factor = scale_factor
         self.use_1D_kernel = use_1D_kernel
 
+        if isinstance(self.scale_factor, tuple):
+            raise ValueError('Scale factor must be a scalar, not a tuple')
         if self.scale_factor < 1:
             raise ValueError('Scale factor must be >= 1, not {0}'.format(
                 self.scale_factor))
-        if isinstance(self.scale_factor, tuple):
-            raise ValueError('Scale factor must be a scalar, not a tuple')
 
     def get_output_shape_for(self, input_shape):
         h = input_shape[2]*self.scale_factor \

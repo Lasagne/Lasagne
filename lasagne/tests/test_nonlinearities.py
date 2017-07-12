@@ -19,6 +19,20 @@ class TestNonlinearities(object):
     def elu(self, x, alpha=1):
         return np.where(x > 0, x, alpha * (np.expm1(x)))
 
+    def selu(self, x, alpha=1, lmbda=1):
+        return lmbda * np.where(x > 0, x, alpha * np.expm1(x))
+
+    def selu_paper(self, x):
+        return self.selu(x,
+                         alpha=1.6732632423543772848170429916717,
+                         lmbda=1.0507009873554804934193349852946)
+
+    def selu_rect(self, x):
+        return self.selu(x, alpha=0, lmbda=1)
+
+    def selu_custom(self, x):
+        return self.selu(x, alpha=0.12, lmbda=1.21)
+
     def softplus(self, x):
         return np.log1p(np.exp(x))
 
@@ -39,7 +53,10 @@ class TestNonlinearities(object):
 
     @pytest.mark.parametrize('nonlinearity',
                              ['linear', 'rectify',
-                              'leaky_rectify', 'elu', 'sigmoid',
+                              'leaky_rectify', 'elu',
+                              'selu', 'selu_paper',
+                              'selu_rect', 'selu_custom',
+                              'sigmoid',
                               'tanh', 'scaled_tanh',
                               'softmax', 'leaky_rectify_0',
                               'scaled_tanh_p', 'softplus'])
@@ -55,6 +72,16 @@ class TestNonlinearities(object):
         elif nonlinearity == 'scaled_tanh_p':
             from lasagne.nonlinearities import ScaledTanH
             theano_nonlinearity = ScaledTanH(scale_in=0.5, scale_out=2.27)
+        elif nonlinearity.startswith('selu'):
+            from lasagne.nonlinearities import SELU, selu
+            if nonlinearity == 'selu':
+                theano_nonlinearity = SELU()
+            elif nonlinearity == 'selu_paper':
+                theano_nonlinearity = selu
+            elif nonlinearity == 'selu_rect':
+                theano_nonlinearity = SELU(scale=1, scale_neg=0)
+            elif nonlinearity == 'selu_custom':
+                theano_nonlinearity = SELU(scale=1.21, scale_neg=0.12)
         else:
             theano_nonlinearity = getattr(lasagne.nonlinearities,
                                           nonlinearity)

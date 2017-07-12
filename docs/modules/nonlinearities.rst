@@ -14,6 +14,8 @@
    leaky_rectify
    very_leaky_rectify
    elu
+   SELU
+   selu
    softplus
    linear
    identity
@@ -33,6 +35,9 @@ Detailed description
 .. autofunction:: leaky_rectify
 .. autofunction:: very_leaky_rectify
 .. autofunction:: elu
+.. autoclass:: SELU
+   :members:
+.. autofunction:: selu
 .. autofunction:: softplus
 .. autofunction:: linear
 .. autofunction:: identity

@@ -334,6 +334,12 @@ sys.modules['theano.sandbox.cuda.basic_ops'] = theano.sandbox.cuda.basic_ops
 theano.sandbox.cuda.cuda_enabled = True
 theano.sandbox.cuda.dnn.dnn_available = lambda: True
 
+theano.gpuarray = Mock()
+sys.modules['theano.gpuarray'] = theano.gpuarray
+sys.modules['theano.gpuarray.dnn'] = theano.gpuarray.dnn
+theano.gpuarray.pygpu_activated = True
+theano.gpuarray.dnn.dnn_present = lambda: True
+
 sys.modules['pylearn2'] = Mock()
 sys.modules['pylearn2.sandbox'] = Mock()
 sys.modules['pylearn2.sandbox.cuda_convnet'] = Mock()

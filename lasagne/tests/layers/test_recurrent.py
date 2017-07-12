@@ -1,8 +1,11 @@
 import pytest
 
-from lasagne.layers import RecurrentLayer, LSTMLayer, CustomRecurrentLayer
-from lasagne.layers import InputLayer, DenseLayer, GRULayer, Gate, Layer
-from lasagne.layers import helper
+from lasagne.layers import (
+    Layer, InputLayer, DenseLayer, ReshapeLayer, ConcatLayer,
+    RecurrentContainerLayer, CellLayer, CustomRecurrentCell,
+    CustomRecurrentLayer, DenseRecurrentCell, RecurrentLayer, Gate,
+    LSTMCell, LSTMLayer, GRUCell, GRULayer, IdentityLayer, helper
+)
 import theano
 import theano.tensor as T
 import numpy as np
@@ -79,8 +82,8 @@ def test_recurrent_nparams_hid_init_layer():
     l_rec = RecurrentLayer(l_inp, 7, hid_init=l_inp_h_de)
 
     # directly check the layers can be seen through hid_init
-    assert lasagne.layers.get_all_layers(l_rec) == [l_inp, l_inp_h, l_inp_h_de,
-                                                    l_rec]
+    assert set(lasagne.layers.get_all_layers(l_rec)) == {
+        l_inp, l_inp_h, l_inp_h_de, l_rec}
 
     # b, W_hid_to_hid and W_in_to_hid + W + b
     assert len(lasagne.layers.get_all_params(l_rec, trainable=True)) == 5
@@ -154,7 +157,7 @@ def test_recurrent_hid_init_layer_eval():
 def test_recurrent_incoming_tuple():
     input_shape = (2, 3, 4)
     l_rec = lasagne.layers.RecurrentLayer(input_shape, 5)
-    assert l_rec.input_shapes[0] == input_shape
+    assert list(l_rec.input_shapes.values()) == [input_shape]
 
 
 def test_recurrent_name():
@@ -298,15 +301,7 @@ def test_custom_recurrent_non_unique_inputs():
     # Ensure that trying to use either 'bad' graph raises ValueError
     with pytest.raises(ValueError):
         l_rec = lasagne.layers.CustomRecurrentLayer(
-            l_in, l_in_to_hid_bad, l_hid_to_hid)
-
-    with pytest.raises(ValueError):
-        l_rec = lasagne.layers.CustomRecurrentLayer(
             l_in, l_in_to_hid, l_hid_to_hid_bad)
-
-    with pytest.raises(ValueError):
-        l_rec = lasagne.layers.CustomRecurrentLayer(
-            l_in, l_in_to_hid_bad, l_hid_to_hid_bad)
 
     l_rec = lasagne.layers.CustomRecurrentLayer(
         l_in, l_in_to_hid, l_hid_to_hid)
@@ -601,9 +596,9 @@ def test_lstm_nparams_hid_init_layer():
     l_lstm = LSTMLayer(l_inp, 7, hid_init=l_inp_h_de, cell_init=l_inp_cell_de)
 
     # directly check the layers can be seen through hid_init
-    layers_to_find = [l_inp, l_inp_h, l_inp_h_de, l_inp_cell, l_inp_cell_de,
-                      l_lstm]
-    assert lasagne.layers.get_all_layers(l_lstm) == layers_to_find
+    layers_to_find = {l_inp, l_inp_h, l_inp_h_de, l_inp_cell, l_inp_cell_de,
+                      l_lstm}
+    assert set(lasagne.layers.get_all_layers(l_lstm)) == layers_to_find
 
     # 3*n_gates + 4
     # the 3 is because we have  hid_to_gate, in_to_gate and bias for each gate
@@ -716,9 +711,9 @@ def test_lstm_bck():
 
 
 def test_lstm_precompute():
-    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_batch, seq_len, n_features1, n_features2 = 2, 3, 4, 5
     num_units = 2
-    in_shp = (num_batch, seq_len, n_features1)
+    in_shp = (num_batch, seq_len, n_features1, n_features2)
     l_inp = InputLayer(in_shp)
     l_mask_inp = InputLayer(in_shp[:2])
 
@@ -921,8 +916,8 @@ def test_gru_nparams_hid_init_layer():
     l_gru = GRULayer(l_inp, 7, hid_init=l_inp_h_de)
 
     # directly check the layers can be seen through hid_init
-    assert lasagne.layers.get_all_layers(l_gru) == [l_inp, l_inp_h, l_inp_h_de,
-                                                    l_gru]
+    assert set(lasagne.layers.get_all_layers(l_gru)) == {
+        l_inp, l_inp_h, l_inp_h_de, l_gru}
 
     # 3*n_gates + 2
     # the 3 is because we have  hid_to_gate, in_to_gate and bias for each gate
@@ -1094,9 +1089,9 @@ def test_gru_unroll_scan_bck():
 
 
 def test_gru_precompute():
-    num_batch, seq_len, n_features1 = 2, 3, 4
+    num_batch, seq_len, n_features1, n_features2 = 2, 3, 4, 5
     num_units = 2
-    in_shp = (num_batch, seq_len, n_features1)
+    in_shp = (num_batch, seq_len, n_features1, n_features2)
     l_inp = InputLayer(in_shp)
     l_mask_inp = InputLayer(in_shp[:2])
 
@@ -1222,3 +1217,284 @@ def test_CustomRecurrentLayer_child_kwargs():
     args, kwargs = hid_to_hid.get_output_for.call_args
     assert len(args) == 1
     assert kwargs == {'foo': 'bar'}
+
+
+def test_cell_dense():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 4
+    x_in = np.random.random((num_batch, seq_len, n_features)).astype('float32')
+    l_inp = InputLayer((num_batch, seq_len, n_features))
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = ReshapeLayer(l_inp, (num_batch * seq_len, -1))
+    l_rec_1 = DenseLayer(l_rec_1, num_units)
+    l_rec_1 = ReshapeLayer(l_rec_1, (num_batch, seq_len, -1))
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseLayer(cell_inp, num_units)
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_lstm():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units_1, num_units_2 = 5, 6
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = LSTMLayer(l_inp, num_units=num_units_1)
+    l_rec_1 = LSTMLayer(l_rec_1, num_units=num_units_2)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = LSTMCell(cell_inp, num_units_1)['output']
+    cell = LSTMCell(cell, num_units_2)['output']
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_dense_lstm():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units_1, num_units_2 = 5, 6
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = ReshapeLayer(l_inp, (num_batch * seq_len, -1))
+    l_rec_1 = DenseLayer(l_rec_1, num_units_1)
+    l_rec_1 = ReshapeLayer(l_rec_1, (num_batch, seq_len, -1))
+    l_rec_1 = LSTMLayer(l_rec_1, num_units=num_units_2)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseLayer(cell_inp, num_units_1)
+    cell = LSTMCell(cell, num_units_2)['output']
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_init_fixed():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 5
+    cell_inp = InputLayer((num_batch, n_features))
+
+    with pytest.raises(ValueError):
+        DenseRecurrentCell(cell_inp, num_units, inits_fixed={
+            'non_existent_init'})
+
+
+def test_cell_multi_output():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 5
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = LSTMLayer(l_inp, num_units=num_units)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = LSTMCell(cell_inp, num_units)
+    l_rec_2 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    assert helper.get_output_shape(l_rec_2, x_in.shape) == \
+        {'output': (2, 3, 5), 'cell': (2, 3, 5)}
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2_cell = helper.get_output(l_rec_2)['cell'].eval(
+        {l_inp.input_var: x_in})
+    output_2_output = helper.get_output(l_rec_2)['output'].eval(
+        {l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2_output)
+    assert output_2_cell.shape == (2, 3, 5)
+
+
+def test_cell_precompute_inputs():
+    # precompute inputs may supplement actual inputs
+    class Cell(CellLayer):
+        def __init__(self, incoming):
+            super(Cell, self).__init__(
+                {'input': incoming}, {'output': lasagne.init.Constant(0.)})
+
+        def get_output_shape_for(self, input_shapes):
+            return {'output': input_shapes['input']}
+
+        def precompute_for(self, inputs, **kwargs):
+            return {'precompute': inputs['input'] + 1}
+
+        def get_output_for(self, inputs, precompute_input=False, **kwargs):
+            return {'output': inputs['precompute'] if precompute_input else
+                    inputs['input'] + 1}
+
+    num_batch, seq_len, n_features = 2, 3, 4
+    x_in = np.random.random((num_batch, seq_len, n_features)).astype('float32')
+
+    lasagne.random.get_rng().seed(1234)
+    l_inp = InputLayer((num_batch, seq_len, n_features))
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = Cell(cell_inp)['output']
+
+    l_rec_1 = RecurrentContainerLayer(
+        {cell_inp: l_inp}, cell, precompute_input=True)
+    l_rec_2 = RecurrentContainerLayer(
+        {cell_inp: l_inp}, cell, precompute_input=False)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_multi_precompute():
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units_1, num_units_2 = 5, 6
+    in_shp = (num_batch, seq_len, n_features)
+
+    x_in = np.random.random(in_shp).astype('float32')
+    l_inp = InputLayer(in_shp)
+
+    lasagne.random.get_rng().seed(1234)
+    l_rec_1 = LSTMLayer(l_inp, num_units=num_units_1)
+    l_rec_2 = GRULayer(l_inp, num_units=num_units_2)
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell_1 = LSTMCell(cell_inp, num_units_1)['output']
+    cell_2 = GRUCell(cell_inp, num_units_2)['output']
+    cell = IdentityLayer({1: cell_1, 2: cell_2})
+    l_rec_3 = RecurrentContainerLayer({cell_inp: l_inp}, cell)
+
+    assert helper.get_output_shape(l_rec_3, x_in.shape) == \
+        {1: (2, 3, 5), 2: (2, 3, 6)}
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    output_3_1 = helper.get_output(l_rec_3)[1].eval({l_inp.input_var: x_in})
+    output_3_2 = helper.get_output(l_rec_3)[2].eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_3_1)
+    assert np.allclose(output_2, output_3_2)
+
+
+def test_cell_no_input_sequence():
+    num_batch, seq_len, n_features = 2, 3, 4
+    x_in = np.random.random((num_batch, n_features)).astype('float32')
+    l_inp = InputLayer((num_batch, n_features))
+
+    lasagne.random.get_rng().seed(1234)
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = CustomRecurrentCell(
+        None, None, DenseLayer(cell_inp, n_features), hid_init=l_inp)['output']
+    l_rec_1 = lasagne.layers.RecurrentContainerLayer(
+        {}, cell, n_steps=seq_len, only_return_final=True)
+
+    l_rec_2 = l_inp
+    for i in range(seq_len):
+        lasagne.random.get_rng().seed(1234)
+        l_rec_2 = DenseLayer(l_rec_2, n_features)
+
+    assert helper.get_output_shape(l_rec_1, x_in.shape) == (2, 4)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_fixed_init():
+    # test cell where an init is fixed and not updated
+    class Cell(CellLayer):
+        def __init__(self, add_init, output_init, **kwargs):
+            super(Cell, self).__init__(
+                {}, {'add': add_init, 'output': output_init}, **kwargs)
+
+        def get_output_shape_for(self, input_shapes):
+            return {'output': (input_shapes['output'])}
+
+        def get_output_for(self, inputs, **kwargs):
+            return {'output': inputs['output'] + inputs['add']}
+
+    num_batch, seq_len, n_features = 2, 3, 4
+    add_in = np.ones((num_batch, n_features)).astype('float32')
+    add_init = InputLayer((num_batch, n_features))
+    output_in = np.zeros((num_batch, n_features)).astype('float32')
+    output_init = InputLayer((num_batch, n_features))
+    cell = Cell(add_init, output_init)
+    l_rec = lasagne.layers.RecurrentContainerLayer({}, cell, n_steps=seq_len)
+
+    output = helper.get_output(l_rec)['output'].eval(
+        {add_init.input_var: add_in, output_init.input_var: output_in})
+    ones = np.ones(n_features)
+    assert np.allclose(output, [[ones*1, ones*2, ones*3]]*num_batch)
+
+
+def test_cell_fixed_step_input():
+    # test cell where each step has the same input
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = 5
+
+    x_in = np.random.random((num_batch, n_features)).astype('float32')
+
+    lasagne.random.get_rng().seed(1234)
+    l_inp_1 = InputLayer((num_batch, seq_len, n_features))
+    l_rec_1 = RecurrentLayer(l_inp_1, num_units=num_units, n_steps=seq_len)
+
+    lasagne.random.get_rng().seed(1234)
+    l_inp_2 = InputLayer((num_batch, n_features))
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseRecurrentCell(cell_inp, num_units)['output']
+    l_rec_2 = RecurrentContainerLayer(
+        {}, cell, {cell_inp: l_inp_2}, n_steps=seq_len)
+
+    output_1 = helper.get_output(l_rec_1).eval({
+        l_inp_1.input_var: np.tile(x_in, seq_len).reshape(
+            (num_batch, seq_len, n_features))})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp_2.input_var: x_in})
+    assert np.allclose(output_1, output_2)
+
+
+def test_cell_step_input():
+    # test cell where the step input of a cell comes from another cell
+    num_batch, seq_len, n_features = 2, 3, 4
+    num_units = n_features
+
+    lasagne.random.get_rng().seed(1234)
+    x_in = np.ones((num_batch, num_units)).astype('float32')
+    W_in_to_hid = np.random.random((n_features, num_units))
+    W_hid_to_hid = np.random.random((n_features, num_units))
+
+    l_inp_1 = InputLayer((num_batch, n_features))
+    l_rec = ReshapeLayer(l_inp_1, (num_batch, 1, n_features))
+    l_recs = [l_rec]
+    for i in range(seq_len):
+        l_recs.append(RecurrentLayer(
+            l_recs[-1], num_units, W_in_to_hid=W_in_to_hid,
+            W_hid_to_hid=W_hid_to_hid,
+            hid_init=ReshapeLayer(l_recs[-1], (num_batch, n_features))))
+    l_rec_1 = ConcatLayer(l_recs[1:])
+
+    l_inp_2 = InputLayer((num_batch, num_units))
+    cell_inp = InputLayer((num_batch, n_features))
+    cell = DenseRecurrentCell(
+        cell_inp, num_units, W_in_to_hid=W_in_to_hid,
+        W_hid_to_hid=W_hid_to_hid, hid_init=l_inp_2)['output']
+    l_rec_2 = RecurrentContainerLayer(
+        {}, cell, {cell_inp: cell}, n_steps=seq_len)
+
+    output_1 = helper.get_output(l_rec_1).eval({l_inp_1.input_var: x_in})
+    output_2 = helper.get_output(l_rec_2).eval({l_inp_2.input_var: x_in})
+    assert np.allclose(output_1, output_2)

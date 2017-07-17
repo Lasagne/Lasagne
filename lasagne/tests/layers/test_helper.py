@@ -259,13 +259,14 @@ class TestGetOutput_Layer:
 
     def test_layer_from_shape_invalid_get_output(self, layer_from_shape,
                                                  get_output):
+        from lasagne.layers.base import Layer
         layer = layer_from_shape
         with pytest.raises(ValueError):
             get_output(layer)
         with pytest.raises(ValueError):
             get_output(layer, [1, 2])
         with pytest.raises(ValueError):
-            get_output(layer, {Mock(): [1, 2]})
+            get_output(layer, {Mock(spec=Layer): [1, 2]})
 
     def test_layer_from_shape_valid_get_output(self, layer_from_shape,
                                                get_output):
@@ -453,6 +454,11 @@ class TestGetOutput_MergeLayer:
         assert get_output(layer, inputs) is layer.get_output_for.return_value
         layer.get_output_for.assert_called_with(
             [inputs[None], layer.input_layers[1].input_var])
+
+    def test_invalid_input_key(self, layer_from_shape, get_output):
+        layer = layer_from_shape
+        with pytest.raises(TypeError):
+            get_output(layer, {Mock(): [1, 2]})
 
 
 class TestGetOutputShape_InputLayer:

@@ -49,10 +49,9 @@ network with variable batch size and number of time steps.
 >>> batchsize, seqlen, _ = l_inp.input_var.shape
 >>> l_lstm = LSTMLayer(l_inp, num_units=num_units)
 >>> # In order to connect a recurrent layer to a dense layer, we need to
->>> # flatten the first two dimensions (our "sample dimensions"); this will
->>> # cause each time step of each sequence to be processed independently
->>> l_shp = ReshapeLayer(l_lstm, (-1, num_units))
->>> l_dense = DenseLayer(l_shp, num_units=num_classes)
+>>> # process each time step of each sequence to be independently.
+>>> # this will be taken care of by setting the `num_leading_axes` to -1
+>>> l_dense = DenseLayer(l_lstm, num_units=num_classes, num_leading_axes=-1)
 >>> # To reshape back to our original shape, we can use the symbolic shape
 >>> # variables we retrieved above.
 >>> l_out = ReshapeLayer(l_dense, (batchsize, seqlen, num_classes))

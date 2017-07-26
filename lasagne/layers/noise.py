@@ -242,6 +242,10 @@ class AlphaDropoutLayer(DropoutLayer):
         dropped individually. ``shared_axes=(0,)`` uses the same mask across
         the batch. ``shared_axes=(2, 3)`` uses the same mask across the
         spatial dimensions of 2D feature maps.
+    alpha : float or SELU instance
+        The default values are fixed point solutions to equations (4) and (5)
+        in [1] for zero mean and unit variance input. The analytic expressions
+        for them are given in equation (14) also in [1].
 
     Notes
     -----
@@ -269,9 +273,12 @@ class AlphaDropoutLayer(DropoutLayer):
                                                 rescale=rescale,
                                                 shared_axes=shared_axes,
                                                 **kwargs)
+        from lasagne.nonlinearities import SELU
         if alpha is None:
             self.alpha = -1.0507009873554804934193349852946 * \
                          1.6732632423543772848170429916717
+        elif isinstance(alpha, SELU):
+            self.alpha = - alpha.scale * alpha.scale_neg
         else:
             self.alpha = alpha
 
@@ -280,8 +287,8 @@ class AlphaDropoutLayer(DropoutLayer):
         if deterministic or self.p == 0:
             return input
         else:
-            dropout = self.apply_dropout(input, const=self.alpha)
+            mask = self.apply_dropout(input, const=self.alpha)
             a = T.pow(self.q + T.square(self.alpha) * self.q * self.p, -0.5)
             b = -a * self.p * self.alpha
 
-            return T.cast(a * dropout + b, input.dtype)
+            return T.cast(a * mask + b, input.dtype)

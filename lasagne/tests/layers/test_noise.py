@@ -246,12 +246,15 @@ class TestAlphaDropoutLayer:
     def test_alpha(self, input_layer):
         input = theano.shared(numpy.ones((100, 100)))
         from lasagne.layers.noise import AlphaDropoutLayer
-        layer = AlphaDropoutLayer(input_layer, alpha=-1.7580993408473766)
+        layer = AlphaDropoutLayer(input_layer, alpha=-0.5)
+        assert layer.alpha == -0.5
         assert 0.8 < layer.get_output_for(input).eval().mean() < 1.0
 
     def test_SELU_alpha(self, input_layer):
         input = theano.shared(numpy.ones((100, 100)))
         from lasagne.layers.noise import AlphaDropoutLayer
-        from lasagne.nonlinearities import selu  # SELU instance
-        layer = AlphaDropoutLayer(input_layer, alpha=selu)
+        from lasagne.nonlinearities import SELU  # SELU instance
+        s = SELU(scale=1, scale_neg=0.5)
+        layer = AlphaDropoutLayer(input_layer, alpha=s)
+        assert layer.alpha == (- s.scale * s.scale_neg)
         assert 0.8 < layer.get_output_for(input).eval().mean() < 1.0

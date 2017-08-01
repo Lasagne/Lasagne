@@ -77,6 +77,10 @@ class DropoutLayer(Layer):
         self.rescale = rescale
         self.shared_axes = tuple(shared_axes)
 
+    @property
+    def q(self):
+        return T.constant(1) - self.p
+
     def get_output_for(self, input, deterministic=False, **kwargs):
         if deterministic or self.p == 0:
             return input
@@ -87,7 +91,6 @@ class DropoutLayer(Layer):
         # Using theano constant to prevent upcasting
         one = T.constant(1)
 
-        self.q = one - self.p
         if self.rescale:
             input /= self.q
 
@@ -109,7 +112,7 @@ class DropoutLayer(Layer):
             mask = T.patternbroadcast(mask, bcast)
 
         if const != 0:
-            return (input * mask) + (const * (1 - mask))
+            return (input * mask) + (const * (T.constant(1) - mask))
         else:
             return input * mask
 
@@ -224,16 +227,16 @@ class GaussianNoiseLayer(Layer):
 class AlphaDropoutLayer(DropoutLayer):
     """Dropout layer.
 
-    Sets values to alpha. Will also converge the remaining
-    neurons to mean 0 and a variance of 1 unit. See notes for disabling dropout
-    during testing.
+    Sets values to alpha if the dropout mask doesn't filter out inputs already.
+    This keeps the zero mean and unit variance self-normalizing property true.
+    See notes for disabling dropout during testing.
 
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
         the layer feeding into this layer, or the expected input shape
     p : float or scalar tensor
-        The probability of setting a value to zero
+        The probability of setting a value to alpha
     rescale : bool
         If ``True`` (the default), scale the input by ``1 / (1 - p)`` when
         dropout is enabled, to keep the expected output mean the same.
@@ -243,15 +246,17 @@ class AlphaDropoutLayer(DropoutLayer):
         the batch. ``shared_axes=(2, 3)`` uses the same mask across the
         spatial dimensions of 2D feature maps.
     alpha : float or SELU instance
-        The default values are fixed point solutions to equations (4) and (5)
-        in [1] for zero mean and unit variance input. The analytic expressions
-        for them are given in equation (14) also in [1].
+        Is responsible for keeping the mean and variance consistent to what
+        they were before AlphaDropout. This maintains the self-normalizing
+        property. The default values are fixed point solutions to equations
+        (4) and (5) in [1]_ for zero mean and unit variance input. The
+        analytic expressions for them are given in equation (14) also in [1]_.
 
     Notes
     -----
     The alpha dropout layer is a regularizer that randomly sets input values to
-    zero and also applies a normalization function to bring the mean to 0
-    and the variance to 1; see [1]_for why this might improve
+    zero and also applies a function to bring the remaining neurons to a
+    mean of 0 and the variance to 1 unit; see [1]_ for why this might improve
     generalization. The behaviour of the layer depends on the ``deterministic``
     keyword argument passed to :func:`lasagne.layers.get_output`. If ``True``,
     the layer behaves deterministically, and passes on the input unchanged. If

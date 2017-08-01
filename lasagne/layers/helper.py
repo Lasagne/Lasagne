@@ -148,7 +148,14 @@ def get_output(layer_or_layers, inputs=None, **kwargs):
     both, while the latter will use two different dropout masks.
     """
     from .input import InputLayer
-    from .base import MergeLayer
+    from .base import MergeLayer, Layer
+    # check if the keys of the dictionary are valid
+    if isinstance(inputs, dict):
+        for input_key in inputs.keys():
+            if (input_key is not None) and (not isinstance(input_key, Layer)):
+                raise TypeError("The inputs dictionary keys must be"
+                                " lasagne layers not %s." %
+                                type(input_key))
     # track accepted kwargs used by get_output_for
     accepted_kwargs = {'deterministic'}
     # obtain topological ordering of all layers the output layer(s) depend on

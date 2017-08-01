@@ -18,6 +18,9 @@ Noise layers
 
 .. autofunction:: dropout_locations
 
+.. autoclass:: AlphaDropoutLayer
+    :members:
+
 .. autoclass:: GaussianNoiseLayer
     :members:
 

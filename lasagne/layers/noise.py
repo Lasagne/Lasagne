@@ -296,4 +296,4 @@ class AlphaDropoutLayer(DropoutLayer):
             a = T.pow(self.q + T.square(self.alpha) * self.q * self.p, -0.5)
             b = -a * self.p * self.alpha
 
-            return T.cast(a * mask + b, input.dtype)
+            return a * mask + b

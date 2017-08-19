@@ -831,8 +831,8 @@ class TestTransposedConv3DLayer:
         "input, kernel, output, kwargs", list(transp_conv3d_test_sets()))
     def test_with_nones(self, TransposedConv3DLayerImpl, DummyInputLayer,
                         input, kernel, output, kwargs):
-        if kwargs.get('untie_biases', False):
         from lasagne.layers import TransposedConv3DLayer
+        if kwargs.get('untie_biases', False):
             pytest.skip()
         b, c, d, h, w = input.shape
         input_layer = DummyInputLayer((None, c, None, None, None))

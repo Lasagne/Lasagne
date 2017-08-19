@@ -81,7 +81,7 @@ class DropoutLayer(Layer):
             return input
         else:
             # Using theano constant to prevent upcasting
-            one = T.constant(1)
+            one = T.constant(1, dtype='int8')
 
             retain_prob = one - self.p
             if self.rescale:

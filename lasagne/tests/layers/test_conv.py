@@ -676,7 +676,10 @@ class TestTransposedConv1DLayer:
     @pytest.mark.parametrize(
         "input, kernel, output, kwargs", list(transp_conv1d_test_sets()))
     def test_defaults(self, DummyInputLayer, input, kernel, output, kwargs):
-        from lasagne.layers import TransposedConv1DLayer
+        try:
+            from lasagne.layers import TransposedConv1DLayer
+        except ImportError:
+            pytest.skip("TransposedConv1DLayer not available")
         b, c, h = input.shape
         input_layer = DummyInputLayer((b, c, h))
         layer = TransposedConv1DLayer(
@@ -800,6 +803,7 @@ class TestTransposedConv3DLayer:
         "input, kernel, output, kwargs", list(transp_conv3d_test_sets()))
     def test_defaults(self, TransposedConv3DLayerImpl, DummyInputLayer,
                       input, kernel, output, kwargs):
+        from lasagne.layers import TransposedConv3DLayer
         b, c, d, h, w = input.shape
         input_layer = DummyInputLayer((b, c, d, h, w))
         try:
@@ -828,6 +832,7 @@ class TestTransposedConv3DLayer:
     def test_with_nones(self, TransposedConv3DLayerImpl, DummyInputLayer,
                         input, kernel, output, kwargs):
         if kwargs.get('untie_biases', False):
+        from lasagne.layers import TransposedConv3DLayer
             pytest.skip()
         b, c, d, h, w = input.shape
         input_layer = DummyInputLayer((None, c, None, None, None))

@@ -751,7 +751,7 @@ class BaseTransposedConvLayer(BaseConvLayer):
     stride=1, crop=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
     nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False,
-    n=None, **kwargs)
+    output_size=None, n=None, **kwargs)
 
     Transposed convolution layer base class
 
@@ -811,7 +811,7 @@ class BaseTransposedConvLayer(BaseConvLayer):
 
         If True, the layer will have separate bias parameters for each
         position in each channel. As a result, the `b` attribute will be a
-        3D tensor.
+        (n+1)-D tensor.
 
     W : Theano shared variable, expression, numpy array or callable
         Initial value, expression or initializer for the weights.
@@ -956,7 +956,8 @@ class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
     lasagne.layers.TransposedConv1DLayer(incoming, num_filters, filter_size,
     stride=1, crop=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
-    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False, **kwargs)
+    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False,
+    output_size=None, **kwargs)
 
     1D transposed convolution layer
 
@@ -969,8 +970,8 @@ class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
     ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape. The
-        output of this layer should be a 4D tensor, with shape
-        ``(batch_size, num_input_channels, input_rows, input_columns)``.
+        output of this layer should be a 3D tensor, with shape
+        ``(batch_size, num_input_channels, input_rows)``.
 
     num_filters : int
         The number of learnable convolutional filters this layer has.
@@ -979,7 +980,7 @@ class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
         An integer or 1-element tuple specifying the size of the filters.
 
     stride : int
-        An integeror 1-element tuple specifying the stride of the
+        An integer or 1-element tuple specifying the stride of the
         transposed convolution operation. For the transposed convolution, this
         gives the dilation factor for the input -- increasing it increases the
         output size.
@@ -993,9 +994,8 @@ class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
         this zero-padding, reducing the output size. It is the counterpart to
         the `pad` argument in a non-transposed convolution.
 
-        A single integer results in symmetric cropping of the given size on all
-        borders, a tuple of two integers allows different symmetric cropping
-        per dimension.
+        A single integer or a tuple of one integer results in symmetric cropping
+        of the given size on all borders.
 
         ``'full'`` disables zero-padding. It is is equivalent to computing the
         convolution wherever the input and the filter fully overlap.
@@ -1031,7 +1031,7 @@ class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
         ``None``, the layer will have no biases. Otherwise, biases should be
         a 1D array with shape ``(num_filters,)`` if `untied_biases` is set to
         ``False``. If it is set to ``True``, its shape should be
-        ``(num_filters, output_rows, output_columns)`` instead.
+        ``(num_filters, output_rows)`` instead.
         See :func:`lasagne.utils.create_param` for more information.
 
     nonlinearity : callable or None
@@ -1112,7 +1112,8 @@ class TransposedConv2DLayer(BaseTransposedConvLayer):  # pragma: no cover
     lasagne.layers.TransposedConv2DLayer(incoming, num_filters, filter_size,
     stride=(1, 1), crop=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
-    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False, **kwargs)
+    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False,
+    output_size=None, **kwargs)
 
     2D transposed convolution layer
 
@@ -1260,7 +1261,8 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
     lasagne.layers.TransposedConv3DLayer(incoming, num_filters, filter_size,
     stride=(1, 1, 1), crop=0, untie_biases=False,
     W=lasagne.init.GlorotUniform(), b=lasagne.init.Constant(0.),
-    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False, **kwargs)
+    nonlinearity=lasagne.nonlinearities.rectify, flip_filters=False,
+    output_size=None, **kwargs)
 
     3D transposed convolution layer
 
@@ -1274,7 +1276,8 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape. The
         output of this layer should be a 4D tensor, with shape
-        ``(batch_size, num_input_channels, input_rows, input_columns)``.
+        ``(batch_size, num_input_channels, input_depth, input_rows,
+        input_columns)``.
 
     num_filters : int
         The number of learnable convolutional filters this layer has.
@@ -1326,7 +1329,7 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
         Initial value, expression or initializer for the weights.
         These should be a 5D tensor with shape
         ``(num_input_channels, num_filters, input_depth, input_rows,
--        input_columns)``.
+        input_columns)``.
         Note that the first two dimensions are swapped compared to a
         non-transposed convolution.
         See :func:`lasagne.utils.create_param` for more information.
@@ -1390,8 +1393,8 @@ class TransposedConv3DLayer(BaseTransposedConvLayer):  # pragma: no cover
            http://arxiv.org/abs/1603.07285,
            https://github.com/vdumoulin/conv_arithmetic
     """
-    def __init__(self, incoming, num_filters, filter_size, stride=(1, 1, 1),
-                 crop=0, untie_biases=False,
+    def __init__(self, incoming, num_filters, filter_size,
+                 stride=(1, 1, 1), crop=0, untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, flip_filters=False,
                  output_size=None, **kwargs):

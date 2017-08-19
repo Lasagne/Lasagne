@@ -994,8 +994,8 @@ class TransposedConv1DLayer(BaseTransposedConvLayer):  # pragma: no cover
         this zero-padding, reducing the output size. It is the counterpart to
         the `pad` argument in a non-transposed convolution.
 
-        A single integer or a tuple of one integer results in symmetric cropping
-        of the given size on all borders.
+        A single integer or a tuple of one integer results in symmetric
+        cropping of the given size on all borders.
 
         ``'full'`` disables zero-padding. It is is equivalent to computing the
         convolution wherever the input and the filter fully overlap.

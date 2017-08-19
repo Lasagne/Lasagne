@@ -705,7 +705,10 @@ class TestTransposedConv1DLayer:
     def test_with_nones(self, DummyInputLayer, input, kernel, output, kwargs):
         if kwargs.get('untie_biases', False):
             pytest.skip()
-        from lasagne.layers import TransposedConv1DLayer
+        try:
+            from lasagne.layers import TransposedConv1DLayer
+        except ImportError:
+            pytest.skip("TransposedConv1DLayer not available")
         b, c, h = input.shape
         input_layer = DummyInputLayer((None, c, None))
         layer = TransposedConv1DLayer(

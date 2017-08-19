@@ -1,0 +1,10 @@
+-r requirements.txt
+mock
+numpydoc
+pep8==1.6.2
+pytest
+pytest-cov
+pytest-pep8
+Jinja2==2.7.3
+Sphinx==1.2.3
+sphinx_rtd_theme

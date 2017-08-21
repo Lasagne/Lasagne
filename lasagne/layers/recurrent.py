@@ -49,10 +49,10 @@ network with variable batch size and number of time steps.
 >>> batchsize, seqlen, _ = l_inp.input_var.shape
 >>> l_lstm = LSTMLayer(l_inp, num_units=num_units)
 >>> # In order to connect a recurrent layer to a dense layer, we need to
->>> # process each time step of each sequence to be independently.
->>> # this will be taken care of by setting the `num_leading_axes` to -1
+>>> # process time steps of each sequence independently.
+>>> # This will be taken care of by setting the `num_leading_axes` to -1
 >>> l_dense = DenseLayer(l_lstm, num_units=num_classes, num_leading_axes=-1)
->>> # An example involving Feeding the output of `LSTMLayer` to `Conv1DLayer` 
+>>> # An example involving feeding the output of `LSTMLayer` to `Conv1DLayer` 
 >>> # The shape for a `Conv1DLayer` is (batch_size, num_input_channels, 
 >>> # input_length) and for a recurrent layer(`LSTMLayer` here) is
 >>> # (batch_size, sequence_length, num_input_channels). So, we need to 
@@ -63,7 +63,6 @@ network with variable batch size and number of time steps.
 >>> l_conv1D = Conv1DLayer(l_dshuf, num_classes, 1)
 >>> # To reshape back to our original shape, we can use the symbolic shape
 >>> # variables we retrieved above.
->>> l_out = ReshapeLayer(l_dense, (batchsize, seqlen, num_classes))
 """
 import numpy as np
 import theano

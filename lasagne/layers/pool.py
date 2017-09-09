@@ -1,4 +1,6 @@
 import theano.tensor as T
+import theano
+import numpy as np
 
 from .base import Layer
 from ..utils import as_tuple
@@ -652,13 +654,38 @@ class Upscale2DLayer(Layer):
         a square scale factor region. If an iterable, it should have two
         elements.
 
-    mode : {'repeat', 'dilate'}
-        Upscaling mode: repeat element values or upscale leaving zeroes between
-        upscaled elements. Default is 'repeat'.
+        Only ``'dilate'``, ``'nearest'`` and ``'repeat'``
+        support tuple scale factors. ``'bilinear1D'``, ``'bilinear2D'``
+        only support integer scale factors, or
+        tuples of the same number.
+
+    mode : {'repeat', 'dilate', 'nearest', 'bilinear1D',
+            'bilinear2D'}
+        Upscaling mode:
+
+        ``'repeat'`` repeats element values to upscale.
+
+        ``'dilate'`` upscales, leaving zeroes between values.
+
+        ``'nearest'`` uses nearest neighbor upscaling.
+
+        ``'bilinear2D'`` uses bilinear upscaling with same
+        2D kernel for both upscaled axes [1].
+
+        ``'bilinear1D'`` uses bilinear upscale with different 1D
+         kernel for each upscaled axis [1].
+
+        Default mode is ``'repeat'``.
 
     **kwargs
         Any additional keyword arguments are passed to the :class:`Layer`
         superclass.
+
+    References
+    ----------
+    .. [1] Augustus Odena, Vincent Dumoulin, Chris Olah (2016):
+           Deconvolution and checkerboard artifacts. Distill.
+           http://distill.pub/2016/deconv-checkerboard/
 
     Notes
     -----
@@ -670,16 +697,33 @@ class Upscale2DLayer(Layer):
     def __init__(self, incoming, scale_factor, mode='repeat', **kwargs):
         super(Upscale2DLayer, self).__init__(incoming, **kwargs)
 
+        if mode not in {'repeat', 'dilate', 'nearest',
+                        'bilinear2D', 'bilinear1D'}:
+            msg = "Mode must be 'repeat', 'dilate', 'nearest', " \
+                  "'bilinear2D', or 'bilinear1D', not {0}"
+            raise ValueError(msg.format(mode))
+        self.mode = mode
+
+        if mode in {'nearest'} and (
+                        self.input_shape[2] is None or
+                        self.input_shape[3] is None):
+            msg = 'Dimensions of 2 trailing axis must be defined ' \
+                  'for {0} upscaling'
+            raise ValueError(msg.format(mode))
+
         self.scale_factor = as_tuple(scale_factor, 2)
 
         if self.scale_factor[0] < 1 or self.scale_factor[1] < 1:
             raise ValueError('Scale factor must be >= 1, not {0}'.format(
                 self.scale_factor))
 
-        if mode not in {'repeat', 'dilate'}:
-            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
-            raise ValueError(msg.format(mode))
-        self.mode = mode
+        if not (self.mode == 'repeat' or self.mode == 'dilate' or
+                self.mode == 'nearest') and \
+                isinstance(scale_factor, tuple) and \
+                scale_factor[0] != scale_factor[1]:
+            msg = "Scale factor for {0} upscaling must be a scalar " \
+                  "or a tuple of the same number"
+            raise ValueError(msg.format(self.mode))
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)  # copy / convert to mutable list
@@ -690,18 +734,61 @@ class Upscale2DLayer(Layer):
         return tuple(output_shape)
 
     def get_output_for(self, input, **kwargs):
-        a, b = self.scale_factor
+
+        # create weights for nearest neighbor interpolation
+        def nearest_neighbor_weight_matrix(input_dim, scale_factor):
+            indices = np.arange(0, input_dim * scale_factor)
+            source_indices = np.zeros((indices.shape[0]))
+
+            for x in indices:
+                source_indices[x] = np.min(
+                    np.array([np.floor(np.float(x) / scale_factor),
+                              input_dim - 1]))
+
+            weight_matrix = np.zeros((input_dim,
+                                      input_dim * scale_factor)
+                                     ).astype(theano.config.floatX)
+            source_indices = source_indices.astype(np.int)
+            for col in range(0, weight_matrix.shape[1]):
+                weight_matrix[source_indices[col], col] = 1
+
+            return weight_matrix
+
         upscaled = input
         if self.mode == 'repeat':
+            a, b = self.scale_factor
             if b > 1:
                 upscaled = T.extra_ops.repeat(upscaled, b, 3)
             if a > 1:
                 upscaled = T.extra_ops.repeat(upscaled, a, 2)
         elif self.mode == 'dilate':
+            a, b = self.scale_factor
             if b > 1 or a > 1:
                 output_shape = self.get_output_shape_for(input.shape)
                 upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
                 upscaled = T.set_subtensor(upscaled[:, :, ::a, ::b], input)
+        elif self.mode == 'bilinear2D':
+            upscaled = T.nnet.abstract_conv.bilinear_upsampling(
+                input, self.scale_factor[0],
+                batch_size=self.input_shape[0],
+                num_input_channels=self.input_shape[1],
+                use_1D_kernel=False)
+        elif self.mode == 'bilinear1D':
+            upscaled = T.nnet.abstract_conv.bilinear_upsampling(
+                input, self.scale_factor[0],
+                batch_size=self.input_shape[0],
+                num_input_channels=self.input_shape[1],
+                use_1D_kernel=True)
+        elif self.mode == 'nearest':
+            weight_matrix = nearest_neighbor_weight_matrix(
+                self.input_shape[3], self.scale_factor[0])
+            upscaled = T.dot(upscaled, weight_matrix)
+            upscaled = upscaled.dimshuffle((0, 1, 3, 2))
+            weight_matrix = nearest_neighbor_weight_matrix(
+                self.input_shape[2], self.scale_factor[1])
+            upscaled = T.dot(upscaled, weight_matrix)
+            upscaled = upscaled.dimshuffle((0, 1, 3, 2))
+
         return upscaled
 
 

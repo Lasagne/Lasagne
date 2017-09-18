@@ -15,6 +15,8 @@ from ..utils import as_tuple
 
 # check if Theano's old GPU backend is available and in use
 try:
+    if theano.config.device == 'cuda' or not theano.sandbox.cuda.cuda_enabled:
+        raise ImportError
     from theano.sandbox.cuda.basic_ops import gpu_contiguous
 except ImportError:
     raise ImportError(

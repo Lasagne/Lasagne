@@ -35,6 +35,9 @@ class TestUpdateFunctions(object):
                     'adamax': [0.90211749000754,
                                0.90211748762402,
                                0.90211748682951],
+                    'amsgrad': [0.90034979581833,
+                                0.90034979581833,
+                                0.90034979581833],
                     }
 
     def f(self, X):
@@ -49,6 +52,7 @@ class TestUpdateFunctions(object):
         ['adadelta', {}],
         ['adam', {'learning_rate': 0.01}],
         ['adamax', {'learning_rate': 0.01}],
+        ['amsgrad', {'learning_rate': 0.01}],
         ])
     def test_updates(self, method, kwargs):
         A = theano.shared(lasagne.utils.floatX([1, 1, 1]))
@@ -87,6 +91,10 @@ class TestUpdateFunctions(object):
                     'beta1': 0.9,
                     'beta2': 0.999,
                     'epsilon': 1e-8}],
+        ['amsgrad', {'learning_rate': 0.01,
+                     'beta1': 0.9,
+                     'beta2': 0.999,
+                     'epsilon': 1e-8}],
         ])
     def test_update_returntype(self, method, kwargs):
         '''Checks whether lasagne.updates handles float32 inputs correctly'''

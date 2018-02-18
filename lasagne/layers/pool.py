@@ -579,11 +579,91 @@ if not hasattr(T.signal.pool, 'pool_3d'):  # pragma: no cover
     __all__.remove('MaxPool3DLayer')
 
 
-class Upscale1DLayer(Layer):
+class UpscaleLayer(Layer):
+    """
+    Upscaling layer
+
+    Performs upscaling over the trailing axes of the input tensor.
+
+    Parameters
+    ----------
+
+    dim: integer
+        Dimension for upscaling. Must be smaller or equal to dimension of input
+
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    scale_factor : integer or iterable
+        The scale factor. If an iterable, it should have one element.
+
+    mode : {'repeat', 'dilate'}
+        Upscaling mode: repeat element values or upscale leaving zeroes between
+        upscaled elements. Default is 'repeat'.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+    """
+    def __init__(self, dim, incoming, scale_factor, mode='repeat', **kwargs):
+        super(UpscaleLayer, self).__init__(incoming, **kwargs)
+
+        self.scale_factor = as_tuple(scale_factor, dim)
+
+        for i in range(len(self.scale_factor)):
+            if self.scale_factor[i] < 1:
+                raise ValueError('Scale factor must be >= 1, not {0}'.format(
+                    self.scale_factor))
+
+        if mode not in {'repeat', 'dilate'}:
+            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
+            raise ValueError(msg.format(mode))
+        self.mode = mode
+
+        if dim > len(self.input_shape):
+            msg = """
+            Invalid input dimension: {0}.
+            Dimension must be less or equal to dimension of input.
+            """
+            raise ValueError(msg.format(dim))
+        self.dimension = dim
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)  # copy / convert to mutable list
+        output_dim = len(output_shape)
+        ddim = output_dim - self.dimension
+        for i in range(output_dim-1, output_dim - self.dimension - 1, -1):
+            if output_shape[i] is not None:
+                output_shape[i] *= self.scale_factor[i-(ddim)]
+        return tuple(output_shape)
+
+    def get_output_for(self, input, **kwargs):
+        upscaled = input
+        if self.mode == 'repeat':
+            i = len(list(input.shape))-1
+            for a in self.scale_factor:
+                if a > 1:
+                    upscaled = T.extra_ops.repeat(upscaled, a, i)
+                i = i-1
+        elif self.mode == 'dilate':
+            output_shape = self.get_output_shape_for(input.shape)
+            output_dim = len(output_shape)
+            ddim = output_dim - self.dimension
+            slc = [slice(None)] * output_dim
+            for axis in range(output_dim-1, output_dim - self.dimension-1, -1):
+                slc[axis] = slice(0, output_shape[axis],
+                                  self.scale_factor[axis-(ddim)])
+            upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
+            upscaled = T.set_subtensor(upscaled[slc], input)
+        return upscaled
+
+
+class Upscale1DLayer(UpscaleLayer):
     """
     1D upscaling layer
 
-    Performs 1D upscaling over the trailing axis of a 3D input tensor.
+    Calls the class UpscaleLayer with appropriate parameters to perform
+    1D upscaling over the trailing axis of a 3D input tensor
 
     Parameters
     ----------
@@ -603,44 +683,17 @@ class Upscale1DLayer(Layer):
     """
 
     def __init__(self, incoming, scale_factor, mode='repeat', **kwargs):
-        super(Upscale1DLayer, self).__init__(incoming, **kwargs)
-
-        self.scale_factor = as_tuple(scale_factor, 1)
-
-        if self.scale_factor[0] < 1:
-            raise ValueError('Scale factor must be >= 1, not {0}'.format(
-                self.scale_factor))
-
-        if mode not in {'repeat', 'dilate'}:
-            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
-            raise ValueError(msg.format(mode))
-        self.mode = mode
-
-    def get_output_shape_for(self, input_shape):
-        output_shape = list(input_shape)  # copy / convert to mutable list
-        if output_shape[2] is not None:
-            output_shape[2] *= self.scale_factor[0]
-        return tuple(output_shape)
-
-    def get_output_for(self, input, **kwargs):
-        a, = self.scale_factor
-        upscaled = input
-        if self.mode == 'repeat':
-            if a > 1:
-                upscaled = T.extra_ops.repeat(upscaled, a, 2)
-        elif self.mode == 'dilate':
-            if a > 1:
-                output_shape = self.get_output_shape_for(input.shape)
-                upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
-                upscaled = T.set_subtensor(upscaled[:, :, ::a], input)
-        return upscaled
+        super(Upscale1DLayer, self).__init__(
+            1, incoming, scale_factor, mode, **kwargs
+        )
 
 
-class Upscale2DLayer(Layer):
+class Upscale2DLayer(UpscaleLayer):
     """
     2D upscaling layer
 
-    Performs 2D upscaling over the two trailing axes of a 4D input tensor.
+    Calls the class UpscaleLayer with appropriate parameters to perform
+    2D upscaling over the trailing axis of a 4D input tensor
 
     Parameters
     ----------
@@ -668,48 +721,17 @@ class Upscale2DLayer(Layer):
     """
 
     def __init__(self, incoming, scale_factor, mode='repeat', **kwargs):
-        super(Upscale2DLayer, self).__init__(incoming, **kwargs)
-
-        self.scale_factor = as_tuple(scale_factor, 2)
-
-        if self.scale_factor[0] < 1 or self.scale_factor[1] < 1:
-            raise ValueError('Scale factor must be >= 1, not {0}'.format(
-                self.scale_factor))
-
-        if mode not in {'repeat', 'dilate'}:
-            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
-            raise ValueError(msg.format(mode))
-        self.mode = mode
-
-    def get_output_shape_for(self, input_shape):
-        output_shape = list(input_shape)  # copy / convert to mutable list
-        if output_shape[2] is not None:
-            output_shape[2] *= self.scale_factor[0]
-        if output_shape[3] is not None:
-            output_shape[3] *= self.scale_factor[1]
-        return tuple(output_shape)
-
-    def get_output_for(self, input, **kwargs):
-        a, b = self.scale_factor
-        upscaled = input
-        if self.mode == 'repeat':
-            if b > 1:
-                upscaled = T.extra_ops.repeat(upscaled, b, 3)
-            if a > 1:
-                upscaled = T.extra_ops.repeat(upscaled, a, 2)
-        elif self.mode == 'dilate':
-            if b > 1 or a > 1:
-                output_shape = self.get_output_shape_for(input.shape)
-                upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
-                upscaled = T.set_subtensor(upscaled[:, :, ::a, ::b], input)
-        return upscaled
+        super(Upscale2DLayer, self).__init__(
+            2, incoming, scale_factor, mode, **kwargs
+        )
 
 
-class Upscale3DLayer(Layer):
+class Upscale3DLayer(UpscaleLayer):
     """
     3D upscaling layer
 
-    Performs 3D upscaling over the three trailing axes of a 5D input tensor.
+    Calls the class UpscaleLayer with appropriate parameters to perform
+    3D upscaling over the trailing axis of a 5D input tensor
 
     Parameters
     ----------
@@ -731,47 +753,9 @@ class Upscale3DLayer(Layer):
     """
 
     def __init__(self, incoming, scale_factor, mode='repeat', **kwargs):
-        super(Upscale3DLayer, self).__init__(incoming, **kwargs)
-
-        self.scale_factor = as_tuple(scale_factor, 3)
-
-        if self.scale_factor[0] < 1 or self.scale_factor[1] < 1 or \
-           self.scale_factor[2] < 1:
-            raise ValueError('Scale factor must be >= 1, not {0}'.format(
-                self.scale_factor))
-
-        if mode not in {'repeat', 'dilate'}:
-            msg = "Mode must be either 'repeat' or 'dilate', not {0}"
-            raise ValueError(msg.format(mode))
-        self.mode = mode
-
-    def get_output_shape_for(self, input_shape):
-        output_shape = list(input_shape)  # copy / convert to mutable list
-        if output_shape[2] is not None:
-            output_shape[2] *= self.scale_factor[0]
-        if output_shape[3] is not None:
-            output_shape[3] *= self.scale_factor[1]
-        if output_shape[4] is not None:
-            output_shape[4] *= self.scale_factor[2]
-        return tuple(output_shape)
-
-    def get_output_for(self, input, **kwargs):
-        a, b, c = self.scale_factor
-        upscaled = input
-        if self.mode == 'repeat':
-            if c > 1:
-                upscaled = T.extra_ops.repeat(upscaled, c, 4)
-            if b > 1:
-                upscaled = T.extra_ops.repeat(upscaled, b, 3)
-            if a > 1:
-                upscaled = T.extra_ops.repeat(upscaled, a, 2)
-        elif self.mode == 'dilate':
-            if c > 1 or b > 1 or a > 1:
-                output_shape = self.get_output_shape_for(input.shape)
-                upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
-                upscaled = T.set_subtensor(
-                    upscaled[:, :, ::a, ::b, ::c], input)
-        return upscaled
+        super(Upscale3DLayer, self).__init__(
+            3, incoming, scale_factor, mode, **kwargs
+        )
 
 
 class FeaturePoolLayer(Layer):

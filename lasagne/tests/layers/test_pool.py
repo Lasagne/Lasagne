@@ -821,6 +821,41 @@ class TestMaxPool3DNNLayer:
         assert "Expected 5 input dimensions" in exc.value.args[0]
 
 
+class TestUpscaleLayer:
+    def scale_factor_test_sets():
+        for scale_factor in [2, 3]:
+                yield scale_factor
+
+    def mode_test_sets():
+        for mode in ['repeat', 'dilate']:
+            yield mode
+
+    def input_layer(self, output_shape):
+        return Mock(output_shape=output_shape)
+
+    def layer(self, input_layer, scale_factor, mode):
+        from lasagne.layers.pool import UpscaleLayer
+        return UpscaleLayer(
+            2,
+            input_layer,
+            scale_factor=scale_factor,
+            mode=mode,
+        )
+
+    def test_invalid_dim(self):
+        from lasagne.layers.pool import UpscaleLayer
+        inlayer = self.input_layer((128, 3, 32, 32))
+        with pytest.raises(ValueError):
+            UpscaleLayer(5, inlayer, scale_factor=2)
+        with pytest.raises(ValueError):
+            UpscaleLayer(10, inlayer, scale_factor=2)
+        inlayer = self.input_layer((128, 3, 32, 32, 32, 32, 32, 32))
+        with pytest.raises(ValueError):
+            UpscaleLayer(100, inlayer, scale_factor=(2, 2))
+        with pytest.raises(ValueError):
+            UpscaleLayer(500, inlayer, scale_factor=(2, 2))
+
+
 class TestUpscale1DLayer:
     def scale_factor_test_sets():
         for scale_factor in [2, 3]:

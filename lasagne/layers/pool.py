@@ -626,6 +626,14 @@ class UpscaleLayer(Layer):
             Dimension must be less or equal to dimension of input.
             """
             raise ValueError(msg.format(dim))
+
+        if dim > 3:
+            msg = """
+            Invalid input dimension: {0}.
+            Number of spatial dimensions greater than 3 are not yet supported.
+            """
+            raise ValueError(msg.format(dim))
+
         self.dimension = dim
 
     def get_output_shape_for(self, input_shape):

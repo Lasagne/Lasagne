@@ -844,7 +844,7 @@ class TestUpscaleLayer:
 
     def test_invalid_dim(self):
         from lasagne.layers.pool import UpscaleLayer
-        inlayer = self.input_layer((128, 3, 32, 32))
+        inlayer = self.input_layer((128, 3, 32, 32, 64))
         with pytest.raises(ValueError):
             UpscaleLayer(5, inlayer, scale_factor=2)
         with pytest.raises(ValueError):
@@ -854,6 +854,9 @@ class TestUpscaleLayer:
             UpscaleLayer(100, inlayer, scale_factor=(2, 2))
         with pytest.raises(ValueError):
             UpscaleLayer(500, inlayer, scale_factor=(2, 2))
+        inlayer = self.input_layer((128, 3))
+        with pytest.raises(ValueError):
+            UpscaleLayer(3, inlayer, scale_factor=(2, 2))
 
 
 class TestUpscale1DLayer:

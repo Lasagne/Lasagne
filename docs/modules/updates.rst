@@ -15,6 +15,7 @@ Update functions
 .. autofunction:: adadelta
 .. autofunction:: adam
 .. autofunction:: adamax
+.. autofunction:: amsgrad
 
 
 Update modification functions

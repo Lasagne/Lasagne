@@ -116,7 +116,7 @@ Development installation
 Alternatively, you can install Lasagne (and optionally Theano) from source,
 in a way that any changes to your local copy of the source tree take effect
 without requiring a reinstall. This is often referred to as *editable* or
-*development* mode. Firstly, you will need to obtain a copy of the source tree:
+*development* mode. First, you will need to obtain a copy of the source tree:
 
 .. code-block:: bash
 

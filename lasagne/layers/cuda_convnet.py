@@ -13,6 +13,18 @@ from .conv import conv_output_length, BaseConvLayer
 from .pool import pool_output_length
 from ..utils import as_tuple
 
+# bail out if using Theano's new GPU backend
+try:
+    from theano import gpuarray
+except ImportError:
+    from theano.sandbox import gpuarray
+if gpuarray.pygpu_activated:
+    raise ImportError("cuda_convnet is not supported under Theano's new "
+                      "GPU backend. Please either use the ordinary "
+                      "convolutional and pooling layers (they are usually "
+                      "faster), or use Theano's old GPU backend (available "
+                      "up to Theano 0.9).")  # pragma: no cover
+
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 

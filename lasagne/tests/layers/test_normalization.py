@@ -277,6 +277,16 @@ class TestBatchNormLayer:
         assert np.allclose(result1, exp_result1, **tol)
         assert np.allclose(result2, exp_result2, **tol)
 
+    def test_batch_norm_tag(self, BatchNormLayer):
+        input_shape = (20, 30, 40)
+        layer = BatchNormLayer(input_shape)
+        assert len(layer.get_params()) == 4
+        stat_params = layer.get_params(batch_norm_stat=True)
+        assert len(stat_params) == 2
+        param_names = [p.name for p in stat_params]
+        assert "mean" in param_names
+        assert "inv_std" in param_names
+
 
 @pytest.mark.parametrize('dnn', [False, True])
 def test_batch_norm_macro(dnn):

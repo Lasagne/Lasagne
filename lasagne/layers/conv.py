@@ -2,7 +2,7 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
-from ..utils import as_tuple
+from ..utils import as_tuple, inspect_kwargs
 from ..theano_extensions import conv
 
 from .base import Layer
@@ -246,6 +246,12 @@ class BaseConvLayer(Layer):
         Lasagne, flipping incurs an overhead and is disabled by default --
         check the documentation when using learned weights from another layer.
 
+    num_groups : int (default: 1)
+        The number of groups to split the input channels and output channels
+        into, such that data does not cross the group boundaries. Requires the
+        number of channels to be divisible by the number of groups, and
+        requires Theano 0.10 or later for more than one group.
+
     n : int or None
         The dimensionality of the convolution (i.e., the number of spatial
         dimensions of each feature map and each convolutional filter). If
@@ -266,7 +272,7 @@ class BaseConvLayer(Layer):
                  untie_biases=False,
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, flip_filters=True,
-                 n=None, **kwargs):
+                 num_groups=1, n=None, **kwargs):
         super(BaseConvLayer, self).__init__(incoming, **kwargs)
         if nonlinearity is None:
             self.nonlinearity = nonlinearities.identity
@@ -298,6 +304,19 @@ class BaseConvLayer(Layer):
         else:
             self.pad = as_tuple(pad, n, int)
 
+        if (num_groups <= 0 or
+                self.num_filters % num_groups != 0 or
+                self.input_shape[1] % num_groups != 0):
+            raise ValueError(
+                "num_groups (here: %d) must be positive and evenly divide the "
+                "number of input and output channels (here: %d and %d)" %
+                (num_groups, self.input_shape[1], self.num_filters))
+        elif (num_groups > 1 and
+              "num_groups" not in inspect_kwargs(T.nnet.conv2d)):
+            raise RuntimeError("num_groups > 1 requires "
+                               "Theano 0.10 or later")  # pragma: no cover
+        self.num_groups = num_groups
+
         self.W = self.add_param(W, self.get_W_shape(), name="W")
         if b is None:
             self.b = None
@@ -317,7 +336,7 @@ class BaseConvLayer(Layer):
         tuple of int
             The shape of the weight matrix.
         """
-        num_input_channels = self.input_shape[1]
+        num_input_channels = self.input_shape[1] // self.num_groups
         return (self.num_filters, num_input_channels) + self.filter_size
 
     def get_output_shape_for(self, input_shape):
@@ -448,13 +467,19 @@ class Conv1DLayer(BaseConvLayer):
         Lasagne, flipping incurs an overhead and is disabled by default --
         check the documentation when using learned weights from another layer.
 
+    num_groups : int (default: 1)
+        The number of groups to split the input channels and output channels
+        into, such that data does not cross the group boundaries. Requires the
+        number of channels to be divisible by the number of groups, and
+        requires Theano 0.10 or later for more than one group.
+
     convolution : callable
         The convolution implementation to use. The
         `lasagne.theano_extensions.conv` module provides some alternative
         implementations for 1D convolutions, because the Theano API only
         features a 2D convolution implementation. Usually it should be fine
         to leave this at the default value. Note that not all implementations
-        support all settings for `pad` and `subsample`.
+        support all settings for `pad`, `subsample` and `num_groups`.
 
     **kwargs
         Any additional keyword arguments are passed to the `Layer` superclass.
@@ -480,11 +505,15 @@ class Conv1DLayer(BaseConvLayer):
 
     def convolve(self, input, **kwargs):
         border_mode = 'half' if self.pad == 'same' else self.pad
+        extra_kwargs = {}
+        if self.num_groups > 1:  # pragma: no cover
+            extra_kwargs['num_groups'] = self.num_groups
         conved = self.convolution(input, self.W,
                                   self.input_shape, self.get_W_shape(),
                                   subsample=self.stride,
                                   border_mode=border_mode,
-                                  filter_flip=self.flip_filters)
+                                  filter_flip=self.flip_filters,
+                                  **extra_kwargs)
         return conved
 
 
@@ -576,6 +605,12 @@ class Conv2DLayer(BaseConvLayer):
         Lasagne, flipping incurs an overhead and is disabled by default --
         check the documentation when using learned weights from another layer.
 
+    num_groups : int (default: 1)
+        The number of groups to split the input channels and output channels
+        into, such that data does not cross the group boundaries. Requires the
+        number of channels to be divisible by the number of groups, and
+        requires Theano 0.10 or later for more than one group.
+
     convolution : callable
         The convolution implementation to use. Usually it should be fine to
         leave this at the default value.
@@ -604,11 +639,15 @@ class Conv2DLayer(BaseConvLayer):
 
     def convolve(self, input, **kwargs):
         border_mode = 'half' if self.pad == 'same' else self.pad
+        extra_kwargs = {}
+        if self.num_groups > 1:  # pragma: no cover
+            extra_kwargs['num_groups'] = self.num_groups
         conved = self.convolution(input, self.W,
                                   self.input_shape, self.get_W_shape(),
                                   subsample=self.stride,
                                   border_mode=border_mode,
-                                  filter_flip=self.flip_filters)
+                                  filter_flip=self.flip_filters,
+                                  **extra_kwargs)
         return conved
 
 
@@ -699,6 +738,12 @@ class Conv3DLayer(BaseConvLayer):  # pragma: no cover
         Lasagne, flipping incurs an overhead and is disabled by default --
         check the documentation when using learned weights from another layer.
 
+    num_groups : int (default: 1)
+        The number of groups to split the input channels and output channels
+        into, such that data does not cross the group boundaries. Requires the
+        number of channels to be divisible by the number of groups, and
+        requires Theano 0.10 or later for more than one group.
+
     convolution : callable
         The convolution implementation to use. Usually it should be fine to
         leave this at the default value.
@@ -729,11 +774,15 @@ class Conv3DLayer(BaseConvLayer):  # pragma: no cover
 
     def convolve(self, input, **kwargs):
         border_mode = 'half' if self.pad == 'same' else self.pad
+        extra_kwargs = {}
+        if self.num_groups > 1:  # pragma: no cover
+            extra_kwargs['num_groups'] = self.num_groups
         conved = self.convolution(input, self.W,
                                   self.input_shape, self.get_W_shape(),
                                   subsample=self.stride,
                                   border_mode=border_mode,
-                                  filter_flip=self.flip_filters)
+                                  filter_flip=self.flip_filters,
+                                  **extra_kwargs)
         return conved
 
 

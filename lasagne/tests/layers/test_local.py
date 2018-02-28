@@ -151,7 +151,7 @@ class TestLocallyConnected2DLayer:
             LocallyConnected2DLayer(input_layer, 4, 3, channelwise=True)
         assert "num_filters and the number of input channels should match" \
                in exc.value.args[0]
-        input_layer = DummyInputLayer((10, None, 4, 4))
+        input_layer = DummyInputLayer((10, 2, None, 4))
         with pytest.raises(ValueError) as exc:
             LocallyConnected2DLayer(input_layer, 4, 3, channelwise=True)
         assert "A LocallyConnected2DLayer requires a fixed input shape " \

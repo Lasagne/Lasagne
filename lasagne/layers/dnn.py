@@ -375,6 +375,12 @@ class Conv2DDNNLayer(BaseConvLayer):
         be set to ``True`` if weights are loaded into it that were learnt using
         a regular :class:`lasagne.layers.Conv2DLayer`, for example.
 
+    num_groups : int (default: 1)
+        The number of groups to split the input channels and output channels
+        into, such that data does not cross the group boundaries. Requires the
+        number of channels to be divisible by the number of groups, and
+        requires Theano 0.10 or later for more than one group.
+
     **kwargs
         Any additional keyword arguments are passed to the `Layer` superclass.
 
@@ -389,11 +395,12 @@ class Conv2DDNNLayer(BaseConvLayer):
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1),
                  pad=0, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
-                 flip_filters=False, **kwargs):
+                 flip_filters=False, num_groups=1, **kwargs):
         super(Conv2DDNNLayer, self).__init__(incoming, num_filters,
                                              filter_size, stride, pad,
                                              untie_biases, W, b, nonlinearity,
-                                             flip_filters, n=2, **kwargs)
+                                             flip_filters, num_groups, n=2,
+                                             **kwargs)
 
     def convolve(self, input, **kwargs):
         # by default we assume 'cross', consistent with corrmm.
@@ -401,13 +408,16 @@ class Conv2DDNNLayer(BaseConvLayer):
         border_mode = self.pad
         if border_mode == 'same':
             border_mode = tuple(s // 2 for s in self.filter_size)
+        extra_kwargs = {}
+        if self.num_groups > 1:  # pragma: no cover
+            extra_kwargs = {'num_groups': self.num_groups}
 
         conved = dnn.dnn_conv(img=input,
                               kerns=self.W,
                               subsample=self.stride,
                               border_mode=border_mode,
-                              conv_mode=conv_mode
-                              )
+                              conv_mode=conv_mode,
+                              **extra_kwargs)
         return conved
 
 
@@ -500,6 +510,12 @@ class Conv3DDNNLayer(BaseConvLayer):
         anyway because the filters are learned, but if you want to compute
         predictions with pre-trained weights, take care if they need flipping.
 
+    num_groups : int (default: 1)
+        The number of groups to split the input channels and output channels
+        into, such that data does not cross the group boundaries. Requires the
+        number of channels to be divisible by the number of groups, and
+        requires Theano 0.10 or later for more than one group.
+
     **kwargs
         Any additional keyword arguments are passed to the `Layer` superclass.
 
@@ -514,11 +530,12 @@ class Conv3DDNNLayer(BaseConvLayer):
     def __init__(self, incoming, num_filters, filter_size, stride=(1, 1, 1),
                  pad=0, untie_biases=False, W=init.GlorotUniform(),
                  b=init.Constant(0.), nonlinearity=nonlinearities.rectify,
-                 flip_filters=False, **kwargs):
+                 flip_filters=False, num_groups=1, **kwargs):
         super(Conv3DDNNLayer, self).__init__(incoming, num_filters,
                                              filter_size, stride, pad,
                                              untie_biases, W, b, nonlinearity,
-                                             flip_filters, n=3, **kwargs)
+                                             flip_filters, num_groups, n=3,
+                                             **kwargs)
 
     def convolve(self, input, **kwargs):
         # by default we assume 'cross', consistent with corrmm.
@@ -526,13 +543,16 @@ class Conv3DDNNLayer(BaseConvLayer):
         border_mode = self.pad
         if border_mode == 'same':
             border_mode = tuple(s // 2 for s in self.filter_size)
+        extra_kwargs = {}
+        if self.num_groups > 1:
+            extra_kwargs = {'num_groups': self.num_groups}
 
         conved = dnn.dnn_conv3d(img=input,
                                 kerns=self.W,
                                 subsample=self.stride,
                                 border_mode=border_mode,
-                                conv_mode=conv_mode
-                                )
+                                conv_mode=conv_mode,
+                                **extra_kwargs)
         return conved
 
 

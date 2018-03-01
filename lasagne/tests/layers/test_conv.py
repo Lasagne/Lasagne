@@ -19,7 +19,7 @@ if not gpu:
         from theano.sandbox import cuda
         theano_backend = "cuda_sandbox"
         gpu = cuda.cuda_enabled
-    except ImportError:
+    except Exception:  # Theano 0.10+ raises nose.SkipTest
         gpu = False
     if not gpu:
         theano_backend = "cpu"

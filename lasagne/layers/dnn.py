@@ -23,7 +23,7 @@ if not gpu_enabled:
     try:
         from theano.sandbox import cuda as gpu
         import theano.sandbox.cuda.dnn
-    except ImportError:
+    except Exception:  # Theano 0.10+ raises nose.SkipTest
         gpu_enabled = False
     else:
         gpu_enabled = gpu.cuda_enabled

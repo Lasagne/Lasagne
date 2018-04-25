@@ -177,8 +177,8 @@ def as_tuple(x, N, t=None):
     x : value or iterable
     N : integer
         length of the desired tuple
-    t : type, optional
-        required type for all elements
+    t : type or tuple of type, optional
+        required type or types for all elements
 
     Returns
     -------
@@ -198,8 +198,14 @@ def as_tuple(x, N, t=None):
         X = (x,) * N
 
     if (t is not None) and not all(isinstance(v, t) for v in X):
+        if t == int_types:
+            expected_type = "int"  # easier to understand
+        elif isinstance(t, tuple):
+            expected_type = " or ".join(tt.__name__ for tt in t)
+        else:
+            expected_type = t.__name__
         raise TypeError("expected a single value or an iterable "
-                        "of {0}, got {1} instead".format(t.__name__, x))
+                        "of {0}, got {1} instead".format(expected_type, x))
 
     if len(X) != N:
         raise ValueError("expected a single value or an iterable "

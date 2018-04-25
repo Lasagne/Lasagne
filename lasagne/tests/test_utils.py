@@ -60,11 +60,19 @@ def test_one_hot():
 
 
 def test_as_tuple_fails():
-    from lasagne.utils import as_tuple
-    with pytest.raises(ValueError):
+    from lasagne.utils import as_tuple, int_types
+    with pytest.raises(ValueError) as exc:
         as_tuple([1, 2, 3], 4)
-    with pytest.raises(TypeError):
+    assert "length 4" in exc.value.args[0]
+    with pytest.raises(TypeError) as exc:
         as_tuple('asdf', 4, int)
+    assert "of int," in exc.value.args[0]
+    with pytest.raises(TypeError) as exc:
+        as_tuple('asdf', 4, (int, float))
+    assert "of int or float," in exc.value.args[0]
+    with pytest.raises(TypeError) as exc:
+        as_tuple('asdf', 4, int_types)
+    assert "of int," in exc.value.args[0]
 
 
 def test_inspect_kwargs():

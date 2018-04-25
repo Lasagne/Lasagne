@@ -2,6 +2,7 @@ import numpy as np
 import theano.tensor as T
 
 from ..theano_extensions import padding
+from ..utils import int_types
 
 from .base import Layer
 
@@ -105,11 +106,11 @@ class ReshapeLayer(Layer):
         super(ReshapeLayer, self).__init__(incoming, **kwargs)
         shape = tuple(shape)
         for s in shape:
-            if isinstance(s, int):
+            if isinstance(s, int_types):
                 if s == 0 or s < - 1:
                     raise ValueError("`shape` integers must be positive or -1")
             elif isinstance(s, list):
-                if len(s) != 1 or not isinstance(s[0], int) or s[0] < 0:
+                if len(s) != 1 or not isinstance(s[0], int_types) or s[0] < 0:
                     raise ValueError("`shape` input references must be "
                                      "single-element lists of int >= 0")
             elif isinstance(s, T.TensorVariable):
@@ -232,7 +233,7 @@ class DimshuffleLayer(Layer):
         # Sanity check the pattern
         used_dims = set()
         for p in pattern:
-            if isinstance(p, int):
+            if isinstance(p, int_types):
                 # Dimension p
                 if p in used_dims:
                     raise ValueError("pattern contains dimension {0} more "
@@ -256,7 +257,7 @@ class DimshuffleLayer(Layer):
         output_shape = []
         dims_used = [False] * len(input_shape)
         for p in self.pattern:
-            if isinstance(p, int):
+            if isinstance(p, int_types):
                 if p < 0 or p >= len(input_shape):
                     raise ValueError("pattern contains {0}, but input shape "
                                      "has {1} dimensions "
@@ -321,7 +322,7 @@ class PadLayer(Layer):
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)
 
-        if isinstance(self.width, int):
+        if isinstance(self.width, int_types):
             widths = [self.width] * (len(input_shape) - self.batch_ndim)
         else:
             widths = self.width
@@ -381,7 +382,7 @@ class SliceLayer(Layer):
 
     def get_output_shape_for(self, input_shape):
         output_shape = list(input_shape)
-        if isinstance(self.slice, int):
+        if isinstance(self.slice, int_types):
             del output_shape[self.axis]
         elif input_shape[self.axis] is not None:
             output_shape[self.axis] = len(

@@ -399,6 +399,11 @@ class TestBaseConvLayer:
             BaseConvLayer((2, 3, 4), 1, 3, num_groups=-3)
         assert "must be positive" in exc.value.args[0]
 
+    def test_integer_types(self):
+        from lasagne.layers.conv import BaseConvLayer
+        BaseConvLayer((2, 3, 4), np.int64(1), np.int64(3))
+        BaseConvLayer((2, 3, 4, 5), 1, np.empty((3, 3)).shape)
+
 
 class TestConv1DLayer:
 

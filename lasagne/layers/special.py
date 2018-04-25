@@ -4,7 +4,7 @@ import numpy as np
 
 from .. import init
 from .. import nonlinearities
-from ..utils import as_tuple, floatX
+from ..utils import as_tuple, floatX, int_types
 from ..random import get_rng
 from .base import Layer, MergeLayer
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -94,7 +94,7 @@ class BiasLayer(Layer):
         if shared_axes == 'auto':
             # default: share biases over all but the second axis
             shared_axes = (0,) + tuple(range(2, len(self.input_shape)))
-        elif isinstance(shared_axes, int):
+        elif isinstance(shared_axes, int_types):
             shared_axes = (shared_axes,)
         self.shared_axes = shared_axes
 
@@ -161,7 +161,7 @@ class ScaleLayer(Layer):
         if shared_axes == 'auto':
             # default: share scales over all but the second axis
             shared_axes = (0,) + tuple(range(2, len(self.input_shape)))
-        elif isinstance(shared_axes, int):
+        elif isinstance(shared_axes, int_types):
             shared_axes = (shared_axes,)
         self.shared_axes = shared_axes
 
@@ -1007,7 +1007,7 @@ class ParametricRectifierLayer(Layer):
             self.shared_axes = (0,) + tuple(range(2, len(self.input_shape)))
         elif shared_axes == 'all':
             self.shared_axes = tuple(range(len(self.input_shape)))
-        elif isinstance(shared_axes, int):
+        elif isinstance(shared_axes, int_types):
             self.shared_axes = (shared_axes,)
         else:
             self.shared_axes = shared_axes
@@ -1120,7 +1120,7 @@ class RandomizedRectifierLayer(Layer):
             self.shared_axes = (0,) + tuple(range(2, len(self.input_shape)))
         elif shared_axes == 'all':
             self.shared_axes = tuple(range(len(self.input_shape)))
-        elif isinstance(shared_axes, int):
+        elif isinstance(shared_axes, int_types):
             self.shared_axes = (shared_axes,)
         else:
             self.shared_axes = shared_axes

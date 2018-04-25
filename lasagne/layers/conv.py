@@ -2,7 +2,7 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
-from ..utils import as_tuple, inspect_kwargs
+from ..utils import as_tuple, int_types, inspect_kwargs
 from ..theano_extensions import conv
 
 from .base import Layer
@@ -75,7 +75,7 @@ def conv_output_length(input_length, filter_size, stride, pad=0):
         output_length = input_length + filter_size - 1
     elif pad == 'same':
         output_length = input_length
-    elif isinstance(pad, int):
+    elif isinstance(pad, int_types):
         output_length = input_length + 2 * pad - filter_size + 1
     else:
         raise ValueError('Invalid pad: {0}'.format(pad))
@@ -151,7 +151,7 @@ def conv_input_length(output_length, filter_size, stride, pad=0):
         pad = filter_size - 1
     elif pad == 'same':
         pad = filter_size // 2
-    if not isinstance(pad, int):
+    if not isinstance(pad, int_types):
         raise ValueError('Invalid pad: {0}'.format(pad))
     return (output_length - 1) * stride - 2 * pad + filter_size
 
@@ -288,9 +288,9 @@ class BaseConvLayer(Layer):
                              (n, self.input_shape, n+2, n))
         self.n = n
         self.num_filters = num_filters
-        self.filter_size = as_tuple(filter_size, n, int)
+        self.filter_size = as_tuple(filter_size, n, int_types)
         self.flip_filters = flip_filters
-        self.stride = as_tuple(stride, n, int)
+        self.stride = as_tuple(stride, n, int_types)
         self.untie_biases = untie_biases
 
         if pad == 'same':
@@ -302,7 +302,7 @@ class BaseConvLayer(Layer):
         elif pad in ('full', 'same'):
             self.pad = pad
         else:
-            self.pad = as_tuple(pad, n, int)
+            self.pad = as_tuple(pad, n, int_types)
 
         if (num_groups <= 0 or
                 self.num_filters % num_groups != 0 or
@@ -934,7 +934,7 @@ class TransposedConv2DLayer(BaseConvLayer):
         # output_size must be set before calling the super constructor
         if (not isinstance(output_size, T.Variable) and
                 output_size is not None):
-            output_size = as_tuple(output_size, 2, int)
+            output_size = as_tuple(output_size, 2, int_types)
         self.output_size = output_size
         super(TransposedConv2DLayer, self).__init__(
                 incoming, num_filters, filter_size, stride, crop, untie_biases,
@@ -1127,7 +1127,7 @@ class TransposedConv3DLayer(BaseConvLayer):  # pragma: no cover
         # output_size must be set before calling the super constructor
         if (not isinstance(output_size, T.Variable) and
                 output_size is not None):
-            output_size = as_tuple(output_size, 3, int)
+            output_size = as_tuple(output_size, 3, int_types)
         self.output_size = output_size
         BaseConvLayer.__init__(self, incoming, num_filters, filter_size,
                                stride, crop, untie_biases, W, b,
@@ -1286,7 +1286,7 @@ class DilatedConv2DLayer(BaseConvLayer):
                  W=init.GlorotUniform(), b=init.Constant(0.),
                  nonlinearity=nonlinearities.rectify, flip_filters=False,
                  **kwargs):
-        self.dilation = as_tuple(dilation, 2, int)
+        self.dilation = as_tuple(dilation, 2, int_types)
         super(DilatedConv2DLayer, self).__init__(
                 incoming, num_filters, filter_size, 1, pad,
                 untie_biases, W, b, nonlinearity, flip_filters, n=2, **kwargs)

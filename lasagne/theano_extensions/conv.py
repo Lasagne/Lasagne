@@ -3,8 +3,9 @@ Alternative convolution implementations for Theano
 """
 
 import numpy as np
-
 import theano.tensor as T
+
+from ..utils import int_types
 
 
 # 1D convolutions
@@ -60,7 +61,7 @@ def conv1d_mc0(input, filters, image_shape=None, filter_shape=None,
 
     if isinstance(border_mode, tuple):
         (border_mode,) = border_mode
-    if isinstance(border_mode, int):
+    if isinstance(border_mode, int_types):
         border_mode = (0, border_mode)
 
     input_mc0 = input.dimshuffle(0, 1, 'x', 2)
@@ -94,7 +95,7 @@ def conv1d_mc1(input, filters, image_shape=None, filter_shape=None,
 
     if isinstance(border_mode, tuple):
         (border_mode,) = border_mode
-    if isinstance(border_mode, int):
+    if isinstance(border_mode, int_types):
         border_mode = (border_mode, 0)
 
     input_mc1 = input.dimshuffle(0, 1, 2, 'x')

@@ -4,6 +4,8 @@ Padding
 
 import theano.tensor as T
 
+from ..utils import int_types
+
 
 def pad(x, width, val=0, batch_ndim=1):
     """
@@ -33,7 +35,7 @@ def pad(x, width, val=0, batch_ndim=1):
     output_shape = list(input_shape)
     indices = [slice(None) for _ in output_shape]
 
-    if isinstance(width, int):
+    if isinstance(width, int_types):
         widths = [width] * (input_ndim - batch_ndim)
     else:
         widths = width

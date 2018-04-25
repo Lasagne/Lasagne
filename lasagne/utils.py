@@ -1,7 +1,13 @@
-import numpy as np
+import numbers
 
+import numpy as np
 import theano
 import theano.tensor as T
+
+
+#: Tuple of ``int``-like types for ``isinstance`` checks.
+#: Specifically includes long integers and numpy integers.
+int_types = (numbers.Integral, np.integer)
 
 
 def floatX(arr):

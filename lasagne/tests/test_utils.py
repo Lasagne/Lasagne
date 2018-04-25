@@ -5,6 +5,21 @@ import theano
 import theano.tensor as T
 
 
+def test_int_types():
+    from lasagne.utils import int_types
+    assert isinstance(42, int_types)
+    assert isinstance(np.int8(42), int_types)
+    assert isinstance(np.int16(42), int_types)
+    assert isinstance(np.int32(42), int_types)
+    assert isinstance(np.int64(42), int_types)
+    assert isinstance(np.empty(42).shape[0], int_types)
+    assert isinstance(np.prod(np.empty(42).shape), int_types)
+    try:
+        assert isinstance(long(42), int_types)
+    except NameError:
+        pass
+
+
 def test_shared_empty():
     from lasagne.utils import shared_empty
 

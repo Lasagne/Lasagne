@@ -5,6 +5,21 @@ import theano
 import theano.tensor as T
 
 
+def test_int_types():
+    from lasagne.utils import int_types
+    assert isinstance(42, int_types)
+    assert isinstance(np.int8(42), int_types)
+    assert isinstance(np.int16(42), int_types)
+    assert isinstance(np.int32(42), int_types)
+    assert isinstance(np.int64(42), int_types)
+    assert isinstance(np.empty(42).shape[0], int_types)
+    assert isinstance(np.prod(np.empty(42).shape), int_types)
+    try:
+        assert isinstance(long(42), int_types)
+    except NameError:
+        pass
+
+
 def test_shared_empty():
     from lasagne.utils import shared_empty
 
@@ -45,11 +60,19 @@ def test_one_hot():
 
 
 def test_as_tuple_fails():
-    from lasagne.utils import as_tuple
-    with pytest.raises(ValueError):
+    from lasagne.utils import as_tuple, int_types
+    with pytest.raises(ValueError) as exc:
         as_tuple([1, 2, 3], 4)
-    with pytest.raises(TypeError):
+    assert "length 4" in exc.value.args[0]
+    with pytest.raises(TypeError) as exc:
         as_tuple('asdf', 4, int)
+    assert "of int," in exc.value.args[0]
+    with pytest.raises(TypeError) as exc:
+        as_tuple('asdf', 4, (int, float))
+    assert "of int or float," in exc.value.args[0]
+    with pytest.raises(TypeError) as exc:
+        as_tuple('asdf', 4, int_types)
+    assert "of int," in exc.value.args[0]
 
 
 def test_inspect_kwargs():

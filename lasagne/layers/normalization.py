@@ -41,6 +41,7 @@ import theano.tensor as T
 
 from .. import init
 from .. import nonlinearities
+from ..utils import int_types
 
 from .base import Layer
 
@@ -235,7 +236,7 @@ class BatchNormLayer(Layer):
         if axes == 'auto':
             # default: normalize over all but the second axis
             axes = (0,) + tuple(range(2, len(self.input_shape)))
-        elif isinstance(axes, int):
+        elif isinstance(axes, int_types):
             axes = (axes,)
         self.axes = axes
 

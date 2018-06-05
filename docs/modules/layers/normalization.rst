@@ -13,8 +13,10 @@ Normalization layers
 
 .. autofunction:: batch_norm
 
-.. autoclass:: InstanceNormLayer
+.. autoclass:: StandardizationLayer
     :members:
 
 .. autofunction:: instance_norm
+
+.. autofunction:: layer_norm
 

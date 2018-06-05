@@ -383,37 +383,35 @@ def batch_norm(layer, **kwargs):
 
 class StandardizationLayer(Layer):
     """
-    This layer implements the normalization of the input layer's
-    outputs across the specified axes:
+    Standardize inputs to zero mean and unit variance:
 
     .. math::
         y_i = \\frac{x_i - \\mu_i}{\\sqrt{\\sigma_i^2 + \\epsilon}}
 
-    That is, each input feature (or input pixel) :math:`\\x_i`
-    is normalized to zero mean and unit variance.
-    The mean :math:`\\mu_i` and variance
-    :math:`\\sigma_i^2` is calculated across the specified axes.
-    In contrast to batch normalization, the mean and
-    variance is not restricted to be defined across examples,
-    so the same operation can be applied during training and testing.
-    The advantages of using this implementation over e.g.
-    :class:`BatchNormLayer` with adapted axes arguments, are its
-    independence of the input size, as no parameters are learned and stored.
-    :class:`StandardizationLayer` can be employed to realize
-    different normalization schemes such as instance normalization [1]
-    and layer normalization [2], for both of which convenience functions
-    (:func:`instance_norm` and :func:`layer_norm`) are available.
+    The mean :math:`\\mu_i` and variance :math:`\\sigma_i^2` are computed and
+    shared across a given set of axes. In contrast to batch normalization,
+    these axes usually do not include the batch dimension, so each example is
+    normalized independently from other examples in the minibatch, both during
+    training and testing.
+
+    The :class:`StandardizationLayer` can be employed to realize instance
+    normalization [1]_ and layer normalization [2]_, for both of which
+    convenience functions (:func:`instance_norm` and :func:`layer_norm`) are
+    available.
 
     Parameters
     ----------
     incoming : a :class:`Layer` instance or a tuple
         The layer feeding into this layer, or the expected input shape
-    axes : 'auto', int or tuple of int
+    axes : 'auto', 'spatial', 'features', int or tuple of int
         The axis or axes to normalize over. If ``'auto'`` (the default),
-        2D inputs are normalized over the second dimension, inputs
-        with more than 2 dimensions are normalized over all but the first
-        two dimensions (i.e. this will normalize over all spatial dimensions
-        for convolutional layers).
+        two-dimensional inputs are normalized over the last dimension (i.e.,
+        this will normalize over units for dense layers), input tensors with
+        more than two dimensions are normalized over all but the first two
+        dimensions (i.e., this will normalize over all spatial dimensions for
+        convolutional layers). If ``'spatial'``, will normalize over all but
+        the first two dimensions. If ``'features'``, will normalize over all
+        but the first dimension.
     epsilon : scalar
         Small constant :math:`\\epsilon` added to the variance before taking
         the square root and dividing by it, to avoid numerical problems
@@ -421,17 +419,9 @@ class StandardizationLayer(Layer):
         Any additional keyword arguments are passed to the :class:`Layer`
         superclass.
 
-    Notes
-    -----
-    The convenience functions :func:`instance_norm` :func:`layer_norm`
-    modify an existing layer to insert instance normalization or
-    layer normalization in front of its nonlinearity.
-
     See also
     --------
-    instance_norm : Convenience function to apply instance normalization to a
-    layer
-    References
+    instance_norm : Convenience function to apply instance normalization
     layer_norm : Convenience function to apply layer normalization to a layer
 
     References
@@ -441,7 +431,8 @@ class StandardizationLayer(Layer):
            https://arxiv.org/abs/1607.08022.
 
     .. [2] Ba, J., Kiros, J., & Hinton, G. (2016):
-           Layer normalization. https://arxiv.org/abs/1607.06450.
+           Layer normalization.
+           https://arxiv.org/abs/1607.06450.
     """
     def __init__(self, incoming, axes='auto', epsilon=1e-4, **kwargs):
         super(StandardizationLayer, self).__init__(incoming, **kwargs)
@@ -479,10 +470,14 @@ def instance_norm(layer, learn_scale=True, learn_bias=True, **kwargs):
     function modifying an existing layer to include instance normalization: It
     will steal the layer's nonlinearity if there is one (effectively
     introducing the normalization right before the nonlinearity), remove
-    the layer's bias if there is one (because it would be redundant), and add
+    the layer's bias if there is one (because it would be effectless), and add
     a :class:`StandardizationLayer` and :class:`NonlinearityLayer` on top.
     Depending on the given arguments, an additional :class:`ScaleLayer` and
-    :class:`BiasLayer` will be inserted inbetween.
+    :class:`BiasLayer` will be inserted in between.
+
+    In effect, it will separately standardize each feature map of each input
+    example, followed by an optional scale and shift learned per channel,
+    followed by the original nonlinearity, as proposed in [1]_.
 
     Parameters
     ----------
@@ -492,19 +487,17 @@ def instance_norm(layer, learn_scale=True, learn_bias=True, **kwargs):
     learn_scale : bool (default: True)
         Whether to add a ScaleLayer after the StandardizationLayer
     learn_bias : bool (default: True)
-        Whether to add a BiasLayer after the StandardizationLayer or the
-        optionally added ScaleLayer
+        Whether to add a BiasLayer after the StandardizationLayer (or the
+        optional ScaleLayer)
     **kwargs
         Any additional keyword arguments are passed on to the
         :class:`StandardizationLayer` constructor.
 
     Returns
     -------
-    Instance of StandardizationLayer, ScaleLayer, BiasLayer, NonlinearityLayer
-        An instance normalization layer stacked on the given modified `layer`,
-        or a scale layer or a bias layer or a nonlinearity layer stacked on top
-        of the respectively present additional layers depending on whether
-        `layer` was nonlinear and on the arguments to :func:`instance_norm`.
+    StandardizationLayer, ScaleLayer, BiasLayer, or NonlinearityLayer instance
+        The last layer stacked on top of the given modified `layer` to
+        implement instance normalization with optional scaling and shifting.
 
     Examples
     --------
@@ -513,8 +506,8 @@ def instance_norm(layer, learn_scale=True, learn_bias=True, **kwargs):
     >>> from lasagne.layers import InputLayer, Conv2DLayer, instance_norm
     >>> from lasagne.nonlinearities import rectify
     >>> l1 = InputLayer((10, 3, 28, 28))
-    >>> l2 = instance_norm(Conv2DLayer(l1, num_filters=64, filter_size=3,\
-        nonlinearity=rectify))
+    >>> l2 = instance_norm(Conv2DLayer(l1, num_filters=64, filter_size=3,
+    ...                                nonlinearity=rectify))
 
     This introduces instance normalization right before its nonlinearity:
 
@@ -522,6 +515,12 @@ def instance_norm(layer, learn_scale=True, learn_bias=True, **kwargs):
     >>> [l.__class__.__name__ for l in get_all_layers(l2)]
     ['InputLayer', 'Conv2DLayer', 'StandardizationLayer', \
 'ScaleLayer', 'BiasLayer', 'NonlinearityLayer']
+
+    References
+    ----------
+    .. [1] Ulyanov, D., Vedaldi, A., & Lempitsky, V. (2016):
+           Instance Normalization: The Missing Ingredient for Fast Stylization.
+           https://arxiv.org/abs/1607.08022.
     """
     nonlinearity = getattr(layer, 'nonlinearity', None)
     if nonlinearity is not None:
@@ -553,9 +552,13 @@ def layer_norm(layer, **kwargs):
     function modifying an existing layer to include layer normalization: It
     will steal the layer's nonlinearity if there is one (effectively
     introducing the normalization right before the nonlinearity), remove
-    the layer's bias if there is one, and add
-    a :class:`StandardizationLayer`,  :class:`ScaleLayer`,  :class:`BiasLayer`,
-    and :class:`NonlinearityLayer` on top.
+    the layer's bias if there is one, and add a :class:`StandardizationLayer`,
+    :class:`ScaleLayer`, :class:`BiasLayer`, and :class:`NonlinearityLayer` on
+    top.
+
+    In effect, it will standardize each input example across the feature and
+    spatial dimensions (if any), followed by a scale and shift learned per
+    feature, followed by the original nonlinearity, as proposed in [1]_.
 
     Parameters
     ----------
@@ -564,14 +567,13 @@ def layer_norm(layer, **kwargs):
         irreversibly modified as specified above
     **kwargs
         Any additional keyword arguments are passed on to the
-        :class:`InstanceNormLayer` constructor.
+        :class:`StandardizationLayer` constructor.
 
     Returns
     -------
     StandardizationLayer or NonlinearityLayer instance
-        A layer normalization layer stacked on the given modified `layer`,
-        or a nonlinearity layer stacked on top of both
-        if `layer` was nonlinear.
+        The last layer stacked on top of the given modified `layer` to
+        implement layer normalization with feature-wise scaling and shifting.
 
     Examples
     --------
@@ -588,6 +590,12 @@ def layer_norm(layer, **kwargs):
     >>> [l.__class__.__name__ for l in get_all_layers(l2)]
     ['InputLayer', 'DenseLayer', 'StandardizationLayer', \
 'ScaleLayer', 'BiasLayer', 'NonlinearityLayer']
+
+    References
+    ----------
+    .. [1] Ba, J., Kiros, J., & Hinton, G. (2016):
+           Layer normalization.
+           https://arxiv.org/abs/1607.06450.
     """
     nonlinearity = getattr(layer, 'nonlinearity', None)
     if nonlinearity is not None:

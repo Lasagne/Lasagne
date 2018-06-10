@@ -166,6 +166,9 @@
     LocalResponseNormalization2DLayer
     BatchNormLayer
     batch_norm
+    StandardizationLayer
+    instance_norm
+    layer_norm
 
 
 .. rubric:: :doc:`layers/embedding`

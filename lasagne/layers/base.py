@@ -41,7 +41,7 @@ class Layer(object):
         self.params = OrderedDict()
         self.get_output_kwargs = []
 
-        if any(d is not None and d <= 0 for d in self.input_shape):
+        if any(d is not None and (type(d) is not tuple and d <= 0) for d in self.input_shape):
             raise ValueError((
                 "Cannot create Layer with a non-positive input_shape "
                 "dimension. input_shape=%r, self.name=%r") % (

@@ -47,11 +47,11 @@ class EmbeddingLayer(Layer):
     >>> f = theano.function([x], output)
     >>> x_test = np.array([[0, 2], [1, 2]]).astype('int32')
     >>> f(x_test)
-    array([[[  0.,   1.,   2.,   3.,   4.],
-            [ 10.,  11.,  12.,  13.,  14.]],
+    array([[[ 0.,  1.,  2.,  3.,  4.],
+            [10., 11., 12., 13., 14.]],
     <BLANKLINE>
-           [[  5.,   6.,   7.,   8.,   9.],
-            [ 10.,  11.,  12.,  13.,  14.]]], dtype=float32)
+           [[ 5.,  6.,  7.,  8.,  9.],
+            [10., 11., 12., 13., 14.]]], dtype=float32)
     """
     def __init__(self, incoming, input_size, output_size,
                  W=init.Normal(), **kwargs):

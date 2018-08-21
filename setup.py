@@ -2,7 +2,7 @@ import os
 import re
 from setuptools import find_packages
 from setuptools import setup
-# We need io.open() (Python 3's default open) to specify file encodings 
+# We need io.open() (Python 3's default open) to specify file encodings
 import io
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -50,6 +50,8 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         ],
     keywords="",

@@ -33,7 +33,7 @@ tests_require = [
     'mock',
     'pytest',
     'pytest-cov',
-    'pytest-pep8',
+    'pytest-codestyle',
     ]
 
 setup(

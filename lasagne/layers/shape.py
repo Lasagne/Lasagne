@@ -57,6 +57,7 @@ class FlattenLayer(Layer):
     def get_output_for(self, input, **kwargs):
         return input.flatten(self.outdim)
 
+
 flatten = FlattenLayer  # shortcut
 
 
@@ -188,6 +189,7 @@ class ReshapeLayer(Layer):
         # Everything else is handled by Theano
         return input.reshape(tuple(output_shape))
 
+
 reshape = ReshapeLayer  # shortcut
 
 
@@ -283,6 +285,7 @@ class DimshuffleLayer(Layer):
     def get_output_for(self, input, **kwargs):
         return input.dimshuffle(self.pattern)
 
+
 dimshuffle = DimshuffleLayer  # shortcut
 
 
@@ -340,6 +343,7 @@ class PadLayer(Layer):
 
     def get_output_for(self, input, **kwargs):
         return padding.pad(input, self.width, self.val, self.batch_ndim)
+
 
 pad = PadLayer  # shortcut
 

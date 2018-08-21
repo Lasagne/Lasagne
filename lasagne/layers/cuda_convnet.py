@@ -535,6 +535,7 @@ class ShuffleBC01ToC01BLayer(Layer):
     def get_output_for(self, input, **kwargs):
         return input.dimshuffle(1, 2, 3, 0)
 
+
 bc01_to_c01b = ShuffleBC01ToC01BLayer  # shortcut
 
 
@@ -560,6 +561,7 @@ class ShuffleC01BToBC01Layer(Layer):
 
     def get_output_for(self, input, **kwargs):
         return input.dimshuffle(3, 0, 1, 2)
+
 
 c01b_to_bc01 = ShuffleC01BToBC01Layer  # shortcut
 

@@ -27,7 +27,7 @@ def sigmoid(x):
 def softmax(x):
     """Softmax activation function
     :math:`\\varphi(\\mathbf{x})_j =
-    \\frac{e^{\mathbf{x}_j}}{\sum_{k=1}^K e^{\mathbf{x}_k}}`
+    \\frac{e^{\\mathbf{x}_j}}{\\sum_{k=1}^K e^{\\mathbf{x}_k}}`
     where :math:`K` is the total number of neurons in the layer. This
     activation function gets applied row-wise.
 
@@ -371,5 +371,6 @@ def linear(x):
         The output of the identity applied to the activation.
     """
     return x
+
 
 identity = linear

@@ -395,7 +395,7 @@ def huber_loss(predictions, targets, delta=1):
 def binary_accuracy(predictions, targets, threshold=0.5):
     """Computes the binary accuracy between predictions and targets.
 
-    .. math:: L_i = \\mathbb{I}(t_i = \mathbb{I}(p_i \\ge \\alpha))
+    .. math:: L_i = \\mathbb{I}(t_i = \\mathbb{I}(p_i \\ge \\alpha))
 
     Parameters
     ----------

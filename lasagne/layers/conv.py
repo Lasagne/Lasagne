@@ -981,6 +981,7 @@ class TransposedConv2DLayer(BaseConvLayer):
         conved = op(self.W, input, output_size)
         return conved
 
+
 Deconv2DLayer = TransposedConv2DLayer
 
 
@@ -1173,6 +1174,7 @@ class TransposedConv3DLayer(BaseConvLayer):  # pragma: no cover
             output_size = self.get_output_shape_for(input.shape)[2:]
         conved = op(self.W, input, output_size)
         return conved
+
 
 Deconv3DLayer = TransposedConv3DLayer
 

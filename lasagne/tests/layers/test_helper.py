@@ -319,7 +319,7 @@ class TestGetOutput_MergeLayer:
         l3.get_output_for.assert_called_with([
             l2[0].get_output_for.return_value,
             l2[1].get_output_for.return_value,
-            ])
+        ])
         l2[0].get_output_for.assert_called_with(
             l1[0].input_var)
         l2[1].get_output_for.assert_called_with(
@@ -356,7 +356,7 @@ class TestGetOutput_MergeLayer:
         l3.get_output_for.assert_called_with([
             l2[0].get_output_for.return_value,
             l2[1].get_output_for.return_value,
-            ])
+        ])
         l2[0].get_output_for.assert_called_with(
             l1[0].input_var)
         l2[1].get_output_for.assert_called_with(
@@ -393,7 +393,7 @@ class TestGetOutput_MergeLayer:
         l3.get_output_for.assert_called_with([
             input_expr,
             l2[1].get_output_for.return_value,
-            ], kwarg=kwarg)
+        ], kwarg=kwarg)
         l2[1].get_output_for.assert_called_with(
             l1[1].input_var, kwarg=kwarg)
         # l2[0].get_output_for should not have been called
@@ -418,7 +418,7 @@ class TestGetOutput_MergeLayer:
         l3.get_output_for.assert_called_with([
             l2[0].get_output_for.return_value,
             l2[1].get_output_for.return_value,
-            ], kwarg=kwarg)
+        ], kwarg=kwarg)
         l2[0].get_output_for.assert_called_with(
             input_expr, kwarg=kwarg)
         l2[1].get_output_for.assert_called_with(
@@ -690,7 +690,7 @@ class TestGetOutputShape_MergeLayer:
         l3.get_output_shape_for.assert_called_with([
             l2[0].get_output_shape_for.return_value,
             l2[1].get_output_shape_for.return_value,
-            ])
+        ])
         l2[0].get_output_shape_for.assert_called_with(shp)
         l2[1].get_output_shape_for.assert_called_with(l1[1].shape)
 

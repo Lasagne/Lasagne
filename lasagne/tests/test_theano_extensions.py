@@ -49,7 +49,7 @@ def test_conv_nones(impl):
 
     conv_theano = conv(X, W, None, None).eval({
         X: input, W: kernel
-        })
+    })
 
     conv_np = conv1d(input, kernel)
 
@@ -69,7 +69,7 @@ def test_conv_pad(impl, pad):
 
     conv_theano = conv(X, W, input.shape, kernel.shape, border_mode=pad).eval({
         X: input, W: kernel
-        })
+    })
 
     pad = pad[0] if isinstance(pad, tuple) else pad
     input = np.pad(input, [(0, 0), (0, 0), (pad, pad)], mode='constant')

@@ -26,7 +26,7 @@ except IOError:
 
 install_requires = [
     'numpy',
-    # 'Theano',  # we require a development version, see requirements.txt
+    'Theano',
     ]
 
 tests_require = [

@@ -53,7 +53,7 @@ class TestUpdateFunctions(object):
         ['adam', {'learning_rate': 0.01}],
         ['adamax', {'learning_rate': 0.01}],
         ['amsgrad', {'learning_rate': 0.01}],
-        ])
+    ])
     def test_updates(self, method, kwargs):
         A = theano.shared(lasagne.utils.floatX([1, 1, 1]))
         B = theano.shared(lasagne.utils.floatX([1, 1, 1]))
@@ -95,7 +95,7 @@ class TestUpdateFunctions(object):
                      'beta1': 0.9,
                      'beta2': 0.999,
                      'epsilon': 1e-8}],
-        ])
+    ])
     def test_update_returntype(self, method, kwargs):
         '''Checks whether lasagne.updates handles float32 inputs correctly'''
         floatX_ = theano.config.floatX

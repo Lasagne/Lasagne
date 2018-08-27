@@ -2,7 +2,7 @@ ignore_test_paths = [
     "*/layers/corrmm.py",
     "*/layers/cuda_convnet.py",
     "*/layers/dnn.py",
-    ]
+]
 
 
 def pytest_ignore_collect(path, config):

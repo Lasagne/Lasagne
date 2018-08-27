@@ -136,13 +136,13 @@ class Glorot(Initializer):
 
     .. math::
        a &= \\sqrt{\\frac{12}{fan_{in}+fan_{out}}}\\\\
-       W &\sim U[-a, a]
+       W &\\sim U[-a, a]
 
     If ``gain=1`` and ``initializer=Normal``, the weights are initialized as
 
     .. math::
        \\sigma &= \\sqrt{\\frac{2}{fan_{in}+fan_{out}}}\\\\
-       W &\sim N(0, \\sigma)
+       W &\\sim N(0, \\sigma)
 
     See Also
     --------

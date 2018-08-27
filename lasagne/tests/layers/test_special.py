@@ -136,12 +136,12 @@ class TestNonlinearityLayer:
         layer = NonlinearityLayer(
             dummy_input_layer,
             nonlinearity=nonlinearity,
-            )
+        )
 
         return {
             'nonlinearity': nonlinearity,
             'layer': layer,
-            }
+        }
 
     @pytest.fixture
     def layer(self, layer_vars):
@@ -153,7 +153,7 @@ class TestNonlinearityLayer:
         layer = NonlinearityLayer(
             dummy_input_layer,
             nonlinearity=None,
-            )
+        )
         assert layer.nonlinearity == lasagne.nonlinearities.identity
 
     def test_get_output_for(self, layer_vars):

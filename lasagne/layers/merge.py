@@ -104,8 +104,8 @@ def autocrop(inputs, cropping):
             raise ValueError("Not all inputs are of the same "
                              "dimensionality. Got {0} inputs of "
                              "dimensionalities {1}.".format(
-                                len(inputs),
-                                [input.ndim for input in inputs]))
+                                 len(inputs),
+                                 [input.ndim for input in inputs]))
         # Get the shape of each input, where each shape will be a Theano
         # expression
         shapes = [input.shape for input in inputs]
@@ -217,8 +217,8 @@ def autocrop_array_shapes(input_shapes, cropping):
             raise ValueError("Not all inputs are of the same "
                              "dimensionality. Got {0} inputs of "
                              "dimensionalities {1}.".format(
-                                len(input_shapes),
-                                [len(sh) for sh in input_shapes]))
+                                 len(input_shapes),
+                                 [len(sh) for sh in input_shapes]))
 
         result = []
 
@@ -293,6 +293,7 @@ class ConcatLayer(MergeLayer):
     def get_output_for(self, inputs, **kwargs):
         inputs = autocrop(inputs, self.cropping)
         return T.concatenate(inputs, axis=self.axis)
+
 
 concat = ConcatLayer  # shortcut
 

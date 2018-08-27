@@ -33,7 +33,7 @@ class TestDenseLayer:
             W=W,
             b=b,
             nonlinearity=nonlinearity,
-            )
+        )
 
         return {
             'input_shape': input_shape,
@@ -45,7 +45,7 @@ class TestDenseLayer:
             'b': b,
             'nonlinearity': nonlinearity,
             'layer': layer,
-            }
+        }
 
     @pytest.fixture
     def layer(self, layer_vars):
@@ -64,7 +64,7 @@ class TestDenseLayer:
             num_units=3,
             nonlinearity=None,
             b=None,
-            )
+        )
         assert layer.nonlinearity == lasagne.nonlinearities.identity
         assert layer.b is None
 
@@ -132,7 +132,7 @@ class TestDenseLayer:
             dummy_input_layer,
             num_units=3,
             name="foo"
-            )
+        )
 
         assert layer.W.name == "foo.W"
         assert layer.b.name == "foo.b"
@@ -168,14 +168,14 @@ class TestNINLayer:
             W=W,
             b=b,
             nonlinearity=nonlinearity,
-            )
+        )
 
         return {
             'W': W,
             'b': b,
             'nonlinearity': nonlinearity,
             'layer': layer,
-            }
+        }
 
     @pytest.fixture
     def layer(self, layer_vars):
@@ -194,7 +194,7 @@ class TestNINLayer:
             num_units=3,
             nonlinearity=None,
             b=None,
-            )
+        )
         assert layer.nonlinearity == lasagne.nonlinearities.identity
         assert layer.b is None
 
@@ -203,7 +203,7 @@ class TestNINLayer:
             dummy_input_layer,
             num_units=5,
             untie_biases=True,
-            )
+        )
         assert (layer.b.shape.eval() == (5, 4, 5)).all()
 
     def test_get_params(self, layer):
@@ -232,7 +232,7 @@ class TestNINLayer:
             num_units=6,
             nonlinearity=nonlinearity,
             **extra_kwargs
-            )
+        )
 
         input = theano.shared(np.random.uniform(-1, 1, (2, 3, 4, 5)))
         result = layer.get_output_for(input)
@@ -259,7 +259,7 @@ class TestNINLayer:
             dummy_input_layer,
             num_units=3,
             name="foo"
-            )
+        )
 
         assert layer.W.name == "foo.W"
         assert layer.b.name == "foo.b"
@@ -298,14 +298,14 @@ class TestNINLayer_c01b:
             W=W,
             b=b,
             nonlinearity=nonlinearity,
-            )
+        )
 
         return {
             'W': W,
             'b': b,
             'nonlinearity': nonlinearity,
             'layer': layer,
-            }
+        }
 
     @pytest.fixture
     def layer(self, layer_vars):
@@ -325,7 +325,7 @@ class TestNINLayer_c01b:
             num_units=3,
             nonlinearity=None,
             b=None,
-            )
+        )
         assert layer.nonlinearity == lasagne.nonlinearities.identity
         assert layer.b is None
 
@@ -334,7 +334,7 @@ class TestNINLayer_c01b:
             dummy_input_layer,
             num_units=5,
             untie_biases=True,
-            )
+        )
         assert (layer.b.shape.eval() == (5, 4, 5)).all()
 
     def test_get_params(self, layer):
@@ -363,7 +363,7 @@ class TestNINLayer_c01b:
             num_units=6,
             nonlinearity=nonlinearity,
             **extra_kwargs
-            )
+        )
 
         input = theano.shared(np.random.uniform(-1, 1, (3, 4, 5, 2)))
         result = layer.get_output_for(input)

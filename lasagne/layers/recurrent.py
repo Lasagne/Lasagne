@@ -98,7 +98,7 @@ class CustomRecurrentLayer(MergeLayer):
     please see :class:`RecurrentLayer`.  The output is computed by
 
     .. math ::
-        h_t = \sigma(f_i(x_t) + f_h(h_{t-1}))
+        h_t = \\sigma(f_i(x_t) + f_h(h_{t-1}))
 
     Parameters
     ----------
@@ -119,7 +119,7 @@ class CustomRecurrentLayer(MergeLayer):
         must end in a :class:`lasagne.layers.InputLayer` with the same input
         shape as `hidden_to_hidden`'s output shape.
     nonlinearity : callable or None
-        Nonlinearity to apply when computing new state (:math:`\sigma`). If
+        Nonlinearity to apply when computing new state (:math:`\\sigma`). If
         None is provided, no nonlinearity will be applied.
     hid_init : callable, np.ndarray, theano.shared or :class:`Layer`
         Initializer for initial hidden state (:math:`h_0`).
@@ -519,7 +519,7 @@ class RecurrentLayer(CustomRecurrentLayer):
     hidden-to-hidden connections.  The output is computed as
 
     .. math ::
-        h_t = \sigma(x_t W_x + h_{t-1} W_h + b)
+        h_t = \\sigma(x_t W_x + h_{t-1} W_h + b)
 
     Parameters
     ----------
@@ -535,7 +535,7 @@ class RecurrentLayer(CustomRecurrentLayer):
         Initializer for bias vector (:math:`b`). If None is provided there will
         be no bias.
     nonlinearity : callable or None
-        Nonlinearity to apply when computing new state (:math:`\sigma`). If
+        Nonlinearity to apply when computing new state (:math:`\\sigma`). If
         None is provided, no nonlinearity will be applied.
     hid_init : callable, np.ndarray, theano.shared or :class:`Layer`
         Initializer for initial hidden state (:math:`h_0`).

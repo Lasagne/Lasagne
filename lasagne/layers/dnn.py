@@ -780,11 +780,12 @@ class BatchNormDNNLayer(BatchNormLayer):
             running_mean = theano.clone(self.mean, share_inputs=False)
             running_inv_std = theano.clone(self.inv_std, share_inputs=False)
             # set a default update for them:
-            running_mean.default_update = ((1 - self.alpha) * running_mean +
-                                           self.alpha * input_mean.dimshuffle(unpattern))
-            running_inv_std.default_update = ((1 - self.alpha) *
-                                              running_inv_std +
-                                              self.alpha * input_inv_std.dimshuffle(unpattern))
+            running_mean.default_update = (
+                (1 - self.alpha) * running_mean +
+                self.alpha * input_mean.dimshuffle(unpattern))
+            running_inv_std.default_update = (
+                (1 - self.alpha) * running_inv_std +
+                self.alpha * input_inv_std.dimshuffle(unpattern))
             # and make sure they end up in the graph without participating in
             # the computation (this way their default_update will be collected
             # and applied, but the computation will be optimized away):

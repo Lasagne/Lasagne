@@ -524,7 +524,7 @@ def adadelta(loss_or_grads, params, learning_rate=1.0, rho=0.95, epsilon=1e-6):
     .. math::
        r_t &= \\rho r_{t-1} + (1-\\rho)*g^2\\\\
        \\eta_t &= \\eta \\frac{\\sqrt{s_{t-1} + \\epsilon}}
-                             {\sqrt{r_t + \epsilon}}\\\\
+                             {\\sqrt{r_t + \\epsilon}}\\\\
        s_t &= \\rho s_{t-1} + (1-\\rho)*(\\eta_t*g)^2
 
     References

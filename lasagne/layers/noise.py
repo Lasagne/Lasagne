@@ -105,6 +105,7 @@ class DropoutLayer(Layer):
                 mask = T.patternbroadcast(mask, bcast)
             return input * mask
 
+
 dropout = DropoutLayer  # shortcut
 
 
@@ -138,6 +139,7 @@ def dropout_channels(incoming, *args, **kwargs):
     ndim = len(getattr(incoming, 'output_shape', incoming))
     kwargs['shared_axes'] = tuple(range(2, ndim))
     return DropoutLayer(incoming, *args, **kwargs)
+
 
 spatial_dropout = dropout_channels  # alias
 

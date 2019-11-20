@@ -355,6 +355,28 @@ def softplus(x):
     """
     return theano.tensor.nnet.softplus(x)
 
+# mish
+def mish(x):
+    """Mish activation function :math:`\\varphi(x) = x \\cdot \\tanh(\\log(1 + e^x))`
+
+    Parameters
+    ----------
+    x : float32
+        The activation (the summed, weighted input of a neuron).
+
+    Returns
+    -------
+    float32
+        The output of the mish function applied to the activation.
+ 
+     References
+    ----------
+    .. [1] Misra et al. (2019):
+       Mish: A Self Regularized Non-Monotonic Neural Activation Function,
+       https://arxiv.org/abs/1908.08681
+    """
+    return x * tanh(softplus(x))
+
 
 # linear
 def linear(x):

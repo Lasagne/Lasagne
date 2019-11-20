@@ -46,12 +46,13 @@ class EmbeddingLayer(Layer):
     >>> output = get_output(l1, x)
     >>> f = theano.function([x], output)
     >>> x_test = np.array([[0, 2], [1, 2]]).astype('int32')
+    >>> np.set_printoptions(formatter={'float_kind': lambda x: '%2.0f.' % x})
     >>> f(x_test)
-    array([[[  0.,   1.,   2.,   3.,   4.],
-            [ 10.,  11.,  12.,  13.,  14.]],
+    array([[[ 0.,  1.,  2.,  3.,  4.],
+            [10., 11., 12., 13., 14.]],
     <BLANKLINE>
-           [[  5.,   6.,   7.,   8.,   9.],
-            [ 10.,  11.,  12.,  13.,  14.]]], dtype=float32)
+           [[ 5.,  6.,  7.,  8.,  9.],
+            [10., 11., 12., 13., 14.]]], dtype=float32)
     """
     def __init__(self, incoming, input_size, output_size,
                  W=init.Normal(), **kwargs):

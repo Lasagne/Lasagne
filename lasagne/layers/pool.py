@@ -12,6 +12,7 @@ __all__ = [
     "Pool3DLayer",
     "Upscale1DLayer",
     "Upscale2DLayer",
+    "UpscaleBilinear2DLayer",
     "Upscale3DLayer",
     "FeaturePoolLayer",
     "FeatureWTALayer",
@@ -703,6 +704,62 @@ class Upscale2DLayer(Layer):
                 upscaled = T.zeros(shape=output_shape, dtype=input.dtype)
                 upscaled = T.set_subtensor(upscaled[:, :, ::a, ::b], input)
         return upscaled
+
+
+class UpscaleBilinear2DLayer(Layer):
+    """
+    2D bilinear upsampling layer
+
+    Performs 2D upsampling (using bilinear interpolation) over the two trailing
+    axes of a 4D input tensor.
+
+    Parameters
+    ----------
+    incoming : a :class:`Layer` instance or tuple
+        The layer feeding into this layer, or the expected input shape.
+
+    scale_factor : integer
+        The scale factor in each dimension.
+
+    use_1D_kernel : bool
+        Upsample rows and columns separately using 1D kernels, otherwise
+        use a 2D kernel.
+
+    **kwargs
+        Any additional keyword arguments are passed to the :class:`Layer`
+        superclass.
+
+    References
+    -----
+    .. [1] Augustus Odena, Vincent Dumoulin, Chris Olah (2016):
+           Deconvolution and checkerboard artifacts. Distill.
+           http://distill.pub/2016/deconv-checkerboard/
+    """
+    def __init__(self, incoming, scale_factor, use_1D_kernel=True, **kwargs):
+        super(UpscaleBilinear2DLayer, self).__init__(incoming, **kwargs)
+        self.scale_factor = scale_factor
+        self.use_1D_kernel = use_1D_kernel
+
+        if isinstance(self.scale_factor, tuple):
+            raise ValueError('Scale factor must be a scalar, not a tuple')
+        if self.scale_factor < 1:
+            raise ValueError('Scale factor must be >= 1, not {0}'.format(
+                self.scale_factor))
+
+    def get_output_shape_for(self, input_shape):
+        h = input_shape[2]*self.scale_factor \
+            if input_shape[2] != None else None
+        w = input_shape[3]*self.scale_factor \
+            if input_shape[3] != None else None
+        return input_shape[0:2] + tuple([h, w])
+
+    def get_output_for(self, input, **kwargs):
+        return T.nnet.abstract_conv.bilinear_upsampling(
+            input,
+            self.scale_factor,
+            batch_size=self.input_shape[0],
+            num_input_channels=self.input_shape[1],
+            use_1D_kernel=self.use_1D_kernel)
 
 
 class Upscale3DLayer(Layer):

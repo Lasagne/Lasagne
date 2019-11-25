@@ -28,6 +28,7 @@ from . import objectives
 from . import random
 from . import regularization
 from . import updates
+from . import data_source
 from . import utils
 
 

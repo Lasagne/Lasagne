@@ -38,6 +38,7 @@ method, this part of the documentation is for you.
   modules/objectives
   modules/regularization
   modules/random
+  modules/data_source
   modules/utils
 
 Indices and tables

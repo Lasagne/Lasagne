@@ -43,19 +43,30 @@ network with variable batch size and number of time steps.
 >>> # By setting the first two dimensions as None, we are allowing them to vary
 >>> # They correspond to batch size and sequence length, so we will be able to
 >>> # feed in batches of varying size with sequences of varying length.
->>> l_inp = InputLayer((None, None, num_inputs))
->>> # We can retrieve symbolic references to the input variable's shape, which
->>> # we will later use in reshape layers.
->>> batchsize, seqlen, _ = l_inp.input_var.shape
+
+>>> l_inp = InputLayer((None, None, num_inputs), num_leading_axes=-1)
 >>> l_lstm = LSTMLayer(l_inp, num_units=num_units)
+
 >>> # In order to connect a recurrent layer to a dense layer, we need to
->>> # flatten the first two dimensions (our "sample dimensions"); this will
->>> # cause each time step of each sequence to be processed independently
->>> l_shp = ReshapeLayer(l_lstm, (-1, num_units))
->>> l_dense = DenseLayer(l_shp, num_units=num_classes)
->>> # To reshape back to our original shape, we can use the symbolic shape
->>> # variables we retrieved above.
->>> l_out = ReshapeLayer(l_dense, (batchsize, seqlen, num_classes))
+>>> # process time steps of each sequence independently.
+>>> # This will be taken care of by passing the `num_leading_axes`
+>>> # parameter as -1.
+>>> l_dense = DenseLayer(l_lstm, num_units=num_classes, num_leading_axes=-1)
+
+>>> # Another example, showing how to feed the output of `LSTMLayer` to
+>>> # `Conv1DLayer`. The shape for a `Conv1DLayer` is
+>>> # (batch_size, num_input_channels, input_length) and for a
+>>> # recurrent layer(`LSTMLayer` here) is
+>>> # (batch_size, sequence_length, num_input_channels). So, we need to
+>>> # swap the last two dimension to ensure expected behaviour.
+>>> # Note : In this example, if the `Dimshuffle` layer is removed,
+>>> # `ValueError` will be thrown by the virtue of using `None` in the shape.
+>>> l_dshuf = DimshuffleLayer(l_lstm, (0, 2, 1))
+>>> l_conv1D = Conv1DLayer(l_dshuf, num_classes, 1)
+>>> # To reshape back to our original shape, we can use the following symbolic
+>>> # shape variables.
+>>> batchsize, seqlen, _ = l_inp.input_var.shape
+
 """
 import numpy as np
 import theano

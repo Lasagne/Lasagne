@@ -304,9 +304,8 @@ class ElemwiseMergeLayer(MergeLayer):
 
     Parameters
     ----------
-    incomings : a list of :class:`Layer` instances or tuples
-        the layers feeding into this layer, or expected input shapes,
-        with all incoming shapes being equal
+    incomings : Unless `cropping` is given, all shapes must be equal, except
+        for dimensions that are undefined (``None``) or broadcastable (``1``).
 
     merge_function : callable
         the merge function to use. Should take two arguments and return the
@@ -326,9 +325,36 @@ class ElemwiseMergeLayer(MergeLayer):
         super(ElemwiseMergeLayer, self).__init__(incomings, **kwargs)
         self.merge_function = merge_function
         self.cropping = cropping
+        self.broadcastable = None
 
     def get_output_shape_for(self, input_shapes):
         input_shapes = autocrop_array_shapes(input_shapes, self.cropping)
+
+        input_dims = [len(shp) for shp in input_shapes]
+        if not all(input_dim == input_dims[0] for input_dim in input_dims):
+            raise ValueError('Input dimensions must be the same but were %s' %
+                             ", ".join(map(str, input_shapes)))
+
+        def broadcasting(input_dim):
+            # Identify dimensions that will be broadcasted.
+            sorted_dim = sorted(input_dim,
+                                key=lambda x: x if x is not None else -1)
+            if isinstance(sorted_dim[-1], int) and sorted_dim[-1] != 1 \
+                    and all([d == 1 for d in sorted_dim[:-1]]):
+                size_after_broadcast = sorted_dim[-1]
+                broadcast = [True if d == 1 else None for d in input_dim]
+                return ((size_after_broadcast,)*len(input_dim), broadcast)
+            else:
+                return (input_dim, [None]*len(input_dim))
+
+        # if the dimension is broadcastable we replace 1's with the size
+        # after broadcasting.
+        input_dims, broadcastable = list(zip(
+            *[broadcasting(input_dim)for input_dim in zip(*input_shapes)]))
+
+        self.broadcastable = list(zip(*broadcastable))
+        input_shapes = list(zip(*input_dims))
+
         # Infer the output shape by grabbing, for each axis, the first
         # input size that is not `None` (if there is any)
         output_shape = tuple(next((s for s in sizes if s is not None), None)
@@ -346,6 +372,13 @@ class ElemwiseMergeLayer(MergeLayer):
 
     def get_output_for(self, inputs, **kwargs):
         inputs = autocrop(inputs, self.cropping)
+        # modify broadcasting pattern.
+        if self.broadcastable is not None:
+            for n, broadcasting_dim in enumerate(self.broadcastable):
+                for dim, broadcasting in enumerate(broadcasting_dim):
+                    if broadcasting:
+                        inputs[n] = T.addbroadcast(inputs[n], dim)
+
         output = None
         for input in inputs:
             if output is not None:
@@ -362,9 +395,8 @@ class ElemwiseSumLayer(ElemwiseMergeLayer):
 
     Parameters
     ----------
-    incomings : a list of :class:`Layer` instances or tuples
-        the layers feeding into this layer, or expected input shapes,
-        with all incoming shapes being equal
+    incomings : Unless `cropping` is given, all shapes must be equal, except
+        for dimensions that are undefined (``None``) or broadcastable (``1``).
 
     coeffs: list or scalar
         A same-sized list of coefficients, or a single coefficient that

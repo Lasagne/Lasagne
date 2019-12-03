@@ -26,7 +26,10 @@ def get_all_layers(layer, treat_as_input=None):
     instances, including the given layer(s). Its main use is to collect all
     layers of a network just given the output layer(s). The layers are
     guaranteed to be returned in a topological order: a layer in the result
-    list is always preceded by all layers its input depends on.
+    list is always preceded by all layers its input depends on.  For multi-output 
+    networks, a list of all output layers will retrieve all layers in the network. 
+    The layer order will remain identical as long as the output layers are 
+    provided in the same order.
 
     Parameters
     ----------
@@ -308,6 +311,10 @@ def get_all_params(layer, unwrap_shared=True, **tags):
     keyword arguments. For example, ``trainable=True`` will only return
     trainable parameters, and ``regularizable=True`` will only return
     parameters that can be regularized (e.g., by L2 decay).
+    
+    For multi-output networks, a list of all output layers will retrieve all 
+    params in the network. Their order will remain identical as long as 
+    the output layers are provided in the same order.
 
     Parameters
     ----------
@@ -431,6 +438,10 @@ def get_all_param_values(layer, **tags):
 
     This function can be used in conjunction with set_all_param_values to save
     and restore model parameters.
+    
+    For multi-output networks, a list of all output layers will retrieve all 
+    params values in the network. Their order will remain identical as long as 
+    the output layers are provided in the same order.
 
     Parameters
     ----------
@@ -473,6 +484,11 @@ def set_all_param_values(layer, values, **tags):
 
     This function can be used in conjunction with get_all_param_values to save
     and restore model parameters.
+    
+    For multi-output networks, provide a list of all output layers to set
+    the param values for the entire network. To set param values from the 
+    result of get_all_param_values, the list of output layers should be
+    in the same order as the list sent to the call of get_all_param_values. 
 
     Parameters
     ----------

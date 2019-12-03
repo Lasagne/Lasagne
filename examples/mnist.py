@@ -33,12 +33,28 @@ def load_dataset():
     # We first define a download function, supporting both Python 2 and 3.
     if sys.version_info[0] == 2:
         from urllib import urlretrieve
+        URLError = IOError
     else:
-        from urllib.request import urlretrieve
+        from urllib.request import urlretrieve, URLError
 
-    def download(filename, source='http://yann.lecun.com/exdb/mnist/'):
+    def download(filename,
+                 sources=['http://yann.lecun.com/exdb/mnist/',
+                          'https://web.archive.org/web/20150906081542/'
+                          'http://yann.lecun.com/exdb/mnist/',
+                          'https://s3.amazonaws.com/lasagne/recipes/'
+                          'datasets/mnist/']):
         print("Downloading %s" % filename)
-        urlretrieve(source + filename, filename)
+        for source in sources:
+            try:
+                urlretrieve(source + filename, filename)
+            except URLError as exc:
+                if exc.args[-1].args == (-2, 'Name or service not known'):
+                    sources.remove(source)  # do not try this source again
+            else:
+                break  # we were successful!
+        else:
+            print("Could not download from any location. Are you offline?")
+            raise RuntimeError()
 
     # We then define functions for loading MNIST images and labels.
     # For convenience, they also download the requested files if needed.

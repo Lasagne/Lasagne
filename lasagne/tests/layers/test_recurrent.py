@@ -189,6 +189,34 @@ def test_custom_recurrent_arbitrary_shape():
     assert out_shape == (n_batch, n_steps, n_out_filters, width, height)
 
 
+def test_custom_recurrent_arbitrary_shape_with_mask():
+    # Check that the custom recurrent layer can handle more than 1 feature dim
+    # when masking the input
+    n_batch, n_steps, n_channels, width, height = (2, 3, 4, 5, 6)
+    n_out_filters = 7
+    filter_shape = (3, 3)
+    l_in = lasagne.layers.InputLayer(
+        (n_batch, n_steps, n_channels, width, height))
+    l_mask = lasagne.layers.InputLayer((n_batch, n_steps))
+    l_in_to_hid = lasagne.layers.Conv2DLayer(
+        lasagne.layers.InputLayer((None, n_channels, width, height)),
+        n_out_filters, filter_shape, pad='same')
+    l_hid_to_hid = lasagne.layers.Conv2DLayer(
+        lasagne.layers.InputLayer((None, n_out_filters, width, height)),
+        n_out_filters, filter_shape, pad='same')
+    l_rec = lasagne.layers.CustomRecurrentLayer(
+        l_in, l_in_to_hid, l_hid_to_hid, mask_input=l_mask)
+    assert l_rec.output_shape == (n_batch, n_steps, n_out_filters, width,
+                                  height)
+    out = theano.function([l_in.input_var, l_mask.input_var],
+                          lasagne.layers.get_output(l_rec))
+    out_shape = out(np.zeros((n_batch, n_steps, n_channels, width, height),
+                             dtype=theano.config.floatX),
+                    np.zeros((n_batch, n_steps),
+                             dtype=theano.config.floatX)).shape
+    assert out_shape == (n_batch, n_steps, n_out_filters, width, height)
+
+
 def test_custom_recurrent_arbitrary_depth():
     # Check that the custom recurrent layer can handle a hidden-to-hidden
     # network with an arbitrary depth

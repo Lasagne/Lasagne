@@ -248,50 +248,43 @@ def main(model='mlp', num_epochs=500):
     test_prediction = lasagne.layers.get_output(network, deterministic=True)
     test_loss = lasagne.objectives.categorical_crossentropy(test_prediction,
                                                             target_var)
-    # As a bonus, also create an expression for the classification accuracy:
-    test_acc = T.eq(T.argmax(test_prediction, axis=1), target_var)
+    # Create an expression for the number of errors in the mini-batch.
+    # This will be used for the validation score:
+    test_err_sum = T.sum(T.neq(T.argmax(test_prediction, axis=1), target_var),
+                         dtype=theano.config.floatX)
 
     # Compile a function performing a training step on a mini-batch (by giving
-    # the updates dictionary) and returning the corresponding sum of
-    # the training losses:
-    train_fn = theano.function([input_var, target_var], loss.sum(),
+    # the updates dictionary). Return the sum of the losses over the
+    # mini-batch in a list:
+    train_fn = theano.function([input_var, target_var], [loss.sum()],
                                updates=updates)
 
-    # Compile a second function computing the sum of the validation losses and
-    # accuracy:
-    val_fn = theano.function([input_var, target_var],
-                             [test_loss.sum(), test_acc.sum()])
+    # Compile a second function computing the error rate (first element,
+    # as Trainer uses the first value from the validation results to
+    # determine when the network has the best validation score) and
+    # validation loss sum:
+    eval_fn = theano.function([input_var, target_var],
+                              [test_err_sum, test_loss.sum()])
 
-    # Finally, launch the training loop.
-    rng = lasagne.random.get_rng()
-    print("Starting training...")
-    # We iterate over epochs:
-    for epoch in range(num_epochs):
-        # In each epoch, we do a full pass over the training data:
-        start_time = time.time()
-        [train_loss] = lasagne.batch.mean_batch_map(
-            train_fn, [X_train, y_train], 500, shuffle_rng=rng)
-
-        # And a full pass over the validation data:
-        [val_loss, val_acc] = lasagne.batch.mean_batch_map(
-            val_fn, [X_val, y_val], 500)
-
-        # Then we print the results for this epoch:
-        print("Epoch {} of {} took {:.3f}s".format(
-            epoch + 1, num_epochs, time.time() - start_time))
-        print("  training loss:\t\t{:.6f}".format(train_loss))
-        print("  validation loss:\t\t{:.6f}".format(val_loss))
-        print("  validation accuracy:\t\t{:.2f} %".format(
-            val_acc * 100))
-
-    # After training, we compute and print the test error:
-    [test_loss, test_acc] = lasagne.batch.mean_batch_map(
-        val_fn, [X_test, y_test], 500)
-
-    print("Final results:")
-    print("  test loss:\t\t\t{:.6f}".format(test_loss))
-    print("  test accuracy:\t\t{:.2f} %".format(
-        test_acc * 100))
+    # Set off the training loop:
+    # - provide the datasets train, validation and test
+    # - provide batch size
+    # - batch training function
+    # - training log message template (OPTIONAL)
+    # - evaluation (validation/test) function
+    # - evaluation log message template (OPTIONAL)
+    # - number of epochs
+    # - layer to restore; this way the network will be set back to its
+    #   state when it achieved the best validation score
+    # - random number generator to shuffle training samples (just for show
+    #   here since it would use `lasagne.random.get_rng()` anyway
+    # We could also specify verbosity (`verbosity` argument) and
+    # provide a random number generator for shuffling (`shuffle_rng` argument)
+    res = lasagne.trainer.train(
+        [X_train, y_train], [X_val, y_val], [X_test, y_test], batchsize=500,
+        train_batch_func=train_fn, train_log_msg='loss={:.6f}',
+        eval_batch_func=eval_fn, eval_log_msg='err={:.2%}, loss={:.6f}',
+        num_epochs=num_epochs, layer_to_restore=network)
 
     # Optionally, you could now dump the network weights to a file like this:
     # np.savez('model.npz', *lasagne.layers.get_all_param_values(network))

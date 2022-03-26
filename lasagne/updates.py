@@ -401,7 +401,7 @@ def adagrad(loss_or_grads, params, learning_rate=1.0, epsilon=1e-6):
            optimization. JMLR, 12:2121-2159.
 
     .. [2] Chris Dyer:
-           Notes on AdaGrad. http://www.ark.cs.cmu.edu/cdyer/adagrad.pdf
+           Notes on AdaGrad.
     """
 
     grads = get_or_compute_grads(loss_or_grads, params)
